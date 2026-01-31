@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+/* Brand variables (Ridge Park) */
+:root {
+  --brand-maroon: #6f1b27;
+  --brand-navy: #1f2a44;
+  --brand-gold: #e0c15a;
+
+  --background: #f2ede4;
+  --surface: #fffaf2;
+
+  --text-primary: #1f2a44;
+  --text-muted: #6b7280;
+
+  --border-subtle: #e7d7bf;
+
+  --danger: #dc2626;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--text-primary);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background:
+    radial-gradient(900px 500px at 90% 10%, rgba(31, 42, 68, 0.10), transparent 60%),
+    radial-gradient(1100px 620px at 50% -200px, rgba(224, 193, 90, 0.18), transparent 65%),
+    var(--background);
+  color: var(--text-primary);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Global background logo */
+.app-bg-logo {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+
+  background-image: url("/ridgepark-logo.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: min(90vw, 560px);
+
+  opacity: 0.22;
+  filter: saturate(1.1) contrast(1.05);
+  mix-blend-mode: multiply;
+}
+
+/* Reusable surfaces */
+.surface-card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.75rem;
+}
+
+/* Global button classes (use these everywhere) */
+.hb-btn {
+  border-radius: 9999px;
+  border: 1px solid var(--brand-maroon);
+  padding: 0.5rem 1rem;
+  font-weight: 700;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.hb-btn-primary {
+  background: var(--brand-maroon);
+  color: #ffffff;
+}
+
+.hb-btn-primary:hover {
+  background: var(--brand-navy);
+  border-color: var(--brand-navy);
+}
+
+.hb-btn-ghost {
+  background: #ffffff;
+  color: var(--brand-maroon);
+}
+
+.hb-btn-ghost:hover {
+  background: var(--brand-maroon);
+  color: #ffffff;
+}
+
+.hb-btn-danger {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: #ffffff;
+}
+
+.hb-btn-danger:hover {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+/* IMPORTANT: Global remap for any leftover Tailwind greens */
+.bg-green-700,
+.bg-green-600,
+.bg-green-800 {
+  background-color: var(--brand-maroon) !important;
+}
+
+.border-green-700,
+.border-green-600,
+.border-green-800 {
+  border-color: var(--brand-maroon) !important;
+}
+
+.text-green-700,
+.text-green-600,
+.text-green-800 {
+  color: var(--brand-maroon) !important;
+}
+
+.hover\:bg-green-700:hover,
+.hover\:bg-green-600:hover,
+.hover\:bg-green-800:hover {
+  background-color: var(--brand-navy) !important;
+}
+
+.hover\:border-green-700:hover,
+.hover\:border-green-600:hover,
+.hover\:border-green-800:hover {
+  border-color: var(--brand-navy) !important;
+}
+
+.hover\:text-green-700:hover,
+.hover\:text-green-600:hover,
+.hover\:text-green-800:hover {
+  color: var(--brand-navy) !important;
+}
+
+/* Focus ring remap (if used) */
+.ring-green-700,
+.ring-green-600,
+.ring-green-800 {
+  --tw-ring-color: var(--brand-maroon) !important;
+}
+
+.focus\:ring-green-700:focus,
+.focus\:ring-green-600:focus,
+.focus\:ring-green-800:focus {
+  --tw-ring-color: var(--brand-maroon) !important;
+}
