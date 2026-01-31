@@ -220,7 +220,11 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: `Expected ${p} teams for Round ${nextRoundNo}, found ${entries.length}` }, { status: 400 });
       }
 
-      entries.sort((a, b) => a.slot - b.slot || a.team_id.localeCompare(b.team_id));
+      entries.sort(
+        (a, b) =>
+          a.slot - b.slot ||
+          String(a.team_id ?? a.source_match_id ?? "").localeCompare(String(b.team_id ?? b.source_match_id ?? ""))
+      );
 
       for (let i = 0; i < entries.length; i += 2) {
         const aEntry = entries[i] ?? null;
