@@ -199,7 +199,7 @@ export async function POST(req: Request) {
         const bNo = m.team_b_id ? teamNoById.get(String(m.team_b_id)) : undefined;
         let slot = Math.min(aNo ?? Number.POSITIVE_INFINITY, bNo ?? Number.POSITIVE_INFINITY);
         if (!Number.isFinite(slot)) {
-          slot = teamNoById.get(winnerId) ?? Number.POSITIVE_INFINITY;
+          slot = winnerId ? teamNoById.get(winnerId) ?? Number.POSITIVE_INFINITY : Number.POSITIVE_INFINITY;
         }
         if (!Number.isFinite(slot)) slot = 999999;
 
