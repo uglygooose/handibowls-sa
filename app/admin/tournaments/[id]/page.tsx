@@ -508,6 +508,14 @@ export default function AdminTournamentDetailPage() {
     return teamLabel(teamId);
   }
 
+  function teamMembersLine(teamId: string | null) {
+    if (!teamId) return "—";
+    const memberIds = teamMembersByTeamId[teamId] ?? [];
+    const names = memberIds.map((pid) => nameByPlayerId[pid]).filter(Boolean);
+    if (tournament?.format === "SINGLES") return (names[0] as string) ?? teamLabel(teamId);
+    return names.length ? (names as string[]).join(" • ") : teamLabel(teamId);
+  }
+
   function winnerLabelForMatch(matchId: string | null | undefined) {
     if (!matchId) return "Winner";
     const no = matchNoById[matchId];
