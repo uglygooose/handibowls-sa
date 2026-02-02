@@ -103,7 +103,7 @@ export default function MatchPage() {
 
     if (!profErr && prof) {
       const role = String((prof as any).role ?? "").toUpperCase();
-      setIsAdmin(Boolean((prof as ProfileRow).is_admin) || role === "SUPER_ADMIN");
+      setIsAdmin(Boolean((prof as any).is_admin) || role === "SUPER_ADMIN");
     } else {
       setIsAdmin(false);
     }
