@@ -726,7 +726,7 @@ export default function AdminTournamentsPage() {
           padding: 12,
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
           <div style={{ fontWeight: 900, fontSize: 15, minWidth: 0 }}>
             <div
               style={{
@@ -774,32 +774,23 @@ export default function AdminTournamentsPage() {
             </div>
           </div>
         </div>
-        <div style={{ marginTop: 6, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-          <div>
-            <span style={{ fontWeight: 800, color: theme.text }}>Scope:</span> {scopeLabel(t.scope)}
-          </div>
-          <div>
-            <span style={{ fontWeight: 800, color: theme.text }}>Gender:</span> {genderLabel(t.gender ?? null)}
-          </div>
-          <div>
-            <span style={{ fontWeight: 800, color: theme.text }}>Entries:</span> {count} •{" "}
-            <span style={{ fontWeight: 900, color: entriesOpen ? theme.maroon : theme.danger }}>{lockedLabel}</span>
-          </div>
-          <div>
-            <span style={{ fontWeight: 800, color: theme.text }}>Teams:</span>{" "}
-            {hasTeams ? teamsByTournamentId[t.id].length : 0} •{" "}
-            <span style={{ fontWeight: 800, color: theme.text }}>Matches:</span> {matchCount}
-          </div>
-          {t.starts_at ? (
-            <div>
-              <span style={{ fontWeight: 800, color: theme.text }}>Starts:</span> {new Date(t.starts_at).toLocaleString()}
-            </div>
-          ) : null}
-          {t.ends_at ? (
-            <div>
-              <span style={{ fontWeight: 800, color: theme.text }}>Ends:</span> {new Date(t.ends_at).toLocaleString()}
-            </div>
-          ) : null}
+        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
+            {scopeLabel(t.scope)}
+          </span>
+          <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
+            {genderLabel(t.gender ?? null)}
+          </span>
+          <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
+            {statusLabel(t.status)}
+          </span>
+        </div>
+
+        <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 13, color: theme.muted }}>
+          <div><span style={{ fontWeight: 800, color: theme.text }}>Entries</span> {count} ? <span style={{ fontWeight: 900, color: entriesOpen ? theme.maroon : theme.danger }}>{lockedLabel}</span></div>
+          <div><span style={{ fontWeight: 800, color: theme.text }}>Teams</span> {hasTeams ? teamsByTournamentId[t.id].length : 0} ? <span style={{ fontWeight: 800, color: theme.text }}>Matches</span> {matchCount}</div>
+          <div><span style={{ fontWeight: 800, color: theme.text }}>Starts</span> {t.starts_at ? new Date(t.starts_at).toLocaleString() : "TBC"}</div>
+          <div><span style={{ fontWeight: 800, color: theme.text }}>Ends</span> {t.ends_at ? new Date(t.ends_at).toLocaleString() : "TBC"}</div>
         </div>
 
         <div style={{ marginTop: 10, display: "grid", gap: 8 }}>

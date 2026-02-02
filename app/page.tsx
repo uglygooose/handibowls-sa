@@ -41,6 +41,7 @@ type PlayerMini = {
 
 type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
 type TournamentGender = "MALE" | "FEMALE" | null;
+type GenderFilter = "ALL" | "MALE" | "FEMALE";
 type TournamentRule = "SCRATCH" | "HANDICAP_START";
 
 type TournamentMini = {
@@ -97,13 +98,14 @@ export default function HomePage() {
 
   const [clubLeaderboard, setClubLeaderboard] = useState<PlayerMini[]>([]);
   const [clubLbNote, setClubLbNote] = useState<string | null>(null);
+  const [clubLbGender, setClubLbGender] = useState<GenderFilter>("ALL");
   const [upcoming, setUpcoming] = useState<TournamentMini[]>([]);
   const [upcomingNote, setUpcomingNote] = useState<string | null>(null);
   const [clubNameById, setClubNameById] = useState<Record<string, string>>({});
 
   const [error, setError] = useState<string | null>(null);
 
-  async function loadClubLeaderboardPreview(clubIdIn: string) {
+  async function loadClubLeaderboardPreview(clubIdIn: string, genderFilter: GenderFilter) {
     setClubLbNote(null);
     setClubLeaderboard([]);
 
@@ -120,65 +122,120 @@ export default function HomePage() {
       .eq("club_id", clubIdIn)
       .maybeSingle();
 
-    if (ladderRes.error || !ladderRes.data?.id) {
-      setClubLbNote("Club ladder not found yet.");
+    const ladderId = ladderRes.data?.id ?? null;
+
+    let playerIds: string[] = [];
+
+    if (ladderId) {
+      const le = await supabase
+        .from("ladder_entries")
+        .select("player_id, points, shot_diff, shots_for")
+        .eq("ladder_id", ladderId)
+        .order("points", { ascending: false })
+        .order("shot_diff", { ascending: false })
+        .order("shots_for", { ascending: false })
+        .limit(50);
+
+      if (!le.error) {
+        const entries = (le.data ?? []) as LadderEntryRow[];
+        playerIds = entries.map((e) => e.player_id);
+
+        if (playerIds.length) {
+          const pRes = await supabase
+            .from("players")
+            .select("id, user_id, display_name, handicap, gender")
+            .in("id", playerIds);
+
+          if (!pRes.error) {
+            const players = (pRes.data ?? []) as { id: string; user_id: string | null; display_name?: string | null; gender?: string | null }[];
+            const filteredPlayers = genderFilter === "ALL" ? players : players.filter((p) => (p.gender ?? "") === genderFilter);
+            const userIds = Array.from(new Set(filteredPlayers.map((p) => p.user_id).filter(Boolean) as string[]));
+
+            let nameByUserId = new Map<string, string>();
+            if (userIds.length) {
+              const prRes = await supabase.from("profiles").select("id, full_name").in("id", userIds);
+              if (!prRes.error) {
+                const profiles = (prRes.data ?? []) as { id: string; full_name: string | null }[];
+                nameByUserId = new Map(profiles.map((p) => [p.id, p.full_name ?? "Unknown"]));
+              }
+            }
+
+            const playerById = new Map(filteredPlayers.map((p) => [p.id, p]));
+            const preview = (le.data ?? [])
+              .map((e: any) => {
+                const pl = playerById.get(e.player_id);
+                if (!pl) return null;
+                const dn = (pl.display_name ?? "").trim();
+                return {
+                  player_id: e.player_id,
+                  name: dn || nameByUserId.get(pl.user_id ?? "") || "Unknown",
+                  points: e.points ?? 0,
+                  shot_diff: e.shot_diff ?? 0,
+                  shots_for: e.shots_for ?? 0,
+                } as PlayerMini;
+              })
+              .filter(Boolean) as PlayerMini[];
+
+            if (preview.length) {
+              setClubLeaderboard(preview.slice(0, 6));
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback: alphabetical players by club
+    const { data: clubProfiles, error: cpErr } = await supabase.from("profiles").select("id, full_name").eq("club_id", clubIdIn);
+    if (cpErr) {
+      setClubLbNote("Could not load club members.");
       return;
     }
 
-    const ladderId = ladderRes.data.id;
+    const userIds = (clubProfiles ?? []).map((p: any) => p.id);
+    const { data: playersByUser, error: puErr } = userIds.length
+      ? await supabase.from("players").select("id, user_id, display_name, gender").in("user_id", userIds)
+      : { data: [], error: null };
 
-    // 2) Fetch top ladder entries
-    const le = await supabase
-      .from("ladder_entries")
-      .select("player_id, points, shot_diff, shots_for")
-      .eq("ladder_id", ladderId)
-      .order("points", { ascending: false })
-      .order("shot_diff", { ascending: false })
-      .order("shots_for", { ascending: false })
-      .limit(10);
-
-    if (le.error) {
-      setClubLbNote("Could not load club leaderboard.");
+    if (puErr) {
+      setClubLbNote("Could not load club members.");
       return;
     }
 
-    const entries = (le.data ?? []) as LadderEntryRow[];
-    if (!entries.length) {
+    const { data: playersByClub, error: pcErr } = await supabase
+      .from("players")
+      .select("id, user_id, display_name, gender")
+      .eq("club_id", clubIdIn);
+
+    if (pcErr) {
+      setClubLbNote("Could not load club members.");
+      return;
+    }
+
+    const allPlayers = new Map<string, { id: string; user_id: string | null; display_name?: string | null; gender?: string | null }>();
+    for (const p of (playersByUser ?? [])) allPlayers.set(String((p as any).id), p as any);
+    for (const p of (playersByClub ?? [])) allPlayers.set(String((p as any).id), p as any);
+
+    const profiles = (clubProfiles ?? []) as { id: string; full_name: string | null }[];
+    const nameByUser = new Map(profiles.map((p) => [p.id, p.full_name ?? "Unknown"]));
+
+    const filtered = Array.from(allPlayers.values()).filter((p) =>
+      genderFilter === "ALL" ? true : (p.gender ?? "") === genderFilter
+    );
+
+    const preview = filtered
+      .map((p) => {
+        const dn = (p.display_name ?? "").trim();
+        const name = dn || nameByUser.get(p.user_id ?? "") || "Unknown";
+        return { player_id: String(p.id), name, points: 0, shot_diff: 0, shots_for: 0 } as PlayerMini;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+      .slice(0, 6);
+
+    if (!preview.length) {
       setClubLbNote("No ladder entries yet.");
       return;
     }
-
-    // 3) Map player_id -> user_id
-    const playerIds = entries.map((e) => e.player_id);
-    const pRes = await supabase.from("players").select("id, user_id").in("id", playerIds);
-
-    if (pRes.error) {
-      setClubLbNote("Could not resolve player names.");
-      return;
-    }
-
-    const players = (pRes.data ?? []) as { id: string; user_id: string }[];
-    const userIds = Array.from(new Set(players.map((p) => p.user_id)));
-
-    // 4) Map user_id -> profile full_name
-    const prRes = await supabase.from("profiles").select("id, full_name").in("id", userIds);
-
-    if (prRes.error) {
-      setClubLbNote("Could not resolve player names.");
-      return;
-    }
-
-    const profiles = (prRes.data ?? []) as { id: string; full_name: string | null }[];
-    const nameByUserId = new Map(profiles.map((p) => [p.id, p.full_name ?? "Unknown"]));
-    const userIdByPlayerId = new Map(players.map((p) => [p.id, p.user_id]));
-
-    const preview: PlayerMini[] = entries.map((e) => ({
-      player_id: e.player_id,
-      name: nameByUserId.get(userIdByPlayerId.get(e.player_id) ?? "") ?? "Unknown",
-      points: e.points ?? 0,
-      shot_diff: e.shot_diff ?? 0,
-      shots_for: e.shots_for ?? 0,
-    }));
 
     setClubLeaderboard(preview);
   }
@@ -338,10 +395,6 @@ export default function HomePage() {
 
     setClubName(resolvedClub);
 
-    if (cid) {
-      await loadClubLeaderboardPreview(cid);
-    }
-
     await loadUpcoming(g);
 
     setLoading(false);
@@ -351,6 +404,12 @@ export default function HomePage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!clubId) return;
+    loadClubLeaderboardPreview(clubId, clubLbGender);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clubId, clubLbGender]);
 
   return (
     <div style={{ background: theme.background, minHeight: "100vh", color: theme.text, paddingBottom: 92 }}>
@@ -696,6 +755,59 @@ export default function HomePage() {
             >
               View full
             </a>
+          </div>
+
+          <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => setClubLbGender("ALL")}
+              style={{
+                border: `1px solid ${theme.border}`,
+                background: clubLbGender === "ALL" ? theme.maroon : "#fff",
+                color: clubLbGender === "ALL" ? "#fff" : theme.text,
+                padding: "8px 10px",
+                borderRadius: 999,
+                fontWeight: 900,
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              All
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setClubLbGender("MALE")}
+              style={{
+                border: `1px solid ${theme.border}`,
+                background: clubLbGender === "MALE" ? theme.maroon : "#fff",
+                color: clubLbGender === "MALE" ? "#fff" : theme.text,
+                padding: "8px 10px",
+                borderRadius: 999,
+                fontWeight: 900,
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              Men
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setClubLbGender("FEMALE")}
+              style={{
+                border: `1px solid ${theme.border}`,
+                background: clubLbGender === "FEMALE" ? theme.maroon : "#fff",
+                color: clubLbGender === "FEMALE" ? "#fff" : theme.text,
+                padding: "8px 10px",
+                borderRadius: 999,
+                fontWeight: 900,
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              Ladies
+            </button>
           </div>
 
           <div style={{ marginTop: 10 }}>

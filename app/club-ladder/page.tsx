@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import BottomNav from "../components/BottomNav";
 
 type MatchType = "RANKED" | "FRIENDLY";
+type PlayerGender = "MALE" | "FEMALE" | "";
 
 type LadderEntry = {
   // NOTE: position in DB may be stale; UI uses computed position
@@ -78,6 +79,7 @@ type LadderMetaRow = {
 
 type Scope = "CLUB" | "DISTRICT" | "NATIONAL";
 type GenderFilter = "ALL" | "MALE" | "FEMALE";
+type LadderFormat = "ALL" | "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
 function safeDateLabel(iso: string) {
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return "";
@@ -128,10 +130,14 @@ export default function ClubLadderPage() {
   const [scope, setScope] = useState<Scope>("CLUB");
   const [viewType, setViewType] = useState<MatchType>("RANKED"); // Ranked/Friendly toggle for lists + create
   const [genderFilter, setGenderFilter] = useState<GenderFilter>("ALL");
+  const [formatFilter, setFormatFilter] = useState<LadderFormat>("SINGLES");
+  const [filtersReady, setFiltersReady] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<LadderRow[]>([]);
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
+  const [myGender, setMyGender] = useState<PlayerGender>("" );
+  const [genderByPlayerId, setGenderByPlayerId] = useState<Record<string, PlayerGender>>({});
 
   // IMPORTANT: this is now a COMPUTED position (based on sorted ladder)
   const [myPosition, setMyPosition] = useState<number | null>(null);
@@ -158,6 +164,9 @@ export default function ClubLadderPage() {
   // --- Horizontal scroll sync: header scrollbar controls row stats scroll ---
   const headerStatsScrollRef = useRef<HTMLDivElement | null>(null);
   const rowStatsRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const filtersFromStorageRef = useRef(false);
+  const listScrollRef = useRef<HTMLDivElement | null>(null);
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   function syncStatsScroll(left: number) {
     const map = rowStatsRefs.current;
@@ -224,7 +233,7 @@ export default function ClubLadderPage() {
     // Load my player
     const { data: mePlayer, error: meErr } = await supabase
       .from("players")
-      .select("id")
+      .select("id, gender")
       .eq("user_id", user.id)
       .single();
 
@@ -233,6 +242,8 @@ export default function ClubLadderPage() {
       setRows([]);
       setMyPlayerId(null);
       setMyPosition(null);
+      setMyGender("");
+      setGenderByPlayerId({});
       setRecentMatches([]);
       setPendingMatches([]);
       setNameByPlayerId(new Map());
@@ -241,6 +252,15 @@ export default function ClubLadderPage() {
     }
 
     setMyPlayerId(mePlayer.id);
+    setMyGender(((mePlayer as any).gender ?? "") as PlayerGender);
+    if (!filtersFromStorageRef.current) {
+      setScope("CLUB");
+      setViewType("RANKED");
+      setFormatFilter("SINGLES");
+      if (((mePlayer as any).gender ?? "") === "MALE" || ((mePlayer as any).gender ?? "") === "FEMALE") {
+        setGenderFilter(((mePlayer as any).gender ?? "") as GenderFilter);
+      }
+    }
 
     // Load ladders
     const { data: ladders, error: lErr } = await supabase.from("ladders").select("id, scope, club_id, district_id");
@@ -414,6 +434,7 @@ export default function ClubLadderPage() {
         setRecentMatches([]);
         setPendingMatches([]);
         setNameByPlayerId(new Map());
+        setGenderByPlayerId({});
         setLoading(false);
         return;
       }
@@ -436,6 +457,11 @@ export default function ClubLadderPage() {
       }
 
       const playerRows = (players ?? []) as PlayerRow[];
+      const genderMap: Record<string, PlayerGender> = {};
+      for (const p of playerRows) {
+        genderMap[p.id] = ((p.gender ?? "") as PlayerGender) || "";
+      }
+      setGenderByPlayerId(genderMap);
 
       const userIds = playerRows.map((p) => p.user_id).filter(Boolean) as string[];
       const { data: profiles, error: prErr } =
@@ -496,6 +522,11 @@ export default function ClubLadderPage() {
     }
 
     const playerRows = (players ?? []) as PlayerRow[];
+    const genderMap: Record<string, PlayerGender> = {};
+    for (const p of playerRows) {
+      genderMap[p.id] = ((p.gender ?? "") as PlayerGender) || "";
+    }
+    setGenderByPlayerId(genderMap);
     const userIds = playerRows.map((p) => p.user_id).filter(Boolean) as string[];
 
     const { data: profiles, error: e3 } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
@@ -673,9 +704,55 @@ export default function ClubLadderPage() {
   }
 
   useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("clubLadderFilters");
+      if (raw) {
+        filtersFromStorageRef.current = true;
+        const parsed = JSON.parse(raw) as {
+          scope?: Scope;
+          viewType?: MatchType;
+          gender?: GenderFilter;
+          format?: LadderFormat;
+        };
+
+        if (parsed.scope) setScope(parsed.scope);
+        if (parsed.viewType) setViewType(parsed.viewType);
+        if (parsed.gender) setGenderFilter(parsed.gender);
+        if (parsed.format) setFormatFilter(parsed.format);
+      }
+    } catch {}
+    setFiltersReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!filtersReady) return;
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope, viewType, genderFilter]);
+  }, [filtersReady, scope, viewType, genderFilter]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "clubLadderFilters",
+        JSON.stringify({
+          scope,
+          viewType,
+          gender: genderFilter,
+          format: formatFilter,
+        })
+      );
+    } catch {}
+  }, [scope, viewType, genderFilter, formatFilter]);
+
+  useEffect(() => {
+    if (!listScrollRef.current || !myPlayerId || !rows.length) return;
+    const row = rowRefs.current[myPlayerId];
+    if (!row) return;
+
+    const container = listScrollRef.current;
+    const targetTop = row.offsetTop - container.clientHeight / 2 + row.clientHeight / 2;
+    container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+  }, [rows, myPlayerId, scope, viewType, genderFilter]);
 
   async function createChallenge(challenged_player_id: string) {
     setNotice(null);
@@ -723,7 +800,7 @@ export default function ClubLadderPage() {
   }
 
   // --- Stats helpers (display-only) ---
-  const statsCols = "2.5ch 1ch  1.8ch 1.8ch 1.8ch 1.8ch  1ch  3.2ch 3.2ch 3.2ch";
+  const statsCols = "3ch 1ch  2ch 2ch 2ch 2ch  1ch  3.2ch 3.2ch 3.2ch";
   const statsGridBase: React.CSSProperties = {
     display: "grid",
     gridTemplateColumns: statsCols,
@@ -749,176 +826,198 @@ export default function ClubLadderPage() {
 
     return (
       <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 8 }}>
-        {/* Table header */}
         <div
+          ref={listScrollRef}
           style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 5,
-            background: theme.surface,
-            boxShadow: "0 2px 0 rgba(0,0,0,0.02)",
-
-            display: "grid",
-            gridTemplateColumns: "44px minmax(0, 1fr) 72px minmax(0, 1fr)",
-            gap: 10,
-            padding: "8px 10px",
-            borderBottom: `1px solid ${theme.border}`,
-            color: theme.muted,
-            fontSize: 12,
-            fontWeight: 900,
-            alignItems: "center",
+            maxHeight: 560,
+            overflowY: "auto",
+            paddingBottom: 2,
           }}
         >
-          <div>#</div>
-          <div>Player</div>
-          <div />
+          {/* Table header */}
           <div
-            ref={headerStatsScrollRef}
-            onScroll={onHeaderStatsScroll}
             style={{
-              overflowX: "auto",
-              overflowY: "hidden",
-              WebkitOverflowScrolling: "touch" as any,
+              position: "sticky",
+              top: 0,
+              zIndex: 5,
+              background: theme.surface,
+              boxShadow: "0 2px 0 rgba(0,0,0,0.02)",
+
+              display: "grid",
+              gridTemplateColumns: "44px minmax(0, 1fr) 72px minmax(0, 1fr)",
+              gap: 10,
+              padding: "10px 10px",
+              borderBottom: `1px solid ${theme.border}`,
+              color: theme.muted,
+              fontSize: 12,
+              fontWeight: 900,
+              alignItems: "center",
             }}
           >
-            <div style={statsGridBase}>
-              <div>PTS</div>
-              <div style={{ textAlign: "center" }}>*</div>
-              <div>P</div>
-              <div>W</div>
-              <div>D</div>
-              <div>L</div>
-              <div style={{ textAlign: "center" }}>*</div>
-              <div>SD</div>
-              <div>SF</div>
-              <div>SA</div>
-            </div>
-          </div>
-        </div>
-
-        {rows.map((r, idx) => {
-          const computedPos = idx + 1;
-          const eligible = isEligible(computedPos, r.player_id);
-          const isMe = myPlayerId === r.player_id;
-
-          const buttonTitle =
-            viewType === "RANKED"
-              ? eligible
-                ? "Create a ranked challenge (±2 rule)"
-                : "Ranked challenges must be within ±2 positions"
-              : eligible
-              ? "Create a friendly match (no ladder impact)"
-              : "Cannot challenge yourself";
-
-          return (
+            <div>#</div>
+            <div>Player</div>
+            <div />
             <div
-              key={r.player_id}
+              ref={headerStatsScrollRef}
+              onScroll={onHeaderStatsScroll}
               style={{
-                display: "grid",
-                gridTemplateColumns: "44px minmax(0, 1fr) 72px minmax(0, 1fr)",
-                gap: 10,
-                alignItems: "center",
-                padding: "10px 10px",
-                borderBottom: idx === rows.length - 1 ? "none" : `1px dashed ${theme.border}`,
+                overflowX: "auto",
+                overflowY: "hidden",
+                WebkitOverflowScrolling: "touch" as any,
               }}
             >
-              {/* Position */}
-              <div
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 12,
-                  background: "rgba(46,125,50,.10)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: theme.maroon,
-                  fontWeight: 900,
-                }}
-              >
-                {computedPos}
-              </div>
-
-              {/* Player */}
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    fontWeight: 900,
-                    fontSize: 18,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {r.full_name} {isMe ? "(You)" : ""}
-                </div>
-                <div style={{ marginTop: 2, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
-                  Handicap {Number(r.handicap).toFixed(1)}
-                </div>
-              </div>
-
-              {/* Action */}
-              <div style={{ display: "flex", justifyContent: "flex-start" }}>
-                {!isMe && (
-                  <button
-                    disabled={!eligible}
-                    onClick={() => eligible && createChallenge(r.player_id)}
-                    style={{
-                      border: eligible ? "none" : `1px solid ${theme.border}`,
-                      background: eligible ? theme.maroon : "transparent",
-                      color: eligible ? "#fff" : theme.muted,
-                      padding: "6px 10px",
-                      borderRadius: 999,
-                      fontWeight: 900,
-                      fontSize: 13,
-                      cursor: eligible ? "pointer" : "not-allowed",
-                      opacity: eligible ? 1 : 0.55,
-                      minWidth: 54,
-                    }}
-                    title={buttonTitle}
-                  >
-                    Play
-                  </button>
-                )}
-              </div>
-
-              {/* Stats (scroll controlled by header only) */}
-              <div
-                ref={(el) => {
-                  if (el) rowStatsRefs.current[r.player_id] = el;
-                  else delete rowStatsRefs.current[r.player_id];
-                }}
-                style={{
-                  overflowX: "hidden",
-                  overflowY: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    ...statsGridBase,
-                    fontSize: 13,
-                    fontWeight: 900,
-                    color: theme.muted,
-                  }}
-                >
-                  <div style={{ color: theme.text, textAlign: "right" }}>{valOrDash(r.points, showDash)}</div>
-                  <div style={{ textAlign: "center" }}>*</div>
-
-                  <div style={{ textAlign: "right" }}>{valOrDash(r.played, showDash)}</div>
-                  <div style={{ textAlign: "right" }}>{valOrDash(r.won, showDash)}</div>
-                  <div style={{ textAlign: "right" }}>{valOrDash(r.drawn, showDash)}</div>
-                  <div style={{ textAlign: "right" }}>{valOrDash(r.lost, showDash)}</div>
-
-                  <div style={{ textAlign: "center" }}>*</div>
-
-                  <div style={{ textAlign: "right" }}>{valOrDash(r.shot_diff, showDash)}</div>
-                  <div style={{ textAlign: "right" }}>{valOrDash(r.shots_for, showDash)}</div>
-                  <div style={{ textAlign: "right" }}>{valOrDash(r.shots_against, showDash)}</div>
-                </div>
+              <div style={statsGridBase}>
+                <div>PTS</div>
+                <div style={{ textAlign: "center" }}>*</div>
+                <div>P</div>
+                <div>W</div>
+                <div>D</div>
+                <div>L</div>
+                <div style={{ textAlign: "center" }}>*</div>
+                <div>SD</div>
+                <div>SF</div>
+                <div>SA</div>
               </div>
             </div>
-          );
-        })}
+          </div>
+
+          <div style={{ display: "grid", gap: 6, padding: "8px 8px 6px" }}>
+            {rows.map((r, idx) => {
+              const computedPos = idx + 1;
+              const eligible = isEligible(computedPos, r.player_id);
+              const isMe = myPlayerId === r.player_id;
+              const targetGender = genderByPlayerId[r.player_id] ?? "";
+              const canChallengeGender = !!myGender && !!targetGender && myGender === targetGender;
+
+              const buttonTitle =
+                viewType === "RANKED"
+                  ? eligible
+                    ? "Create a ranked challenge (??2 rule)"
+                    : "Ranked challenges must be within ??2 positions"
+                  : eligible
+                  ? "Create a friendly match (no ladder impact)"
+                  : "Cannot challenge yourself";
+              const finalTitle = !canChallengeGender
+                ? "You can only challenge players of the same gender."
+                : buttonTitle;
+
+              return (
+                <div
+                  key={r.player_id}
+                  ref={(el) => {
+                    if (el) rowRefs.current[r.player_id] = el;
+                    else delete rowRefs.current[r.player_id];
+                  }}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "44px minmax(0, 1fr) 72px minmax(0, 1fr)",
+                    gap: 10,
+                    alignItems: "center",
+                    padding: "12px 12px",
+                    borderRadius: 14,
+                    border: `1px solid ${isMe ? theme.maroon : theme.border}`,
+                    background: isMe ? "rgba(122,31,43,0.08)" : "#fff",
+                  }}
+                >
+                  {/* Position */}
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 12,
+                      background: isMe ? "rgba(122,31,43,0.16)" : "rgba(46,125,50,.10)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: theme.maroon,
+                      fontWeight: 900,
+                    }}
+                  >
+                    {computedPos}
+                  </div>
+
+                  {/* Player */}
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontWeight: 900,
+                        fontSize: 18,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {r.full_name} {isMe ? "(You)" : ""}
+                    </div>
+                    <div style={{ marginTop: 2, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
+                      Handicap {Number(r.handicap).toFixed(1)}
+                    </div>
+                  </div>
+
+                  {/* Action */}
+                  <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                    {!isMe && canChallengeGender && (
+                      <button
+                        disabled={!eligible}
+                        onClick={() => eligible && createChallenge(r.player_id)}
+                        style={{
+                          border: eligible ? "none" : `1px solid ${theme.border}`,
+                          background: eligible ? theme.maroon : "transparent",
+                          color: eligible ? "#fff" : theme.muted,
+                          padding: "6px 10px",
+                          borderRadius: 999,
+                          fontWeight: 900,
+                          fontSize: 13,
+                          cursor: eligible ? "pointer" : "not-allowed",
+                          opacity: eligible ? 1 : 0.55,
+                          minWidth: 54,
+                        }}
+                        title={finalTitle}
+                      >
+                        Play
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Stats (scroll controlled by header only) */}
+                  <div
+                    ref={(el) => {
+                      if (el) rowStatsRefs.current[r.player_id] = el;
+                      else delete rowStatsRefs.current[r.player_id];
+                    }}
+                    style={{
+                      overflowX: "hidden",
+                      overflowY: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        ...statsGridBase,
+                        fontSize: 13,
+                        fontWeight: 900,
+                        color: theme.muted,
+                      }}
+                    >
+                      <div style={{ color: theme.text, textAlign: "right" }}>{valOrDash(r.points, showDash)}</div>
+                      <div style={{ textAlign: "center" }}>*</div>
+
+                      <div style={{ textAlign: "right" }}>{valOrDash(r.played, showDash)}</div>
+                      <div style={{ textAlign: "right" }}>{valOrDash(r.won, showDash)}</div>
+                      <div style={{ textAlign: "right" }}>{valOrDash(r.drawn, showDash)}</div>
+                      <div style={{ textAlign: "right" }}>{valOrDash(r.lost, showDash)}</div>
+
+                      <div style={{ textAlign: "center" }}>*</div>
+
+                      <div style={{ textAlign: "right" }}>{valOrDash(r.shot_diff, showDash)}</div>
+                      <div style={{ textAlign: "right" }}>{valOrDash(r.shots_for, showDash)}</div>
+                      <div style={{ textAlign: "right" }}>{valOrDash(r.shots_against, showDash)}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Friendly note */}
         {viewType === "FRIENDLY" && (
@@ -928,7 +1027,7 @@ export default function ClubLadderPage() {
         )}
       </div>
     );
-  }, [loading, error, rows, myPosition, myPlayerId, viewType]);
+  }, [loading, error, rows, myPosition, myPlayerId, viewType, genderFilter, myGender, genderByPlayerId]);
 
   const pendingSection = useMemo(() => {
     if (loading) return null;
@@ -1112,7 +1211,7 @@ export default function ClubLadderPage() {
           <div>
             <div style={{ fontWeight: 900, fontSize: 18 }}>HandiBowls SA</div>
             <div style={{ color: theme.muted, fontSize: 13, marginTop: 4 }}>
-              {`Leaderboards | Scope: ${scope} | Gender: ${genderFilter} | Your position: ${myPosition ?? "-"} | Ranked rule: +/-2 | Friendly: any`}
+              {`Leaderboards | Scope: ${scope} | Gender: ${genderFilter} | Format: ${formatFilter} | Your position: ${myPosition ?? "-"} | Ranked rule: +/-2 | Friendly: any`}
             </div>
           </div>
 
@@ -1133,154 +1232,109 @@ export default function ClubLadderPage() {
           </button>
         </div>
 
-        {/* Tabs */}
-        <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-          <button
-            onClick={() => setScope("CLUB")}
-            style={{
-              border: `1px solid ${theme.border}`,
-              background: scope === "CLUB" ? theme.maroon : "#fff",
-              color: scope === "CLUB" ? "#fff" : theme.text,
-              padding: "10px 10px",
-              borderRadius: 14,
-              fontWeight: 900,
-              cursor: "pointer",
-              opacity: myClubId && clubLadderId ? 1 : 0.5,
-            }}
-            disabled={!myClubId || !clubLadderId}
-            title={!myClubId ? "Your profile has no club_id yet" : !clubLadderId ? "No CLUB ladder row found for your club" : ""}
-          >
-            Club
-          </button>
+        {/* Filters */}
+        <div
+          style={{
+            marginTop: 12,
+            background: "#fff",
+            border: `1px solid ${theme.border}`,
+            borderRadius: 16,
+            padding: 12,
+            display: "grid",
+            gap: 10,
+          }}
+        >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, marginBottom: 6 }}>Scope</div>
+              <select
+                value={scope}
+                onChange={(e) => setScope(e.target.value as Scope)}
+                style={{
+                  width: "100%",
+                  border: `1px solid ${theme.border}`,
+                  background: "#fff",
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  fontWeight: 900,
+                }}
+              >
+                <option value="CLUB" disabled={!myClubId || !clubLadderId}>
+                  Club
+                </option>
+                <option value="DISTRICT" disabled={!myDistrictId || !districtLadderId}>
+                  District
+                </option>
+                <option value="NATIONAL" disabled={!nationalLadderId}>
+                  National
+                </option>
+              </select>
+            </div>
 
-          <button
-            onClick={() => setScope("DISTRICT")}
-            style={{
-              border: `1px solid ${theme.border}`,
-              background: scope === "DISTRICT" ? theme.maroon : "#fff",
-              color: scope === "DISTRICT" ? "#fff" : theme.text,
-              padding: "10px 10px",
-              borderRadius: 14,
-              fontWeight: 900,
-              cursor: "pointer",
-              opacity: myDistrictId && districtLadderId ? 1 : 0.5,
-            }}
-            disabled={!myDistrictId || !districtLadderId}
-            title={
-              !myDistrictId
-                ? "Your profile has no district_id yet"
-                : !districtLadderId
-                ? "No DISTRICT ladder row found for your district"
-                : ""
-            }
-          >
-            District
-          </button>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, marginBottom: 6 }}>Gender</div>
+              <select
+                value={genderFilter}
+                onChange={(e) => setGenderFilter(e.target.value as GenderFilter)}
+                style={{
+                  width: "100%",
+                  border: `1px solid ${theme.border}`,
+                  background: "#fff",
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  fontWeight: 900,
+                }}
+              >
+                <option value="ALL">All</option>
+                <option value="MALE">Men</option>
+                <option value="FEMALE">Ladies</option>
+              </select>
+            </div>
+          </div>
 
-          <button
-            onClick={() => setScope("NATIONAL")}
-            style={{
-              border: `1px solid ${theme.border}`,
-              background: scope === "NATIONAL" ? theme.maroon : "#fff",
-              color: scope === "NATIONAL" ? "#fff" : theme.text,
-              padding: "10px 10px",
-              borderRadius: 14,
-              fontWeight: 900,
-              cursor: "pointer",
-              opacity: nationalLadderId ? 1 : 0.5,
-            }}
-            disabled={!nationalLadderId}
-            title={!nationalLadderId ? "No NATIONAL ladder row found yet" : ""}
-          >
-            National
-          </button>
-        </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, marginBottom: 6 }}>Format</div>
+              <select
+                value={formatFilter}
+                onChange={(e) => setFormatFilter(e.target.value as LadderFormat)}
+                style={{
+                  width: "100%",
+                  border: `1px solid ${theme.border}`,
+                  background: "#fff",
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  fontWeight: 900,
+                }}
+              >
+                <option value="ALL">All</option>
+                <option value="SINGLES">Singles</option>
+                <option value="DOUBLES">Doubles</option>
+                <option value="TRIPLES">Triples</option>
+                <option value="FOUR_BALL">4 Balls</option>
+              </select>
+              <div style={{ marginTop: 4, fontSize: 11, color: theme.muted }}>Format filter will apply once ladder data includes formats.</div>
+            </div>
 
-        {/* Match Type Toggle */}
-        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <button
-            onClick={() => setViewType("RANKED")}
-            style={{
-              border: `1px solid ${theme.border}`,
-              background: viewType === "RANKED" ? theme.maroon : "#fff",
-              color: viewType === "RANKED" ? "#fff" : theme.text,
-              padding: "10px 10px",
-              borderRadius: 14,
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-            title="Ranked matches affect ladder stats and movement"
-          >
-            Ranked
-          </button>
-
-          <button
-            onClick={() => setViewType("FRIENDLY")}
-            style={{
-              border: `1px solid ${theme.border}`,
-              background: viewType === "FRIENDLY" ? "#111827" : "#fff",
-              color: viewType === "FRIENDLY" ? "#fff" : theme.text,
-              padding: "10px 10px",
-              borderRadius: 14,
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-            title="Friendly matches do not affect ladder stats or movement"
-          >
-            Friendly
-          </button>
-        </div>
-
-
-        {/* Gender Toggle */}
-        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-          <button
-            onClick={() => setGenderFilter("ALL")}
-            style={{
-              border: `1px solid ${theme.border}`,
-              background: genderFilter === "ALL" ? theme.maroon : "#fff",
-              color: genderFilter === "ALL" ? "#fff" : theme.text,
-              padding: "10px 10px",
-              borderRadius: 14,
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-            title="Show all players"
-          >
-            All
-          </button>
-
-          <button
-            onClick={() => setGenderFilter("MALE")}
-            style={{
-              border: `1px solid ${theme.border}`,
-              background: genderFilter === "MALE" ? theme.maroon : "#fff",
-              color: genderFilter === "MALE" ? "#fff" : theme.text,
-              padding: "10px 10px",
-              borderRadius: 14,
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-            title="Show men only"
-          >
-            Men
-          </button>
-
-          <button
-            onClick={() => setGenderFilter("FEMALE")}
-            style={{
-              border: `1px solid ${theme.border}`,
-              background: genderFilter === "FEMALE" ? theme.maroon : "#fff",
-              color: genderFilter === "FEMALE" ? "#fff" : theme.text,
-              padding: "10px 10px",
-              borderRadius: 14,
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-            title="Show ladies only"
-          >
-            Ladies
-          </button>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, marginBottom: 6 }}>Match Type</div>
+              <select
+                value={viewType}
+                onChange={(e) => setViewType(e.target.value as MatchType)}
+                style={{
+                  width: "100%",
+                  border: `1px solid ${theme.border}`,
+                  background: "#fff",
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  fontWeight: 900,
+                }}
+              >
+                <option value="RANKED">Ranked</option>
+                <option value="FRIENDLY">Friendly</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         {notice && (

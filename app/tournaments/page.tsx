@@ -422,44 +422,35 @@ export default function TournamentsPage() {
                     </div>
                   </div>
 
-                  <div style={{ marginTop: 6, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-                    <div>
-                      <span style={{ fontWeight: 800, color: theme.text }}>Scope:</span> {scopeLabel(t.scope)}
-                    </div>
-                    {t.scope === "CLUB" && t.club_id && clubNameById[t.club_id] ? (
-                      <div>
-                        <span style={{ fontWeight: 800, color: theme.text }}>Host:</span> {clubNameById[t.club_id]}
-                      </div>
-                    ) : null}
-                    <div>
-                      <span style={{ fontWeight: 800, color: theme.text }}>Gender:</span> {genderLabel(t.gender ?? null)}
-                    </div>
-                    <div>
-                      <span style={{ fontWeight: 800, color: theme.text }}>Status:</span> {statusLabel(t.status)}
-                    </div>
-                    <div>
-                      <span style={{ fontWeight: 800, color: theme.text }}>Type:</span> {formatLabel(t.format)} knockout
-                    </div>
-                    <div>
-                      <span style={{ fontWeight: 800, color: theme.text }}>Rule:</span>{" "}
+                  <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
+                      {scopeLabel(t.scope)}
+                    </span>
+                    <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
+                      {genderLabel(t.gender ?? null)}
+                    </span>
+                    <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
                       {ruleLabel(t.rule_type ?? "HANDICAP_START")}
-                    </div>
-                    {t.starts_at ? (
-                      <div>
-                        <span style={{ fontWeight: 800, color: theme.text }}>Starts:</span>{" "}
-                        {new Date(t.starts_at).toLocaleString()}
-                      </div>
-                    ) : null}
-                    {t.ends_at ? (
-                      <div>
-                        <span style={{ fontWeight: 800, color: theme.text }}>Ends:</span>{" "}
-                        {new Date(t.ends_at).toLocaleString()}
-                      </div>
+                    </span>
+                    <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
+                      {statusLabel(t.status)}
+                    </span>
+                    {t.scope === "CLUB" && t.club_id && clubNameById[t.club_id] ? (
+                      <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
+                        Host: {clubNameById[t.club_id]}
+                      </span>
                     ) : null}
                   </div>
 
+                  <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 13, color: theme.muted }}>
+                    <div><span style={{ fontWeight: 800, color: theme.text }}>Type</span> {formatLabel(t.format)} knockout</div>
+                    <div><span style={{ fontWeight: 800, color: theme.text }}>Entries</span> {t.entries_open === false ? "Locked" : "Open"}</div>
+                    <div><span style={{ fontWeight: 800, color: theme.text }}>Starts</span> {t.starts_at ? new Date(t.starts_at).toLocaleString() : "TBC"}</div>
+                    <div><span style={{ fontWeight: 800, color: theme.text }}>Ends</span> {t.ends_at ? new Date(t.ends_at).toLocaleString() : "TBC"}</div>
+                  </div>
+
                   <div style={{ marginTop: 10 }}>
-                    {enteredByTournamentId[t.id] && t.status === "IN_PLAY" ? (
+                    {t.status === "IN_PLAY" ? (
                       <button
                         type="button"
                         onClick={() => (window.location.href = `/tournaments/${t.id}`)}
@@ -473,9 +464,9 @@ export default function TournamentsPage() {
                           fontWeight: 900,
                           cursor: "pointer",
                         }}
-                        title="Open tournament"
+                        title="View tournament"
                       >
-                        Open tournament
+                        {enteredByTournamentId[t.id] ? "Open tournament" : "View bracket"}
                       </button>
                     ) : enteredByTournamentId[t.id] ? (
                       <button
@@ -543,9 +534,9 @@ export default function TournamentsPage() {
                           color: theme.maroon,
                           userSelect: "none",
                         }}
-                        title="View generated teams"
+                        title={t.format === "SINGLES" ? "View entries" : "View generated teams"}
                       >
-                        View Teams
+                        {t.format === "SINGLES" ? "View Entries" : "View Teams"}
                       </summary>
 
                       {(() => {
@@ -562,6 +553,7 @@ export default function TournamentsPage() {
                               const memberIds = teamMembersByTeamId[tm.id] ?? [];
                               const memberNames = memberIds.map((pid) => nameByPlayerId[pid] ?? "Unknown");
                               const isMine = myTeam?.id === tm.id;
+                              const isSingles = t.format === "SINGLES";
 
                               return (
                                 <div
@@ -581,10 +573,14 @@ export default function TournamentsPage() {
                                       gap: 10,
                                     }}
                                   >
-                                    <div style={{ fontWeight: 900 }}>{isMine ? "Your Team" : `Team ${tm.team_no}`}</div>
-                                    <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>
-                                      HCP {tm.team_handicap == null ? "-" : tm.team_handicap}
+                                    <div style={{ fontWeight: 900 }}>
+                                      {isSingles ? (isMine ? "You" : "Entry") : isMine ? "Your Team" : `Team ${tm.team_no}`}
                                     </div>
+                                    {!isSingles ? (
+                                      <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>
+                                        HCP {tm.team_handicap == null ? "-" : tm.team_handicap}
+                                      </div>
+                                    ) : null}
                                   </div>
 
                                   <div

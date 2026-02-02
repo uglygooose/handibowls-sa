@@ -2504,26 +2504,59 @@ function singlesHandicapLine(m: MatchRow) {
       }
 
       const preRound = matchesByRound.find((r) => roundLabel(r.round) === "Pre-Rd");
-      const firstMainRound = roundsToShow[0];
-      const feedSourceIds = new Set<string>();
-      if (preRound && firstMainRound) {
-        for (const m of firstMainRound.matches ?? []) {
-          if (m.slot_a_source_match_id) feedSourceIds.add(String(m.slot_a_source_match_id));
-          if (m.slot_b_source_match_id) feedSourceIds.add(String(m.slot_b_source_match_id));
-        }
+      const selectedRound = roundMeta.selectedRound ?? roundsToShow[0]?.round ?? null;
+      const selectedLabel = selectedRound ? roundLabel(selectedRound) : null;
+      const selectedIsPre = selectedLabel === "Pre-Rd";
+      const displayRounds = matchesByRound.filter((r) => roundLabel(r.round) !== "Pre-Rd");
+      const selectedIndex = selectedIsPre
+        ? -1
+        : selectedRound
+        ? displayRounds.findIndex((r) => r.round === selectedRound)
+        : -1;
+      const nextRound = selectedIsPre
+        ? displayRounds[0] ?? null
+        : selectedIndex >= 0 && selectedIndex < displayRounds.length - 1
+        ? displayRounds[selectedIndex + 1]
+        : null;
+
+      const feederSourceIds = new Set<string>();
+      const collectFeederIds = (roundMatches: MatchRow[] | undefined) => {
+        (roundMatches ?? []).forEach((m) => {
+          if (m.slot_a_source_match_id) feederSourceIds.add(String(m.slot_a_source_match_id));
+          if (m.slot_b_source_match_id) feederSourceIds.add(String(m.slot_b_source_match_id));
+        });
+      };
+      if (nextRound) {
+        collectFeederIds(nextRound.matches);
       }
 
-      const roundsForTree = preRound
-        ? [
-            {
-              round: preRound.round,
-              matches: feedSourceIds.size
-                ? (preRound.matches ?? []).filter((m) => feedSourceIds.has(m.id))
-                : preRound.matches ?? [],
-            },
-            ...roundsToShow,
-          ]
-        : roundsToShow;
+      const roundsForTree = (() => {
+        const selectedMatchesRaw = selectedIsPre
+          ? preRound?.matches ?? []
+          : selectedRound
+          ? displayRounds.find((r) => r.round === selectedRound)?.matches ?? []
+          : [];
+        const nextMatches = nextRound?.matches ?? [];
+        const filteredNextMatches = feederSourceIds.size
+          ? nextMatches.filter(
+              (m) =>
+                (m.slot_a_source_match_id && feederSourceIds.has(String(m.slot_a_source_match_id))) ||
+                (m.slot_b_source_match_id && feederSourceIds.has(String(m.slot_b_source_match_id)))
+            )
+          : nextMatches;
+        const selectedMatches = feederSourceIds.size
+          ? selectedMatchesRaw.filter((m) => feederSourceIds.has(String(m.id)))
+          : selectedMatchesRaw;
+
+        if (selectedRound && nextRound) {
+          return [
+            { round: selectedRound, matches: selectedMatches },
+            { round: nextRound.round, matches: filteredNextMatches },
+          ];
+        }
+
+        return selectedRound ? [{ round: selectedRound, matches: selectedMatches }] : roundsToShow;
+      })();
 
       const fromLabelRaw = selected ? roundLabel(selected) : null;
       const fromLabel =

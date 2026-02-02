@@ -74,6 +74,12 @@ function formatLabel(fmt: TournamentFormat) {
   return fmt.charAt(0) + fmt.slice(1).toLowerCase();
 }
 
+
+function ruleLabel(rule: TournamentRule | null | undefined) {
+  if (rule === "SCRATCH") return "Scratch";
+  return "Handicap start";
+}
+
 function cleanTournamentName(name: string) {
   const raw = (name ?? "").toString();
   return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
@@ -134,6 +140,8 @@ export default function TournamentRoomPage() {
   const [fixturesOpen, setFixturesOpen] = useState(false);
   const [openRounds, setOpenRounds] = useState<Record<number, boolean>>({});
   const [bracketRound, setBracketRound] = useState<number | null>(null);
+  const [bracketViewMode, setBracketViewMode] = useState<"LIST" | "TREE">("LIST");
+  const [treeFromRound, setTreeFromRound] = useState<number | null>(null);
 
   // score UI state per match
   const [scoreDraftByMatchId, setScoreDraftByMatchId] = useState<Record<string, { a: string; b: string }>>({});
@@ -492,11 +500,75 @@ export default function TournamentRoomPage() {
     return list[0] ?? null;
   }, [myTeam, matches]);
 
+  const myMatches = useMemo(() => {
+    if (!myTeam) return [] as MatchRow[];
+    return matches.filter((m) => m.team_a_id === myTeam.id || m.team_b_id === myTeam.id);
+  }, [myTeam, matches]);
+
+  const hasPendingMatch = useMemo(() => {
+    if (!myMatches.length) return false;
+    return myMatches.some((m) => !isMatchDone(m));
+  }, [myMatches]);
+
+  const isViewerMode = !myTeam || !hasPendingMatch;
+
   const teamById = useMemo(() => {
     const m: Record<string, { id: string; team_no: number; team_handicap: number | null }> = {};
     for (const t of teams) m[t.id] = t;
     return m;
   }, [teams]);
+
+  function finishPlacementLabel(roundNo: number | null | undefined) {
+    const r = Number(roundNo ?? 0);
+    if (!r) return null;
+
+    const totalTeams = teams.length;
+    if (!totalTeams || totalTeams < 2) return null;
+
+    const base = largestPowerOfTwoLE(totalTeams);
+    const hasPreRound = totalTeams > base;
+    const mainRoundNo = hasPreRound ? r - 1 : r;
+    if (mainRoundNo <= 0) return null;
+
+    const playersLeft = Math.floor(base / Math.pow(2, mainRoundNo - 1));
+    if (!playersLeft) return null;
+
+    if (playersLeft === 2) return "Runner-up";
+    if (playersLeft === 4) return "Tied 3rd";
+
+    const start = playersLeft / 2 + 1;
+    const endPos = playersLeft;
+    return `Tied ${start}-${endPos}`;
+  }
+
+  function winnerNameFromMatches() {
+    if (!matches.length) return null;
+    const maxRound = Math.max(...matches.map((m) => Number(m.round_no ?? 0)).filter((r) => r > 0));
+    if (!maxRound) return null;
+    const finals = matches.filter((m) => Number(m.round_no ?? 0) === maxRound);
+    const finalMatch = finals.find((m) => m.winner_team_id) ?? finals[0];
+    if (!finalMatch?.winner_team_id) return null;
+    return slotLabel(finalMatch, finalMatch.team_a_id === finalMatch.winner_team_id ? "A" : "B");
+  }
+
+  function myFinishSummary() {
+    if (!myTeam) return null;
+    const done = myMatches.filter((m) => isMatchDone(m));
+    if (!done.length) return null;
+    const sorted = done.slice().sort(
+      (a, b) =>
+        Number(b.round_no ?? 0) - Number(a.round_no ?? 0) ||
+        Number((b as any).match_no ?? 0) - Number((a as any).match_no ?? 0)
+    );
+    const last = sorted[0];
+    if (last?.winner_team_id && last.winner_team_id === myTeam.id) {
+      return { label: "Champion", detail: null as string | null };
+    }
+    const round = roundLabel(last?.round_no ?? null);
+    const place = finishPlacementLabel(last?.round_no ?? null);
+    return { label: `Knocked out: ${round}`, detail: place ? `Finish: ${place}` : null };
+  }
+
 
   function teamLabel(teamId: string | null) {
     if (!teamId) return "Team -";
@@ -648,6 +720,10 @@ export default function TournamentRoomPage() {
     setBracketRound(matchesByRound[0].round);
   }, [matchesByRound, bracketRound]);
 
+  useEffect(() => {
+    if (isViewerMode) setBracketViewMode("TREE");
+  }, [isViewerMode]);
+
   function toggleRound(round: number) {
     setOpenRounds((prev) => ({ ...prev, [round]: !prev[round] }));
   }
@@ -755,6 +831,376 @@ export default function TournamentRoomPage() {
     }
   }
 
+  function renderTreeView() {
+    if (!matchesByRound.length) {
+      return (
+        <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14 }}>
+          <div style={{ fontWeight: 900, fontSize: 16 }}>Bracket view</div>
+          <div style={{ marginTop: 6, fontSize: 12, color: theme.muted }}>No rounds to show yet.</div>
+        </div>
+      );
+    }
+
+    const roundMeta = (() => {
+      const byRound: Record<number, { total: number; completed: number }> = {};
+      for (const m of matches) {
+        const rn = Number(m.round_no ?? 0);
+        if (!rn) continue;
+        byRound[rn] = byRound[rn] ?? { total: 0, completed: 0 };
+        byRound[rn].total += 1;
+        if (isMatchDone(m)) byRound[rn].completed += 1;
+      }
+
+      const rounds = Object.keys(byRound)
+        .map((n) => Number(n))
+        .filter((n) => n && !Number.isNaN(n))
+        .sort((a, b) => a - b);
+
+      const selectedRound = treeFromRound ?? (rounds[0] ?? null);
+      return { byRound, rounds, selectedRound };
+    })();
+
+    if (!roundMeta.rounds.length) {
+      return (
+        <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14 }}>
+          <div style={{ fontWeight: 900, fontSize: 16 }}>Bracket view</div>
+          <div style={{ marginTop: 6, fontSize: 12, color: theme.muted }}>No rounds to show yet.</div>
+        </div>
+      );
+    }
+
+    const roundsToShow = roundMeta.selectedRound
+      ? matchesByRound.filter((r) => r.round >= roundMeta.selectedRound)
+      : matchesByRound;
+    const roundsDisplay = roundsToShow.filter((r) => roundLabel(r.round) !== "Pre-Rd");
+    if (!roundsDisplay.length) {
+      return (
+        <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14 }}>
+          <div style={{ fontWeight: 900, fontSize: 16 }}>Bracket view</div>
+          <div style={{ marginTop: 6, fontSize: 12, color: theme.muted }}>No rounds to show yet.</div>
+        </div>
+      );
+    }
+
+    const preRound = matchesByRound.find((r) => roundLabel(r.round) === "Pre-Rd");
+    const selectedRound = roundMeta.selectedRound ?? roundsDisplay[0]?.round ?? null;
+    const selectedLabel = selectedRound ? roundLabel(selectedRound) : null;
+    const selectedIsPre = selectedLabel === "Pre-Rd";
+    const displayRounds = matchesByRound.filter((r) => roundLabel(r.round) !== "Pre-Rd");
+    const selectedIndex = selectedIsPre
+      ? -1
+      : selectedRound
+      ? displayRounds.findIndex((r) => r.round === selectedRound)
+      : -1;
+    const nextRound = selectedIsPre
+      ? displayRounds[0] ?? null
+      : selectedIndex >= 0 && selectedIndex < displayRounds.length - 1
+      ? displayRounds[selectedIndex + 1]
+      : null;
+
+    const feederSourceIds = new Set<string>();
+    const collectFeederIds = (roundMatches: MatchRow[] | undefined) => {
+      (roundMatches ?? []).forEach((m) => {
+        if (m.slot_a_source_match_id) feederSourceIds.add(String(m.slot_a_source_match_id));
+        if (m.slot_b_source_match_id) feederSourceIds.add(String(m.slot_b_source_match_id));
+      });
+    };
+    if (nextRound) {
+      collectFeederIds(nextRound.matches);
+    }
+
+    const roundsForTree = (() => {
+      const selectedMatchesRaw = selectedIsPre
+        ? preRound?.matches ?? []
+        : selectedRound
+        ? displayRounds.find((r) => r.round === selectedRound)?.matches ?? []
+        : [];
+      const nextMatches = nextRound?.matches ?? [];
+      const filteredNextMatches = feederSourceIds.size
+        ? nextMatches.filter(
+            (m) =>
+              (m.slot_a_source_match_id && feederSourceIds.has(String(m.slot_a_source_match_id))) ||
+              (m.slot_b_source_match_id && feederSourceIds.has(String(m.slot_b_source_match_id)))
+          )
+        : nextMatches;
+      const selectedMatches = feederSourceIds.size
+        ? selectedMatchesRaw.filter((m) => feederSourceIds.has(String(m.id)))
+        : selectedMatchesRaw;
+
+      if (selectedRound && nextRound) {
+        return [
+          { round: selectedRound, matches: selectedMatches },
+          { round: nextRound.round, matches: filteredNextMatches },
+        ];
+      }
+
+      return selectedRound ? [{ round: selectedRound, matches: selectedMatches }] : roundsDisplay;
+    })();
+
+    const fromLabelRaw = roundMeta.selectedRound ? roundLabel(roundMeta.selectedRound) : null;
+    const fromLabel =
+      fromLabelRaw === "Pre-Rd" && roundsForTree.length ? roundLabel(roundsForTree[0].round) : fromLabelRaw;
+
+    const cardW = 230;
+    const cardH = 44;
+    const baseGap = 18;
+    const colGap = 110;
+    const headerOffset = 28;
+    const baseStep = cardH + baseGap;
+
+    const roundLayouts = roundsForTree.map((round, roundIndex) => {
+      const list = [...(round.matches ?? [])].sort(
+        (a, b) => Number(a.match_no ?? 0) - Number(b.match_no ?? 0) || String(a.id).localeCompare(String(b.id))
+      );
+      return { round, roundIndex, list };
+    });
+
+    type MatchPos = { id: string; roundIndex: number; x: number; top: number; centerY: number };
+    const posById: Record<string, MatchPos> = {};
+    const roundPositions: { roundIndex: number; matches: MatchPos[] }[] = [];
+
+    roundLayouts.forEach((layout, roundIndex) => {
+      const x = roundIndex * (cardW + colGap);
+      const list = layout.list;
+      const matches: MatchPos[] = [];
+
+      list.forEach((m, i) => {
+        const centerY = headerOffset + baseStep * ((i + 0.5) * Math.pow(2, roundIndex));
+        const top = centerY - cardH / 2;
+        const pos = { id: m.id, roundIndex, x, top, centerY };
+        matches.push(pos);
+        posById[m.id] = pos;
+      });
+
+      roundPositions.push({ roundIndex, matches });
+    });
+
+    let maxBottom = 0;
+    roundPositions.forEach((layout) => {
+      layout.matches.forEach((m) => {
+        maxBottom = Math.max(maxBottom, m.top + cardH);
+      });
+    });
+
+    const width = roundLayouts.length ? roundLayouts.length * (cardW + colGap) - colGap : cardW;
+    const height = Math.max(maxBottom + baseGap, cardH + headerOffset);
+
+    const lines: string[] = [];
+    const positionsByRoundIndex = new Map<number, MatchPos[]>(
+      roundPositions.map((layout) => [layout.roundIndex, layout.matches])
+    );
+    for (const layout of roundLayouts) {
+      if (layout.roundIndex === 0) continue;
+      const list = layout.list;
+      list.forEach((m) => {
+        const childPos = posById[m.id];
+        if (!childPos) return;
+        const childX = childPos.x;
+        const childCenterY = childPos.centerY;
+
+        const sourceIds = [m.slot_a_source_match_id, m.slot_b_source_match_id].filter(
+          (id): id is string => typeof id === "string" && id.length > 0
+        );
+        const parentPositions = sourceIds
+          .map((id) => posById[id])
+          .filter((p) => p && p.roundIndex === layout.roundIndex - 1) as MatchPos[];
+
+        if (parentPositions.length === 0) {
+          const fallbackParents = positionsByRoundIndex.get(layout.roundIndex - 1) ?? [];
+          const i = list.indexOf(m);
+          const aIdx = i * 2;
+          const bIdx = i * 2 + 1;
+          [aIdx, bIdx].forEach((idx) => {
+            const parentPos = fallbackParents[idx];
+            if (!parentPos) return;
+            const parentX = parentPos.x + cardW;
+            const parentCenterY = parentPos.centerY;
+            const midX = (parentX + childX) / 2;
+            lines.push(`M ${parentX} ${parentCenterY} H ${midX} V ${childCenterY} H ${childX}`);
+          });
+          return;
+        }
+
+        parentPositions.forEach((parentPos) => {
+          const parentX = parentPos.x + cardW;
+          const parentCenterY = parentPos.centerY;
+          const midX = (parentX + childX) / 2;
+          lines.push(`M ${parentX} ${parentCenterY} H ${midX} V ${childCenterY} H ${childX}`);
+        });
+      });
+    }
+
+    return (
+      <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, overflow: "hidden" }}>
+        <div style={{ padding: "10px 14px", borderBottom: `1px solid ${theme.border}` }}>
+          <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, marginBottom: 6 }}>Show rounds from</div>
+          <div style={{ marginTop: 2, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {roundMeta.rounds.map((r) => {
+              const p = roundMeta.byRound[r];
+              const done = p?.completed ?? 0;
+              const total = p?.total ?? 0;
+              const active = (roundMeta.selectedRound ?? roundMeta.rounds[0]) === r;
+
+              return (
+                <button
+                  key={`tree-from-${r}`}
+                  type="button"
+                  onClick={() => setTreeFromRound(r)}
+                  style={{
+                    border: `1px solid ${theme.border}`,
+                    background: active ? theme.maroon : "#fff",
+                    color: active ? "#fff" : theme.text,
+                    padding: "8px 10px",
+                    borderRadius: 999,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                  title={`${done}/${total} complete`}
+                >
+                  <span>{roundLabel(r)}</span>
+                  <span style={{ fontSize: 12, fontWeight: 900, opacity: active ? 0.95 : 0.8, whiteSpace: "nowrap" }}>
+                    {done}/{total}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
+          <div style={{ fontWeight: 900, fontSize: 16 }}>
+            Bracket view{fromLabel ? ` • from ${fromLabel}` : ""}
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>
+            {roundsForTree.reduce((acc, r) => acc + (r.matches?.length ?? 0), 0)} matches
+          </div>
+        </div>
+
+        <div style={{ borderTop: `1px solid ${theme.border}`, padding: 14, overflowX: "auto" }}>
+          <div style={{ position: "relative", width, height }}>
+            <svg
+              width={width}
+              height={height}
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+            >
+              {lines.map((d, idx) => (
+                <path key={`path-${idx}`} d={d} stroke="#CBBBA3" strokeWidth={2.5} strokeLinecap="round" fill="none" />
+              ))}
+            </svg>
+
+            {roundLayouts.map((layout) => {
+              const meta = roundMeta.byRound[layout.round.round];
+              const total = meta?.total ?? layout.list.length;
+              const completed = meta?.completed ?? 0;
+              const focused = roundMeta.selectedRound ? layout.round.round === roundMeta.selectedRound : true;
+              const colX = layout.roundIndex * (cardW + colGap);
+              const positioned = roundPositions.find((r) => r.roundIndex === layout.roundIndex)?.matches ?? [];
+              const matchPos = new Map(positioned.map((p) => [p.id, p]));
+
+              return (
+                <div
+                  key={`tree-round-${layout.round.round}`}
+                  style={{
+                    position: "absolute",
+                    left: colX,
+                    top: 0,
+                    width: cardW,
+                    opacity: focused ? 1 : 0.8,
+                    transition: "opacity 160ms ease",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "baseline",
+                      fontWeight: 900,
+                      fontSize: 14,
+                      color: theme.text,
+                      paddingBottom: 6,
+                    }}
+                  >
+                    <div>{roundLabel(layout.round.round)}</div>
+                    <div style={{ fontSize: 11, color: theme.muted, fontWeight: 900 }}>{completed}/{total}</div>
+                  </div>
+
+                  {layout.list.map((m) => {
+                    const pos = matchPos.get(m.id);
+                    const y = pos ? pos.top : headerOffset;
+                    const left = slotLabel(m, "A");
+                    const right = slotLabel(m, "B");
+                    const winnerId = m.winner_team_id ? String(m.winner_team_id) : null;
+                    const winA = winnerId && m.team_a_id && String(m.team_a_id) === winnerId;
+                    const winB = winnerId && m.team_b_id && String(m.team_b_id) === winnerId;
+
+                    return (
+                      <div
+                        key={`tree-match-${m.id}`}
+                        style={{
+                          position: "absolute",
+                          top: y,
+                          left: 0,
+                          width: cardW,
+                          border: `1px solid ${theme.border}`,
+                          borderRadius: 10,
+                          background: "#fff",
+                          padding: "6px 10px",
+                          display: "grid",
+                          alignContent: "center",
+                          gap: 2,
+                          fontSize: 12,
+                          fontWeight: 900,
+                          overflow: "hidden",
+                          zIndex: 2,
+                        }}
+                      >
+                        <div
+                          style={{
+                            color: winA ? "#16A34A" : left === "TBD" ? theme.muted : theme.text,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {left}
+                        </div>
+                        <div
+                          style={{
+                            color: winB ? "#16A34A" : right === "TBD" ? theme.muted : theme.text,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {right}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+
+
+
+  const winnerName = winnerNameFromMatches();
+  const finish = myFinishSummary();
+
   return (
     <div style={{ background: theme.background, minHeight: "100vh", color: theme.text, paddingBottom: 92 }}>
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 14px 18px" }}>
@@ -806,96 +1252,136 @@ export default function TournamentRoomPage() {
           </div>
         )}
 
-        {/* NEXT MATCH */}
-        <div
-          style={{
-            marginTop: 14,
-            background: "#fff",
-            border: `1px solid ${theme.border}`,
-            borderRadius: 16,
-            padding: 14,
-          }}
-        >
-          <div style={{ fontWeight: 900, fontSize: 16 }}>Your next match</div>
-          <div style={{ marginTop: 6, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-            Knockout bracket - winners advance.
-          </div>
+        {/* NEXT MATCH / SUMMARY */}
+        {!isViewerMode ? (
+          <div
+            style={{
+              marginTop: 14,
+              background: "#fff",
+              border: `1px solid ${theme.border}`,
+              borderRadius: 16,
+              padding: 14,
+            }}
+          >
+            <div style={{ fontWeight: 900, fontSize: 16 }}>Your next match</div>
+            <div style={{ marginTop: 6, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
+              Knockout bracket - winners advance.
+            </div>
 
-          <div style={{ marginTop: 10 }}>
-            {!nextMatch ? (
-              <div style={{ color: theme.muted, fontSize: 13 }}>
-                {myTeam ? "No upcoming match found yet." : "Join the tournament to see your next match."}
+
+
+            <div style={{ marginTop: 10 }}>
+              {!nextMatch ? (
+                <div style={{ color: theme.muted, fontSize: 13 }}>
+                  {myTeam ? "No upcoming match found yet." : "Join the tournament to see your next match."}
+                </div>
+              ) : (
+                (() => {
+                  const isBye = isMatchBye(nextMatch);
+                  const scoreLine =
+                    nextMatch.score_a == null || nextMatch.score_b == null ? "-" : `${nextMatch.score_a} - ${nextMatch.score_b}`;
+
+                  return (
+                    <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12, background: "#fff" }}>
+                      <div style={{ fontWeight: 900, fontSize: 15 }}>
+                        {isBye
+                          ? `${slotLabel(nextMatch, "A")} - Auto-advance (BYE)`
+                          : `${slotLabel(nextMatch, "A")} vs ${slotLabel(nextMatch, "B")}`}
+                      </div>
+                      {tournament?.format !== "SINGLES" && !isBye ? (
+                        <div style={{ marginTop: 4, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
+                          {slotMembersLine(nextMatch, "A")} * {slotMembersLine(nextMatch, "B")}
+                        </div>
+                      ) : null}
+                      {tournament?.format === "SINGLES" && !isBye && isHandicapTournament() ? (
+                        <div style={{ marginTop: 4, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
+                          {singlesHandicapLine(nextMatch)}
+                        </div>
+                      ) : null}
+                      <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <div
+                          style={{
+                            border: `1px solid ${theme.border}`,
+                            borderRadius: 999,
+                            padding: "4px 10px",
+                            fontSize: 12,
+                            fontWeight: 900,
+                            background: "#fff",
+                            color: theme.text,
+                          }}
+                        >
+                          {roundLabel(nextMatch.round_no)}
+                        </div>
+                        <div
+                          style={{
+                            border: `1px solid ${theme.border}`,
+                            borderRadius: 999,
+                            padding: "4px 10px",
+                            fontSize: 12,
+                            fontWeight: 900,
+                            background: "#fff",
+                            color: theme.text,
+                          }}
+                        >
+                          Score: {scoreLine}
+                        </div>
+                        <div
+                          style={{
+                            border: `1px solid ${theme.border}`,
+                            borderRadius: 999,
+                            padding: "4px 10px",
+                            fontSize: 12,
+                            fontWeight: 900,
+                            background: "#fff",
+                            color: theme.text,
+                          }}
+                        >
+                          {matchStatusLabel(nextMatch.status)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              marginTop: 14,
+              background: "#fff",
+              border: `1px solid ${theme.border}`,
+              borderRadius: 16,
+              padding: 14,
+            }}
+          >
+            <div style={{ fontWeight: 900, fontSize: 16 }}>Tournament summary</div>
+            <div style={{ marginTop: 6, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
+              {myTeam ? "You are viewing as a past participant." : "You are viewing as a spectator."}
+            </div>
+
+            <div style={{ marginTop: 10, display: "grid", gap: 6, fontSize: 13, color: theme.muted }}>
+              <div><span style={{ fontWeight: 800, color: theme.text }}>Type</span> {formatLabel(tournament?.format ?? "SINGLES")} knockout</div>
+              <div><span style={{ fontWeight: 800, color: theme.text }}>Rule</span> {tournament ? ruleLabel(tournament.rule_type ?? "HANDICAP_START") : "-"}</div>
+              <div><span style={{ fontWeight: 800, color: theme.text }}>Status</span> {tournament ? statusLabel(tournament.status) : "-"}</div>
+              <div><span style={{ fontWeight: 800, color: theme.text }}>Starts</span> {tournament?.starts_at ? new Date(tournament.starts_at).toLocaleString() : "TBC"}</div>
+              <div><span style={{ fontWeight: 800, color: theme.text }}>Ends</span> {tournament?.ends_at ? new Date(tournament.ends_at).toLocaleString() : "TBC"}</div>
+            </div>
+
+            {winnerName && tournament?.status === "COMPLETED" ? (
+              <div style={{ marginTop: 10, fontSize: 13 }}>
+                <span style={{ fontWeight: 900 }}>Winner:</span> {winnerName}
               </div>
-            ) : (
-              (() => {
-                const isBye = isMatchBye(nextMatch);
-                const scoreLine =
-                  nextMatch.score_a == null || nextMatch.score_b == null ? "-" : `${nextMatch.score_a} - ${nextMatch.score_b}`;
+            ) : null}
 
-                return (
-                  <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12, background: "#fff" }}>
-                    <div style={{ fontWeight: 900, fontSize: 15 }}>
-                      {isBye
-                        ? `${slotLabel(nextMatch, "A")} - Auto-advance (BYE)`
-                        : `${slotLabel(nextMatch, "A")} vs ${slotLabel(nextMatch, "B")}`}
-                    </div>
-                    {tournament?.format !== "SINGLES" && !isBye ? (
-                      <div style={{ marginTop: 4, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
-                        {slotMembersLine(nextMatch, "A")} * {slotMembersLine(nextMatch, "B")}
-                      </div>
-                    ) : null}
-                    {tournament?.format === "SINGLES" && !isBye && isHandicapTournament() ? (
-                      <div style={{ marginTop: 4, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
-                        {singlesHandicapLine(nextMatch)}
-                      </div>
-                    ) : null}
-                    <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <div
-                        style={{
-                          border: `1px solid ${theme.border}`,
-                          borderRadius: 999,
-                          padding: "4px 10px",
-                          fontSize: 12,
-                          fontWeight: 900,
-                          background: "#fff",
-                          color: theme.text,
-                        }}
-                      >
-                        {roundLabel(nextMatch.round_no)}
-                      </div>
-                      <div
-                        style={{
-                          border: `1px solid ${theme.border}`,
-                          borderRadius: 999,
-                          padding: "4px 10px",
-                          fontSize: 12,
-                          fontWeight: 900,
-                          background: "#fff",
-                          color: theme.text,
-                        }}
-                      >
-                        Score: {scoreLine}
-                      </div>
-                      <div
-                        style={{
-                          border: `1px solid ${theme.border}`,
-                          borderRadius: 999,
-                          padding: "4px 10px",
-                          fontSize: 12,
-                          fontWeight: 900,
-                          background: "#fff",
-                          color: theme.text,
-                        }}
-                      >
-                        {matchStatusLabel(nextMatch.status)}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()
-            )}
+            {finish ? (
+              <div style={{ marginTop: 8, fontSize: 13 }}>
+                <div style={{ fontWeight: 900 }}>{finish.label}</div>
+                {finish.detail ? <div style={{ color: theme.muted }}>{finish.detail}</div> : null}
+              </div>
+            ) : null}
           </div>
-        </div>
+        )}
 
         {/* BRACKET VIEW */}
         <div
@@ -911,9 +1397,31 @@ export default function TournamentRoomPage() {
           <div style={{ marginTop: 6, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
             Follow the knockout path. Winners advance to the next round.
           </div>
+          {isViewerMode ? (
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={() => setBracketViewMode(bracketViewMode === "TREE" ? "LIST" : "TREE")}
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  background: "#fff",
+                  color: theme.text,
+                  padding: "8px 10px",
+                  borderRadius: 999,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                {bracketViewMode === "TREE" ? "View brackets" : "View tree"}
+              </button>
+            </div>
+          ) : null}
+
 
           <div style={{ marginTop: 12 }}>
-            {!matches.length ? (
+            {isViewerMode && bracketViewMode === "TREE" ? (
+              renderTreeView()
+            ) : !matches.length ? (
               <div style={{ color: theme.muted, fontSize: 13 }}>No fixtures yet.</div>
             ) : (
               <div>
@@ -1028,6 +1536,7 @@ export default function TournamentRoomPage() {
               </div>
             )}
           </div>
+
         </div>
 
         {/* ALL ROUNDS LIST */}
