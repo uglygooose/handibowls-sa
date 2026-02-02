@@ -185,7 +185,7 @@ export default function LoginPage() {
         minHeight: "100vh",
         display: "grid",
         placeItems: "center",
-        backgroundImage: "url('/images/login-bowls.jpg')",
+        backgroundImage: "url('/login-bowls.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         padding: 16,
