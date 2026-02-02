@@ -29,6 +29,14 @@ type TournamentRow = {
 
 type TeamRow = { id: string; team_no: number; team_handicap: number | null };
 
+type QuickTournament = {
+  id: string;
+  name: string;
+  scope: TournamentScope;
+  status: TournamentStatus;
+  gender?: "MALE" | "FEMALE" | null;
+};
+
 type MatchRow = {
   id: string;
   tournament_id: string | null;
@@ -140,6 +148,7 @@ export default function AdminTournamentDetailPage() {
   const [handicapByPlayerId, setHandicapByPlayerId] = useState<Record<string, number | null>>({});
 
   const [matches, setMatches] = useState<MatchRow[]>([]);
+  const [quickTournaments, setQuickTournaments] = useState<QuickTournament[]>([]);
 
   // per-match open state + score drafts
   const [adminFinalOpenByMatchId, setAdminFinalOpenByMatchId] = useState<Record<string, boolean>>({});
@@ -323,6 +332,26 @@ export default function AdminTournamentDetailPage() {
     setTournament(tRow);
 
     setTargetInput(tRow.target_team_handicap == null ? "" : String(tRow.target_team_handicap));
+
+    const quickRes = await supabase
+      .from("tournaments")
+      .select("id, name, scope, status, gender, starts_at, announced_at")
+      .eq("scope", "CLUB")
+      .eq("status", "IN_PLAY")
+      .order("starts_at", { ascending: true, nullsFirst: false })
+      .order("announced_at", { ascending: true })
+      .limit(10);
+
+    if (!quickRes.error) {
+      const list = (quickRes.data ?? []).map((r: any) => ({
+        id: String(r.id),
+        name: String(r.name ?? "Tournament"),
+        scope: String(r.scope ?? "CLUB") as TournamentScope,
+        status: String(r.status ?? "ANNOUNCED") as TournamentStatus,
+        gender: (r.gender ?? null) as "MALE" | "FEMALE" | null,
+      }));
+      setQuickTournaments(list);
+    }
 
     const eRes = await supabase.from("tournament_entries").select("tournament_id").eq("tournament_id", tournamentId);
     if (!eRes.error) setEntryCount((eRes.data ?? []).length);
@@ -2467,16 +2496,14 @@ function singlesHandicapLine(m: MatchRow) {
           </div>
 
           <div
+            className="bracket-scroll"
             style={{
               borderTop: `1px solid ${theme.border}`,
               padding: 14,
-              display: "grid",
-              gridAutoFlow: "column",
-              gridAutoColumns: "minmax(220px, 1fr)",
-              gap: 12,
               overflowX: "auto",
             }}
           >
+            <div className="bracket-grid">
             {roundsToShow.map((round) => {
               const list = [...(round.matches ?? [])].sort(
                 (a, b) => Number(a.match_no ?? 0) - Number(b.match_no ?? 0) || String(a.id).localeCompare(String(b.id))
@@ -2492,74 +2519,60 @@ function singlesHandicapLine(m: MatchRow) {
                   ref={(el) => {
                     treeRoundRefs.current[round.round] = el;
                   }}
+                  className="bracket-col"
                   style={{
-                    display: "grid",
-                    gap: 10,
-                    alignContent: "start",
-                    opacity: focused ? 1 : 0.5,
+                    opacity: focused ? 1 : 0.45,
                     transform: focused ? "scale(1)" : "scale(0.98)",
                     transition: "opacity 160ms ease, transform 160ms ease",
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                    <div style={{ fontWeight: 900, fontSize: 14, color: theme.text }}>{roundLabel(round.round)}</div>
-                    <div style={{ fontSize: 11, fontWeight: 900, color: theme.muted }}>
-                      {completed}/{total}
-                    </div>
+                  <div className="bracket-col-header">
+                    <div>{roundLabel(round.round)}</div>
+                    <div>{completed}/{total}</div>
                   </div>
 
-                  {list.map((m) => {
-                    const left = slotLabel(m, "A");
-                    const right = slotLabel(m, "B");
-                    const score = m.score_a == null || m.score_b == null ? "-" : `${m.score_a}-${m.score_b}`;
-                    const winnerId = m.winner_team_id ? String(m.winner_team_id) : null;
-                    const winnerName = winnerId ? teamDisplayName(winnerId) : null;
-                    const isBye = isMatchBye(m);
-                    const winA = winnerId && m.team_a_id && winnerId === String(m.team_a_id);
-                    const winB = winnerId && m.team_b_id && winnerId === String(m.team_b_id);
-                    const done = isMatchDone(m);
+                  <div className="bracket-list">
+                    {list.map((m) => {
+                      const left = slotLabel(m, "A");
+                      const right = slotLabel(m, "B");
+                      const winnerId = m.winner_team_id ? String(m.winner_team_id) : null;
+                      const winnerName = winnerId ? teamDisplayName(winnerId) : null;
+                      const isBye = isMatchBye(m);
+                      const winA = winnerId && m.team_a_id && winnerId === String(m.team_a_id);
+                      const winB = winnerId && m.team_b_id && winnerId === String(m.team_b_id);
+                      const done = isMatchDone(m);
+                      const inPlay = String(m.status ?? "") === "IN_PLAY";
 
-                    return (
-                      <div
-                        key={`tree-${m.id}`}
-                        style={{
-                          border: `1px solid ${done ? "#16A34A" : String(m.status ?? "") === "IN_PLAY" ? "#FACC15" : theme.border}`,
-                          borderRadius: 12,
-                          padding: 10,
-                          background: done ? "#F0FDF4" : String(m.status ?? "") === "IN_PLAY" ? "#FEFCE8" : "#fff",
-                        }}
-                      >
-                        <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>
-                          {m.match_no != null ? `Match ${m.match_no}` : "Match"}
-                        </div>
-                        <div style={{ marginTop: 4, fontWeight: 900, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {isBye ? (
-                            `${left} - BYE`
-                          ) : (
-                            <>
-                              <span style={{ color: winA ? "#16A34A" : theme.text }}>{left}</span>{" "}
-                              <span style={{ color: theme.muted, fontWeight: 900 }}>vs</span>{" "}
-                              <span style={{ color: winB ? "#16A34A" : theme.text }}>{right}</span>
-                            </>
-                          )}
-                        </div>
+                      return (
+                        <div
+                          key={`tree-${m.id}`}
+                          className="bracket-match"
+                          data-done={done ? "1" : "0"}
+                          data-inplay={inPlay ? "1" : "0"}
+                        >
+                          <div className="bracket-match-names">
+                            {isBye ? (
+                              `${left} - BYE`
+                            ) : (
+                              <>
+                                <span style={{ color: winA ? "#16A34A" : theme.text }}>{left}</span>{" "}
+                                <span style={{ color: theme.muted, fontWeight: 900 }}>vs</span>{" "}
+                                <span style={{ color: winB ? "#16A34A" : theme.text }}>{right}</span>
+                              </>
+                            )}
+                          </div>
 
-                        {tournament?.format === "SINGLES" && !isBye ? (
-                          <div style={{ marginTop: 6, fontSize: 11, color: theme.muted, fontWeight: 800 }}>{singlesHandicapLine(m)}</div>
-                        ) : null}
-
-                        <div style={{ marginTop: 6, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
-                          {matchStatusLabel(String(m.status ?? ""))} - {score}
+                          {winnerName ? (
+                            <div className="bracket-match-winner">{winnerName}</div>
+                          ) : null}
                         </div>
-                        {winnerName ? (
-                          <div style={{ marginTop: 4, fontSize: 12, fontWeight: 900, color: theme.maroon }}>Winner: {winnerName}</div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })}
+            </div>
           </div>
         </div>
       );
@@ -2724,6 +2737,98 @@ function singlesHandicapLine(m: MatchRow) {
             })}
           </div>
         )}
+
+        {roundsViewMode === "TREE" ? (
+          <style jsx>{`
+            .bracket-scroll {
+              overflow-x: auto;
+            }
+
+            .bracket-grid {
+              display: grid;
+              grid-auto-flow: column;
+              grid-auto-columns: minmax(260px, 1fr);
+              gap: 24px;
+              min-width: 900px;
+            }
+
+            .bracket-col {
+              display: grid;
+              gap: 12px;
+              align-content: start;
+              position: relative;
+            }
+
+            .bracket-col-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: baseline;
+              font-weight: 900;
+              font-size: 14px;
+              color: ${theme.text};
+            }
+
+            .bracket-col-header > div:last-child {
+              font-size: 11px;
+              color: ${theme.muted};
+              font-weight: 900;
+            }
+
+            .bracket-list {
+              display: grid;
+              gap: 14px;
+            }
+
+            .bracket-match {
+              position: relative;
+              border: 1px solid ${theme.border};
+              border-radius: 14px;
+              padding: 10px 12px;
+              background: #fff;
+              box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+            }
+
+            .bracket-match[data-done="1"] {
+              border-color: #16a34a;
+              background: #f0fdf4;
+            }
+
+            .bracket-match[data-inplay="1"][data-done="0"] {
+              border-color: #facc15;
+              background: #fefce8;
+            }
+
+            .bracket-match-names {
+              font-weight: 900;
+              font-size: 13px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+
+            .bracket-match-winner {
+              margin-top: 4px;
+              font-size: 12px;
+              font-weight: 900;
+              color: #16a34a;
+            }
+
+            .bracket-match:after {
+              content: "";
+              position: absolute;
+              right: -12px;
+              top: 50%;
+              width: 12px;
+              height: 2px;
+              background: ${theme.border};
+              transform: translateY(-50%);
+            }
+
+            .bracket-col:last-child .bracket-match:after {
+              display: none;
+            }
+          `}</style>
+        ) : null}
       </>
     );
   }
@@ -3022,6 +3127,45 @@ function singlesHandicapLine(m: MatchRow) {
             ↻
           </button>
         </div>
+
+        {quickTournaments.length > 1 ? (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 12, color: theme.muted, fontWeight: 900, marginBottom: 6 }}>Active tournaments</div>
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+              {quickTournaments.map((t) => {
+                const active = t.id === tournamentId;
+                const label =
+                  (t.gender ? (t.gender === "MALE" ? "Men" : "Ladies") : "Open") +
+                  " • " +
+                  (t.status === "IN_PLAY" ? "In-play" : "Upcoming");
+                return (
+                  <button
+                    key={`quick-${t.id}`}
+                    type="button"
+                    onClick={() => {
+                      if (t.id === tournamentId) return;
+                      window.location.href = `/admin/tournaments/${t.id}`;
+                    }}
+                    style={{
+                      border: `1px solid ${theme.border}`,
+                      background: active ? theme.maroon : "#fff",
+                      color: active ? "#fff" : theme.text,
+                      padding: "8px 10px",
+                      borderRadius: 12,
+                      fontWeight: 900,
+                      cursor: "pointer",
+                      minWidth: 160,
+                      textAlign: "left",
+                    }}
+                  >
+                    <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</div>
+                    <div style={{ fontSize: 11, opacity: active ? 0.95 : 0.7 }}>{label}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         {/* Back + More */}
         <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
