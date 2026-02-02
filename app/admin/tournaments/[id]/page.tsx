@@ -258,7 +258,7 @@ export default function AdminTournamentDetailPage() {
 
     if (!user) {
       window.location.href = "/login";
-      return { ok: false as const };
+      return { ok: false as const, isSuperAdmin: false, adminClubId: null as string | null };
     }
 
     const profRes = await supabase
@@ -271,7 +271,7 @@ export default function AdminTournamentDetailPage() {
       setError(`Could not verify admin access.\n${profRes.error.message}`);
       setIsAdmin(false);
       setAccessDenied(true);
-      return { ok: false as const };
+      return { ok: false as const, isSuperAdmin: false, adminClubId: null as string | null };
     }
 
     const role = String((profRes.data as any)?.role ?? "").toUpperCase();
@@ -279,17 +279,18 @@ export default function AdminTournamentDetailPage() {
     const isAdminFlag = Boolean((profRes.data as any)?.is_admin);
     const clubId = (profRes.data as any)?.club_id ?? null;
 
+    const adminClub = isSuper ? null : (clubId ? String(clubId) : null);
     setIsSuperAdmin(isSuper);
-    setAdminClubId(isSuper ? null : (clubId ? String(clubId) : null));
+    setAdminClubId(adminClub);
 
     if (!isSuper && !isAdminFlag) {
       setIsAdmin(false);
       setAccessDenied(true);
-      return { ok: false as const };
+      return { ok: false as const, isSuperAdmin: isSuper, adminClubId: adminClub };
     }
 
     setIsAdmin(true);
-    return { ok: true as const };
+    return { ok: true as const, isSuperAdmin: isSuper, adminClubId: adminClub };
   }
 
   async function load(opts?: { preserveScroll?: boolean }) {
@@ -346,9 +347,9 @@ export default function AdminTournamentDetailPage() {
     }
 
     const tRow = tRes.data as TournamentRow;
-    if (!isSuperAdmin) {
+    if (!gate.isSuperAdmin) {
       const cid = String((tRes.data as any)?.club_id ?? "");
-      if (!adminClubId || !cid || cid !== adminClubId || String((tRes.data as any)?.scope ?? "") !== "CLUB") {
+      if (!gate.adminClubId || !cid || cid !== gate.adminClubId || String((tRes.data as any)?.scope ?? "") !== "CLUB") {
         setError("You do not have access to this tournament.");
         setTournament(null);
         setAccessDenied(true);
@@ -368,7 +369,7 @@ export default function AdminTournamentDetailPage() {
       .order("starts_at", { ascending: true, nullsFirst: false })
       .order("announced_at", { ascending: true })
       .limit(10);
-    const quickRes = adminClubId ? await quickQuery.eq("club_id", adminClubId) : await quickQuery;
+    const quickRes = gate.adminClubId ? await quickQuery.eq("club_id", gate.adminClubId) : await quickQuery;
 
     if (!quickRes.error) {
       const list = (quickRes.data ?? []).map((r: any) => ({

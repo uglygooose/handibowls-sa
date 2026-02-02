@@ -23,12 +23,14 @@ export default function BottomNav() {
       }
 
       const res = await supabase
-        .from("admin_users")
-        .select("user_id")
-        .eq("user_id", user.id)
+        .from("profiles")
+        .select("role, is_admin")
+        .eq("id", user.id)
         .maybeSingle();
 
-      setIsAdmin(!!res.data?.user_id);
+      const role = String((res.data as any)?.role ?? "").toUpperCase();
+      const adminFlag = Boolean((res.data as any)?.is_admin);
+      setIsAdmin(role === "SUPER_ADMIN" || adminFlag);
     }
 
     checkAdmin();

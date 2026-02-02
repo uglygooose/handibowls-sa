@@ -100,6 +100,12 @@ function cleanTournamentName(name: string) {
   return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
 }
 
+function clubLogoFor(name: string) {
+  const lower = (name ?? "").toLowerCase();
+  if (lower.includes("ridgepark")) return "/ridgepark-logo.png";
+  return "";
+}
+
 function toLocalInputValue(iso: string | null | undefined) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -127,6 +133,7 @@ export default function HomePage() {
 
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState<string>("");
+  const [userEmail, setUserEmail] = useState<string>("");
   const [clubName, setClubName] = useState<string>("");
   const [clubId, setClubId] = useState<string>("");
   const [baseClubId, setBaseClubId] = useState<string>("");
@@ -409,7 +416,10 @@ export default function HomePage() {
   }
 
   async function saveClubNews() {
-    if (!clubId) return;
+    if (!clubId) {
+      setClubNewsError("Select a club first.");
+      return;
+    }
     setClubNewsSaving(true);
     setClubNewsError(null);
 
@@ -490,6 +500,7 @@ export default function HomePage() {
       return;
     }
     const superByEmail = (user.email ?? "").toLowerCase() === "a.thomas.els@gmail.com";
+    setUserEmail(user.email ?? "");
 
     // ---- profile (defensive club columns) ----
     let prof: any = null;
@@ -512,7 +523,7 @@ export default function HomePage() {
       prof = profRes.data ?? null;
     }
 
-    setFullName((prof as ProfileRow | null)?.full_name ?? user.email ?? "");
+    const profileName = (prof as ProfileRow | null)?.full_name ?? "";
     const role = ((prof as ProfileRow | null)?.role ?? "").toString().toUpperCase();
     const isAdminFlag = Boolean((prof as ProfileRow | null)?.is_admin);
     const isSuperAdmin = role === "SUPER_ADMIN" || superByEmail;
@@ -523,7 +534,7 @@ export default function HomePage() {
 
     const pRes = await supabase
       .from("players")
-      .select("id, user_id, handicap, club_id, gender")
+      .select("id, user_id, handicap, club_id, gender, display_name")
       .eq("user_id", user.id)
       .single();
 
@@ -560,6 +571,12 @@ export default function HomePage() {
     const cid = playerClubId || profileClubId || "";
     const g = ((mePlayer as PlayerRow | null)?.gender ?? "") as "MALE" | "FEMALE" | "";
     setPlayerGender(g);
+
+    const playerName = String((mePlayer as any)?.display_name ?? "");
+    const metaName =
+      String((user as any)?.user_metadata?.full_name ?? (user as any)?.user_metadata?.name ?? "");
+    const resolvedName = profileName || playerName || metaName || user.email || "";
+    setFullName(resolvedName);
 
     setBaseClubId(cid);
     setIsClubAdmin(isSuperAdmin || (isAdminFlag && Boolean(cid)));
@@ -634,6 +651,9 @@ export default function HomePage() {
   const now = new Date();
   const newsIsActiveNow = isNewsActive(clubNews, now);
   const newsHasContent = Boolean((clubNews?.title ?? "").trim() || (clubNews?.body ?? "").trim() || (clubNews?.image_url ?? "").trim());
+  const clubTitle = clubName || "HandiBowls SA";
+  const clubLogoUrl = clubLogoFor(clubName);
+  const welcomeName = fullName || userEmail || "";
 
   return (
     <div
@@ -657,7 +677,16 @@ export default function HomePage() {
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 18 }}>HandiBowls SA</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {clubLogoUrl ? (
+                <img
+                  src={clubLogoUrl}
+                  alt=""
+                  style={{ width: 22, height: 22, borderRadius: 6, objectFit: "contain" }}
+                />
+              ) : null}
+              <div style={{ fontWeight: 900, fontSize: 18 }}>{clubTitle}</div>
+            </div>
 
             <div style={{ color: theme.muted, fontSize: 13, marginTop: 4, lineHeight: 1.25 }}>
               {loading ? (
@@ -665,7 +694,7 @@ export default function HomePage() {
               ) : (
                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
                   <span style={{ fontWeight: 800, color: theme.text }}>
-                    {fullName ? `Welcome back, ${fullName}` : "Welcome back"}
+                    {welcomeName ? `Welcome back, ${welcomeName}` : "Welcome back"}
                   </span>
 
                   {isSuperAdmin ? (
