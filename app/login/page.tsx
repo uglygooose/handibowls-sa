@@ -25,6 +25,23 @@ export default function LoginPage() {
   const [provinces, setProvinces] = useState<ProvinceRow[]>([]);
   const [districts, setDistricts] = useState<DistrictRow[]>([]);
   const [clubs, setClubs] = useState<ClubRow[]>([]);
+  const [listsLoading, setListsLoading] = useState(true);
+  const [listsError, setListsError] = useState<string | null>(null);
+
+  const inputStyle: React.CSSProperties = {
+    border: "1px solid #d8c9ba",
+    borderRadius: 12,
+    padding: "12px 12px",
+    fontSize: 14,
+    background: "#fff",
+    color: "#1f2a44",
+  };
+
+  const selectStyle: React.CSSProperties = {
+    ...inputStyle,
+    WebkitAppearance: "menulist",
+    appearance: "auto",
+  };
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
@@ -141,19 +158,31 @@ export default function LoginPage() {
     window.location.href = "/";
   }
 
-  useEffect(() => {
-    async function loadLists() {
+  async function loadLists() {
+    setListsLoading(true);
+    setListsError(null);
+    try {
       const [pRes, dRes, cRes] = await Promise.all([
         supabase.from("provinces").select("id, name").order("name"),
         supabase.from("districts").select("id, name, province_id").order("name"),
         supabase.from("clubs").select("id, name, district_id").order("name"),
       ]);
 
-      if (!pRes.error) setProvinces((pRes.data ?? []) as ProvinceRow[]);
-      if (!dRes.error) setDistricts((dRes.data ?? []) as DistrictRow[]);
-      if (!cRes.error) setClubs((cRes.data ?? []) as ClubRow[]);
+      if (pRes.error || dRes.error || cRes.error) {
+        setListsError("Could not load province, district, or club lists. Please try again.");
+      } else {
+        setProvinces((pRes.data ?? []) as ProvinceRow[]);
+        setDistricts((dRes.data ?? []) as DistrictRow[]);
+        setClubs((cRes.data ?? []) as ClubRow[]);
+      }
+    } catch {
+      setListsError("Could not load province, district, or club lists. Please try again.");
+    } finally {
+      setListsLoading(false);
     }
+  }
 
+  useEffect(() => {
     loadLists();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -212,87 +241,113 @@ export default function LoginPage() {
                 placeholder="Full name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                style={{
-                  border: "1px solid #d8c9ba",
-                  borderRadius: 12,
-                  padding: "12px 12px",
-                  fontSize: 14,
-                  background: "#fff",
-                }}
+                style={inputStyle}
               />
 
               <select
                 value={provinceId}
                 onChange={(e) => setProvinceId(e.target.value)}
-                style={{
-                  border: "1px solid #d8c9ba",
-                  borderRadius: 12,
-                  padding: "12px 12px",
-                  fontSize: 14,
-                  background: "#fff",
-                }}
+                disabled={listsLoading}
+                style={selectStyle}
               >
-                <option value="">Select province (national)</option>
-                {provinces.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
+                <option value="">
+                  {listsLoading ? "Loading provinces..." : "Select province (national)"}
+                </option>
+                {provinces.length ? (
+                  provinces.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))
+                ) : !listsLoading ? (
+                  <option value="" disabled>
+                    No provinces found
                   </option>
-                ))}
+                ) : null}
               </select>
 
               <select
                 value={districtId}
                 onChange={(e) => setDistrictId(e.target.value)}
-                style={{
-                  border: "1px solid #d8c9ba",
-                  borderRadius: 12,
-                  padding: "12px 12px",
-                  fontSize: 14,
-                  background: "#fff",
-                }}
+                disabled={listsLoading || !provinceId}
+                style={selectStyle}
               >
-                <option value="">Select district</option>
-                {filteredDistricts.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
+                <option value="">
+                  {listsLoading ? "Loading districts..." : provinceId ? "Select district" : "Select province first"}
+                </option>
+                {filteredDistricts.length ? (
+                  filteredDistricts.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))
+                ) : provinceId && !listsLoading ? (
+                  <option value="" disabled>
+                    No districts found
                   </option>
-                ))}
+                ) : null}
               </select>
 
               <select
                 value={clubId}
                 onChange={(e) => setClubId(e.target.value)}
-                style={{
-                  border: "1px solid #d8c9ba",
-                  borderRadius: 12,
-                  padding: "12px 12px",
-                  fontSize: 14,
-                  background: "#fff",
-                }}
+                disabled={listsLoading || !districtId}
+                style={selectStyle}
               >
-                <option value="">Select club</option>
-                {filteredClubs.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
+                <option value="">
+                  {listsLoading ? "Loading clubs..." : districtId ? "Select club" : "Select district first"}
+                </option>
+                {filteredClubs.length ? (
+                  filteredClubs.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))
+                ) : districtId && !listsLoading ? (
+                  <option value="" disabled>
+                    No clubs found
                   </option>
-                ))}
+                ) : null}
               </select>
 
               <select
                 value={gender}
                 onChange={(e) => setGender(e.target.value as "MALE" | "FEMALE")}
-                style={{
-                  border: "1px solid #d8c9ba",
-                  borderRadius: 12,
-                  padding: "12px 12px",
-                  fontSize: 14,
-                  background: "#fff",
-                }}
+                style={selectStyle}
               >
                 <option value="">Select gender</option>
                 <option value="MALE">Male</option>
                 <option value="FEMALE">Female</option>
               </select>
+              {listsError ? (
+                <div
+                  style={{
+                    border: "1px solid #e0c15a",
+                    background: "#fff6da",
+                    color: "#7A1F2B",
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    fontWeight: 700,
+                    fontSize: 12,
+                  }}
+                >
+                  {listsError}{" "}
+                  <button
+                    type="button"
+                    onClick={() => loadLists()}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: "#7A1F2B",
+                      fontWeight: 900,
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : null}
             </>
           ) : null}
 
@@ -300,13 +355,7 @@ export default function LoginPage() {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={{
-              border: "1px solid #d8c9ba",
-              borderRadius: 12,
-              padding: "12px 12px",
-              fontSize: 14,
-              background: "#fff",
-            }}
+            style={inputStyle}
           />
 
           <input
@@ -314,13 +363,7 @@ export default function LoginPage() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            style={{
-              border: "1px solid #d8c9ba",
-              borderRadius: 12,
-              padding: "12px 12px",
-              fontSize: 14,
-              background: "#fff",
-            }}
+            style={inputStyle}
           />
 
           {error ? <div style={{ color: "crimson", fontWeight: 700 }}>{error}</div> : null}
