@@ -73,7 +73,7 @@ export default function TournamentsPage() {
   const [genderSaving, setGenderSaving] = useState(false);
   const [enteredByTournamentId, setEnteredByTournamentId] = useState<Record<string, boolean>>({});
   const [clubNameById, setClubNameById] = useState<Record<string, string>>({});
-  const [bucketOpenByKey, setBucketOpenByKey] = useState<Record<string, boolean>>({});
+  const [bucketOpenByTitle, setBucketOpenByTitle] = useState<Record<string, boolean>>({});
   const [sectionOpenByKey, setSectionOpenByKey] = useState<Record<string, boolean>>({});
 
   const [teamsByTournamentId, setTeamsByTournamentId] = useState<
@@ -381,257 +381,264 @@ export default function TournamentsPage() {
     }
   }
 
+  function renderTournamentCard(t: TournamentRow) {
+    return (
+      <div
+        key={t.id}
+        style={{
+          background: theme.surface,
+          border: `1px solid ${theme.border}`,
+          borderRadius: 16,
+          padding: 12,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
+          <div style={{ fontWeight: 900, fontSize: 15 }}>{cleanTournamentName(t.name)}</div>
+          <div
+            style={{
+              border: `1px solid ${theme.border}`,
+              borderRadius: 999,
+              padding: "2px 10px",
+              fontSize: 12,
+              fontWeight: 900,
+              color: theme.text,
+              background: theme.surface,
+              whiteSpace: "nowrap",
+            }}
+            title="Tournament format"
+          >
+            {formatLabel(t.format)}
+          </div>
+        </div>
+
+        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
+            {scopeLabel(t.scope)}
+          </span>
+          <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
+            {genderLabel(t.gender ?? null)}
+          </span>
+          <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
+            {ruleLabel(t.rule_type ?? "HANDICAP_START")}
+          </span>
+          <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
+            {statusLabel(t.status)}
+          </span>
+          {t.scope === "CLUB" && t.club_id && clubNameById[t.club_id] ? (
+            <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
+              Host: {clubNameById[t.club_id]}
+            </span>
+          ) : null}
+        </div>
+
+        <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 13, color: theme.muted }}>
+          <div><span style={{ fontWeight: 800, color: theme.text }}>Type</span> {formatLabel(t.format)} knockout</div>
+          <div><span style={{ fontWeight: 800, color: theme.text }}>Entries</span> {t.entries_open === false ? "Locked" : "Open"}</div>
+          <div><span style={{ fontWeight: 800, color: theme.text }}>Starts</span> {t.starts_at ? new Date(t.starts_at).toLocaleString() : "TBC"}</div>
+          <div><span style={{ fontWeight: 800, color: theme.text }}>Ends</span> {t.ends_at ? new Date(t.ends_at).toLocaleString() : "TBC"}</div>
+        </div>
+
+        <div style={{ marginTop: 10 }}>
+          {t.status === "IN_PLAY" ? (
+            <button
+              type="button"
+              onClick={() => (window.location.href = `/tournaments/${t.id}`)}
+              style={{
+                width: "100%",
+                border: "none",
+                background: theme.maroon,
+                color: "#fff",
+                padding: "10px 12px",
+                borderRadius: 12,
+                fontWeight: 900,
+                cursor: "pointer",
+              }}
+              title="View tournament"
+            >
+              {enteredByTournamentId[t.id] ? "Open tournament" : "View bracket"}
+            </button>
+          ) : enteredByTournamentId[t.id] ? (
+            <button
+              type="button"
+              disabled
+              style={{
+                width: "100%",
+                border: `1px solid ${theme.border}`,
+                background: "rgba(122,31,43,0.10)",
+                color: theme.maroon,
+                padding: "10px 12px",
+                borderRadius: 12,
+                fontWeight: 900,
+                cursor: "not-allowed",
+              }}
+              title="You have entered this tournament"
+            >
+              Entered
+            </button>
+          ) : t.status === "ANNOUNCED" && t.entries_open !== false ? (
+            <button
+              type="button"
+              onClick={() => enterTournament(t.id)}
+              style={{
+                width: "100%",
+                border: "none",
+                background: theme.maroon,
+                color: "#fff",
+                padding: "10px 12px",
+                borderRadius: 12,
+                fontWeight: 900,
+                cursor: "pointer",
+              }}
+              title="Enter tournament"
+            >
+              Enter tournament
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              style={{
+                width: "100%",
+                border: `1px solid ${theme.border}`,
+                background: theme.surface,
+                color: theme.muted,
+                padding: "10px 12px",
+                borderRadius: 12,
+                fontWeight: 900,
+                cursor: "not-allowed",
+              }}
+              title={t.entries_open === false ? "Entries are locked" : "Entries are closed"}
+            >
+              {t.entries_open === false ? "Entries locked" : "Closed"}
+            </button>
+          )}
+        </div>
+
+        {teamsByTournamentId[t.id]?.length ? (
+          <details style={{ marginTop: 10 }}>
+            <summary
+              style={{
+                cursor: "pointer",
+                fontWeight: 900,
+                color: theme.maroon,
+                userSelect: "none",
+              }}
+              title={t.format === "SINGLES" ? "View entries" : "View generated teams"}
+            >
+              {t.format === "SINGLES" ? "View Entries" : "View Teams"}
+            </summary>
+
+            {(() => {
+              const teams = teamsByTournamentId[t.id] ?? [];
+
+              const myTeam = teams.find((tm) => (teamMembersByTeamId[tm.id] ?? []).includes(playerId));
+              const otherTeams = teams.filter((tm) => tm.id !== myTeam?.id);
+
+              const ordered = myTeam ? [myTeam, ...otherTeams] : otherTeams;
+
+              return (
+                <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                  {ordered.map((tm) => {
+                    const memberIds = teamMembersByTeamId[tm.id] ?? [];
+                    const memberNames = memberIds.map((pid) => nameByPlayerId[pid] ?? "Unknown");
+                    const isMine = myTeam?.id === tm.id;
+                    const isSingles = t.format === "SINGLES";
+
+                    return (
+                      <div
+                        key={tm.id}
+                        style={{
+                          border: `1px solid ${isMine ? theme.maroon : theme.border}`,
+                          borderRadius: 14,
+                          padding: 10,
+                          background: isMine ? "rgba(122,31,43,0.10)" : theme.surface,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "baseline",
+                            gap: 10,
+                          }}
+                        >
+                          <div style={{ fontWeight: 900 }}>
+                            {isSingles ? (isMine ? "You" : "Entry") : isMine ? "Your Team" : `Team ${tm.team_no}`}
+                          </div>
+                          {!isSingles ? (
+                            <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>
+                              HCP {tm.team_handicap == null ? "-" : tm.team_handicap}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 6,
+                            fontSize: 13,
+                            color: theme.text,
+                            fontWeight: 800,
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          {memberNames.length ? memberNames.join(" \u2022 ") : "Members not loaded"}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </details>
+        ) : null}
+      </div>
+    );
+  }
+
   function renderBucket(title: string, items: TournamentRow[]) {
     const upcoming = items.filter((r) => r.status === "ANNOUNCED");
     const inplay = items.filter((r) => r.status === "IN_PLAY");
     const past = items.filter((r) => r.status === "COMPLETED");
-    const bucketKey = `bucket:${title}`;
-    const bucketOpen = bucketOpenByKey[bucketKey] ?? items.length > 0;
+    const bucketOpen = bucketOpenByTitle[title] !== false;
 
     function section(label: string, list: TournamentRow[]) {
-      const sectionKey = `${bucketKey}:${label}`;
-      const defaultOpen = label !== "Past" && list.length > 0;
-      const open = sectionOpenByKey[sectionKey] ?? defaultOpen;
+      const key = `${title}__${label}`;
+      const open = sectionOpenByKey[key] ?? (label === "In-play" ? true : false);
       return (
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 10 }}>
           <button
             type="button"
-            onClick={() => setSectionOpenByKey((m) => ({ ...m, [sectionKey]: !open }))}
+            onClick={() => setSectionOpenByKey((m) => ({ ...m, [key]: !open }))}
             style={{
               width: "100%",
               border: `1px solid ${theme.border}`,
-              background: theme.surface,
+              background: "#F3F8F3",
+              color: theme.text,
               padding: "10px 12px",
-              borderRadius: 12,
+              borderRadius: 14,
               fontWeight: 900,
+              cursor: "pointer",
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center",
-              cursor: "pointer",
+              alignItems: "baseline",
+              gap: 10,
             }}
             title={`Toggle ${label}`}
           >
-            <span>{label}</span>
-            <span style={{ fontSize: 12, color: theme.muted }}>{list.length}</span>
+            <div>{label}</div>
+            <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, whiteSpace: "nowrap" }}>
+              {list.length} {list.length === 1 ? "tournament" : "tournaments"}{" "}
+              <span style={{ marginLeft: 8 }}>{open ? "▾" : "▸"}</span>
+            </div>
           </button>
 
-          {!open ? null : !list.length ? (
-            <div style={{ marginTop: 8, color: theme.muted, fontSize: 13 }}>None</div>
-          ) : (
-            <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
-              {list.map((t) => (
-                <div
-                  key={t.id}
-                  style={{
-                    background: theme.surface,
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 16,
-                    padding: 12,
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
-                    <div style={{ fontWeight: 900, fontSize: 15 }}>{cleanTournamentName(t.name)}</div>
-                    <div
-                      style={{
-                        border: `1px solid ${theme.border}`,
-                        borderRadius: 999,
-                        padding: "2px 10px",
-                        fontSize: 12,
-                        fontWeight: 900,
-                        color: theme.text,
-                        background: theme.surface,
-                        whiteSpace: "nowrap",
-                      }}
-                      title="Tournament format"
-                    >
-                      {formatLabel(t.format)}
-                    </div>
-                  </div>
-
-                  <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
-                      {scopeLabel(t.scope)}
-                    </span>
-                    <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
-                      {genderLabel(t.gender ?? null)}
-                    </span>
-                    <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
-                      {ruleLabel(t.rule_type ?? "HANDICAP_START")}
-                    </span>
-                    <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
-                      {statusLabel(t.status)}
-                    </span>
-                    {t.scope === "CLUB" && t.club_id && clubNameById[t.club_id] ? (
-                      <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
-                        Host: {clubNameById[t.club_id]}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 13, color: theme.muted }}>
-                    <div><span style={{ fontWeight: 800, color: theme.text }}>Type</span> {formatLabel(t.format)} knockout</div>
-                    <div><span style={{ fontWeight: 800, color: theme.text }}>Entries</span> {t.entries_open === false ? "Locked" : "Open"}</div>
-                    <div><span style={{ fontWeight: 800, color: theme.text }}>Starts</span> {t.starts_at ? new Date(t.starts_at).toLocaleString() : "TBC"}</div>
-                    <div><span style={{ fontWeight: 800, color: theme.text }}>Ends</span> {t.ends_at ? new Date(t.ends_at).toLocaleString() : "TBC"}</div>
-                  </div>
-
-                  <div style={{ marginTop: 10 }}>
-                    {t.status === "IN_PLAY" ? (
-                      <button
-                        type="button"
-                        onClick={() => (window.location.href = `/tournaments/${t.id}`)}
-                        style={{
-                          width: "100%",
-                          border: "none",
-                          background: theme.maroon,
-                          color: "#fff",
-                          padding: "10px 12px",
-                          borderRadius: 12,
-                          fontWeight: 900,
-                          cursor: "pointer",
-                        }}
-                        title="View tournament"
-                      >
-                        {enteredByTournamentId[t.id] ? "Open tournament" : "View bracket"}
-                      </button>
-                    ) : enteredByTournamentId[t.id] ? (
-                      <button
-                        type="button"
-                        disabled
-                        style={{
-                          width: "100%",
-                          border: `1px solid ${theme.border}`,
-                          background: "rgba(122,31,43,0.10)",
-                          color: theme.maroon,
-                          padding: "10px 12px",
-                          borderRadius: 12,
-                          fontWeight: 900,
-                          cursor: "not-allowed",
-                        }}
-                        title="You have entered this tournament"
-                      >
-                        Entered
-                      </button>
-                    ) : t.status === "ANNOUNCED" && t.entries_open !== false ? (
-                      <button
-                        type="button"
-                        onClick={() => enterTournament(t.id)}
-                        style={{
-                          width: "100%",
-                          border: "none",
-                          background: theme.maroon,
-                          color: "#fff",
-                          padding: "10px 12px",
-                          borderRadius: 12,
-                          fontWeight: 900,
-                          cursor: "pointer",
-                        }}
-                        title="Enter tournament"
-                      >
-                        Enter tournament
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled
-                        style={{
-                          width: "100%",
-                          border: `1px solid ${theme.border}`,
-                          background: theme.surface,
-                          color: theme.muted,
-                          padding: "10px 12px",
-                          borderRadius: 12,
-                          fontWeight: 900,
-                          cursor: "not-allowed",
-                        }}
-                        title={t.entries_open === false ? "Entries are locked" : "Entries are closed"}
-                      >
-                        {t.entries_open === false ? "Entries locked" : "Closed"}
-                      </button>
-                    )}
-                  </div>
-
-                  {teamsByTournamentId[t.id]?.length ? (
-                    <details style={{ marginTop: 10 }}>
-                      <summary
-                        style={{
-                          cursor: "pointer",
-                          fontWeight: 900,
-                          color: theme.maroon,
-                          userSelect: "none",
-                        }}
-                        title={t.format === "SINGLES" ? "View entries" : "View generated teams"}
-                      >
-                        {t.format === "SINGLES" ? "View Entries" : "View Teams"}
-                      </summary>
-
-                      {(() => {
-                        const teams = teamsByTournamentId[t.id] ?? [];
-
-                        const myTeam = teams.find((tm) => (teamMembersByTeamId[tm.id] ?? []).includes(playerId));
-                        const otherTeams = teams.filter((tm) => tm.id !== myTeam?.id);
-
-                        const ordered = myTeam ? [myTeam, ...otherTeams] : otherTeams;
-
-                        return (
-                          <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-                            {ordered.map((tm) => {
-                              const memberIds = teamMembersByTeamId[tm.id] ?? [];
-                              const memberNames = memberIds.map((pid) => nameByPlayerId[pid] ?? "Unknown");
-                              const isMine = myTeam?.id === tm.id;
-                              const isSingles = t.format === "SINGLES";
-
-                              return (
-                                <div
-                                  key={tm.id}
-                                  style={{
-                                    border: `1px solid ${isMine ? theme.maroon : theme.border}`,
-                                    borderRadius: 14,
-                                    padding: 10,
-                                    background: isMine ? "rgba(122,31,43,0.10)" : theme.surface,
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                      alignItems: "baseline",
-                                      gap: 10,
-                                    }}
-                                  >
-                                    <div style={{ fontWeight: 900 }}>
-                                      {isSingles ? (isMine ? "You" : "Entry") : isMine ? "Your Team" : `Team ${tm.team_no}`}
-                                    </div>
-                                    {!isSingles ? (
-                                      <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>
-                                        HCP {tm.team_handicap == null ? "-" : tm.team_handicap}
-                                      </div>
-                                    ) : null}
-                                  </div>
-
-                                  <div
-                                    style={{
-                                      marginTop: 6,
-                                      fontSize: 13,
-                                      color: theme.text,
-                                      fontWeight: 800,
-                                      lineHeight: 1.35,
-                                    }}
-                                  >
-                                    {memberNames.length ? memberNames.join(" \u2022 ") : "Members not loaded"}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
-                    </details>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          )}
+          {open ? (
+            !list.length ? (
+              <div style={{ marginTop: 8, color: theme.muted, fontSize: 13 }}>None</div>
+            ) : (
+              <div style={{ display: "grid", gap: 10, marginTop: 10 }}>{list.map(renderTournamentCard)}</div>
+            )
+          ) : null}
         </div>
       );
     }
@@ -640,39 +647,43 @@ export default function TournamentsPage() {
       <div
         style={{
           marginTop: 14,
-          background: theme.surface,
+          background: "#fff",
           border: `1px solid ${theme.border}`,
           borderRadius: 16,
-          padding: 14,
+          overflow: "hidden",
         }}
       >
         <button
           type="button"
-          onClick={() => setBucketOpenByKey((m) => ({ ...m, [bucketKey]: !bucketOpen }))}
+          onClick={() => setBucketOpenByTitle((m) => ({ ...m, [title]: !(m[title] !== false) }))}
           style={{
             width: "100%",
             border: "none",
-            background: "transparent",
-            padding: 0,
+            background: "#fff",
+            color: theme.text,
+            padding: "12px 14px",
             fontWeight: 900,
-            fontSize: 16,
+            cursor: "pointer",
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
-            cursor: "pointer",
+            alignItems: "baseline",
+            gap: 10,
           }}
           title={`Toggle ${title}`}
         >
-          <span>{title}</span>
-          <span style={{ fontSize: 12, color: theme.muted }}>{items.length} tournaments</span>
+          <div style={{ fontSize: 16 }}>{title}</div>
+          <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, whiteSpace: "nowrap" }}>
+            {items.length} {items.length === 1 ? "tournament" : "tournaments"}{" "}
+            <span style={{ marginLeft: 8 }}>{bucketOpen ? "▾" : "▸"}</span>
+          </div>
         </button>
 
         {bucketOpen ? (
-          <>
+          <div style={{ padding: 14, borderTop: `1px solid ${theme.border}` }}>
             {section("Upcoming", upcoming)}
             {section("In-play", inplay)}
             {section("Past", past)}
-          </>
+          </div>
         ) : null}
       </div>
     );

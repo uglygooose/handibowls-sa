@@ -1867,69 +1867,74 @@ function singlesHandicapLine(m: MatchRow) {
         </div>
 
         <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-          <button
-            type="button"
-            disabled={!canStartAll}
-            onClick={startAllInSelectedRound}
-            style={{
-              width: "100%",
-              border: `1px solid ${theme.border}`,
-              background: "#fff",
-              color: theme.text,
-              padding: "10px 12px",
-              borderRadius: 12,
-              fontWeight: 900,
-              cursor: canStartAll ? "pointer" : "not-allowed",
-            }}
-            title={scheduledCount ? `Start ${scheduledCount} scheduled match(es)` : "No scheduled matches to start"}
-          >
-            {busy ? "Working..." : `Start all matches${scheduledCount ? ` (${scheduledCount})` : ""}`}
-          </button>
+          {scheduledCount > 0 ? (
+            <button
+              type="button"
+              disabled={!canStartAll}
+              onClick={startAllInSelectedRound}
+              style={{
+                width: "100%",
+                border: `1px solid ${theme.border}`,
+                background: "#fff",
+                color: theme.text,
+                padding: "10px 12px",
+                borderRadius: 12,
+                fontWeight: 900,
+                cursor: canStartAll ? "pointer" : "not-allowed",
+              }}
+              title={`Start ${scheduledCount} scheduled match(es)`}
+            >
+              {busy ? "Working..." : `Start all matches${scheduledCount ? ` (${scheduledCount})` : ""}`}
+            </button>
+          ) : null}
 
-          <button
-            type="button"
-            disabled={!canCompleteWithScores}
-            onClick={completeAllWithScoresInSelectedRound}
-            style={{
-              width: "100%",
-              border: `1px solid ${theme.border}`,
-              background: "#fff",
-              color: theme.text,
-              padding: "10px 12px",
-              borderRadius: 12,
-              fontWeight: 900,
-              cursor: canCompleteWithScores ? "pointer" : "not-allowed",
-            }}
-            title={withScoresCount ? `Complete ${withScoresCount} match(es) that already have scores` : "No scored matches to complete"}
-          >
-            {busy ? "Working..." : `Complete all with scores${withScoresCount ? ` (${withScoresCount})` : ""}`}
-          </button>
+          {withScoresCount > 0 ? (
+            <button
+              type="button"
+              disabled={!canCompleteWithScores}
+              onClick={completeAllWithScoresInSelectedRound}
+              style={{
+                width: "100%",
+                border: `1px solid ${theme.border}`,
+                background: "#fff",
+                color: theme.text,
+                padding: "10px 12px",
+                borderRadius: 12,
+                fontWeight: 900,
+                cursor: canCompleteWithScores ? "pointer" : "not-allowed",
+              }}
+              title={`Complete ${withScoresCount} match(es) that already have scores`}
+            >
+              {busy ? "Working..." : `Complete all with scores${withScoresCount ? ` (${withScoresCount})` : ""}`}
+            </button>
+          ) : null}
 
-          <button
-            type="button"
-            disabled={!canAdvance}
-            onClick={advanceSelectedRound}
-            style={{
-              width: "100%",
-              border: "none",
-              background: canAdvance ? theme.maroon : "#9CA3AF",
-              color: "#fff",
-              padding: "10px 12px",
-              borderRadius: 12,
-              fontWeight: 900,
-              cursor: canAdvance ? "pointer" : "not-allowed",
-            }}
-            title={advanceTitle}
-          >
-            {busy ? "Working..." : "Advance round"}
-          </button>
+          {isLatestRound && !nextRoundExists ? (
+            <button
+              type="button"
+              disabled={!canAdvance}
+              onClick={advanceSelectedRound}
+              style={{
+                width: "100%",
+                border: "none",
+                background: canAdvance ? theme.maroon : "#9CA3AF",
+                color: "#fff",
+                padding: "10px 12px",
+                borderRadius: 12,
+                fontWeight: 900,
+                cursor: canAdvance ? "pointer" : "not-allowed",
+              }}
+              title={advanceTitle}
+            >
+              {busy ? "Working..." : "Advance round"}
+            </button>
+          ) : null}
 
           {!isLatestRound ? (
             <div style={{ fontSize: 12, fontWeight: 900, color: theme.danger }}>
               Select the latest round to enable advancing.
             </div>
           ) : null}
-
         </div>
 
         <div style={{ marginTop: 8, fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>
