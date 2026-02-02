@@ -104,6 +104,17 @@ export async function POST(req: Request) {
     if (!match.team_a_id || !match.team_b_id) {
       return NextResponse.json({ error: "Match teams are not set" }, { status: 400 });
     }
+    if (!isSuperAdmin) {
+      const tRes = await supabase.from("tournaments").select("id, scope, club_id").eq("id", match.tournament_id).single();
+      if (tRes.error || !tRes.data?.id) {
+        return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+      }
+      const tClub = String((tRes.data as any)?.club_id ?? "");
+      const tScope = String((tRes.data as any)?.scope ?? "");
+      if (!adminClubId || tScope !== "CLUB" || tClub !== adminClubId) {
+        return NextResponse.json({ error: "Club admin access denied" }, { status: 403 });
+      }
+    }
 
     if (scoreA === scoreB) {
       return NextResponse.json({ error: "Scores are tied. A winner is required to finalise." }, { status: 400 });
@@ -191,14 +202,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Server error: ${err?.message ?? String(err)}` }, { status: 500 });
   }
 }
-    if (!isSuperAdmin) {
-      const tRes = await supabase.from("tournaments").select("id, scope, club_id").eq("id", match.tournament_id).single();
-      if (tRes.error || !tRes.data?.id) {
-        return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
-      }
-      const tClub = String((tRes.data as any)?.club_id ?? "");
-      const tScope = String((tRes.data as any)?.scope ?? "");
-      if (!adminClubId || tScope !== "CLUB" || tClub !== adminClubId) {
-        return NextResponse.json({ error: "Club admin access denied" }, { status: 403 });
-      }
-    }
