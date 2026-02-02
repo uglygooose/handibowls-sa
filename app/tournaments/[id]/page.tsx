@@ -717,7 +717,7 @@ export default function TournamentRoomPage() {
   useEffect(() => {
     if (!matchesByRound.length) return;
     if (bracketRound && matchesByRound.some((r) => r.round === bracketRound)) return;
-    setBracketRound(matchesByRound[0].round);
+    setBracketRound(matchesByRound[matchesByRound.length - 1].round);
   }, [matchesByRound, bracketRound]);
 
   useEffect(() => {
@@ -856,7 +856,7 @@ export default function TournamentRoomPage() {
         .filter((n) => n && !Number.isNaN(n))
         .sort((a, b) => a - b);
 
-      const selectedRound = treeFromRound ?? (rounds[0] ?? null);
+      const selectedRound = treeFromRound ?? (rounds[rounds.length - 1] ?? null);
       return { byRound, rounds, selectedRound };
     })();
 

@@ -483,8 +483,8 @@ export default function AdminTournamentDetailPage() {
 
       const roundNos = Array.from(new Set(ms.map((m) => Number(m.round_no ?? 0)).filter((n) => n && !Number.isNaN(n)))).sort((a, b) => a - b);
 
-      const first = roundNos[0] ?? null;
-      const nextSelected = selectedRound ?? first;
+      const latest = roundNos[roundNos.length - 1] ?? null;
+      const nextSelected = selectedRound ?? latest;
       setSelectedRound(nextSelected);
 
       if (tRow.status === "COMPLETED") setViewTab("AUDIT");
@@ -706,7 +706,7 @@ function singlesHandicapLine(m: MatchRow) {
       .filter((n) => n && !Number.isNaN(n))
       .sort((a, b) => a - b);
 
-    const selected = selectedRound ?? (rounds[0] ?? null);
+    const selected = selectedRound ?? (rounds[rounds.length - 1] ?? null);
     const cur = selected ? byRound[selected] : null;
 
     const roundIsComplete = !!selected && !!cur && cur.total > 0 && cur.completed >= cur.total && cur.byesPending === 0;
@@ -1754,7 +1754,7 @@ function singlesHandicapLine(m: MatchRow) {
           const p = roundMeta.byRound[r];
           const done = p?.completed ?? 0;
           const total = p?.total ?? 0;
-          const active = (roundMeta.selectedRound ?? rounds[0]) === r;
+          const active = (roundMeta.selectedRound ?? rounds[rounds.length - 1]) === r;
 
           return (
             <button

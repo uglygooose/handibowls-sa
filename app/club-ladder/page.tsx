@@ -278,8 +278,6 @@ export default function ClubLadderPage() {
       setViewType("RANKED");
       setFormatFilter("SINGLES");
       if (hasGender) setGenderFilter(resolvedGender as GenderFilter);
-    } else if (genderFilter === "ALL") {
-      if (hasGender) setGenderFilter(resolvedGender as GenderFilter);
     }
 
     // Load ladders
