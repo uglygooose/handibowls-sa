@@ -26,7 +26,7 @@ export default function LoginPage() {
       return;
     }
 
-    window.location.href = "/club-ladder";
+    window.location.href = "/";
   }
 
   return (
