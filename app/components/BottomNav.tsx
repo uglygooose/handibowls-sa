@@ -47,7 +47,7 @@ export default function BottomNav() {
   }
 
   const pillBase =
-    "w-full rounded-full border px-2 py-2 text-center text-xs font-semibold transition whitespace-nowrap";
+    "w-full rounded-full border px-1.5 py-2 text-center text-[11px] font-semibold leading-tight transition whitespace-normal sm:px-2 sm:text-xs";
 
   function pill(active: boolean) {
     return `${pillBase} ${
@@ -60,7 +60,7 @@ export default function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white/95 backdrop-blur">
       <div className="mx-auto w-full max-w-[560px] px-[14px] pt-2 pb-[env(safe-area-inset-bottom)]">
-        <div className={`grid ${cols} gap-2`}>
+        <div className={`grid ${cols} gap-1.5 sm:gap-2`}>
           <Link href="/" className={pill(isActive("/"))}>
             Home
           </Link>

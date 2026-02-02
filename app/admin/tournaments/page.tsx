@@ -726,7 +726,7 @@ export default function AdminTournamentsPage() {
           padding: 12,
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
           <div style={{ fontWeight: 900, fontSize: 15, minWidth: 0 }}>
             <div
               style={{
@@ -740,13 +740,13 @@ export default function AdminTournamentsPage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
             <div
               style={{
                 border: `1px solid ${theme.border}`,
                 borderRadius: 999,
-                padding: "2px 10px",
-                fontSize: 12,
+                padding: "2px 8px",
+                fontSize: 11,
                 fontWeight: 900,
                 color: theme.text,
                 background: "#fff",
@@ -761,8 +761,8 @@ export default function AdminTournamentsPage() {
               style={{
                 border: `1px solid ${theme.border}`,
                 borderRadius: 999,
-                padding: "2px 10px",
-                fontSize: 12,
+                padding: "2px 8px",
+                fontSize: 11,
                 fontWeight: 900,
                 color: statusPillColor,
                 background: statusPillBg,
