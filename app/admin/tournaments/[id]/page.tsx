@@ -177,6 +177,14 @@ export default function AdminTournamentDetailPage() {
   const [auditOpenByRound, setAuditOpenByRound] = useState<Record<number, boolean>>({});
   const [auditEditOpenByMatchId, setAuditEditOpenByMatchId] = useState<Record<string, boolean>>({});
   const treeRoundRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const treeContainerRef = useRef<HTMLDivElement | null>(null);
+  const treeContentRef = useRef<HTMLDivElement | null>(null);
+  const treeMatchRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [treeOverlay, setTreeOverlay] = useState<{ width: number; height: number; paths: string[] }>({
+    width: 0,
+    height: 0,
+    paths: [],
+  });
 
   // Bottom drawer (keeps list stable; stops scroll-jump) — still supported
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -706,6 +714,65 @@ function singlesHandicapLine(m: MatchRow) {
 
     return { byRound, rounds, selectedRound: selected, roundIsComplete };
   }, [matches, selectedRound]);
+
+  const treeRoundsToShow = useMemo(() => {
+    const selected = roundMeta.selectedRound;
+    return selected ? matchesByRound.filter((r) => r.round >= selected) : matchesByRound;
+  }, [matchesByRound, roundMeta.selectedRound]);
+
+  useEffect(() => {
+    if (roundsViewMode !== "TREE") return;
+
+    const calc = () => {
+      const content = treeContentRef.current;
+      if (!content) return;
+      const contentRect = content.getBoundingClientRect();
+      const width = content.scrollWidth;
+      const height = content.scrollHeight;
+
+      const posByMatchId: Record<string, { left: number; right: number; midY: number }> = {};
+      for (const round of treeRoundsToShow) {
+        for (const m of round.matches ?? []) {
+          const el = treeMatchRefs.current[m.id];
+          if (!el) continue;
+          const rect = el.getBoundingClientRect();
+          const left = rect.left - contentRect.left + content.scrollLeft;
+          const right = rect.right - contentRect.left + content.scrollLeft;
+          const midY = rect.top - contentRect.top + content.scrollTop + rect.height / 2;
+          posByMatchId[m.id] = { left, right, midY };
+        }
+      }
+
+      const paths: string[] = [];
+      for (const round of treeRoundsToShow) {
+        for (const m of round.matches ?? []) {
+          const childPos = posByMatchId[m.id];
+          if (!childPos) continue;
+          const parents = [
+            m.slot_a_source_type === "WINNER_OF_MATCH" ? m.slot_a_source_match_id : null,
+            m.slot_b_source_type === "WINNER_OF_MATCH" ? m.slot_b_source_match_id : null,
+          ].filter(Boolean) as string[];
+
+          for (const parentId of parents) {
+            const parentPos = posByMatchId[parentId];
+            if (!parentPos) continue;
+            const midX = (parentPos.right + childPos.left) / 2;
+            paths.push(`M ${parentPos.right} ${parentPos.midY} H ${midX} V ${childPos.midY} H ${childPos.left}`);
+          }
+        }
+      }
+
+      setTreeOverlay({ width, height, paths });
+    };
+
+    const raf = requestAnimationFrame(calc);
+    const onResize = () => calc();
+    window.addEventListener("resize", onResize);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [roundsViewMode, treeRoundsToShow]);
 
   useEffect(() => {
     if (roundsViewMode !== "TREE") return;
@@ -2473,9 +2540,7 @@ function singlesHandicapLine(m: MatchRow) {
       }
 
       const selected = roundMeta.selectedRound;
-      const roundsToShow = selected
-        ? matchesByRound.filter((r) => r.round >= selected)
-        : matchesByRound;
+      const roundsToShow = treeRoundsToShow;
 
       return (
         <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, overflow: "hidden" }}>
@@ -2496,15 +2561,47 @@ function singlesHandicapLine(m: MatchRow) {
           </div>
 
           <div
-            className="bracket-scroll"
+            ref={treeContainerRef}
             style={{
               borderTop: `1px solid ${theme.border}`,
               padding: 14,
               overflowX: "auto",
             }}
           >
-            <div className="bracket-grid">
-            {roundsToShow.map((round) => {
+            <div
+              ref={treeContentRef}
+              style={{
+                position: "relative",
+                minWidth: 1000,
+              }}
+            >
+              <svg
+                width={treeOverlay.width}
+                height={treeOverlay.height}
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  pointerEvents: "none",
+                }}
+              >
+                {treeOverlay.paths.map((d, idx) => (
+                  <path key={`path-${idx}`} d={d} stroke={theme.border} strokeWidth={2} fill="none" />
+                ))}
+              </svg>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridAutoFlow: "column",
+                  gridAutoColumns: "minmax(260px, 1fr)",
+                  gap: 28,
+                  minWidth: 1000,
+                  position: "relative",
+                  zIndex: 1,
+                }}
+              >
+            {roundsToShow.map((round, roundIndex) => {
               const list = [...(round.matches ?? [])].sort(
                 (a, b) => Number(a.match_no ?? 0) - Number(b.match_no ?? 0) || String(a.id).localeCompare(String(b.id))
               );
@@ -2512,6 +2609,8 @@ function singlesHandicapLine(m: MatchRow) {
               const total = meta?.total ?? list.length;
               const completed = meta?.completed ?? 0;
               const focused = selected ? round.round === selected : true;
+              const gap = Math.min(12 * Math.pow(2, roundIndex), 72);
+              const paddingTop = roundIndex === 0 ? 0 : gap / 2;
 
               return (
                 <div
@@ -2519,38 +2618,68 @@ function singlesHandicapLine(m: MatchRow) {
                   ref={(el) => {
                     treeRoundRefs.current[round.round] = el;
                   }}
-                  className="bracket-col"
                   style={{
-                    opacity: focused ? 1 : 0.45,
-                    transform: focused ? "scale(1)" : "scale(0.98)",
-                    transition: "opacity 160ms ease, transform 160ms ease",
+                    display: "grid",
+                    gap,
+                    paddingTop,
+                    alignContent: "start",
+                    opacity: focused ? 1 : 0.7,
+                    transition: "opacity 160ms ease",
                   }}
                 >
-                  <div className="bracket-col-header">
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "baseline",
+                      fontWeight: 900,
+                      fontSize: 14,
+                      color: theme.text,
+                      paddingBottom: 2,
+                    }}
+                  >
                     <div>{roundLabel(round.round)}</div>
-                    <div>{completed}/{total}</div>
+                    <div style={{ fontSize: 11, color: theme.muted, fontWeight: 900 }}>{completed}/{total}</div>
                   </div>
 
-                  <div className="bracket-list">
+                  <div style={{ display: "grid", gap: 12 }}>
                     {list.map((m) => {
                       const left = slotLabel(m, "A");
                       const right = slotLabel(m, "B");
                       const winnerId = m.winner_team_id ? String(m.winner_team_id) : null;
-                      const winnerName = winnerId ? teamDisplayName(winnerId) : null;
                       const isBye = isMatchBye(m);
                       const winA = winnerId && m.team_a_id && winnerId === String(m.team_a_id);
                       const winB = winnerId && m.team_b_id && winnerId === String(m.team_b_id);
                       const done = isMatchDone(m);
                       const inPlay = String(m.status ?? "") === "IN_PLAY";
+                      const parentA = m.slot_a_source_type === "WINNER_OF_MATCH";
+                      const parentB = m.slot_b_source_type === "WINNER_OF_MATCH";
+                      const hasParent = parentA || parentB;
 
                       return (
                         <div
                           key={`tree-${m.id}`}
-                          className="bracket-match"
-                          data-done={done ? "1" : "0"}
-                          data-inplay={inPlay ? "1" : "0"}
+                          ref={(el) => {
+                            treeMatchRefs.current[m.id] = el;
+                          }}
+                          style={{
+                            position: "relative",
+                            border: `1px solid ${done ? "#16A34A" : inPlay ? "#FACC15" : theme.border}`,
+                            borderRadius: 14,
+                            padding: "10px 12px",
+                            background: done ? "#F0FDF4" : inPlay ? "#FEFCE8" : "#fff",
+                            boxShadow: "0 1px 0 rgba(0,0,0,0.02)",
+                          }}
                         >
-                          <div className="bracket-match-names">
+                          <div
+                            style={{
+                              fontWeight: 900,
+                              fontSize: 13,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
                             {isBye ? (
                               `${left} - BYE`
                             ) : (
@@ -2561,10 +2690,6 @@ function singlesHandicapLine(m: MatchRow) {
                               </>
                             )}
                           </div>
-
-                          {winnerName ? (
-                            <div className="bracket-match-winner">{winnerName}</div>
-                          ) : null}
                         </div>
                       );
                     })}
@@ -2572,6 +2697,7 @@ function singlesHandicapLine(m: MatchRow) {
                 </div>
               );
             })}
+              </div>
             </div>
           </div>
         </div>
@@ -2738,97 +2864,6 @@ function singlesHandicapLine(m: MatchRow) {
           </div>
         )}
 
-        {roundsViewMode === "TREE" ? (
-          <style jsx>{`
-            .bracket-scroll {
-              overflow-x: auto;
-            }
-
-            .bracket-grid {
-              display: grid;
-              grid-auto-flow: column;
-              grid-auto-columns: minmax(260px, 1fr);
-              gap: 24px;
-              min-width: 900px;
-            }
-
-            .bracket-col {
-              display: grid;
-              gap: 12px;
-              align-content: start;
-              position: relative;
-            }
-
-            .bracket-col-header {
-              display: flex;
-              justify-content: space-between;
-              align-items: baseline;
-              font-weight: 900;
-              font-size: 14px;
-              color: ${theme.text};
-            }
-
-            .bracket-col-header > div:last-child {
-              font-size: 11px;
-              color: ${theme.muted};
-              font-weight: 900;
-            }
-
-            .bracket-list {
-              display: grid;
-              gap: 14px;
-            }
-
-            .bracket-match {
-              position: relative;
-              border: 1px solid ${theme.border};
-              border-radius: 14px;
-              padding: 10px 12px;
-              background: #fff;
-              box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
-            }
-
-            .bracket-match[data-done="1"] {
-              border-color: #16a34a;
-              background: #f0fdf4;
-            }
-
-            .bracket-match[data-inplay="1"][data-done="0"] {
-              border-color: #facc15;
-              background: #fefce8;
-            }
-
-            .bracket-match-names {
-              font-weight: 900;
-              font-size: 13px;
-              white-space: nowrap;
-              overflow: hidden;
-              text-overflow: ellipsis;
-            }
-
-            .bracket-match-winner {
-              margin-top: 4px;
-              font-size: 12px;
-              font-weight: 900;
-              color: #16a34a;
-            }
-
-            .bracket-match:after {
-              content: "";
-              position: absolute;
-              right: -12px;
-              top: 50%;
-              width: 12px;
-              height: 2px;
-              background: ${theme.border};
-              transform: translateY(-50%);
-            }
-
-            .bracket-col:last-child .bracket-match:after {
-              display: none;
-            }
-          `}</style>
-        ) : null}
       </>
     );
   }
