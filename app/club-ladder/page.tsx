@@ -544,7 +544,7 @@ export default function ClubLadderPage() {
 
     const merged: LadderRow[] = ladderEntries.map((en) => {
       const pl = playerById.get(en.player_id);
-      const pr = pl ? profileById.get(pl.user_id) : null;
+      const pr = pl?.user_id ? profileById.get(pl.user_id) : null;
       const dn = (pl as any)?.display_name ?? "";
       const name = (dn ?? "").trim() ? (dn as string) : pr?.full_name ?? "Unknown";
 
