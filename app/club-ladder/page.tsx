@@ -1253,7 +1253,7 @@ export default function ClubLadderPage() {
             }}
             title="Refresh"
           >
-            R
+            ?
           </button>
         </div>
 

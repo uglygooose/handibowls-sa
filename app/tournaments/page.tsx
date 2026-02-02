@@ -713,7 +713,7 @@ export default function TournamentsPage() {
             }}
             title="Refresh"
           >
-            {"\u21BB"}
+            ?
           </button>
         </div>
 
