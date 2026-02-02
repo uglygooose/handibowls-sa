@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "HandiBowls SA",
   description: "HandiBowls SA Leaderboards",
+  icons: {
+    icon: [{ url: "/login-bowls.jpg", type: "image/jpeg" }],
+  },
 };
 
 export default function RootLayout({
