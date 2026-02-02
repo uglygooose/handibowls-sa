@@ -34,6 +34,13 @@ type ProfileMiniRow = {
   full_name: string | null;
   club_id: string | null;
   district_id: string | null;
+  role?: string | null;
+};
+
+type ClubMiniRow = {
+  id: string;
+  name: string;
+  district_id: string | null;
 };
 
 type LadderRow = {
@@ -145,6 +152,10 @@ export default function ClubLadderPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [clubsAll, setClubsAll] = useState<ClubMiniRow[]>([]);
+  const [superClubId, setSuperClubId] = useState<string>("");
+
   const [recentMatches, setRecentMatches] = useState<MatchRow[]>([]);
   const [pendingMatches, setPendingMatches] = useState<MatchRow[]>([]);
   const [nameByPlayerId, setNameByPlayerId] = useState<Map<string, string>>(new Map());
@@ -218,6 +229,13 @@ export default function ClubLadderPage() {
     return Math.abs(targetQualifiedPos - myQualifiedPos) <= 2;
   }
 
+  async function loadAllClubs() {
+    const res = await supabase.from("clubs").select("id, name, district_id").order("name");
+    const list = (res.data ?? []) as ClubMiniRow[];
+    if (!res.error) setClubsAll(list);
+    return list;
+  }
+
   async function loadAll() {
     setLoading(true);
     setError(null);
@@ -233,7 +251,7 @@ export default function ClubLadderPage() {
     // Load my profile (club/district)
     const { data: prof, error: pErr } = await supabase
       .from("profiles")
-      .select("id, full_name, club_id, district_id")
+      .select("id, full_name, club_id, district_id, role")
       .eq("id", user.id)
       .single();
 
@@ -244,8 +262,43 @@ export default function ClubLadderPage() {
     }
 
     const myProf = prof as ProfileMiniRow;
-    setMyClubId(myProf.club_id ?? null);
-    setMyDistrictId(myProf.district_id ?? null);
+    const role = (myProf.role ?? "").toString().toUpperCase();
+    const superAdmin = role === "SUPER_ADMIN";
+    setIsSuperAdmin(superAdmin);
+    let clubIdForScope: string | null = myProf.club_id ?? null;
+    let districtIdForScope: string | null = myProf.district_id ?? null;
+
+    if (superAdmin) {
+      let list = clubsAll;
+      if (!list.length) {
+        list = await loadAllClubs();
+      }
+      if (!list.length) {
+        setError("No clubs found.");
+        setLoading(false);
+        return;
+      }
+      let nextClubId = superClubId;
+      if (!nextClubId) {
+        try {
+          nextClubId = localStorage.getItem("superClubId") ?? "";
+        } catch {
+          nextClubId = "";
+        }
+      }
+      if (!nextClubId) nextClubId = myProf.club_id ?? "";
+      if (!nextClubId && list.length) nextClubId = list[0].id;
+      if (nextClubId && nextClubId !== superClubId) setSuperClubId(nextClubId);
+
+      const selected = list.find((c) => c.id === nextClubId) ?? null;
+      clubIdForScope = selected?.id ?? null;
+      districtIdForScope = selected?.district_id ?? null;
+      setMyClubId(clubIdForScope);
+      setMyDistrictId(districtIdForScope);
+    } else {
+      setMyClubId(myProf.club_id ?? null);
+      setMyDistrictId(myProf.district_id ?? null);
+    }
 
     // Load my player
     const { data: mePlayer, error: meErr } = await supabase
@@ -255,23 +308,27 @@ export default function ClubLadderPage() {
       .single();
 
     if (meErr || !mePlayer) {
-      setError("Your account is signed in, but it is not linked to a player record.");
-      setRows([]);
+      if (!superAdmin) {
+        setError("Your account is signed in, but it is not linked to a player record.");
+        setRows([]);
+        setMyPlayerId(null);
+        setMyPosition(null);
+        setMyGender("");
+        setGenderByPlayerId({});
+        setRecentMatches([]);
+        setPendingMatches([]);
+        setNameByPlayerId(new Map());
+        setLoading(false);
+        return;
+      }
       setMyPlayerId(null);
-      setMyPosition(null);
       setMyGender("");
-      setGenderByPlayerId({});
-      setRecentMatches([]);
-      setPendingMatches([]);
-      setNameByPlayerId(new Map());
-      setLoading(false);
-      return;
     }
 
-    const mePlayerId = String(mePlayer.id);
+    const mePlayerId = mePlayer ? String((mePlayer as any).id) : null;
     setMyPlayerId(mePlayerId);
-    setMyGender(((mePlayer as any).gender ?? "") as PlayerGender);
-    const resolvedGender = ((mePlayer as any).gender ?? "") as PlayerGender;
+    setMyGender(((mePlayer as any)?.gender ?? "") as PlayerGender);
+    const resolvedGender = ((mePlayer as any)?.gender ?? "") as PlayerGender;
     const hasGender = resolvedGender === "MALE" || resolvedGender === "FEMALE";
     if (!filtersFromStorageRef.current) {
       setScope("CLUB");
@@ -291,10 +348,10 @@ export default function ClubLadderPage() {
 
     const ladderRows = (ladders ?? []) as LadderMetaRow[];
 
-    const clubLadder = myProf.club_id ? ladderRows.find((l) => l.scope === "CLUB" && l.club_id === myProf.club_id) : null;
+    const clubLadder = clubIdForScope ? ladderRows.find((l) => l.scope === "CLUB" && l.club_id === clubIdForScope) : null;
 
-    const districtLadder = myProf.district_id
-      ? ladderRows.find((l) => l.scope === "DISTRICT" && l.district_id === myProf.district_id)
+    const districtLadder = districtIdForScope
+      ? ladderRows.find((l) => l.scope === "DISTRICT" && l.district_id === districtIdForScope)
       : null;
 
     const nationalLadder = ladderRows.find((l) => l.scope === "NATIONAL") ?? null;
@@ -325,10 +382,10 @@ export default function ClubLadderPage() {
     let allowedPlayerIds: string[] | null = null;
 
     if (scope === "CLUB") {
-      if (!myProf.club_id) {
+      if (!clubIdForScope) {
         allowedPlayerIds = [];
       } else {
-        const { data: clubProfiles, error: cpErr } = await supabase.from("profiles").select("id").eq("club_id", myProf.club_id);
+        const { data: clubProfiles, error: cpErr } = await supabase.from("profiles").select("id").eq("club_id", clubIdForScope);
 
         if (cpErr) {
           setError(`profiles (club filter): ${cpErr.message}`);
@@ -350,7 +407,7 @@ export default function ClubLadderPage() {
         const { data: clubPlayersByClub, error: clcErr } = await supabase
           .from("players")
           .select("id")
-          .eq("club_id", myProf.club_id);
+          .eq("club_id", clubIdForScope);
 
         if (clcErr) {
           setError(`players (club filter): ${clcErr.message}`);
@@ -362,13 +419,13 @@ export default function ClubLadderPage() {
         allowedPlayerIds = Array.from(ids);
       }
     } else if (scope === "DISTRICT") {
-      if (!myProf.district_id) {
+      if (!districtIdForScope) {
         allowedPlayerIds = [];
       } else {
         const { data: distProfiles, error: dpErr } = await supabase
           .from("profiles")
           .select("id")
-          .eq("district_id", myProf.district_id);
+          .eq("district_id", districtIdForScope);
 
         if (dpErr) {
           setError(`profiles (district filter): ${dpErr.message}`);
@@ -390,7 +447,7 @@ export default function ClubLadderPage() {
         const { data: districtClubs, error: dcErr } = await supabase
           .from("clubs")
           .select("id")
-          .eq("district_id", myProf.district_id);
+          .eq("district_id", districtIdForScope);
 
         if (dcErr) {
           setError(`clubs (district filter): ${dcErr.message}`);
@@ -619,6 +676,9 @@ export default function ClubLadderPage() {
 
     // pending matches for me (this ladder) - filter by viewType
     {
+      if (!mePlayerId) {
+        setPendingMatches([]);
+      } else {
       const baseSelect =
         "id, ladder_id, status, challenger_player_id, challenged_player_id, challenger_score, challenged_score, challenger_position_at_start, challenged_position_at_start, created_at";
 
@@ -630,7 +690,7 @@ export default function ClubLadderPage() {
         .select(withTypeSelect)
         .eq("ladder_id", fallback)
         .in("status", ["OPEN", "RESULT_SUBMITTED"])
-        .or(`challenger_player_id.eq.${mePlayer.id},challenged_player_id.eq.${mePlayer.id}`)
+        .or(`challenger_player_id.eq.${mePlayerId},challenged_player_id.eq.${mePlayerId}`)
         .eq("match_type", viewType)
         .order("created_at", { ascending: false })
         .limit(10);
@@ -647,7 +707,7 @@ export default function ClubLadderPage() {
             .select(baseSelect)
             .eq("ladder_id", fallback)
             .in("status", ["OPEN", "RESULT_SUBMITTED"])
-            .or(`challenger_player_id.eq.${mePlayer.id},challenged_player_id.eq.${mePlayer.id}`)
+            .or(`challenger_player_id.eq.${mePlayerId},challenged_player_id.eq.${mePlayerId}`)
             .order("created_at", { ascending: false })
             .limit(10);
 
@@ -667,10 +727,14 @@ export default function ClubLadderPage() {
         setLoading(false);
         return;
       }
+      }
     }
 
     // recent FINAL matches (this ladder) - filter by viewType
     {
+      if (!mePlayerId) {
+        setRecentMatches([]);
+      } else {
       const baseSelect =
         "id, ladder_id, status, challenger_player_id, challenged_player_id, challenger_score, challenged_score, challenger_position_at_start, challenged_position_at_start, created_at";
 
@@ -716,6 +780,7 @@ export default function ClubLadderPage() {
         setLoading(false);
         return;
       }
+      }
     }
 
     setLoading(false);
@@ -746,7 +811,7 @@ export default function ClubLadderPage() {
     if (!filtersReady) return;
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtersReady, scope, viewType, genderFilter]);
+  }, [filtersReady, scope, viewType, genderFilter, superClubId]);
 
   useEffect(() => {
     try {
@@ -761,6 +826,13 @@ export default function ClubLadderPage() {
       );
     } catch {}
   }, [scope, viewType, genderFilter, formatFilter]);
+
+  useEffect(() => {
+    if (!isSuperAdmin || !superClubId) return;
+    try {
+      window.localStorage.setItem("superClubId", superClubId);
+    } catch {}
+  }, [isSuperAdmin, superClubId]);
 
   useEffect(() => {
     if (!listScrollRef.current || !myPlayerId || !rows.length) return;
@@ -1254,6 +1326,42 @@ export default function ClubLadderPage() {
             {"\u21BB"}
           </button>
         </div>
+
+        {isSuperAdmin && (
+          <div
+            style={{
+              marginTop: 12,
+              background: "#fff",
+              border: `1px solid ${theme.border}`,
+              borderRadius: 16,
+              padding: 12,
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, marginBottom: 6 }}>Club context</div>
+            <select
+              value={superClubId}
+              onChange={(e) => setSuperClubId(e.target.value)}
+              style={{
+                width: "100%",
+                border: `1px solid ${theme.border}`,
+                background: "#fff",
+                padding: "10px 12px",
+                borderRadius: 12,
+                fontWeight: 900,
+              }}
+            >
+              {clubsAll.length ? (
+                clubsAll.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))
+              ) : (
+                <option value="">Loading clubs...</option>
+              )}
+            </select>
+          </div>
+        )}
 
         {/* Filters */}
         <div

@@ -126,6 +126,7 @@ export default function TournamentRoomPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const [playerId, setPlayerId] = useState<string>("");
 
@@ -204,27 +205,35 @@ export default function TournamentRoomPage() {
       return;
     }
 
+    const profRes = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    const role = ((profRes.data as any)?.role ?? "").toString().toUpperCase();
+    const superAdmin = role === "SUPER_ADMIN";
+    setIsSuperAdmin(superAdmin);
+
     // Resolve my player_id
     const me = await supabase.from("players").select("id, gender").eq("user_id", user.id).single();
     if (me.error || !me.data?.id) {
-      setError("Could not resolve your player profile.");
-      setTournament(null);
+      if (!superAdmin) {
+        setError("Could not resolve your player profile.");
+        setTournament(null);
+        setPlayerId("");
+        setTeams([]);
+        setTeamMembersByTeamId({});
+        setNameByPlayerId({});
+        setHandicapByPlayerId({});
+        setMatches([]);
+        setOpenRounds({});
+        setLoading(false);
+        return;
+      }
       setPlayerId("");
-      setTeams([]);
-      setTeamMembersByTeamId({});
-      setNameByPlayerId({});
-      setHandicapByPlayerId({});
-      setMatches([]);
-      setOpenRounds({});
-      setLoading(false);
-      return;
     }
 
-    const myPlayerId = String(me.data.id);
-    setPlayerId(myPlayerId);
-    const myGender = ((me.data as any).gender ?? "") as PlayerGender;
+    const myPlayerId = me.data?.id ? String(me.data.id) : "";
+    if (myPlayerId) setPlayerId(myPlayerId);
+    const myGender = ((me.data as any)?.gender ?? "") as PlayerGender;
 
-    if (!myGender) {
+    if (!myGender && !superAdmin) {
       setError("Please select your gender to view tournaments.");
       setTournament(null);
       setTeams([]);
@@ -265,7 +274,7 @@ export default function TournamentRoomPage() {
     };
 
     const tGender = (normalizedTournament.gender ?? null) as TournamentGender | null;
-    if (myGender && tGender && myGender !== tGender) {
+    if (!superAdmin && myGender && tGender && myGender !== tGender) {
       setError("This tournament is not available for your gender.");
       setTournament(null);
       setTeams([]);
@@ -335,40 +344,42 @@ export default function TournamentRoomPage() {
           allPlayerIds.push(pid);
         }
 
-        const hasMyTeam = Object.values(membersByTeam).some((ids) => ids.includes(myPlayerId));
-        if (!hasMyTeam) {
-          const myMemRes = await supabase
-            .from("tournament_team_members")
-            .select("team_id")
-            .eq("player_id", myPlayerId);
+        if (myPlayerId) {
+          const hasMyTeam = Object.values(membersByTeam).some((ids) => ids.includes(myPlayerId));
+          if (!hasMyTeam) {
+            const myMemRes = await supabase
+              .from("tournament_team_members")
+              .select("team_id")
+              .eq("player_id", myPlayerId);
 
-          if (!myMemRes.error) {
-            const extraTeamIds = Array.from(
-              new Set((myMemRes.data ?? []).map((r: any) => String(r.team_id ?? "")).filter(Boolean))
-            );
+            if (!myMemRes.error) {
+              const extraTeamIds = Array.from(
+                new Set((myMemRes.data ?? []).map((r: any) => String(r.team_id ?? "")).filter(Boolean))
+              );
 
-            if (extraTeamIds.length) {
-              const extraTeamsRes = await supabase
-                .from("tournament_teams")
-                .select("id, team_no, team_handicap")
-                .eq("tournament_id", tournamentId)
-                .in("id", extraTeamIds);
+              if (extraTeamIds.length) {
+                const extraTeamsRes = await supabase
+                  .from("tournament_teams")
+                  .select("id, team_no, team_handicap")
+                  .eq("tournament_id", tournamentId)
+                  .in("id", extraTeamIds);
 
-              if (!extraTeamsRes.error) {
-                const extras = (extraTeamsRes.data ?? []).map((r: any) => ({
-                  id: String(r.id),
-                  team_no: Number(r.team_no ?? 0),
-                  team_handicap:
-                    r.team_handicap == null ? null : typeof r.team_handicap === "number" ? r.team_handicap : Number(r.team_handicap),
-                }));
+                if (!extraTeamsRes.error) {
+                  const extras = (extraTeamsRes.data ?? []).map((r: any) => ({
+                    id: String(r.id),
+                    team_no: Number(r.team_no ?? 0),
+                    team_handicap:
+                      r.team_handicap == null ? null : typeof r.team_handicap === "number" ? r.team_handicap : Number(r.team_handicap),
+                  }));
 
-                for (const t of extras) {
-                  if (!finalTeams.some((row) => row.id === t.id)) finalTeams.push(t);
-                  membersByTeam[t.id] = membersByTeam[t.id] ?? [];
-                  if (!membersByTeam[t.id].includes(myPlayerId)) membersByTeam[t.id].push(myPlayerId);
+                  for (const t of extras) {
+                    if (!finalTeams.some((row) => row.id === t.id)) finalTeams.push(t);
+                    membersByTeam[t.id] = membersByTeam[t.id] ?? [];
+                    if (!membersByTeam[t.id].includes(myPlayerId)) membersByTeam[t.id].push(myPlayerId);
+                  }
+
+                  allPlayerIds.push(myPlayerId);
                 }
-
-                allPlayerIds.push(myPlayerId);
               }
             }
           }

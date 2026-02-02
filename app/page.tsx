@@ -12,6 +12,8 @@ type ProfileRow = {
   club?: string | null;
   club_name?: string | null;
   club_id?: string | null;
+  is_admin?: boolean | null;
+  role?: string | null;
 };
 
 type PlayerRow = {
@@ -56,6 +58,21 @@ type TournamentMini = {
   rule_type?: TournamentRule | null;
 };
 
+type ClubNewsRow = {
+  id: string;
+  club_id: string;
+  title: string | null;
+  body: string | null;
+  image_url: string | null;
+  cta_text: string | null;
+  cta_url: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  is_active: boolean | null;
+  updated_at: string | null;
+  created_at: string | null;
+};
+
 function scopeLabel(scope: "CLUB" | "DISTRICT" | "NATIONAL") {
   if (scope === "CLUB") return "Club";
   if (scope === "DISTRICT") return "District";
@@ -82,6 +99,29 @@ function cleanTournamentName(name: string) {
   const raw = (name ?? "").toString();
   return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
 }
+
+function toLocalInputValue(iso: string | null | undefined) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (v: number) => String(v).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fromLocalInputValue(value: string) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function isNewsActive(n: ClubNewsRow | null, now: Date) {
+  if (!n || n.is_active === false) return false;
+  const startOk = n.starts_at ? new Date(n.starts_at) <= now : true;
+  const endOk = n.ends_at ? new Date(n.ends_at) >= now : true;
+  return startOk && endOk;
+}
+
 export default function HomePage() {
   const supabase = createClient();
 
@@ -89,12 +129,12 @@ export default function HomePage() {
   const [fullName, setFullName] = useState<string>("");
   const [clubName, setClubName] = useState<string>("");
   const [clubId, setClubId] = useState<string>("");
+  const [baseClubId, setBaseClubId] = useState<string>("");
   const [playerId, setPlayerId] = useState<string>("");
 
   const [handicap, setHandicap] = useState<number | null>(null);
   const [showHandicapInfo, setShowHandicapInfo] = useState(false);
   const [playerGender, setPlayerGender] = useState<"MALE" | "FEMALE" | "">("");
-  const [genderSaving, setGenderSaving] = useState(false);
 
   const [clubLeaderboard, setClubLeaderboard] = useState<PlayerMini[]>([]);
   const [clubLbNote, setClubLbNote] = useState<string | null>(null);
@@ -104,6 +144,27 @@ export default function HomePage() {
   const [clubNameById, setClubNameById] = useState<Record<string, string>>({});
 
   const [error, setError] = useState<string | null>(null);
+
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [clubsAll, setClubsAll] = useState<{ id: string; name: string }[]>([]);
+  const [superClubId, setSuperClubId] = useState("");
+
+  const [clubNews, setClubNews] = useState<ClubNewsRow | null>(null);
+  const [clubNewsLoading, setClubNewsLoading] = useState(false);
+  const [clubNewsError, setClubNewsError] = useState<string | null>(null);
+  const [clubNewsOpen, setClubNewsOpen] = useState(false);
+  const [clubNewsEditOpen, setClubNewsEditOpen] = useState(false);
+  const [clubNewsSaving, setClubNewsSaving] = useState(false);
+  const [isClubAdmin, setIsClubAdmin] = useState(false);
+
+  const [newsTitle, setNewsTitle] = useState("");
+  const [newsBody, setNewsBody] = useState("");
+  const [newsImageUrl, setNewsImageUrl] = useState("");
+  const [newsCtaText, setNewsCtaText] = useState("");
+  const [newsCtaUrl, setNewsCtaUrl] = useState("");
+  const [newsStartsAt, setNewsStartsAt] = useState("");
+  const [newsEndsAt, setNewsEndsAt] = useState("");
+  const [newsIsActive, setNewsIsActive] = useState(true);
 
   async function loadClubLeaderboardPreview(clubIdIn: string, genderFilter: GenderFilter) {
     setClubLbNote(null);
@@ -240,28 +301,12 @@ export default function HomePage() {
     setClubLeaderboard(preview);
   }
 
-  async function saveGender(next: "MALE" | "FEMALE", playerId: string) {
-    setGenderSaving(true);
-    setError(null);
-
-    const up = await supabase.from("players").update({ gender: next }).eq("id", playerId);
-    if (up.error) {
-      setError(`Could not save gender.\n${up.error.message}`);
-      setGenderSaving(false);
-      return;
-    }
-
-    setPlayerGender(next);
-    setGenderSaving(false);
-    await load();
-  }
-
-  async function loadUpcoming(gender: "MALE" | "FEMALE" | "") {
+  async function loadUpcoming(gender: "MALE" | "FEMALE" | "", allowAll: boolean) {
     setUpcoming([]);
     setUpcomingNote(null);
     setClubNameById({});
 
-    if (!gender) {
+    if (!gender && !allowAll) {
       setUpcomingNote("Select your gender to see upcoming events.");
       return;
     }
@@ -281,7 +326,7 @@ export default function HomePage() {
     }
 
     const list = (tRes.data ?? []) as TournamentMini[];
-    const filtered = gender ? list.filter((t) => !t.gender || t.gender === gender) : list;
+    const filtered = allowAll ? list : gender ? list.filter((t) => !t.gender || t.gender === gender) : list;
 
     if (!filtered.length) {
       setUpcomingNote("No upcoming events yet.");
@@ -311,6 +356,128 @@ export default function HomePage() {
     setClubNameById(next);
   }
 
+  async function loadClubNews(clubIdIn: string) {
+    setClubNewsLoading(true);
+    setClubNewsError(null);
+    setClubNews(null);
+
+    if (!clubIdIn) {
+      setClubNewsLoading(false);
+      return;
+    }
+
+    const res = await supabase
+      .from("club_news")
+      .select("id, club_id, title, body, image_url, cta_text, cta_url, starts_at, ends_at, is_active, updated_at, created_at")
+      .eq("club_id", clubIdIn)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (res.error) {
+      setClubNewsError(res.error.message);
+      setClubNewsLoading(false);
+      return;
+    }
+
+    const row = (res.data ?? null) as ClubNewsRow | null;
+    setClubNews(row);
+
+    if (row) {
+      setNewsTitle(row.title ?? "");
+      setNewsBody(row.body ?? "");
+      setNewsImageUrl(row.image_url ?? "");
+      setNewsCtaText(row.cta_text ?? "");
+      setNewsCtaUrl(row.cta_url ?? "");
+      setNewsStartsAt(toLocalInputValue(row.starts_at));
+      setNewsEndsAt(toLocalInputValue(row.ends_at));
+      setNewsIsActive(row.is_active ?? true);
+
+      const now = new Date();
+      if (isNewsActive(row, now)) {
+        try {
+          const dismissKey = `clubNewsDismissed:${clubIdIn}:${row.id}:${row.updated_at ?? "na"}`;
+          const dismissed = localStorage.getItem(dismissKey) === "1";
+          if (!dismissed) setClubNewsOpen(true);
+        } catch {
+          setClubNewsOpen(true);
+        }
+      }
+    }
+
+    setClubNewsLoading(false);
+  }
+
+  async function saveClubNews() {
+    if (!clubId) return;
+    setClubNewsSaving(true);
+    setClubNewsError(null);
+
+    const payload = {
+      club_id: clubId,
+      title: newsTitle.trim() || null,
+      body: newsBody.trim() || null,
+      image_url: newsImageUrl.trim() || null,
+      cta_text: newsCtaText.trim() || null,
+      cta_url: newsCtaUrl.trim() || null,
+      starts_at: fromLocalInputValue(newsStartsAt),
+      ends_at: fromLocalInputValue(newsEndsAt),
+      is_active: newsIsActive,
+      updated_at: new Date().toISOString(),
+    };
+
+    const up = await supabase.from("club_news").upsert(payload, { onConflict: "club_id" }).select().maybeSingle();
+
+    if (up.error) {
+      setClubNewsError(up.error.message);
+      setClubNewsSaving(false);
+      return;
+    }
+
+    setClubNewsEditOpen(false);
+    await loadClubNews(clubId);
+    setClubNewsOpen(true);
+    setClubNewsSaving(false);
+  }
+
+  function dismissNewsForNow() {
+    if (!clubNews || !clubId) {
+      setClubNewsOpen(false);
+      return;
+    }
+    try {
+      const dismissKey = `clubNewsDismissed:${clubId}:${clubNews.id}:${clubNews.updated_at ?? "na"}`;
+      localStorage.setItem(dismissKey, "1");
+    } catch {
+      // ignore
+    }
+    setClubNewsOpen(false);
+  }
+
+  async function loadAllClubs() {
+    const res = await supabase.from("clubs").select("id, name").order("name");
+    if (!res.error) {
+      const list = (res.data ?? []) as { id: string; name: string }[];
+      setClubsAll(list);
+    }
+  }
+
+  async function resolveClubName(clubIdIn: string) {
+    if (!clubIdIn) {
+      setClubName("");
+      return;
+    }
+    const cached = clubsAll.find((c) => c.id === clubIdIn);
+    if (cached?.name) {
+      setClubName(cached.name);
+      return;
+    }
+    const clubRes = await supabase.from("clubs").select("name").eq("id", clubIdIn).single();
+    if (!clubRes.error && clubRes.data?.name) {
+      setClubName(String(clubRes.data.name));
+    }
+  }
+
   async function load() {
     setLoading(true);
     setError(null);
@@ -322,20 +489,21 @@ export default function HomePage() {
       window.location.href = "/login";
       return;
     }
+    const superByEmail = (user.email ?? "").toLowerCase() === "a.thomas.els@gmail.com";
 
     // ---- profile (defensive club columns) ----
     let prof: any = null;
 
     const profRes = await supabase
       .from("profiles")
-      .select("id, full_name, club, club_name, club_id")
+      .select("id, full_name, club, club_name, club_id, is_admin, role")
       .eq("id", user.id)
       .single();
 
     if (profRes.error) {
       const fallback = await supabase
         .from("profiles")
-        .select("id, full_name")
+        .select("id, full_name, club, club_name, club_id, is_admin, role")
         .eq("id", user.id)
         .single();
 
@@ -344,7 +512,11 @@ export default function HomePage() {
       prof = profRes.data ?? null;
     }
 
-    setFullName((prof as ProfileRow | null)?.full_name ?? "");
+    setFullName((prof as ProfileRow | null)?.full_name ?? user.email ?? "");
+    const role = ((prof as ProfileRow | null)?.role ?? "").toString().toUpperCase();
+    const isAdminFlag = Boolean((prof as ProfileRow | null)?.is_admin);
+    const isSuperAdmin = role === "SUPER_ADMIN" || superByEmail;
+    setIsSuperAdmin(isSuperAdmin);
 
     // ---- player (defensive handicap + club_id columns) ----
     let mePlayer: any = null;
@@ -370,21 +542,27 @@ export default function HomePage() {
     }
 
     if (!mePlayer) {
-      setLoading(false);
-      return;
+      if (!isSuperAdmin) {
+        setLoading(false);
+        return;
+      }
+      setPlayerId("");
+    } else {
+      setPlayerId(String((mePlayer as PlayerRow).id));
     }
-
-    setPlayerId(String((mePlayer as PlayerRow).id));
 
     // Resolve club name (prefer DB via players.club_id; only display fallbacks if name can't be resolved)
     let resolvedClub = (prof as ProfileRow | null)?.club ?? "";
     if (!resolvedClub) resolvedClub = (prof as ProfileRow | null)?.club_name ?? "";
 
-    const cid = (mePlayer as PlayerRow | null)?.club_id ?? "";
+    const playerClubId = (mePlayer as PlayerRow | null)?.club_id ?? "";
+    const profileClubId = (prof as ProfileRow | null)?.club_id ?? "";
+    const cid = playerClubId || profileClubId || "";
     const g = ((mePlayer as PlayerRow | null)?.gender ?? "") as "MALE" | "FEMALE" | "";
     setPlayerGender(g);
 
-    setClubId(cid);
+    setBaseClubId(cid);
+    setIsClubAdmin(isSuperAdmin || (isAdminFlag && Boolean(cid)));
 
     if (cid) {
       const clubRes = await supabase.from("clubs").select("name").eq("id", cid).single();
@@ -395,7 +573,10 @@ export default function HomePage() {
 
     setClubName(resolvedClub);
 
-    await loadUpcoming(g);
+    await loadUpcoming(g, isSuperAdmin);
+    if (isSuperAdmin) {
+      await loadAllClubs();
+    }
 
     setLoading(false);
   }
@@ -411,7 +592,48 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId, clubLbGender]);
 
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    if (!clubsAll.length) return;
+    if (superClubId) return;
+    const stored = (() => {
+      try {
+        return localStorage.getItem("superClubId") ?? "";
+      } catch {
+        return "";
+      }
+    })();
+    if (stored && clubsAll.some((c) => c.id === stored)) {
+      setSuperClubId(stored);
+      return;
+    }
+    if (baseClubId) {
+      setSuperClubId(baseClubId);
+      return;
+    }
+    setSuperClubId(clubsAll[0]?.id ?? "");
+  }, [isSuperAdmin, clubsAll, superClubId, baseClubId]);
+
+  useEffect(() => {
+    const effectiveClubId = isSuperAdmin ? (superClubId || baseClubId) : baseClubId;
+    if (!effectiveClubId) return;
+    if (effectiveClubId === clubId) return;
+    setClubId(effectiveClubId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuperAdmin, superClubId, baseClubId]);
+
+  useEffect(() => {
+    if (!clubId) return;
+    resolveClubName(clubId);
+    loadClubNews(clubId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clubId]);
+
   const showRidgeparkBg = clubName?.toLowerCase().includes("ridgepark");
+
+  const now = new Date();
+  const newsIsActiveNow = isNewsActive(clubNews, now);
+  const newsHasContent = Boolean((clubNews?.title ?? "").trim() || (clubNews?.body ?? "").trim() || (clubNews?.image_url ?? "").trim());
 
   return (
     <div
@@ -446,7 +668,41 @@ export default function HomePage() {
                     {fullName ? `Welcome back, ${fullName}` : "Welcome back"}
                   </span>
 
-                  {clubName ? (
+                  {isSuperAdmin ? (
+                    <select
+                      value={superClubId || clubId}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setSuperClubId(next);
+                        try {
+                          localStorage.setItem("superClubId", next);
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                      style={{
+                        border: `1px solid ${theme.border}`,
+                        background: "#fff",
+                        color: theme.text,
+                        padding: "3px 10px",
+                        borderRadius: 999,
+                        fontWeight: 800,
+                        fontSize: 12,
+                      }}
+                      aria-label="Select club"
+                      title="Select club to view"
+                    >
+                      {clubsAll.length ? (
+                        clubsAll.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))
+                      ) : (
+                        <option value={clubId}>{clubName || "Loading clubs..."}</option>
+                      )}
+                    </select>
+                  ) : clubName ? (
                     <span
                       style={{
                         border: `1px solid ${theme.border}`,
@@ -564,63 +820,6 @@ export default function HomePage() {
             Error: {error}
           </div>
         )}
-
-        {!loading && !playerGender ? (
-          <div
-            style={{
-              marginTop: 14,
-              background: "#fff",
-              border: `1px solid ${theme.border}`,
-              borderRadius: 16,
-              padding: 14,
-            }}
-          >
-            <div style={{ fontWeight: 900, fontSize: 16 }}>Select your gender</div>
-            <div style={{ marginTop: 6, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-              We use this to show the correct tournaments for you.
-            </div>
-
-            <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-              <button
-                type="button"
-                disabled={genderSaving}
-                onClick={() => saveGender("MALE", playerId)}
-                style={{
-                  width: "100%",
-                  border: "none",
-                  background: theme.maroon,
-                  color: "#fff",
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                  cursor: genderSaving ? "not-allowed" : "pointer",
-                }}
-                title="Set gender to Male"
-              >
-                {genderSaving ? "Saving..." : "Male"}
-              </button>
-
-              <button
-                type="button"
-                disabled={genderSaving}
-                onClick={() => saveGender("FEMALE", playerId)}
-                style={{
-                  width: "100%",
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  color: theme.text,
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                  cursor: genderSaving ? "not-allowed" : "pointer",
-                }}
-                title="Set gender to Female"
-              >
-                {genderSaving ? "Saving..." : "Female"}
-              </button>
-            </div>
-          </div>
-        ) : null}
 
         {/* Quick Actions */}
         <div
@@ -878,13 +1077,87 @@ export default function HomePage() {
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
             <div style={{ fontWeight: 900, fontSize: 16 }}>Club News</div>
-            <span style={{ fontSize: 12, color: theme.muted }}>Read-only</span>
+            {isClubAdmin ? (
+              <button
+                type="button"
+                onClick={() => setClubNewsEditOpen(true)}
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  background: "#fff",
+                  color: theme.text,
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  fontWeight: 900,
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                {clubNews ? "Edit popup" : "Create popup"}
+              </button>
+            ) : (
+              <span style={{ fontSize: 12, color: theme.muted }}>Read-only</span>
+            )}
           </div>
 
-          <div style={{ marginTop: 8, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-            No news posted yet. This section will show announcements like tournament dates, practice sessions, and club
-            updates.
-          </div>
+          {clubNewsError ? (
+            <div style={{ marginTop: 8, fontSize: 13, color: theme.danger }}>News error: {clubNewsError}</div>
+          ) : clubNewsLoading ? (
+            <div style={{ marginTop: 8, fontSize: 13, color: theme.muted }}>Loading news...</div>
+          ) : newsHasContent ? (
+            <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
+              <div style={{ fontWeight: 900 }}>{clubNews?.title ?? "Club Update"}</div>
+              {clubNews?.body ? (
+                <div style={{ fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
+                  {clubNews.body.length > 160 ? `${clubNews.body.slice(0, 160)}...` : clubNews.body}
+                </div>
+              ) : null}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => setClubNewsOpen(true)}
+                  style={{
+                    border: "none",
+                    background: theme.maroon,
+                    color: "#fff",
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  {newsIsActiveNow ? "Open popup" : "Preview"}
+                </button>
+                {isClubAdmin ? (
+                  <button
+                    type="button"
+                    onClick={() => setClubNewsEditOpen(true)}
+                    style={{
+                      border: `1px solid ${theme.border}`,
+                      background: "#fff",
+                      color: theme.text,
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      fontWeight: 900,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Edit details
+                  </button>
+                ) : null}
+                {clubNews?.starts_at || clubNews?.ends_at ? (
+                  <div style={{ fontSize: 12, color: theme.muted, alignSelf: "center" }}>
+                    {clubNews.starts_at ? `Starts ${new Date(clubNews.starts_at).toLocaleString()}` : "Live now"}
+                    {clubNews.ends_at ? ` · Ends ${new Date(clubNews.ends_at).toLocaleString()}` : ""}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <div style={{ marginTop: 8, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
+              No news posted yet. This section will show announcements like tournament dates, practice sessions, and club
+              updates.
+            </div>
+          )}
         </div>
 
         {/* How it works */}
@@ -907,6 +1180,319 @@ export default function HomePage() {
       </div>
 
       <BottomNav />
+
+      {clubNewsOpen && clubNews ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "grid",
+            placeItems: "center",
+            padding: 16,
+            zIndex: 50,
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 520,
+              background: "#fff",
+              borderRadius: 18,
+              border: `1px solid ${theme.border}`,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+              padding: 16,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 18 }}>{clubNews.title ?? "Club Update"}</div>
+                <div style={{ fontSize: 12, color: theme.muted, marginTop: 4 }}>
+                  {clubName || "Your club"} news bulletin
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setClubNewsOpen(false)}
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  background: "#fff",
+                  color: theme.text,
+                  padding: "6px 10px",
+                  borderRadius: 10,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            {clubNews.image_url ? (
+              <div style={{ marginTop: 12 }}>
+                <img
+                  src={clubNews.image_url}
+                  alt="Club news"
+                  style={{ width: "100%", borderRadius: 14, border: `1px solid ${theme.border}` }}
+                />
+              </div>
+            ) : null}
+
+            {clubNews.body ? (
+              <div style={{ marginTop: 12, fontSize: 14, color: theme.text, lineHeight: 1.45, whiteSpace: "pre-wrap" }}>
+                {clubNews.body}
+              </div>
+            ) : null}
+
+            {(clubNews.cta_text || clubNews.cta_url) && clubNews.cta_url ? (
+              <a
+                href={clubNews.cta_url}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  marginTop: 12,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  textDecoration: "none",
+                  background: theme.maroon,
+                  color: "#fff",
+                  padding: "10px 14px",
+                  borderRadius: 12,
+                  fontWeight: 900,
+                }}
+              >
+                {clubNews.cta_text || "Learn more"}
+              </a>
+            ) : null}
+
+            <div style={{ marginTop: 14, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={dismissNewsForNow}
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  background: "#fff",
+                  color: theme.text,
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Don't show again
+              </button>
+              {isClubAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => setClubNewsEditOpen(true)}
+                  style={{
+                    border: "none",
+                    background: theme.maroon,
+                    color: "#fff",
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  Edit popup
+                </button>
+              ) : null}
+              {clubNews.starts_at || clubNews.ends_at ? (
+                <span style={{ fontSize: 12, color: theme.muted }}>
+                  {clubNews.starts_at ? `Starts ${new Date(clubNews.starts_at).toLocaleString()}` : "Live now"}
+                  {clubNews.ends_at ? ` · Ends ${new Date(clubNews.ends_at).toLocaleString()}` : ""}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {clubNewsEditOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "grid",
+            placeItems: "center",
+            padding: 16,
+            zIndex: 60,
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 560,
+              background: "#fff",
+              borderRadius: 18,
+              border: `1px solid ${theme.border}`,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+              padding: 16,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 18 }}>Club news popup</div>
+                <div style={{ fontSize: 12, color: theme.muted, marginTop: 4 }}>
+                  Use this to share match dates, practice notes, and event reminders.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setClubNewsEditOpen(false)}
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  background: "#fff",
+                  color: theme.text,
+                  padding: "6px 10px",
+                  borderRadius: 10,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+              <input
+                value={newsTitle}
+                onChange={(e) => setNewsTitle(e.target.value)}
+                placeholder="Headline (eg. Club Singles start Saturday)"
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 12,
+                  padding: "10px 12px",
+                  fontWeight: 800,
+                }}
+              />
+              <textarea
+                value={newsBody}
+                onChange={(e) => setNewsBody(e.target.value)}
+                placeholder="Details, timing, dress code, costs, who to contact..."
+                rows={5}
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 12,
+                  padding: "10px 12px",
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                }}
+              />
+              <input
+                value={newsImageUrl}
+                onChange={(e) => setNewsImageUrl(e.target.value)}
+                placeholder="Image URL (optional)"
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 12,
+                  padding: "10px 12px",
+                }}
+              />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <input
+                  value={newsCtaText}
+                  onChange={(e) => setNewsCtaText(e.target.value)}
+                  placeholder="Button text (optional)"
+                  style={{
+                    border: `1px solid ${theme.border}`,
+                    borderRadius: 12,
+                    padding: "10px 12px",
+                  }}
+                />
+                <input
+                  value={newsCtaUrl}
+                  onChange={(e) => setNewsCtaUrl(e.target.value)}
+                  placeholder="Button link (optional)"
+                  style={{
+                    border: `1px solid ${theme.border}`,
+                    borderRadius: 12,
+                    padding: "10px 12px",
+                  }}
+                />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <label style={{ fontSize: 12, color: theme.muted, fontWeight: 900 }}>Start time</label>
+                  <input
+                    type="datetime-local"
+                    value={newsStartsAt}
+                    onChange={(e) => setNewsStartsAt(e.target.value)}
+                    style={{
+                      border: `1px solid ${theme.border}`,
+                      borderRadius: 12,
+                      padding: "10px 12px",
+                    }}
+                  />
+                </div>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <label style={{ fontSize: 12, color: theme.muted, fontWeight: 900 }}>End time</label>
+                  <input
+                    type="datetime-local"
+                    value={newsEndsAt}
+                    onChange={(e) => setNewsEndsAt(e.target.value)}
+                    style={{
+                      border: `1px solid ${theme.border}`,
+                      borderRadius: 12,
+                      padding: "10px 12px",
+                    }}
+                  />
+                </div>
+              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900, fontSize: 12 }}>
+                <input
+                  type="checkbox"
+                  checked={newsIsActive}
+                  onChange={(e) => setNewsIsActive(e.target.checked)}
+                />
+                Active (show popup to members)
+              </label>
+              {clubNewsError ? <div style={{ color: theme.danger, fontSize: 12 }}>{clubNewsError}</div> : null}
+            </div>
+
+            <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={saveClubNews}
+                disabled={clubNewsSaving}
+                style={{
+                  border: "none",
+                  background: theme.maroon,
+                  color: "#fff",
+                  padding: "10px 14px",
+                  borderRadius: 12,
+                  fontWeight: 900,
+                  cursor: clubNewsSaving ? "not-allowed" : "pointer",
+                }}
+              >
+                {clubNewsSaving ? "Saving..." : "Save popup"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setClubNewsEditOpen(false)}
+                style={{
+                  border: `1px solid ${theme.border}`,
+                  background: "#fff",
+                  color: theme.text,
+                  padding: "10px 14px",
+                  borderRadius: 12,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

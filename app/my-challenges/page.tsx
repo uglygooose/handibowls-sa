@@ -144,6 +144,7 @@ export default function MyChallengesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const [tab, setTab] = useState<Tab>("INCOMING");
 
@@ -178,6 +179,11 @@ export default function MyChallengesPage() {
       return;
     }
 
+    const profRes = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    const role = ((profRes.data as any)?.role ?? "").toString().toUpperCase();
+    const superAdmin = role === "SUPER_ADMIN";
+    setIsSuperAdmin(superAdmin);
+
     const { data: mePlayer, error: meErr } = await supabase
       .from("players")
       .select("id")
@@ -185,9 +191,19 @@ export default function MyChallengesPage() {
       .single();
 
     if (meErr || !mePlayer) {
-      setError("This signed-in account is not linked to a player record.");
-      setLoading(false);
-      return;
+      if (superAdmin) {
+        setNotice("Super admin: no player record, so personal challenges are hidden.");
+        setChallenges([]);
+        setMatches([]);
+        setNameByPlayerId(new Map());
+        setScopeByLadderId(new Map());
+        setLoading(false);
+        return;
+      } else {
+        setError("This signed-in account is not linked to a player record.");
+        setLoading(false);
+        return;
+      }
     }
 
     setMyPlayerId(mePlayer.id);

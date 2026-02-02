@@ -95,6 +95,8 @@ export default function AdminTournamentsPage() {
 
   const [teamsOpenByTournamentId, setTeamsOpenByTournamentId] = useState<Record<string, boolean>>({});
   const [clubs, setClubs] = useState<{ id: string; name: string }[]>([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [adminClubId, setAdminClubId] = useState<string | null>(null);
 
   const [bucketOpenByTitle, setBucketOpenByTitle] = useState<Record<string, boolean>>({
     "Club Tournaments": false,
@@ -121,15 +123,28 @@ export default function AdminTournamentsPage() {
       return { ok: false as const };
     }
 
-    const au = await supabase.from("admin_users").select("user_id").eq("user_id", user.id).maybeSingle();
-    if (au.error) {
-      setError(`Could not verify admin access.\n${au.error.message}`);
+    const profRes = await supabase
+      .from("profiles")
+      .select("role, is_admin, club_id")
+      .eq("id", user.id)
+      .single();
+
+    if (profRes.error) {
+      setError(`Could not verify admin access.\n${profRes.error.message}`);
       setIsAdmin(false);
       setAccessDenied(true);
       return { ok: false as const };
     }
 
-    if (!au.data?.user_id) {
+    const role = String((profRes.data as any)?.role ?? "").toUpperCase();
+    const isSuper = role === "SUPER_ADMIN";
+    const isAdminFlag = Boolean((profRes.data as any)?.is_admin);
+    const clubId = (profRes.data as any)?.club_id ?? null;
+
+    setIsSuperAdmin(isSuper);
+    setAdminClubId(isSuper ? null : (clubId ? String(clubId) : null));
+
+    if (!isSuper && !isAdminFlag) {
       setIsAdmin(false);
       setAccessDenied(true);
       return { ok: false as const };
@@ -155,7 +170,8 @@ export default function AdminTournamentsPage() {
       return;
     }
 
-    const clubRes = await supabase.from("clubs").select("id, name").order("name", { ascending: true });
+    const clubQuery = supabase.from("clubs").select("id, name").order("name", { ascending: true });
+    const clubRes = adminClubId ? await clubQuery.eq("id", adminClubId) : await clubQuery;
     if (!clubRes.error) {
       const list = (clubRes.data ?? []).map((c: any) => ({
         id: String(c.id),
@@ -165,6 +181,10 @@ export default function AdminTournamentsPage() {
       if (!createClubId && list.length) {
         setCreateClubId(list[0].id);
       }
+    }
+    if (adminClubId) {
+      setCreateScope("CLUB");
+      setCreateClubId(adminClubId);
     }
 
     const tRes = await supabase
@@ -189,12 +209,15 @@ export default function AdminTournamentsPage() {
     }
 
     const tournaments = (tRes.data ?? []) as TournamentRow[];
-    setRows(tournaments);
+    const scopedTournaments = adminClubId
+      ? tournaments.filter((t) => t.scope === "CLUB" && String(t.club_id ?? "") === adminClubId)
+      : tournaments;
+    setRows(scopedTournaments);
 
     // Prime target inputs from DB
     setTargetInputByTournamentId((prev) => {
       const next = { ...prev };
-      for (const t of tournaments) {
+      for (const t of scopedTournaments) {
         if (next[t.id] == null) {
           next[t.id] = t.target_team_handicap != null ? String(t.target_team_handicap) : "";
         }
@@ -202,7 +225,7 @@ export default function AdminTournamentsPage() {
       return next;
     });
 
-    const ids = tournaments.map((t) => t.id);
+    const ids = scopedTournaments.map((t) => t.id);
     if (!ids.length) {
       setEntryCountByTournamentId({});
       setMatchCountByTournamentId({});
@@ -1055,8 +1078,8 @@ export default function AdminTournamentsPage() {
     return (
       <>
         {renderBucket("Club Tournaments", byScope.club)}
-        {renderBucket("District Tournaments", byScope.district)}
-        {renderBucket("National Tournaments", byScope.national)}
+        {isSuperAdmin ? renderBucket("District Tournaments", byScope.district) : null}
+        {isSuperAdmin ? renderBucket("National Tournaments", byScope.national) : null}
       </>
     );
   }
@@ -1288,8 +1311,8 @@ export default function AdminTournamentsPage() {
                     }}
                   >
                     <option value="CLUB">Club</option>
-                    <option value="DISTRICT">District</option>
-                    <option value="NATIONAL">National</option>
+                    {isSuperAdmin ? <option value="DISTRICT">District</option> : null}
+                    {isSuperAdmin ? <option value="NATIONAL">National</option> : null}
                   </select>
                 </div>
 

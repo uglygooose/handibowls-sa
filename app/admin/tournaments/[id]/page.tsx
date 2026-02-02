@@ -135,6 +135,8 @@ export default function AdminTournamentDetailPage() {
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [adminClubId, setAdminClubId] = useState<string | null>(null);
 
   const [tournament, setTournament] = useState<TournamentRow | null>(null);
   const [entryCount, setEntryCount] = useState(0);
@@ -259,15 +261,28 @@ export default function AdminTournamentDetailPage() {
       return { ok: false as const };
     }
 
-    const au = await supabase.from("admin_users").select("user_id").eq("user_id", user.id).maybeSingle();
-    if (au.error) {
-      setError(`Could not verify admin access.\n${au.error.message}`);
+    const profRes = await supabase
+      .from("profiles")
+      .select("role, is_admin, club_id")
+      .eq("id", user.id)
+      .single();
+
+    if (profRes.error) {
+      setError(`Could not verify admin access.\n${profRes.error.message}`);
       setIsAdmin(false);
       setAccessDenied(true);
       return { ok: false as const };
     }
 
-    if (!au.data?.user_id) {
+    const role = String((profRes.data as any)?.role ?? "").toUpperCase();
+    const isSuper = role === "SUPER_ADMIN";
+    const isAdminFlag = Boolean((profRes.data as any)?.is_admin);
+    const clubId = (profRes.data as any)?.club_id ?? null;
+
+    setIsSuperAdmin(isSuper);
+    setAdminClubId(isSuper ? null : (clubId ? String(clubId) : null));
+
+    if (!isSuper && !isAdminFlag) {
       setIsAdmin(false);
       setAccessDenied(true);
       return { ok: false as const };
@@ -313,7 +328,7 @@ export default function AdminTournamentDetailPage() {
 
     const tRes = await supabase
       .from("tournaments")
-      .select("id, name, scope, format, status, announced_at, starts_at, ends_at, entries_open, locked_at, target_team_handicap, rule_type")
+      .select("id, name, scope, format, status, announced_at, starts_at, ends_at, entries_open, locked_at, target_team_handicap, rule_type, club_id")
       .eq("id", tournamentId)
       .single();
 
@@ -331,18 +346,29 @@ export default function AdminTournamentDetailPage() {
     }
 
     const tRow = tRes.data as TournamentRow;
+    if (!isSuperAdmin) {
+      const cid = String((tRes.data as any)?.club_id ?? "");
+      if (!adminClubId || !cid || cid !== adminClubId || String((tRes.data as any)?.scope ?? "") !== "CLUB") {
+        setError("You do not have access to this tournament.");
+        setTournament(null);
+        setAccessDenied(true);
+        setLoading(false);
+        return;
+      }
+    }
     setTournament(tRow);
 
     setTargetInput(tRow.target_team_handicap == null ? "" : String(tRow.target_team_handicap));
 
-    const quickRes = await supabase
+    const quickQuery = supabase
       .from("tournaments")
-      .select("id, name, scope, status, gender, starts_at, announced_at")
+      .select("id, name, scope, status, gender, starts_at, announced_at, club_id")
       .eq("scope", "CLUB")
       .eq("status", "IN_PLAY")
       .order("starts_at", { ascending: true, nullsFirst: false })
       .order("announced_at", { ascending: true })
       .limit(10);
+    const quickRes = adminClubId ? await quickQuery.eq("club_id", adminClubId) : await quickQuery;
 
     if (!quickRes.error) {
       const list = (quickRes.data ?? []).map((r: any) => ({

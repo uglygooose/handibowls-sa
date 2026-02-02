@@ -67,20 +67,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // 2) Admin gate
-    const { data: au, error: auErr } = await supabase
-      .from("admin_users")
-      .select("user_id")
-      .eq("user_id", authData.user.id)
-      .maybeSingle();
+    // 2) Admin gate (profiles)
+    const { data: prof, error: prErr } = await supabase
+      .from("profiles")
+      .select("role, is_admin, club_id")
+      .eq("id", authData.user.id)
+      .single();
 
-    if (auErr) {
+    if (prErr) {
       return NextResponse.json(
-        { error: `Could not verify admin access: ${auErr.message}` },
+        { error: `Could not verify admin access: ${prErr.message}` },
         { status: 400 }
       );
     }
-    if (!au?.user_id) {
+
+    const role = String((prof as any)?.role ?? "").toUpperCase();
+    const isSuperAdmin = role === "SUPER_ADMIN";
+    const isAdminFlag = Boolean((prof as any)?.is_admin);
+    const adminClubId = (prof as any)?.club_id ? String((prof as any).club_id) : "";
+
+    if (!isSuperAdmin && !isAdminFlag) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
@@ -103,12 +109,19 @@ export async function POST(req: Request) {
     // 4) Tournament exists
     const { data: t, error: tErr } = await supabase
       .from("tournaments")
-      .select("id, status")
+      .select("id, status, scope, club_id")
       .eq("id", tournament_id)
       .single();
 
     if (tErr || !t?.id) {
       return NextResponse.json({ error: tErr?.message ?? "Tournament not found" }, { status: 404 });
+    }
+    if (!isSuperAdmin) {
+      const tClub = String((t as any)?.club_id ?? "");
+      const tScope = String((t as any)?.scope ?? "");
+      if (!adminClubId || tScope !== "CLUB" || tClub !== adminClubId) {
+        return NextResponse.json({ error: "Club admin access denied" }, { status: 403 });
+      }
     }
     if (String(t.status) === "COMPLETED") {
       return NextResponse.json({ error: "Tournament is completed" }, { status: 400 });

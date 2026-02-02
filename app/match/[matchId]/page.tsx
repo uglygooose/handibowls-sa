@@ -97,12 +97,13 @@ export default function MatchPage() {
     // admin flag (profiles.id == auth user id)
     const { data: prof, error: profErr } = await supabase
       .from("profiles")
-      .select("is_admin")
+      .select("is_admin, role")
       .eq("id", userData.user.id)
       .single();
 
     if (!profErr && prof) {
-      setIsAdmin(Boolean((prof as ProfileRow).is_admin));
+      const role = String((prof as any).role ?? "").toUpperCase();
+      setIsAdmin(Boolean((prof as ProfileRow).is_admin) || role === "SUPER_ADMIN");
     } else {
       setIsAdmin(false);
     }
@@ -115,12 +116,16 @@ export default function MatchPage() {
       .single();
 
     if (meErr || !mePlayer) {
-      setError("Signed-in user not linked to a player record.");
-      setLoading(false);
-      return;
+      const role = String((prof as any)?.role ?? "").toUpperCase();
+      if (role !== "SUPER_ADMIN") {
+        setError("Signed-in user not linked to a player record.");
+        setLoading(false);
+        return;
+      }
+      setMyPlayerId(null);
+    } else {
+      setMyPlayerId(mePlayer.id);
     }
-
-    setMyPlayerId(mePlayer.id);
 
     // match
     const { data: m, error: mErr } = await supabase

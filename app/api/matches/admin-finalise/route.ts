@@ -32,12 +32,16 @@ export async function POST(req: Request) {
     // Confirm admin
     const { data: profile, error: prErr } = await supabase
       .from("profiles")
-      .select("is_admin")
+      .select("is_admin, role, club_id")
       .eq("id", authData.user.id)
       .single();
 
     if (prErr) return NextResponse.json({ error: `profiles: ${prErr.message}` }, { status: 400 });
-    if (!profile?.is_admin) return NextResponse.json({ error: "Admin only" }, { status: 403 });
+    const role = String((profile as any)?.role ?? "").toUpperCase();
+    const isSuperAdmin = role === "SUPER_ADMIN";
+    const isAdminFlag = Boolean((profile as any)?.is_admin);
+    const adminClubId = (profile as any)?.club_id ? String((profile as any).club_id) : "";
+    if (!isSuperAdmin && !isAdminFlag) return NextResponse.json({ error: "Admin only" }, { status: 403 });
 
     let body: any = null;
     try {
@@ -61,6 +65,23 @@ export async function POST(req: Request) {
     if (mErr || !match) return NextResponse.json({ error: "Match not found" }, { status: 404 });
 
     if (!match.ladder_id) return NextResponse.json({ error: "Match missing ladder_id" }, { status: 400 });
+
+    if (!isSuperAdmin) {
+      const ladderRes = await supabase
+        .from("ladders")
+        .select("id, scope, club_id")
+        .eq("id", match.ladder_id)
+        .single();
+
+      if (ladderRes.error || !ladderRes.data?.id) {
+        return NextResponse.json({ error: "Ladder not found" }, { status: 404 });
+      }
+      const ladderClub = String((ladderRes.data as any)?.club_id ?? "");
+      const ladderScope = String((ladderRes.data as any)?.scope ?? "");
+      if (!adminClubId || ladderScope !== "CLUB" || ladderClub !== adminClubId) {
+        return NextResponse.json({ error: "Club admin access denied" }, { status: 403 });
+      }
+    }
 
     // Must have scores to finalise
     if (match.challenger_score == null || match.challenged_score == null) {

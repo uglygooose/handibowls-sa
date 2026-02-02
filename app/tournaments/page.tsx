@@ -67,6 +67,7 @@ export default function TournamentsPage() {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<TournamentRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const [playerId, setPlayerId] = useState<string>("");
   const [playerGender, setPlayerGender] = useState<PlayerGender | "">("");
@@ -112,27 +113,36 @@ export default function TournamentsPage() {
       return;
     }
 
+    const profRes = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    const role = ((profRes.data as any)?.role ?? "").toString().toUpperCase();
+    const superAdmin = role === "SUPER_ADMIN";
+    setIsSuperAdmin(superAdmin);
+
     // Resolve my player_id (single row per user)
     const me = await supabase.from("players").select("id, gender").eq("user_id", user.id).single();
     if (me.error || !me.data?.id) {
-      setError("Could not resolve your player profile.");
-      setRows([]);
+      if (!superAdmin) {
+        setError("Could not resolve your player profile.");
+        setRows([]);
+        setPlayerId("");
+        setPlayerGender("");
+        setEnteredByTournamentId({});
+        setTeamsByTournamentId({});
+        setTeamMembersByTeamId({});
+        setNameByPlayerId({});
+        setLoading(false);
+        return;
+      }
       setPlayerId("");
       setPlayerGender("");
-      setEnteredByTournamentId({});
-      setTeamsByTournamentId({});
-      setTeamMembersByTeamId({});
-      setNameByPlayerId({});
-      setLoading(false);
-      return;
     }
 
-    const myPlayerId = String(me.data.id);
-    setPlayerId(myPlayerId);
-    const myGender = ((me.data as any).gender ?? "") as PlayerGender | "";
+    const myPlayerId = me.data?.id ? String(me.data.id) : "";
+    if (myPlayerId) setPlayerId(myPlayerId);
+    const myGender = ((me.data as any)?.gender ?? "") as PlayerGender | "";
     setPlayerGender(myGender);
 
-    if (!myGender) {
+    if (!myGender && !superAdmin) {
       setRows([]);
       setEnteredByTournamentId({});
       setTeamsByTournamentId({});
@@ -160,11 +170,13 @@ export default function TournamentsPage() {
     }
 
     const tournaments = (res.data ?? []) as TournamentRow[];
-    const filtered = tournaments.filter((t) => {
-      const tg = (t.gender ?? null) as TournamentGender | null;
-      if (!tg) return true;
-      return tg === myGender;
-    });
+    const filtered = superAdmin
+      ? tournaments
+      : tournaments.filter((t) => {
+          const tg = (t.gender ?? null) as TournamentGender | null;
+          if (!tg) return true;
+          return tg === myGender;
+        });
     setRows(filtered);
 
     const clubIds = Array.from(
@@ -188,6 +200,15 @@ export default function TournamentsPage() {
 
     const tournamentIds = filtered.map((t) => t.id);
     if (!tournamentIds.length) {
+      setEnteredByTournamentId({});
+      setTeamsByTournamentId({});
+      setTeamMembersByTeamId({});
+      setNameByPlayerId({});
+      setLoading(false);
+      return;
+    }
+
+    if (!myPlayerId) {
       setEnteredByTournamentId({});
       setTeamsByTournamentId({});
       setTeamMembersByTeamId({});
@@ -734,7 +755,7 @@ export default function TournamentsPage() {
           </div>
         )}
 
-        {!loading && !error && !playerGender ? (
+        {!loading && !error && !playerGender && !isSuperAdmin ? (
           <div
             style={{
               marginTop: 14,
@@ -794,7 +815,7 @@ export default function TournamentsPage() {
           </div>
         ) : null}
 
-        {!loading && !error && playerGender && rows.length === 0 ? (
+        {!loading && !error && rows.length === 0 && (isSuperAdmin || playerGender) ? (
           <div
             style={{
               marginTop: 14,
