@@ -3073,7 +3073,7 @@ function singlesHandicapLine(m: MatchRow) {
               </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
               <StatusPill label={isBye ? "BYE" : "Completed"} tone={isBye ? "warn" : "good"} />
               {!isBye ? (
                 <button
@@ -3103,7 +3103,15 @@ function singlesHandicapLine(m: MatchRow) {
                 Edit the final score. This will re-finalise the match and update any linked next-round slots.
               </div>
 
-              <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 40px 1fr", gap: 8, alignItems: "center" }}>
+              <div
+                style={{
+                  marginTop: 8,
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0,1fr) 24px minmax(0,1fr)",
+                  gap: 8,
+                  alignItems: "center",
+                }}
+              >
                 <input
                   inputMode="numeric"
                   value={(scoreDraftByMatchId[m.id]?.a ?? "").toString()}
@@ -3123,6 +3131,7 @@ function singlesHandicapLine(m: MatchRow) {
                     borderRadius: 12,
                     padding: "10px 10px",
                     fontWeight: 900,
+                    minWidth: 0,
                   }}
                 />
                 <div style={{ textAlign: "center", fontWeight: 900, color: theme.muted }}>-</div>
@@ -3145,6 +3154,7 @@ function singlesHandicapLine(m: MatchRow) {
                     borderRadius: 12,
                     padding: "10px 10px",
                     fontWeight: 900,
+                    minWidth: 0,
                   }}
                 />
               </div>
