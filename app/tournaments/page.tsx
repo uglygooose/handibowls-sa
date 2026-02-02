@@ -73,6 +73,8 @@ export default function TournamentsPage() {
   const [genderSaving, setGenderSaving] = useState(false);
   const [enteredByTournamentId, setEnteredByTournamentId] = useState<Record<string, boolean>>({});
   const [clubNameById, setClubNameById] = useState<Record<string, string>>({});
+  const [bucketOpenByKey, setBucketOpenByKey] = useState<Record<string, boolean>>({});
+  const [sectionOpenByKey, setSectionOpenByKey] = useState<Record<string, boolean>>({});
 
   const [teamsByTournamentId, setTeamsByTournamentId] = useState<
     Record<string, { id: string; team_no: number; team_handicap: number | null }[]>
@@ -383,13 +385,37 @@ export default function TournamentsPage() {
     const upcoming = items.filter((r) => r.status === "ANNOUNCED");
     const inplay = items.filter((r) => r.status === "IN_PLAY");
     const past = items.filter((r) => r.status === "COMPLETED");
+    const bucketKey = `bucket:${title}`;
+    const bucketOpen = bucketOpenByKey[bucketKey] ?? items.length > 0;
 
     function section(label: string, list: TournamentRow[]) {
+      const sectionKey = `${bucketKey}:${label}`;
+      const defaultOpen = label !== "Past" && list.length > 0;
+      const open = sectionOpenByKey[sectionKey] ?? defaultOpen;
       return (
         <div style={{ marginTop: 12 }}>
-          <div style={{ fontWeight: 900, fontSize: 14 }}>{label}</div>
+          <button
+            type="button"
+            onClick={() => setSectionOpenByKey((m) => ({ ...m, [sectionKey]: !open }))}
+            style={{
+              width: "100%",
+              border: `1px solid ${theme.border}`,
+              background: theme.surface,
+              padding: "10px 12px",
+              borderRadius: 12,
+              fontWeight: 900,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              cursor: "pointer",
+            }}
+            title={`Toggle ${label}`}
+          >
+            <span>{label}</span>
+            <span style={{ fontSize: 12, color: theme.muted }}>{list.length}</span>
+          </button>
 
-          {!list.length ? (
+          {!open ? null : !list.length ? (
             <div style={{ marginTop: 8, color: theme.muted, fontSize: 13 }}>None</div>
           ) : (
             <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
@@ -620,10 +646,34 @@ export default function TournamentsPage() {
           padding: 14,
         }}
       >
-        <div style={{ fontWeight: 900, fontSize: 16 }}>{title}</div>
-        {section("Upcoming", upcoming)}
-        {section("In-play", inplay)}
-        {section("Past", past)}
+        <button
+          type="button"
+          onClick={() => setBucketOpenByKey((m) => ({ ...m, [bucketKey]: !bucketOpen }))}
+          style={{
+            width: "100%",
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            fontWeight: 900,
+            fontSize: 16,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            cursor: "pointer",
+          }}
+          title={`Toggle ${title}`}
+        >
+          <span>{title}</span>
+          <span style={{ fontSize: 12, color: theme.muted }}>{items.length} tournaments</span>
+        </button>
+
+        {bucketOpen ? (
+          <>
+            {section("Upcoming", upcoming)}
+            {section("In-play", inplay)}
+            {section("Past", past)}
+          </>
+        ) : null}
       </div>
     );
   }
