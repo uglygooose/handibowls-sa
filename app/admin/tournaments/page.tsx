@@ -786,11 +786,42 @@ export default function AdminTournamentsPage() {
           </span>
         </div>
 
-        <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 13, color: theme.muted }}>
-          <div><span style={{ fontWeight: 800, color: theme.text }}>Entries</span> {count} ? <span style={{ fontWeight: 900, color: entriesOpen ? theme.maroon : theme.danger }}>{lockedLabel}</span></div>
-          <div><span style={{ fontWeight: 800, color: theme.text }}>Teams</span> {hasTeams ? teamsByTournamentId[t.id].length : 0} ? <span style={{ fontWeight: 800, color: theme.text }}>Matches</span> {matchCount}</div>
-          <div><span style={{ fontWeight: 800, color: theme.text }}>Starts</span> {t.starts_at ? new Date(t.starts_at).toLocaleString() : "TBC"}</div>
-          <div><span style={{ fontWeight: 800, color: theme.text }}>Ends</span> {t.ends_at ? new Date(t.ends_at).toLocaleString() : "TBC"}</div>
+        <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 13 }}>
+          <div style={{ display: "grid", gap: 2 }}>
+            <div style={{ fontSize: 11, fontWeight: 900, color: theme.muted, letterSpacing: 0.3, textTransform: "uppercase" }}>
+              Entries
+            </div>
+            <div style={{ fontWeight: 900, color: theme.text }}>
+              {count} <span style={{ color: entriesOpen ? theme.maroon : theme.danger }}>• {lockedLabel}</span>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gap: 2 }}>
+            <div style={{ fontSize: 11, fontWeight: 900, color: theme.muted, letterSpacing: 0.3, textTransform: "uppercase" }}>
+              Teams / Matches
+            </div>
+            <div style={{ fontWeight: 900, color: theme.text }}>
+              {hasTeams ? teamsByTournamentId[t.id].length : 0} • {matchCount}
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gap: 2 }}>
+            <div style={{ fontSize: 11, fontWeight: 900, color: theme.muted, letterSpacing: 0.3, textTransform: "uppercase" }}>
+              Starts
+            </div>
+            <div style={{ fontWeight: 900, color: theme.text }}>
+              {t.starts_at ? new Date(t.starts_at).toLocaleString() : "TBC"}
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gap: 2 }}>
+            <div style={{ fontSize: 11, fontWeight: 900, color: theme.muted, letterSpacing: 0.3, textTransform: "uppercase" }}>
+              Ends
+            </div>
+            <div style={{ fontWeight: 900, color: theme.text }}>
+              {t.ends_at ? new Date(t.ends_at).toLocaleString() : "TBC"}
+            </div>
+          </div>
         </div>
 
         <div style={{ marginTop: 10, display: "grid", gap: 8 }}>

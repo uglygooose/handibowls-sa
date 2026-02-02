@@ -66,23 +66,22 @@ export default function BottomNav() {
           </Link>
 
           <Link href="/club-ladder" className={pill(isActive("/club-ladder"))}>
-            Leaderboard
+            <span className="hidden sm:inline">Leaderboard</span>
+            <span className="sm:hidden">Board</span>
           </Link>
 
           <Link href="/my-challenges" className={pill(isActive("/my-challenges"))}>
-            Challenges
+            <span className="hidden sm:inline">Challenges</span>
+            <span className="sm:hidden">Chal.</span>
           </Link>
 
           <Link href="/tournaments" className={pill(isActive("/tournaments"))}>
-            Tournaments
+            <span className="hidden sm:inline">Tournaments</span>
+            <span className="sm:hidden">Tourn.</span>
           </Link>
 
           {isAdmin ? (
-            <Link
-              href="/admin/tournaments"
-              className={pill(isActive("/admin"))}
-              title="Admin tournaments"
-            >
+            <Link href="/admin/tournaments" className={pill(isActive("/admin"))} title="Admin tournaments">
               Admin
             </Link>
           ) : null}
