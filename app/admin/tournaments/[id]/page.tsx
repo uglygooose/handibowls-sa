@@ -2237,10 +2237,6 @@ function singlesHandicapLine(m: MatchRow) {
                   {singlesHandicapLine(m)}
                 </div>
               ) : null}
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <StatusPill label={matchStatusLabel(st)} tone={locked ? "good" : st === "IN_PLAY" ? "warn" : "neutral"} />
 
               {canStart ? (
                 <button
@@ -2248,6 +2244,7 @@ function singlesHandicapLine(m: MatchRow) {
                   disabled={busy}
                   onClick={() => updateMatchStatus(m.id, "IN_PLAY")}
                   style={{
+                    marginTop: 8,
                     border: `1px solid ${theme.border}`,
                     background: "#fff",
                     color: theme.text,
@@ -2256,6 +2253,7 @@ function singlesHandicapLine(m: MatchRow) {
                     fontWeight: 900,
                     fontSize: 12,
                     cursor: busy ? "not-allowed" : "pointer",
+                    alignSelf: "flex-start",
                   }}
                 >
                   Start
@@ -2268,6 +2266,7 @@ function singlesHandicapLine(m: MatchRow) {
                   disabled={busy}
                   onClick={() => updateMatchStatus(m.id, "COMPLETED")}
                   style={{
+                    marginTop: 8,
                     border: `1px solid ${theme.border}`,
                     background: "#fff",
                     color: theme.text,
@@ -2276,11 +2275,16 @@ function singlesHandicapLine(m: MatchRow) {
                     fontWeight: 900,
                     fontSize: 12,
                     cursor: busy ? "not-allowed" : "pointer",
+                    alignSelf: "flex-start",
                   }}
                 >
                   Complete
                 </button>
               ) : null}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+              <StatusPill label={matchStatusLabel(st)} tone={locked ? "good" : st === "IN_PLAY" ? "warn" : "neutral"} />
             </div>
           </div>
 
