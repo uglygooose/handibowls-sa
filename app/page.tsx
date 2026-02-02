@@ -411,8 +411,26 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId, clubLbGender]);
 
+  const showRidgeparkBg = clubName?.toLowerCase().includes("ridgepark");
+
   return (
-    <div style={{ background: theme.background, minHeight: "100vh", color: theme.text, paddingBottom: 92 }}>
+    <div
+      style={{
+        background: theme.background,
+        minHeight: "100vh",
+        color: theme.text,
+        paddingBottom: 92,
+        ...(showRidgeparkBg
+          ? {
+              backgroundImage: "url('/ridgepark-logo.png')",
+              backgroundSize: "380px auto",
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "center 80px",
+              backgroundAttachment: "fixed",
+            }
+          : {}),
+      }}
+    >
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 14px 18px" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
