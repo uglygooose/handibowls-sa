@@ -837,6 +837,12 @@ export default function ClubLadderPage() {
     return String(v);
   }
 
+  const rowsById = useMemo(() => new Map(rows.map((row) => [row.player_id, row])), [rows]);
+  const qualifiedPosById = useMemo(() => {
+    const qualified = rows.filter((row) => Number(row.played ?? 0) >= 3);
+    return new Map(qualified.map((row, i) => [row.player_id, i + 1]));
+  }, [rows]);
+
   const ladderContent = useMemo(() => {
     if (loading) return <p style={{ color: theme.muted }}>Loading ladder...</p>;
     if (error) return <p style={{ color: theme.danger, whiteSpace: "pre-wrap" }}>Error: {error}</p>;
@@ -902,47 +908,42 @@ export default function ClubLadderPage() {
           </div>
 
         <div style={{ display: "grid", gap: 6, padding: "8px 8px 6px" }}>
-          {(() => {
-            const rowsById = new Map(rows.map((row) => [row.player_id, row]));
-            const qualified = rows.filter((row) => Number(row.played ?? 0) >= 3);
-            const qualifiedPosById = new Map(qualified.map((row, i) => [row.player_id, i + 1]));
+          {rows.map((r, idx) => {
+            const eligible = isEligible(r.player_id, rowsById, qualifiedPosById);
+            const isMe = myPlayerId === r.player_id;
+            const targetGender = genderByPlayerId[r.player_id] ?? "";
+            const canChallengeGender = !!myGender && !!targetGender && myGender === targetGender;
 
-            return rows.map((r, idx) => {
-              const eligible = isEligible(r.player_id, rowsById, qualifiedPosById);
-              const isMe = myPlayerId === r.player_id;
-              const targetGender = genderByPlayerId[r.player_id] ?? "";
-              const canChallengeGender = !!myGender && !!targetGender && myGender === targetGender;
+            const buttonTitle =
+              viewType === "RANKED"
+                ? eligible
+                  ? "Create a ranked challenge (+/-2 after 3 games)"
+                  : "Ranked challenges must be within +/-2 positions (after 3 games)"
+                : eligible
+                ? "Create a friendly match (no ladder impact)"
+                : "Cannot challenge yourself";
+            const finalTitle = !canChallengeGender
+              ? "You can only challenge players of the same gender."
+              : buttonTitle;
 
-              const buttonTitle =
-                viewType === "RANKED"
-                  ? eligible
-                    ? "Create a ranked challenge (+/-2 after 3 games)"
-                    : "Ranked challenges must be within +/-2 positions (after 3 games)"
-                  : eligible
-                  ? "Create a friendly match (no ladder impact)"
-                  : "Cannot challenge yourself";
-              const finalTitle = !canChallengeGender
-                ? "You can only challenge players of the same gender."
-                : buttonTitle;
-
-              return (
-                <div
-                  key={r.player_id}
-                  ref={(el) => {
-                    if (el) rowRefs.current[r.player_id] = el;
-                    else delete rowRefs.current[r.player_id];
-                  }}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "44px minmax(0, 1fr) 72px minmax(0, 1fr)",
-                    gap: 10,
-                    alignItems: "center",
-                    padding: "12px 12px",
-                    borderRadius: 14,
-                    border: `1px solid ${isMe ? theme.maroon : theme.border}`,
-                    background: isMe ? "rgba(122,31,43,0.08)" : "#fff",
-                  }}
-                >
+            return (
+              <div
+                key={r.player_id}
+                ref={(el) => {
+                  if (el) rowRefs.current[r.player_id] = el;
+                  else delete rowRefs.current[r.player_id];
+                }}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "44px minmax(0, 1fr) 72px minmax(0, 1fr)",
+                  gap: 10,
+                  alignItems: "center",
+                  padding: "12px 12px",
+                  borderRadius: 14,
+                  border: `1px solid ${isMe ? theme.maroon : theme.border}`,
+                  background: isMe ? "rgba(122,31,43,0.08)" : "#fff",
+                }}
+              >
                   {/* Position */}
                   <div
                     style={{
@@ -1037,11 +1038,10 @@ export default function ClubLadderPage() {
                       <div style={{ textAlign: "right" }}>{valOrDash(r.shots_against, showDash)}</div>
                     </div>
                   </div>
-                </div>
-              );
-            });
-          })()}
-          </div>
+              </div>
+            );
+          })}
+        </div>
         </div>
 
         {/* Friendly note */}
@@ -1052,7 +1052,7 @@ export default function ClubLadderPage() {
         )}
       </div>
     );
-  }, [loading, error, rows, myPosition, myPlayerId, viewType, genderFilter, myGender, genderByPlayerId]);
+  }, [loading, error, rows, rowsById, qualifiedPosById, myPosition, myPlayerId, viewType, genderFilter, myGender, genderByPlayerId]);
 
   const pendingSection = useMemo(() => {
     if (loading) return null;
@@ -1253,7 +1253,7 @@ export default function ClubLadderPage() {
             }}
             title="Refresh"
           >
-            ?
+            {"\u21BB"}
           </button>
         </div>
 

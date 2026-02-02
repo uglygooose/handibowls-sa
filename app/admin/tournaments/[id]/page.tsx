@@ -3284,7 +3284,7 @@ function singlesHandicapLine(m: MatchRow) {
             }}
             title="Refresh"
           >
-            ↻
+            {"\u21BB"}
           </button>
         </div>
 

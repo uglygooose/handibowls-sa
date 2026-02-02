@@ -836,7 +836,7 @@ export default function MyChallengesPage() {
       }}
       title="Refresh"
     >
-      R
+      {"\u21BB"}
     </button>
   );
 

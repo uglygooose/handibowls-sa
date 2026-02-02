@@ -1129,7 +1129,7 @@ export default function AdminTournamentsPage() {
             }}
             title="Refresh"
           >
-            ↻
+            {"\u21BB"}
           </button>
         </div>
 

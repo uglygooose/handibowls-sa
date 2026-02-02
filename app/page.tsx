@@ -482,7 +482,7 @@ export default function HomePage() {
             }}
             title="Refresh"
           >
-            {"\u2192"}»
+            {"\u21BB"}
           </button>
         </div>
 
@@ -714,7 +714,7 @@ export default function HomePage() {
                       </div>
                     ) : null}
                     <div style={{ marginTop: 6, fontSize: 12, color: theme.muted }}>
-                      {scopeLabel(t.scope)} • {genderLabel(t.gender ?? null)} • {formatLabel(t.format)} knockout
+                      {scopeLabel(t.scope)} * {genderLabel(t.gender ?? null)} * {formatLabel(t.format)} knockout
                     </div>
                     {t.scope === "CLUB" && t.club_id && clubNameById[t.club_id] ? (
                       <div style={{ marginTop: 6, fontSize: 12, color: theme.muted }}>

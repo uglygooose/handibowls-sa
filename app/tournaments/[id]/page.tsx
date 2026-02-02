@@ -1231,7 +1231,7 @@ export default function TournamentRoomPage() {
             }}
             title="Refresh"
           >
-            ?
+            {"\u21BB"}
           </button>
         </div>
 
