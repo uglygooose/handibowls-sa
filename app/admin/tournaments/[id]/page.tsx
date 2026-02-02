@@ -3071,16 +3071,14 @@ function singlesHandicapLine(m: MatchRow) {
                 {winnerTag}
                 {adminFinalTag}
               </div>
-            </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <StatusPill label={isBye ? "BYE" : "Completed"} tone={isBye ? "warn" : "good"} />
               {!isBye ? (
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => setAuditEditOpenByMatchId((p) => ({ ...p, [m.id]: !p[m.id] }))}
                   style={{
+                    marginTop: 8,
                     border: `1px solid ${theme.border}`,
                     background: "#fff",
                     color: theme.text,
@@ -3089,11 +3087,16 @@ function singlesHandicapLine(m: MatchRow) {
                     fontWeight: 900,
                     fontSize: 12,
                     cursor: busy ? "not-allowed" : "pointer",
+                    alignSelf: "flex-start",
                   }}
                 >
                   {editOpen ? "Close edit" : "Edit score"}
                 </button>
               ) : null}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+              <StatusPill label={isBye ? "BYE" : "Completed"} tone={isBye ? "warn" : "good"} />
             </div>
           </div>
 
