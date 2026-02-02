@@ -83,10 +83,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cannot challenge yourself" }, { status: 400 });
     }
 
-    // 4) Ensure both players exist on this ladder (auto-seed if missing)
+    // 4) Ensure both players exist on this ladder
     const { data: existingEntries, error: exEntriesErr } = await supabase
       .from("ladder_entries")
-      .select("player_id, position")
+      .select("player_id, played")
       .eq("ladder_id", ladder_id)
       .in("player_id", [challenger.id, challenged_player_id]);
 
@@ -94,48 +94,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `ladder_entries: ${exEntriesErr.message}` }, { status: 400 });
     }
 
-    const existingIds = new Set((existingEntries ?? []).map((e: any) => String(e.player_id)));
-    const missingIds = [challenger.id, challenged_player_id].filter((id) => !existingIds.has(String(id)));
-
-    if (missingIds.length) {
-      const { data: lastRow, error: lastErr } = await supabase
-        .from("ladder_entries")
-        .select("position")
-        .eq("ladder_id", ladder_id)
-        .order("position", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (lastErr) {
-        return NextResponse.json({ error: `ladder_entries: ${lastErr.message}` }, { status: 400 });
-      }
-
-      let nextPos = Number(lastRow?.position ?? 0);
-      const now = new Date().toISOString();
-      const inserts = missingIds.map((pid) => {
-        nextPos += 1;
-        return {
-          ladder_id,
-          player_id: pid,
-          position: nextPos,
-          updated_at: now,
-          played: 0,
-          won: 0,
-          drawn: 0,
-          lost: 0,
-          shots_for: 0,
-          shots_against: 0,
-          shot_diff: 0,
-          points: 0,
-          stats_updated_at: now,
-        };
-      });
-
-      const { error: insErr } = await supabase.from("ladder_entries").insert(inserts);
-      if (insErr) {
-        return NextResponse.json({ error: `ladder_entries: ${insErr.message}` }, { status: 400 });
-      }
+    if (!existingEntries || existingEntries.length !== 2) {
+      return NextResponse.json({ error: "Both players must be on the ladder" }, { status: 400 });
     }
+
+    const playedById = new Map(existingEntries.map((e: any) => [String(e.player_id), Number(e.played ?? 0)]));
 
     // 5) Ranked rule enforcement (+/-2 after both have 3+ games) MUST match UI ordering:
     // Bowls convention: PTS -> SD -> SF, with position as tie-break for determinism.
@@ -161,8 +124,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Both players must be on the ladder" }, { status: 400 });
       }
 
-      const challengerPlayed = Number(challengerRow.played ?? 0);
-      const challengedPlayed = Number(challengedRow.played ?? 0);
+      const challengerPlayed = playedById.get(String(challenger.id)) ?? Number(challengerRow.played ?? 0);
+      const challengedPlayed = playedById.get(String(challenged_player_id)) ?? Number(challengedRow.played ?? 0);
 
       // Until both have played 3+, allow any ranked challenge.
       if (challengerPlayed >= 3 && challengedPlayed >= 3) {

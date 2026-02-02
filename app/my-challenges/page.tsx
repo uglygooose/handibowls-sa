@@ -314,7 +314,7 @@ export default function MyChallengesPage() {
 
     const { data: players, error: pErr } = await supabase
       .from("players")
-      .select("id, user_id")
+      .select("id, user_id, display_name")
       .in("id", playerIds);
 
     if (pErr) {
@@ -324,12 +324,12 @@ export default function MyChallengesPage() {
     }
 
     const playerRows = (players ?? []) as PlayerRow[];
-    const userIds = Array.from(new Set(playerRows.map((p) => p.user_id)));
+    const userIds = Array.from(
+      new Set(playerRows.map((p) => p.user_id).filter((id): id is string => typeof id === "string" && UUID_RE.test(id)))
+    );
 
-    const { data: profiles, error: prErr } = await supabase
-      .from("profiles")
-      .select("id, full_name")
-      .in("id", userIds);
+    const { data: profiles, error: prErr } =
+      userIds.length > 0 ? await supabase.from("profiles").select("id, full_name").in("id", userIds) : { data: [], error: null };
 
     if (prErr) {
       setError(`profiles name-map: ${prErr.message}`);
@@ -342,7 +342,12 @@ export default function MyChallengesPage() {
 
     const map = new Map<string, string>();
     for (const pl of playerRows) {
-      map.set(pl.id, profileByUserId.get(pl.user_id) ?? "Unknown");
+      const display = (pl as any).display_name ?? "";
+      const name =
+        (display ?? "").toString().trim()
+          ? (display as string)
+          : profileByUserId.get(pl.user_id ?? "") ?? "Unknown";
+      map.set(pl.id, name);
     }
     setNameByPlayerId(map);
 
