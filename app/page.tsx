@@ -41,14 +41,25 @@ type PlayerMini = {
 
 type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
 type TournamentGender = "MALE" | "FEMALE" | null;
+type TournamentRule = "SCRATCH" | "HANDICAP_START";
 
 type TournamentMini = {
   id: string;
   name: string;
   starts_at: string | null;
+  ends_at: string | null;
+  scope: "CLUB" | "DISTRICT" | "NATIONAL";
   format: TournamentFormat;
   gender?: TournamentGender | null;
+  club_id?: string | null;
+  rule_type?: TournamentRule | null;
 };
+
+function scopeLabel(scope: "CLUB" | "DISTRICT" | "NATIONAL") {
+  if (scope === "CLUB") return "Club";
+  if (scope === "DISTRICT") return "District";
+  return "National";
+}
 
 function formatLabel(fmt: TournamentFormat) {
   if (fmt === "FOUR_BALL") return "4 Balls";
@@ -59,6 +70,11 @@ function genderLabel(g: TournamentGender | undefined | null) {
   if (g === "MALE") return "Men";
   if (g === "FEMALE") return "Ladies";
   return "Open";
+}
+
+function ruleLabel(rule: TournamentRule | null | undefined) {
+  if (rule === "SCRATCH") return "Scratch";
+  return "Handicap start";
 }
 
 function cleanTournamentName(name: string) {
@@ -83,6 +99,7 @@ export default function HomePage() {
   const [clubLbNote, setClubLbNote] = useState<string | null>(null);
   const [upcoming, setUpcoming] = useState<TournamentMini[]>([]);
   const [upcomingNote, setUpcomingNote] = useState<string | null>(null);
+  const [clubNameById, setClubNameById] = useState<Record<string, string>>({});
 
   const [error, setError] = useState<string | null>(null);
 
@@ -185,6 +202,7 @@ export default function HomePage() {
   async function loadUpcoming(gender: "MALE" | "FEMALE" | "") {
     setUpcoming([]);
     setUpcomingNote(null);
+    setClubNameById({});
 
     if (!gender) {
       setUpcomingNote("Select your gender to see upcoming events.");
@@ -194,10 +212,10 @@ export default function HomePage() {
     const nowIso = new Date().toISOString();
     const tRes = await supabase
       .from("tournaments")
-      .select("id, name, starts_at, format, gender, status")
+      .select("id, name, starts_at, ends_at, scope, format, gender, status, club_id, rule_type")
       .eq("status", "ANNOUNCED")
-      .gte("starts_at", nowIso)
-      .order("starts_at", { ascending: true })
+      .or(`starts_at.gte.${nowIso},starts_at.is.null`)
+      .order("starts_at", { ascending: true, nullsFirst: false })
       .limit(5);
 
     if (tRes.error) {
@@ -213,7 +231,27 @@ export default function HomePage() {
       return;
     }
 
-    setUpcoming(filtered.slice(0, 3));
+    const limited = filtered.slice(0, 3);
+    setUpcoming(limited);
+
+    const clubIds = Array.from(
+      new Set(
+        limited
+          .map((t) => (t.club_id ?? "").toString())
+          .filter((id) => id)
+      )
+    );
+
+    if (!clubIds.length) return;
+
+    const clubRes = await supabase.from("clubs").select("id, name").in("id", clubIds);
+    if (clubRes.error) return;
+
+    const next: Record<string, string> = {};
+    for (const c of clubRes.data ?? []) {
+      next[String((c as any).id)] = String((c as any).name ?? "Club");
+    }
+    setClubNameById(next);
   }
 
   async function load() {
@@ -611,11 +649,21 @@ export default function HomePage() {
                     <div style={{ marginTop: 4, fontSize: 12, color: theme.muted }}>
                       {t.starts_at ? new Date(t.starts_at).toLocaleString() : "Start time TBC"}
                     </div>
+                    {t.ends_at ? (
+                      <div style={{ marginTop: 4, fontSize: 12, color: theme.muted }}>
+                        Ends: {new Date(t.ends_at).toLocaleString()}
+                      </div>
+                    ) : null}
                     <div style={{ marginTop: 6, fontSize: 12, color: theme.muted }}>
-                      {genderLabel(t.gender ?? null)} • {formatLabel(t.format)} knockout
+                      {scopeLabel(t.scope)} • {genderLabel(t.gender ?? null)} • {formatLabel(t.format)} knockout
                     </div>
+                    {t.scope === "CLUB" && t.club_id && clubNameById[t.club_id] ? (
+                      <div style={{ marginTop: 6, fontSize: 12, color: theme.muted }}>
+                        Host: {clubNameById[t.club_id]}
+                      </div>
+                    ) : null}
                     <div style={{ marginTop: 6, fontSize: 12, color: theme.muted }}>
-                      Rule: Lower handicap gets the plus.
+                      Rule: {ruleLabel(t.rule_type ?? "HANDICAP_START")}
                     </div>
                   </div>
                 ))}

@@ -9,6 +9,7 @@ type TournamentScope = "CLUB" | "DISTRICT" | "NATIONAL";
 type TournamentStatus = "ANNOUNCED" | "IN_PLAY" | "COMPLETED";
 type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
 type TournamentGender = "MALE" | "FEMALE";
+type TournamentRule = "SCRATCH" | "HANDICAP_START";
 
 type TournamentRow = {
   id: string;
@@ -24,6 +25,7 @@ type TournamentRow = {
   target_team_handicap?: number | null;
   gender?: TournamentGender | null;
   club_id?: string | null;
+  rule_type?: TournamentRule | null;
 };
 
 type AdminTab = "HOME" | "ISSUES" | "CREATE";
@@ -50,6 +52,11 @@ function genderLabel(g: TournamentGender | null | undefined) {
   return "Open";
 }
 
+function ruleLabel(rule: TournamentRule | null | undefined) {
+  if (rule === "SCRATCH") return "Scratch (no handicap)";
+  return "Handicap start";
+}
+
 export default function AdminTournamentsPage() {
   const supabase = createClient();
 
@@ -61,6 +68,7 @@ export default function AdminTournamentsPage() {
   const [createScope, setCreateScope] = useState<TournamentScope>("CLUB");
   const [createFormat, setCreateFormat] = useState<TournamentFormat>("DOUBLES");
   const [createGender, setCreateGender] = useState<TournamentGender>("MALE");
+  const [createRule, setCreateRule] = useState<TournamentRule>("HANDICAP_START");
   const [createClubId, setCreateClubId] = useState("");
   const [createStartsAt, setCreateStartsAt] = useState(""); // datetime-local string
   const [createEndsAt, setCreateEndsAt] = useState(""); // datetime-local string
@@ -162,7 +170,7 @@ export default function AdminTournamentsPage() {
     const tRes = await supabase
       .from("tournaments")
       .select(
-        "id, name, scope, format, status, announced_at, starts_at, ends_at, entries_open, locked_at, target_team_handicap, gender, club_id"
+        "id, name, scope, format, status, announced_at, starts_at, ends_at, entries_open, locked_at, target_team_handicap, gender, club_id, rule_type"
       )
       .order("starts_at", { ascending: false, nullsFirst: false })
       .order("announced_at", { ascending: false })
@@ -536,6 +544,7 @@ export default function AdminTournamentsPage() {
       scope: createScope,
       format: createFormat,
       gender: createGender,
+      rule_type: createRule,
       club_id: createScope === "CLUB" ? (createClubId || null) : null,
       status: "ANNOUNCED",
       entries_open: true,
@@ -561,6 +570,7 @@ export default function AdminTournamentsPage() {
     setCreateScope("CLUB");
     setCreateFormat("DOUBLES");
     setCreateGender("MALE");
+    setCreateRule("HANDICAP_START");
     setCreateStartsAt("");
     setCreateEndsAt("");
     setCreateOpen(false);
@@ -1334,6 +1344,27 @@ export default function AdminTournamentsPage() {
                     )}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 13, marginBottom: 6 }}>Rule</div>
+                <select
+                  value={createRule}
+                  onChange={(e) => setCreateRule(e.target.value as TournamentRule)}
+                  disabled={createBusy}
+                  style={{
+                    width: "100%",
+                    border: `1px solid ${theme.border}`,
+                    borderRadius: 12,
+                    padding: "10px 12px",
+                    fontWeight: 800,
+                    outline: "none",
+                    background: "#fff",
+                  }}
+                >
+                  <option value="HANDICAP_START">{ruleLabel("HANDICAP_START")}</option>
+                  <option value="SCRATCH">{ruleLabel("SCRATCH")}</option>
+                </select>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>

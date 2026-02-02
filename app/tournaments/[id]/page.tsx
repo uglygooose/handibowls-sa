@@ -12,6 +12,7 @@ type TournamentStatus = "ANNOUNCED" | "IN_PLAY" | "COMPLETED";
 type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
 type TournamentGender = "MALE" | "FEMALE" | null;
 type PlayerGender = "MALE" | "FEMALE" | "";
+type TournamentRule = "SCRATCH" | "HANDICAP_START";
 
 type MatchRow = {
   id: string;
@@ -54,6 +55,7 @@ type TournamentRow = {
   ends_at: string | null;
   entries_open?: boolean | null;
   gender?: TournamentGender | null;
+  rule_type?: TournamentRule | null;
 };
 function scopeLabel(scope: TournamentScope) {
   if (scope === "CLUB") return "Club";
@@ -230,7 +232,7 @@ export default function TournamentRoomPage() {
     // Load tournament
     const tRes = await supabase
       .from("tournaments")
-      .select("id, name, scope, format, status, starts_at, ends_at, entries_open, gender")
+      .select("id, name, scope, format, status, starts_at, ends_at, entries_open, gender, rule_type")
       .eq("id", tournamentId)
       .single();
 
@@ -510,8 +512,13 @@ export default function TournamentRoomPage() {
     return Number.isInteger(n) ? String(n) : String(n);
   }
 
+  function isHandicapTournament() {
+    return tournament?.rule_type !== "SCRATCH";
+  }
+
   function memberNameWithHandicap(playerId: string) {
     const base = nameByPlayerId[playerId] ?? "Unknown";
+    if (!isHandicapTournament()) return base;
     const h = formatHandicapValue(handicapByPlayerId[playerId]);
     return h ? `${base} (${h})` : base;
   }
@@ -600,6 +607,7 @@ export default function TournamentRoomPage() {
   }
 
   function singlesHandicapLine(m: MatchRow) {
+    if (!isHandicapTournament()) return null;
     const hc = singlesHandicapInfo(m);
     if (!hc) return null;
 
@@ -836,7 +844,7 @@ export default function TournamentRoomPage() {
                         {slotMembersLine(nextMatch, "A")} * {slotMembersLine(nextMatch, "B")}
                       </div>
                     ) : null}
-                    {tournament?.format === "SINGLES" && !isBye ? (
+                    {tournament?.format === "SINGLES" && !isBye && isHandicapTournament() ? (
                       <div style={{ marginTop: 4, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
                         {singlesHandicapLine(nextMatch)}
                       </div>
@@ -980,7 +988,7 @@ export default function TournamentRoomPage() {
                             {slotMembersLine(m, "A")} * {slotMembersLine(m, "B")}
                           </div>
                         ) : null}
-                        {tournament?.format === "SINGLES" && !isBye ? (
+                        {tournament?.format === "SINGLES" && !isBye && isHandicapTournament() ? (
                           <div style={{ marginTop: 4, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
                             {singlesHandicapLine(m)}
                           </div>
@@ -1155,7 +1163,7 @@ export default function TournamentRoomPage() {
                                             {slotMembersLine(m, "A")} * {slotMembersLine(m, "B")}
                                           </div>
                                         )}
-                                        {tournament?.format === "SINGLES" && !isMatchBye(m) ? (
+                                        {tournament?.format === "SINGLES" && !isMatchBye(m) && isHandicapTournament() ? (
                                           <div style={{ marginTop: 4, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
                                             {singlesHandicapLine(m)}
                                           </div>

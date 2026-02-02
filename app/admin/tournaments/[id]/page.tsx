@@ -10,6 +10,7 @@ import BottomNav from "../../../components/BottomNav";
 type TournamentScope = "CLUB" | "DISTRICT" | "NATIONAL";
 type TournamentStatus = "ANNOUNCED" | "IN_PLAY" | "COMPLETED";
 type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
+type TournamentRule = "SCRATCH" | "HANDICAP_START";
 
 type MatchStatus = "OPEN" | "FINAL" | "SCHEDULED" | "IN_PLAY" | "COMPLETED" | "BYE";
 
@@ -25,6 +26,7 @@ type TournamentRow = {
   entries_open?: boolean | null;
   locked_at?: string | null;
   target_team_handicap?: number | null;
+  rule_type?: TournamentRule | null;
 };
 
 type TeamRow = { id: string; team_no: number; team_handicap: number | null };
@@ -177,14 +179,6 @@ export default function AdminTournamentDetailPage() {
   const [auditOpenByRound, setAuditOpenByRound] = useState<Record<number, boolean>>({});
   const [auditEditOpenByMatchId, setAuditEditOpenByMatchId] = useState<Record<string, boolean>>({});
   const treeRoundRefs = useRef<Record<number, HTMLDivElement | null>>({});
-  const treeContainerRef = useRef<HTMLDivElement | null>(null);
-  const treeContentRef = useRef<HTMLDivElement | null>(null);
-  const treeMatchRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [treeOverlay, setTreeOverlay] = useState<{ width: number; height: number; paths: string[] }>({
-    width: 0,
-    height: 0,
-    paths: [],
-  });
 
   // Bottom drawer (keeps list stable; stops scroll-jump) — still supported
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -319,7 +313,7 @@ export default function AdminTournamentDetailPage() {
 
     const tRes = await supabase
       .from("tournaments")
-      .select("id, name, scope, format, status, announced_at, starts_at, ends_at, entries_open, locked_at, target_team_handicap")
+      .select("id, name, scope, format, status, announced_at, starts_at, ends_at, entries_open, locked_at, target_team_handicap, rule_type")
       .eq("id", tournamentId)
       .single();
 
@@ -611,6 +605,10 @@ export default function AdminTournamentDetailPage() {
     return `Round ${r}`;
   }
 
+  function isHandicapTournament() {
+    return tournament?.rule_type !== "SCRATCH";
+  }
+
   function singlesHandicapInfo(m: MatchRow) {
     if (tournament?.format !== "SINGLES") return null;
     if (!m.team_a_id || !m.team_b_id) return null;
@@ -652,6 +650,7 @@ function shortName(s: string) {
 }
 
 function singlesHandicapLine(m: MatchRow) {
+  if (!isHandicapTournament()) return null;
   const hc = singlesHandicapInfo(m);
   if (!hc) return null;
 
@@ -720,59 +719,10 @@ function singlesHandicapLine(m: MatchRow) {
     return selected ? matchesByRound.filter((r) => r.round >= selected) : matchesByRound;
   }, [matchesByRound, roundMeta.selectedRound]);
 
-  useEffect(() => {
-    if (roundsViewMode !== "TREE") return;
+  const treeRoundsDisplay = useMemo(() => {
+    return treeRoundsToShow.filter((r) => roundLabel(r.round) !== "Pre-Rd");
+  }, [treeRoundsToShow, teams, entryCount, tournament?.format]);
 
-    const calc = () => {
-      const content = treeContentRef.current;
-      if (!content) return;
-      const contentRect = content.getBoundingClientRect();
-      const width = content.scrollWidth;
-      const height = content.scrollHeight;
-
-      const posByMatchId: Record<string, { left: number; right: number; midY: number }> = {};
-      for (const round of treeRoundsToShow) {
-        for (const m of round.matches ?? []) {
-          const el = treeMatchRefs.current[m.id];
-          if (!el) continue;
-          const rect = el.getBoundingClientRect();
-          const left = rect.left - contentRect.left + content.scrollLeft;
-          const right = rect.right - contentRect.left + content.scrollLeft;
-          const midY = rect.top - contentRect.top + content.scrollTop + rect.height / 2;
-          posByMatchId[m.id] = { left, right, midY };
-        }
-      }
-
-      const paths: string[] = [];
-      for (const round of treeRoundsToShow) {
-        for (const m of round.matches ?? []) {
-          const childPos = posByMatchId[m.id];
-          if (!childPos) continue;
-          const parents = [
-            m.slot_a_source_type === "WINNER_OF_MATCH" ? m.slot_a_source_match_id : null,
-            m.slot_b_source_type === "WINNER_OF_MATCH" ? m.slot_b_source_match_id : null,
-          ].filter(Boolean) as string[];
-
-          for (const parentId of parents) {
-            const parentPos = posByMatchId[parentId];
-            if (!parentPos) continue;
-            const midX = (parentPos.right + childPos.left) / 2;
-            paths.push(`M ${parentPos.right} ${parentPos.midY} H ${midX} V ${childPos.midY} H ${childPos.left}`);
-          }
-        }
-      }
-
-      setTreeOverlay({ width, height, paths });
-    };
-
-    const raf = requestAnimationFrame(calc);
-    const onResize = () => calc();
-    window.addEventListener("resize", onResize);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", onResize);
-    };
-  }, [roundsViewMode, treeRoundsToShow]);
 
   useEffect(() => {
     if (roundsViewMode !== "TREE") return;
@@ -1702,9 +1652,9 @@ function singlesHandicapLine(m: MatchRow) {
               const rightName = teamDisplayName(m.team_b_id);
               const hc = singlesHandicapInfo(m);
               const leftHC =
-                tournament?.format === "SINGLES" && hc ? (hc.ha == null ? "" : ` (HC ${hc.ha})`) : "";
+                tournament?.format === "SINGLES" && hc && isHandicapTournament() ? (hc.ha == null ? "" : ` (HC ${hc.ha})`) : "";
               const rightHC =
-                tournament?.format === "SINGLES" && hc ? (hc.hb == null ? "" : ` (HC ${hc.hb})`) : "";
+                tournament?.format === "SINGLES" && hc && isHandicapTournament() ? (hc.hb == null ? "" : ` (HC ${hc.hb})`) : "";
 
               const isBye = isMatchBye(m);
 
@@ -1774,7 +1724,7 @@ function singlesHandicapLine(m: MatchRow) {
                         {m.match_no != null ? `Match ${m.match_no} • ` : ""}{roundLabel(m.round_no)}
                       </div>
 
-                      {hc && !isBye && !fixturesEditOpen ? (
+                      {hc && !isBye && !fixturesEditOpen && isHandicapTournament() ? (
                         <div style={{ marginTop: 6, fontSize: 12, color: theme.muted, fontWeight: 800, lineHeight: 1.25 }}>
                           {singlesHandicapLine(m)}
                         </div>
@@ -1795,13 +1745,16 @@ function singlesHandicapLine(m: MatchRow) {
   function RoundSelector() {
     if (!roundMeta.rounds.length) return null;
 
+    const rounds = roundMeta.rounds;
+    if (!rounds.length) return null;
+
     return (
       <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {roundMeta.rounds.map((r) => {
+        {rounds.map((r) => {
           const p = roundMeta.byRound[r];
           const done = p?.completed ?? 0;
           const total = p?.total ?? 0;
-          const active = (roundMeta.selectedRound ?? roundMeta.rounds[0]) === r;
+          const active = (roundMeta.selectedRound ?? rounds[0]) === r;
 
           return (
             <button
@@ -2118,7 +2071,7 @@ function singlesHandicapLine(m: MatchRow) {
                     {left} vs {right}
                   </div>
 
-                  {tournament?.format === "SINGLES" ? (
+                  {tournament?.format === "SINGLES" && isHandicapTournament() ? (
                     <div style={{ marginTop: 6, fontSize: 12, color: theme.muted, fontWeight: 900 }}>
                       {singlesHandicapLine(m)}
                     </div>
@@ -2215,7 +2168,7 @@ function singlesHandicapLine(m: MatchRow) {
       const rightName = slotLabel(m, "B");
 
       const leftHC =
-        tournament?.format === "SINGLES"
+        tournament?.format === "SINGLES" && isHandicapTournament()
           ? (() => {
               const pid = m.team_a_id ? (teamMembersByTeamId[m.team_a_id]?.[0] ?? null) : null;
               const h = pid ? (handicapByPlayerId[pid] ?? null) : null;
@@ -2224,7 +2177,7 @@ function singlesHandicapLine(m: MatchRow) {
           : "";
 
       const rightHC =
-        tournament?.format === "SINGLES"
+        tournament?.format === "SINGLES" && isHandicapTournament()
           ? (() => {
               const pid = m.team_b_id ? (teamMembersByTeamId[m.team_b_id]?.[0] ?? null) : null;
               const h = pid ? (handicapByPlayerId[pid] ?? null) : null;
@@ -2274,7 +2227,7 @@ function singlesHandicapLine(m: MatchRow) {
                   : ""}
               </div>
 
-              {tournament?.format === "SINGLES" && !isMatchBye(m) ? (
+              {tournament?.format === "SINGLES" && !isMatchBye(m) && isHandicapTournament() ? (
                 <div style={{ marginTop: 8, fontSize: 12, color: theme.muted, fontWeight: 900, lineHeight: 1.25 }}>
                   {singlesHandicapLine(m)}
                 </div>
@@ -2540,7 +2493,143 @@ function singlesHandicapLine(m: MatchRow) {
       }
 
       const selected = roundMeta.selectedRound;
-      const roundsToShow = treeRoundsToShow;
+      const roundsToShow = treeRoundsDisplay;
+      if (!roundsToShow.length) {
+        return (
+          <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14 }}>
+            <div style={{ fontWeight: 900, fontSize: 16 }}>Bracket view</div>
+            <div style={{ marginTop: 6, fontSize: 12, color: theme.muted }}>No rounds to show yet.</div>
+          </div>
+        );
+      }
+
+      const preRound = matchesByRound.find((r) => roundLabel(r.round) === "Pre-Rd");
+      const firstMainRound = roundsToShow[0];
+      const feedSourceIds = new Set<string>();
+      if (preRound && firstMainRound) {
+        for (const m of firstMainRound.matches ?? []) {
+          if (m.slot_a_source_match_id) feedSourceIds.add(String(m.slot_a_source_match_id));
+          if (m.slot_b_source_match_id) feedSourceIds.add(String(m.slot_b_source_match_id));
+        }
+      }
+
+      const roundsForTree = preRound
+        ? [
+            {
+              round: preRound.round,
+              matches: feedSourceIds.size
+                ? (preRound.matches ?? []).filter((m) => feedSourceIds.has(m.id))
+                : preRound.matches ?? [],
+            },
+            ...roundsToShow,
+          ]
+        : roundsToShow;
+
+      const fromLabelRaw = selected ? roundLabel(selected) : null;
+      const fromLabel =
+        fromLabelRaw === "Pre-Rd" && roundsForTree.length ? roundLabel(roundsForTree[0].round) : fromLabelRaw;
+
+      const cardW = 230;
+      const cardH = 44;
+      const baseGap = 18;
+      const colGap = 110;
+      const headerOffset = 28;
+      const baseStep = cardH + baseGap;
+
+      const roundLayouts = roundsForTree.map((round, roundIndex) => {
+        const list = [...(round.matches ?? [])].sort(
+          (a, b) => Number(a.match_no ?? 0) - Number(b.match_no ?? 0) || String(a.id).localeCompare(String(b.id))
+        );
+        return { round, roundIndex, list };
+      });
+
+      type MatchPos = { id: string; roundIndex: number; x: number; top: number; centerY: number };
+      const posById: Record<string, MatchPos> = {};
+      const roundPositions: { roundIndex: number; matches: MatchPos[] }[] = [];
+
+      roundLayouts.forEach((layout, roundIndex) => {
+        const x = roundIndex * (cardW + colGap);
+        const list = layout.list;
+        const matches: MatchPos[] = [];
+
+        list.forEach((m, i) => {
+          const centerY = headerOffset + baseStep * ((i + 0.5) * Math.pow(2, roundIndex));
+          const top = centerY - cardH / 2;
+          const pos = { id: m.id, roundIndex, x, top, centerY };
+          matches.push(pos);
+          posById[m.id] = pos;
+        });
+
+        roundPositions.push({ roundIndex, matches });
+      });
+
+      let maxBottom = 0;
+      roundPositions.forEach((layout) => {
+        layout.matches.forEach((m) => {
+          maxBottom = Math.max(maxBottom, m.top + cardH);
+        });
+      });
+
+      const width = roundLayouts.length ? roundLayouts.length * (cardW + colGap) - colGap : cardW;
+      const height = Math.max(maxBottom + baseGap, cardH + headerOffset);
+
+      const lines: string[] = [];
+      const positionsByRoundIndex = new Map<number, MatchPos[]>(
+        roundPositions.map((layout) => [layout.roundIndex, layout.matches])
+      );
+      for (const layout of roundLayouts) {
+        if (layout.roundIndex === 0) continue;
+        const list = layout.list;
+        list.forEach((m) => {
+          const childPos = posById[m.id];
+          if (!childPos) return;
+          const childX = childPos.x;
+          const childCenterY = childPos.centerY;
+
+          const sourceIds = [m.slot_a_source_match_id, m.slot_b_source_match_id].filter(
+            (id): id is string => typeof id === "string" && id.length > 0
+          );
+          const parentPositions = sourceIds
+            .map((id) => posById[id])
+            .filter((p) => p && p.roundIndex === layout.roundIndex - 1) as MatchPos[];
+
+          if (parentPositions.length === 0) {
+            const fallbackParents = positionsByRoundIndex.get(layout.roundIndex - 1) ?? [];
+            const i = list.indexOf(m);
+            const aIdx = i * 2;
+            const bIdx = i * 2 + 1;
+            [aIdx, bIdx].forEach((idx) => {
+              const parentPos = fallbackParents[idx];
+              if (!parentPos) return;
+              const parentX = parentPos.x + cardW;
+              const parentCenterY = parentPos.centerY;
+              const midX = (parentX + childX) / 2;
+              lines.push(`M ${parentX} ${parentCenterY} H ${midX} V ${childCenterY} H ${childX}`);
+            });
+            return;
+          }
+
+          parentPositions.forEach((parentPos) => {
+            const parentX = parentPos.x + cardW;
+            const parentCenterY = parentPos.centerY;
+            const midX = (parentX + childX) / 2;
+            lines.push(`M ${parentX} ${parentCenterY} H ${midX} V ${childCenterY} H ${childX}`);
+          });
+        });
+      }
+
+      const slotLabel = (m: MatchRow, side: "A" | "B") => {
+        const teamId = side === "A" ? m.team_a_id : m.team_b_id;
+        if (teamId) return teamDisplayName(teamId);
+        const sourceType = side === "A" ? m.slot_a_source_type : m.slot_b_source_type;
+        const sourceMatchId = side === "A" ? m.slot_a_source_match_id : m.slot_b_source_match_id;
+        if (sourceType === "BYE") return "BYE";
+        if (sourceType === "WINNER_OF_MATCH" && sourceMatchId) {
+          const no = matchNoById[sourceMatchId];
+          return no ? `M${no} W` : "Winner";
+        }
+        return "TBD";
+      };
 
       return (
         <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, overflow: "hidden" }}>
@@ -2553,7 +2642,7 @@ function singlesHandicapLine(m: MatchRow) {
 
           <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
             <div style={{ fontWeight: 900, fontSize: 16 }}>
-              Bracket view{selected ? ` • from ${roundLabel(selected)}` : ""}
+              Bracket view{fromLabel ? ` • from ${fromLabel}` : ""}
             </div>
             <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>
               {roundsToShow.reduce((acc, r) => acc + (r.matches?.length ?? 0), 0)} matches
@@ -2561,143 +2650,124 @@ function singlesHandicapLine(m: MatchRow) {
           </div>
 
           <div
-            ref={treeContainerRef}
             style={{
               borderTop: `1px solid ${theme.border}`,
               padding: 14,
               overflowX: "auto",
             }}
           >
-            <div
-              ref={treeContentRef}
-              style={{
-                position: "relative",
-                minWidth: 1000,
-              }}
-            >
+            <div style={{ position: "relative", width, height }}>
               <svg
-                width={treeOverlay.width}
-                height={treeOverlay.height}
+                width={width}
+                height={height}
                 style={{
                   position: "absolute",
                   left: 0,
                   top: 0,
                   pointerEvents: "none",
-                }}
-              >
-                {treeOverlay.paths.map((d, idx) => (
-                  <path key={`path-${idx}`} d={d} stroke={theme.border} strokeWidth={2} fill="none" />
-                ))}
-              </svg>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridAutoFlow: "column",
-                  gridAutoColumns: "minmax(260px, 1fr)",
-                  gap: 28,
-                  minWidth: 1000,
-                  position: "relative",
                   zIndex: 1,
                 }}
               >
-            {roundsToShow.map((round, roundIndex) => {
-              const list = [...(round.matches ?? [])].sort(
-                (a, b) => Number(a.match_no ?? 0) - Number(b.match_no ?? 0) || String(a.id).localeCompare(String(b.id))
-              );
-              const meta = roundMeta.byRound[round.round];
-              const total = meta?.total ?? list.length;
-              const completed = meta?.completed ?? 0;
-              const focused = selected ? round.round === selected : true;
-              const gap = Math.min(12 * Math.pow(2, roundIndex), 72);
-              const paddingTop = roundIndex === 0 ? 0 : gap / 2;
+                {lines.map((d, idx) => (
+                  <path key={`path-${idx}`} d={d} stroke="#CBBBA3" strokeWidth={2.5} strokeLinecap="round" fill="none" />
+                ))}
+              </svg>
 
-              return (
-                <div
-                  key={`tree-round-${round.round}`}
-                  ref={(el) => {
-                    treeRoundRefs.current[round.round] = el;
-                  }}
-                  style={{
-                    display: "grid",
-                    gap,
-                    paddingTop,
-                    alignContent: "start",
-                    opacity: focused ? 1 : 0.7,
-                    transition: "opacity 160ms ease",
-                  }}
-                >
+              {roundLayouts.map((layout) => {
+                const meta = roundMeta.byRound[layout.round.round];
+                const total = meta?.total ?? layout.list.length;
+                const completed = meta?.completed ?? 0;
+                const focused = selected ? layout.round.round === selected : true;
+                const colX = layout.roundIndex * (cardW + colGap);
+                const positioned = roundPositions.find((r) => r.roundIndex === layout.roundIndex)?.matches ?? [];
+                const matchPos = new Map(positioned.map((p) => [p.id, p]));
+
+                return (
                   <div
+                    key={`tree-round-${layout.round.round}`}
+                    ref={(el) => {
+                      treeRoundRefs.current[layout.round.round] = el;
+                    }}
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "baseline",
-                      fontWeight: 900,
-                      fontSize: 14,
-                      color: theme.text,
-                      paddingBottom: 2,
+                      position: "absolute",
+                      left: colX,
+                      top: 0,
+                      width: cardW,
+                      opacity: focused ? 1 : 0.8,
+                      transition: "opacity 160ms ease",
                     }}
                   >
-                    <div>{roundLabel(round.round)}</div>
-                    <div style={{ fontSize: 11, color: theme.muted, fontWeight: 900 }}>{completed}/{total}</div>
-                  </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "baseline",
+                        fontWeight: 900,
+                        fontSize: 14,
+                        color: theme.text,
+                        paddingBottom: 6,
+                      }}
+                    >
+                      <div>{roundLabel(layout.round.round)}</div>
+                      <div style={{ fontSize: 11, color: theme.muted, fontWeight: 900 }}>{completed}/{total}</div>
+                    </div>
 
-                  <div style={{ display: "grid", gap: 12 }}>
-                    {list.map((m) => {
+                    {layout.list.map((m) => {
+                      const pos = matchPos.get(m.id);
+                      const y = pos ? pos.top : headerOffset;
                       const left = slotLabel(m, "A");
                       const right = slotLabel(m, "B");
                       const winnerId = m.winner_team_id ? String(m.winner_team_id) : null;
-                      const isBye = isMatchBye(m);
-                      const winA = winnerId && m.team_a_id && winnerId === String(m.team_a_id);
-                      const winB = winnerId && m.team_b_id && winnerId === String(m.team_b_id);
-                      const done = isMatchDone(m);
-                      const inPlay = String(m.status ?? "") === "IN_PLAY";
-                      const parentA = m.slot_a_source_type === "WINNER_OF_MATCH";
-                      const parentB = m.slot_b_source_type === "WINNER_OF_MATCH";
-                      const hasParent = parentA || parentB;
-
+                      const winA = winnerId && m.team_a_id && String(m.team_a_id) === winnerId;
+                      const winB = winnerId && m.team_b_id && String(m.team_b_id) === winnerId;
                       return (
                         <div
                           key={`tree-${m.id}`}
-                          ref={(el) => {
-                            treeMatchRefs.current[m.id] = el;
-                          }}
                           style={{
-                            position: "relative",
-                            border: `1px solid ${done ? "#16A34A" : inPlay ? "#FACC15" : theme.border}`,
-                            borderRadius: 14,
-                            padding: "10px 12px",
-                            background: done ? "#F0FDF4" : inPlay ? "#FEFCE8" : "#fff",
-                            boxShadow: "0 1px 0 rgba(0,0,0,0.02)",
+                            position: "absolute",
+                            left: 0,
+                            top: y,
+                            width: cardW,
+                            height: cardH,
+                            border: `1px solid ${theme.border}`,
+                            borderRadius: 10,
+                            background: "#fff",
+                            padding: "6px 10px",
+                            display: "grid",
+                            alignContent: "center",
+                            gap: 2,
+                            fontSize: 12,
+                            fontWeight: 900,
+                            overflow: "hidden",
+                            zIndex: 2,
                           }}
                         >
                           <div
                             style={{
-                              fontWeight: 900,
-                              fontSize: 13,
+                              color: winA ? "#16A34A" : left === "TBD" ? theme.muted : theme.text,
                               whiteSpace: "nowrap",
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                             }}
                           >
-                            {isBye ? (
-                              `${left} - BYE`
-                            ) : (
-                              <>
-                                <span style={{ color: winA ? "#16A34A" : theme.text }}>{left}</span>{" "}
-                                <span style={{ color: theme.muted, fontWeight: 900 }}>vs</span>{" "}
-                                <span style={{ color: winB ? "#16A34A" : theme.text }}>{right}</span>
-                              </>
-                            )}
+                            {left}
+                          </div>
+                          <div
+                            style={{
+                              color: winB ? "#16A34A" : right === "TBD" ? theme.muted : theme.text,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {right}
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              );
-            })}
-              </div>
+                );
+              })}
             </div>
           </div>
         </div>

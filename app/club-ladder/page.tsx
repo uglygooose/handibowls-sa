@@ -27,7 +27,7 @@ type LadderEntry = {
   points: number | null;
 };
 
-type PlayerRow = { id: string; handicap: number; user_id: string };
+type PlayerRow = { id: string; handicap: number; user_id: string | null; display_name?: string | null; gender?: string | null };
 type ProfileMiniRow = {
   id: string;
   full_name: string | null;
@@ -76,7 +76,9 @@ type LadderMetaRow = {
   district_id: string | null;
 };
 
-type Scope = "CLUB" | "DISTRICT" | "NATIONAL";function safeDateLabel(iso: string) {
+type Scope = "CLUB" | "DISTRICT" | "NATIONAL";
+type GenderFilter = "ALL" | "MALE" | "FEMALE";
+function safeDateLabel(iso: string) {
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return "";
   const d = new Date(ms);
@@ -125,6 +127,7 @@ export default function ClubLadderPage() {
 
   const [scope, setScope] = useState<Scope>("CLUB");
   const [viewType, setViewType] = useState<MatchType>("RANKED"); // Ranked/Friendly toggle for lists + create
+  const [genderFilter, setGenderFilter] = useState<GenderFilter>("ALL");
 
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<LadderRow[]>([]);
@@ -296,19 +299,29 @@ export default function ClubLadderPage() {
         }
 
         const userIds = (clubProfiles ?? []).map((x: any) => x.id);
-        if (!userIds.length) {
-          allowedPlayerIds = [];
-        } else {
-          const { data: clubPlayers, error: clpErr } = await supabase.from("players").select("id").in("user_id", userIds);
+        const { data: clubPlayersByUser, error: clpErr } = userIds.length
+          ? await supabase.from("players").select("id").in("user_id", userIds)
+          : { data: [], error: null };
 
-          if (clpErr) {
-            setError(`players (club filter): ${clpErr.message}`);
-            setLoading(false);
-            return;
-          }
-
-          allowedPlayerIds = (clubPlayers ?? []).map((x: any) => x.id);
+        if (clpErr) {
+          setError(`players (club filter): ${clpErr.message}`);
+          setLoading(false);
+          return;
         }
+
+        const { data: clubPlayersByClub, error: clcErr } = await supabase
+          .from("players")
+          .select("id")
+          .eq("club_id", myProf.club_id);
+
+        if (clcErr) {
+          setError(`players (club filter): ${clcErr.message}`);
+          setLoading(false);
+          return;
+        }
+
+        const ids = new Set<string>([...(clubPlayersByUser ?? []).map((x: any) => x.id), ...(clubPlayersByClub ?? []).map((x: any) => x.id)]);
+        allowedPlayerIds = Array.from(ids);
       }
     } else if (scope === "DISTRICT") {
       if (!myProf.district_id) {
@@ -326,19 +339,40 @@ export default function ClubLadderPage() {
         }
 
         const userIds = (distProfiles ?? []).map((x: any) => x.id);
-        if (!userIds.length) {
-          allowedPlayerIds = [];
-        } else {
-          const { data: distPlayers, error: dplErr } = await supabase.from("players").select("id").in("user_id", userIds);
+        const { data: distPlayersByUser, error: dplErr } = userIds.length
+          ? await supabase.from("players").select("id").in("user_id", userIds)
+          : { data: [], error: null };
 
-          if (dplErr) {
-            setError(`players (district filter): ${dplErr.message}`);
-            setLoading(false);
-            return;
-          }
-
-          allowedPlayerIds = (distPlayers ?? []).map((x: any) => x.id);
+        if (dplErr) {
+          setError(`players (district filter): ${dplErr.message}`);
+          setLoading(false);
+          return;
         }
+
+        const { data: districtClubs, error: dcErr } = await supabase
+          .from("clubs")
+          .select("id")
+          .eq("district_id", myProf.district_id);
+
+        if (dcErr) {
+          setError(`clubs (district filter): ${dcErr.message}`);
+          setLoading(false);
+          return;
+        }
+
+        const clubIds = (districtClubs ?? []).map((x: any) => x.id);
+        const { data: distPlayersByClub, error: dpcErr } = clubIds.length
+          ? await supabase.from("players").select("id").in("club_id", clubIds)
+          : { data: [], error: null };
+
+        if (dpcErr) {
+          setError(`players (district filter): ${dpcErr.message}`);
+          setLoading(false);
+          return;
+        }
+
+        const ids = new Set<string>([...(distPlayersByUser ?? []).map((x: any) => x.id), ...(distPlayersByClub ?? []).map((x: any) => x.id)]);
+        allowedPlayerIds = Array.from(ids);
       }
     } else {
       allowedPlayerIds = null; // NATIONAL
@@ -373,23 +407,87 @@ export default function ClubLadderPage() {
 
     // if empty
     if (!ladderEntries.length) {
-      setRows([]);
-      setMyPosition(null);
+      // Fallback: show eligible players alphabetically when no matches yet
+      if (allowedPlayerIds && allowedPlayerIds.length === 0) {
+        setRows([]);
+        setMyPosition(null);
+        setRecentMatches([]);
+        setPendingMatches([]);
+        setNameByPlayerId(new Map());
+        setLoading(false);
+        return;
+      }
+
+      const playerQuery = supabase
+        .from("players")
+        .select("id, handicap, user_id, display_name, gender");
+
+      const scopedQuery =
+        allowedPlayerIds && allowedPlayerIds.length > 0 ? playerQuery.in("id", allowedPlayerIds) : playerQuery;
+
+      const genderedQuery =
+        genderFilter === "ALL" ? scopedQuery : scopedQuery.eq("gender", genderFilter);
+
+      const { data: players, error: pErr } = await genderedQuery;
+      if (pErr) {
+        setError(`players: ${pErr.message}`);
+        setLoading(false);
+        return;
+      }
+
+      const playerRows = (players ?? []) as PlayerRow[];
+
+      const userIds = playerRows.map((p) => p.user_id).filter(Boolean) as string[];
+      const { data: profiles, error: prErr } =
+        userIds.length > 0 ? await supabase.from("profiles").select("id, full_name").in("id", userIds) : { data: [], error: null };
+
+      if (prErr) {
+        setError(`profiles: ${prErr.message}`);
+        setLoading(false);
+        return;
+      }
+
+      const profileRows = (profiles ?? []) as { id: string; full_name: string | null }[];
+      const profileById = new Map(profileRows.map((p) => [p.id, p.full_name ?? "Unknown"]));
+
+      const fallback = playerRows
+        .map((p) => {
+          const name = (p.display_name ?? "").trim() || profileById.get(p.user_id ?? "") || "Unknown";
+          return {
+            position: 0,
+            player_id: p.id,
+            handicap: p.handicap ?? 0,
+            full_name: name,
+            played: 0,
+            won: 0,
+            drawn: 0,
+            lost: 0,
+            shots_for: 0,
+            shots_against: 0,
+            shot_diff: 0,
+            points: 0,
+          } as LadderRow;
+        })
+        .sort((a, b) => a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" }));
+
+      const map = new Map<string, string>();
+      for (const lr of fallback) map.set(lr.player_id, lr.full_name);
+      setNameByPlayerId(map);
+      setRows(fallback);
+
+      const myIdx = myPlayerId ? fallback.findIndex((x) => x.player_id === myPlayerId) : -1;
+      setMyPosition(myIdx >= 0 ? myIdx + 1 : null);
+
       setRecentMatches([]);
       setPendingMatches([]);
-      setNameByPlayerId(new Map());
       setLoading(false);
       return;
     }
 
-    // IMPORTANT: compute "my position" based on sorted list (idx+1)
-    const myIdx = ladderEntries.findIndex((x) => x.player_id === mePlayer.id);
-    setMyPosition(myIdx >= 0 ? myIdx + 1 : null);
-
     // 3) Load player details + names for displayed player_ids
     const playerIds = ladderEntries.map((x) => x.player_id);
 
-    const { data: players, error: e2 } = await supabase.from("players").select("id, handicap, user_id").in("id", playerIds);
+    const { data: players, error: e2 } = await supabase.from("players").select("id, handicap, user_id, display_name, gender").in("id", playerIds);
 
     if (e2) {
       setError(`players: ${e2.message}`);
@@ -398,7 +496,7 @@ export default function ClubLadderPage() {
     }
 
     const playerRows = (players ?? []) as PlayerRow[];
-    const userIds = playerRows.map((p) => p.user_id);
+    const userIds = playerRows.map((p) => p.user_id).filter(Boolean) as string[];
 
     const { data: profiles, error: e3 } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
 
@@ -416,12 +514,14 @@ export default function ClubLadderPage() {
     const merged: LadderRow[] = ladderEntries.map((en) => {
       const pl = playerById.get(en.player_id);
       const pr = pl ? profileById.get(pl.user_id) : null;
+      const dn = (pl as any)?.display_name ?? "";
+      const name = (dn ?? "").trim() ? (dn as string) : pr?.full_name ?? "Unknown";
 
       return {
         position: en.position,
         player_id: en.player_id,
         handicap: pl?.handicap ?? 0,
-        full_name: pr?.full_name ?? "Unknown",
+        full_name: name,
 
         played: en.played ?? 0,
         won: en.won ?? 0,
@@ -436,11 +536,37 @@ export default function ClubLadderPage() {
       };
     });
 
+    const filteredMerged =
+      genderFilter === "ALL"
+        ? merged
+        : merged.filter((r) => {
+            const p = playerById.get(r.player_id) as any;
+            return (p?.gender ?? "") === genderFilter;
+          });
+
     const map = new Map<string, string>();
-    for (const lr of merged) map.set(lr.player_id, lr.full_name);
+    for (const lr of filteredMerged) map.set(lr.player_id, lr.full_name);
     setNameByPlayerId(map);
 
-    setRows(merged);
+    const shouldAlpha = filteredMerged.every((r) =>
+      (r.played ?? 0) === 0 &&
+      (r.won ?? 0) === 0 &&
+      (r.drawn ?? 0) === 0 &&
+      (r.lost ?? 0) === 0 &&
+      (r.shots_for ?? 0) === 0 &&
+      (r.shots_against ?? 0) === 0 &&
+      (r.shot_diff ?? 0) === 0 &&
+      (r.points ?? 0) === 0
+    );
+
+    const finalRows = shouldAlpha
+      ? [...filteredMerged].sort((a, b) => a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" }))
+      : filteredMerged;
+
+    setRows(finalRows);
+    const myIdx = myPlayerId ? finalRows.findIndex((x) => x.player_id === myPlayerId) : -1;
+    setMyPosition(myIdx >= 0 ? myIdx + 1 : null);
+
 
     // pending matches for me (this ladder) - filter by viewType
     {
@@ -549,7 +675,7 @@ export default function ClubLadderPage() {
   useEffect(() => {
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope, viewType]);
+  }, [scope, viewType, genderFilter]);
 
   async function createChallenge(challenged_player_id: string) {
     setNotice(null);
@@ -986,7 +1112,7 @@ export default function ClubLadderPage() {
           <div>
             <div style={{ fontWeight: 900, fontSize: 18 }}>HandiBowls SA</div>
             <div style={{ color: theme.muted, fontSize: 13, marginTop: 4 }}>
-              {`Leaderboards \u2022 Scope: ${scope} \u2022 Your position: ${myPosition ?? "\u2014"} \u2022 Ranked rule: \u00B12 \u2022 Friendly: any`}
+              {`Leaderboards | Scope: ${scope} | Gender: ${genderFilter} | Your position: ${myPosition ?? "-"} | Ranked rule: +/-2 | Friendly: any`}
             </div>
           </div>
 
@@ -1102,6 +1228,58 @@ export default function ClubLadderPage() {
             title="Friendly matches do not affect ladder stats or movement"
           >
             Friendly
+          </button>
+        </div>
+
+
+        {/* Gender Toggle */}
+        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          <button
+            onClick={() => setGenderFilter("ALL")}
+            style={{
+              border: `1px solid ${theme.border}`,
+              background: genderFilter === "ALL" ? theme.maroon : "#fff",
+              color: genderFilter === "ALL" ? "#fff" : theme.text,
+              padding: "10px 10px",
+              borderRadius: 14,
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+            title="Show all players"
+          >
+            All
+          </button>
+
+          <button
+            onClick={() => setGenderFilter("MALE")}
+            style={{
+              border: `1px solid ${theme.border}`,
+              background: genderFilter === "MALE" ? theme.maroon : "#fff",
+              color: genderFilter === "MALE" ? "#fff" : theme.text,
+              padding: "10px 10px",
+              borderRadius: 14,
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+            title="Show men only"
+          >
+            Men
+          </button>
+
+          <button
+            onClick={() => setGenderFilter("FEMALE")}
+            style={{
+              border: `1px solid ${theme.border}`,
+              background: genderFilter === "FEMALE" ? theme.maroon : "#fff",
+              color: genderFilter === "FEMALE" ? "#fff" : theme.text,
+              padding: "10px 10px",
+              borderRadius: 14,
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+            title="Show ladies only"
+          >
+            Ladies
           </button>
         </div>
 

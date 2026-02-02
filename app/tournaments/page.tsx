@@ -11,6 +11,7 @@ type TournamentStatus = "ANNOUNCED" | "IN_PLAY" | "COMPLETED";
 type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
 type PlayerGender = "MALE" | "FEMALE";
 type TournamentGender = "MALE" | "FEMALE" | null;
+type TournamentRule = "SCRATCH" | "HANDICAP_START";
 
 type TournamentRow = {
   id: string;
@@ -23,6 +24,8 @@ type TournamentRow = {
   ends_at: string | null;
   entries_open?: boolean | null;
   gender?: TournamentGender | null;
+  club_id?: string | null;
+  rule_type?: TournamentRule | null;
 };
 
 function scopeLabel(scope: TournamentScope) {
@@ -48,6 +51,11 @@ function genderLabel(g: TournamentGender | undefined | null) {
   return "Open";
 }
 
+function ruleLabel(rule: TournamentRule | null | undefined) {
+  if (rule === "SCRATCH") return "Scratch";
+  return "Handicap start";
+}
+
 function cleanTournamentName(name: string) {
   const raw = (name ?? "").toString();
   return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
@@ -64,6 +72,7 @@ export default function TournamentsPage() {
   const [playerGender, setPlayerGender] = useState<PlayerGender | "">("");
   const [genderSaving, setGenderSaving] = useState(false);
   const [enteredByTournamentId, setEnteredByTournamentId] = useState<Record<string, boolean>>({});
+  const [clubNameById, setClubNameById] = useState<Record<string, string>>({});
 
   const [teamsByTournamentId, setTeamsByTournamentId] = useState<
     Record<string, { id: string; team_no: number; team_handicap: number | null }[]>
@@ -91,6 +100,7 @@ export default function TournamentsPage() {
   async function load() {
     setLoading(true);
     setError(null);
+    setClubNameById({});
 
     const userRes = await supabase.auth.getUser();
     const user = userRes.data.user;
@@ -132,7 +142,7 @@ export default function TournamentsPage() {
 
     const res = await supabase
       .from("tournaments")
-      .select("id, name, scope, format, status, announced_at, starts_at, ends_at, entries_open, gender")
+      .select("id, name, scope, format, status, announced_at, starts_at, ends_at, entries_open, gender, club_id, rule_type")
       .order("starts_at", { ascending: false, nullsFirst: false })
       .order("announced_at", { ascending: false })
       .limit(200);
@@ -154,6 +164,25 @@ export default function TournamentsPage() {
       return tg === myGender;
     });
     setRows(filtered);
+
+    const clubIds = Array.from(
+      new Set(
+        filtered
+          .map((t) => (t.club_id ?? "").toString())
+          .filter((id) => id)
+      )
+    );
+
+    if (clubIds.length) {
+      const clubRes = await supabase.from("clubs").select("id, name").in("id", clubIds);
+      if (!clubRes.error) {
+        const next: Record<string, string> = {};
+        for (const c of clubRes.data ?? []) {
+          next[String((c as any).id)] = String((c as any).name ?? "Club");
+        }
+        setClubNameById(next);
+      }
+    }
 
     const tournamentIds = filtered.map((t) => t.id);
     if (!tournamentIds.length) {
@@ -397,6 +426,11 @@ export default function TournamentsPage() {
                     <div>
                       <span style={{ fontWeight: 800, color: theme.text }}>Scope:</span> {scopeLabel(t.scope)}
                     </div>
+                    {t.scope === "CLUB" && t.club_id && clubNameById[t.club_id] ? (
+                      <div>
+                        <span style={{ fontWeight: 800, color: theme.text }}>Host:</span> {clubNameById[t.club_id]}
+                      </div>
+                    ) : null}
                     <div>
                       <span style={{ fontWeight: 800, color: theme.text }}>Gender:</span> {genderLabel(t.gender ?? null)}
                     </div>
@@ -407,7 +441,8 @@ export default function TournamentsPage() {
                       <span style={{ fontWeight: 800, color: theme.text }}>Type:</span> {formatLabel(t.format)} knockout
                     </div>
                     <div>
-                      <span style={{ fontWeight: 800, color: theme.text }}>Rule:</span> Lower handicap gets the plus.
+                      <span style={{ fontWeight: 800, color: theme.text }}>Rule:</span>{" "}
+                      {ruleLabel(t.rule_type ?? "HANDICAP_START")}
                     </div>
                     {t.starts_at ? (
                       <div>
