@@ -83,12 +83,66 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cannot challenge yourself" }, { status: 400 });
     }
 
-    // 4) Ranked rule enforcement (±2) MUST match UI ordering:
+    // 4) Ensure both players exist on this ladder (auto-seed if missing)
+    const { data: existingEntries, error: exEntriesErr } = await supabase
+      .from("ladder_entries")
+      .select("player_id, position")
+      .eq("ladder_id", ladder_id)
+      .in("player_id", [challenger.id, challenged_player_id]);
+
+    if (exEntriesErr) {
+      return NextResponse.json({ error: `ladder_entries: ${exEntriesErr.message}` }, { status: 400 });
+    }
+
+    const existingIds = new Set((existingEntries ?? []).map((e: any) => String(e.player_id)));
+    const missingIds = [challenger.id, challenged_player_id].filter((id) => !existingIds.has(String(id)));
+
+    if (missingIds.length) {
+      const { data: lastRow, error: lastErr } = await supabase
+        .from("ladder_entries")
+        .select("position")
+        .eq("ladder_id", ladder_id)
+        .order("position", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastErr) {
+        return NextResponse.json({ error: `ladder_entries: ${lastErr.message}` }, { status: 400 });
+      }
+
+      let nextPos = Number(lastRow?.position ?? 0);
+      const now = new Date().toISOString();
+      const inserts = missingIds.map((pid) => {
+        nextPos += 1;
+        return {
+          ladder_id,
+          player_id: pid,
+          position: nextPos,
+          updated_at: now,
+          played: 0,
+          won: 0,
+          drawn: 0,
+          lost: 0,
+          shots_for: 0,
+          shots_against: 0,
+          shot_diff: 0,
+          points: 0,
+          stats_updated_at: now,
+        };
+      });
+
+      const { error: insErr } = await supabase.from("ladder_entries").insert(inserts);
+      if (insErr) {
+        return NextResponse.json({ error: `ladder_entries: ${insErr.message}` }, { status: 400 });
+      }
+    }
+
+    // 5) Ranked rule enforcement (+/-2 after both have 3+ games) MUST match UI ordering:
     // Bowls convention: PTS -> SD -> SF, with position as tie-break for determinism.
     if (match_type === "RANKED") {
       const { data: leaderboard, error: lbErr } = await supabase
         .from("ladder_entries")
-        .select("player_id, points, shot_diff, shots_for, position")
+        .select("player_id, points, shot_diff, shots_for, position, played")
         .eq("ladder_id", ladder_id)
         .order("points", { ascending: false })
         .order("shot_diff", { ascending: false })
@@ -100,39 +154,39 @@ export async function POST(req: Request) {
       }
 
       const list = leaderboard ?? [];
-      const challengerIdx = list.findIndex((r: any) => r.player_id === challenger.id);
-      const challengedIdx = list.findIndex((r: any) => r.player_id === challenged_player_id);
+      const challengerRow = list.find((r: any) => r.player_id === challenger.id);
+      const challengedRow = list.find((r: any) => r.player_id === challenged_player_id);
 
-      if (challengerIdx < 0 || challengedIdx < 0) {
+      if (!challengerRow || !challengedRow) {
         return NextResponse.json({ error: "Both players must be on the ladder" }, { status: 400 });
       }
 
-      const challengerPos = challengerIdx + 1; // computed position
-      const challengedPos = challengedIdx + 1; // computed position
+      const challengerPlayed = Number(challengerRow.played ?? 0);
+      const challengedPlayed = Number(challengedRow.played ?? 0);
 
-      if (Math.abs(challengedPos - challengerPos) > 2) {
-        return NextResponse.json(
-          { error: "Ranked challenge must be within ±2 ladder positions" },
-          { status: 400 }
-        );
-      }
-    } else {
-      // Friendly: still validate they exist on ladder (optional but keeps behaviour consistent)
-      const { data: entries, error: eErr } = await supabase
-        .from("ladder_entries")
-        .select("player_id")
-        .eq("ladder_id", ladder_id)
-        .in("player_id", [challenger.id, challenged_player_id]);
+      // Until both have played 3+, allow any ranked challenge.
+      if (challengerPlayed >= 3 && challengedPlayed >= 3) {
+        const qualified = list.filter((r: any) => Number(r.played ?? 0) >= 3);
+        const challengerIdx = qualified.findIndex((r: any) => r.player_id === challenger.id);
+        const challengedIdx = qualified.findIndex((r: any) => r.player_id === challenged_player_id);
 
-      if (eErr) {
-        return NextResponse.json({ error: `ladder_entries: ${eErr.message}` }, { status: 400 });
-      }
-      if (!entries || entries.length !== 2) {
-        return NextResponse.json({ error: "Both players must be on the ladder" }, { status: 400 });
+        if (challengerIdx < 0 || challengedIdx < 0) {
+          return NextResponse.json({ error: "Both players must be on the ladder" }, { status: 400 });
+        }
+
+        const challengerPos = challengerIdx + 1; // computed position among 3+ players
+        const challengedPos = challengedIdx + 1; // computed position among 3+ players
+
+        if (Math.abs(challengedPos - challengerPos) > 2) {
+          return NextResponse.json(
+            { error: "Ranked challenge must be within +/-2 ladder positions (after 3 games)" },
+            { status: 400 }
+          );
+        }
       }
     }
 
-    // 5) Prevent duplicates: any active PROPOSED between these two players on same ladder
+    // 6) Prevent duplicates: any active PROPOSED between these two players on same ladder
     const { data: existing, error: exErr } = await supabase
       .from("challenges")
       .select("id, status")
@@ -145,7 +199,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "A challenge is already pending for this opponent." }, { status: 400 });
     }
 
-    // 6) Insert challenge (3-day expiry)
+    // 7) Insert challenge (3-day expiry)
     const expires_at = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
 
     const insertBase: any = {

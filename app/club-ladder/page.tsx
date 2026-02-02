@@ -189,16 +189,33 @@ export default function ClubLadderPage() {
 
   // Eligibility:
   // - Friendly: challenge anyone except self
-  // - Ranked: must be within ±2 (computed positions)
-  function isEligible(targetComputedPos: number, targetPlayerId: string) {
+  // - Ranked: must be within +/-2 (computed positions)
+  function isEligible(
+    targetPlayerId: string,
+    rowsById: Map<string, LadderRow>,
+    qualifiedPosById: Map<string, number>
+  ) {
     if (!myPlayerId) return false;
     if (targetPlayerId === myPlayerId) return false;
 
     if (viewType === "FRIENDLY") return true;
 
     // Ranked
-    if (!myPosition) return false;
-    return Math.abs(targetComputedPos - myPosition) <= 2;
+    const myRow = rowsById.get(myPlayerId);
+    const targetRow = rowsById.get(targetPlayerId);
+    if (!myRow || !targetRow) return false;
+
+    const myPlayed = Number(myRow.played ?? 0);
+    const targetPlayed = Number(targetRow.played ?? 0);
+
+    // Until both have played 3+, allow any ranked challenge.
+    if (myPlayed < 3 || targetPlayed < 3) return true;
+
+    const myQualifiedPos = qualifiedPosById.get(myPlayerId);
+    const targetQualifiedPos = qualifiedPosById.get(targetPlayerId);
+    if (!myQualifiedPos || !targetQualifiedPos) return false;
+
+    return Math.abs(targetQualifiedPos - myQualifiedPos) <= 2;
   }
 
   async function loadAll() {
@@ -251,15 +268,18 @@ export default function ClubLadderPage() {
       return;
     }
 
-    setMyPlayerId(mePlayer.id);
+    const mePlayerId = String(mePlayer.id);
+    setMyPlayerId(mePlayerId);
     setMyGender(((mePlayer as any).gender ?? "") as PlayerGender);
+    const resolvedGender = ((mePlayer as any).gender ?? "") as PlayerGender;
+    const hasGender = resolvedGender === "MALE" || resolvedGender === "FEMALE";
     if (!filtersFromStorageRef.current) {
       setScope("CLUB");
       setViewType("RANKED");
       setFormatFilter("SINGLES");
-      if (((mePlayer as any).gender ?? "") === "MALE" || ((mePlayer as any).gender ?? "") === "FEMALE") {
-        setGenderFilter(((mePlayer as any).gender ?? "") as GenderFilter);
-      }
+      if (hasGender) setGenderFilter(resolvedGender as GenderFilter);
+    } else if (genderFilter === "ALL" || genderFilter === "") {
+      if (hasGender) setGenderFilter(resolvedGender as GenderFilter);
     }
 
     // Load ladders
@@ -501,7 +521,7 @@ export default function ClubLadderPage() {
       setNameByPlayerId(map);
       setRows(fallback);
 
-      const myIdx = myPlayerId ? fallback.findIndex((x) => x.player_id === myPlayerId) : -1;
+      const myIdx = mePlayerId ? fallback.findIndex((x) => x.player_id === mePlayerId) : -1;
       setMyPosition(myIdx >= 0 ? myIdx + 1 : null);
 
       setRecentMatches([]);
@@ -595,7 +615,7 @@ export default function ClubLadderPage() {
       : filteredMerged;
 
     setRows(finalRows);
-    const myIdx = myPlayerId ? finalRows.findIndex((x) => x.player_id === myPlayerId) : -1;
+    const myIdx = mePlayerId ? finalRows.findIndex((x) => x.player_id === mePlayerId) : -1;
     setMyPosition(myIdx >= 0 ? myIdx + 1 : null);
 
 
@@ -881,10 +901,14 @@ export default function ClubLadderPage() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gap: 6, padding: "8px 8px 6px" }}>
-            {rows.map((r, idx) => {
-              const computedPos = idx + 1;
-              const eligible = isEligible(computedPos, r.player_id);
+        <div style={{ display: "grid", gap: 6, padding: "8px 8px 6px" }}>
+          {(() => {
+            const rowsById = new Map(rows.map((row) => [row.player_id, row]));
+            const qualified = rows.filter((row) => Number(row.played ?? 0) >= 3);
+            const qualifiedPosById = new Map(qualified.map((row, i) => [row.player_id, i + 1]));
+
+            return rows.map((r, idx) => {
+              const eligible = isEligible(r.player_id, rowsById, qualifiedPosById);
               const isMe = myPlayerId === r.player_id;
               const targetGender = genderByPlayerId[r.player_id] ?? "";
               const canChallengeGender = !!myGender && !!targetGender && myGender === targetGender;
@@ -892,8 +916,8 @@ export default function ClubLadderPage() {
               const buttonTitle =
                 viewType === "RANKED"
                   ? eligible
-                    ? "Create a ranked challenge (??2 rule)"
-                    : "Ranked challenges must be within ??2 positions"
+                    ? "Create a ranked challenge (+/-2 after 3 games)"
+                    : "Ranked challenges must be within +/-2 positions (after 3 games)"
                   : eligible
                   ? "Create a friendly match (no ladder impact)"
                   : "Cannot challenge yourself";
@@ -933,7 +957,7 @@ export default function ClubLadderPage() {
                       fontWeight: 900,
                     }}
                   >
-                    {computedPos}
+                    {idx + 1}
                   </div>
 
                   {/* Player */}
@@ -1015,7 +1039,8 @@ export default function ClubLadderPage() {
                   </div>
                 </div>
               );
-            })}
+            });
+          })()}
           </div>
         </div>
 
@@ -1211,7 +1236,7 @@ export default function ClubLadderPage() {
           <div>
             <div style={{ fontWeight: 900, fontSize: 18 }}>HandiBowls SA</div>
             <div style={{ color: theme.muted, fontSize: 13, marginTop: 4 }}>
-              {`Leaderboards | Scope: ${scope} | Gender: ${genderFilter} | Format: ${formatFilter} | Your position: ${myPosition ?? "-"} | Ranked rule: +/-2 | Friendly: any`}
+              {`Leaderboards | Scope: ${scope} | Gender: ${genderFilter} | Format: ${formatFilter} | Your position: ${myPosition ?? "-"} | Ranked rule: +/-2 (after 3 games) | Friendly: any`}
             </div>
           </div>
 
