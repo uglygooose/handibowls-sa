@@ -917,21 +917,6 @@ export default function ClubLadderPage() {
 
   // Eligibility uses the currently selected leaderboard (rows already reflect genderFilter).
 
-  const displayRows = useMemo(() => {
-    if (!rows.length) return [] as LadderRow[];
-
-    // In ranked, default to a window around my position so challenge options are immediately relevant.
-    if (viewType !== "RANKED") return rows;
-
-    const myPos = (myPlayerId ? posById.get(myPlayerId) : null) ?? myPosition;
-    if (!myPos) return rows.slice(0, Math.min(rows.length, 30));
-
-    const radius = 10;
-    const start = Math.max(0, myPos - 1 - radius);
-    const end = Math.min(rows.length, myPos - 1 + radius + 1);
-    return rows.slice(start, end);
-  }, [rows, viewType, myPlayerId, myPosition, posById]);
-
   const ladderContent = useMemo(() => {
     if (loading) return <p style={{ color: theme.muted }}>Loading ladder...</p>;
     if (error) return <p style={{ color: theme.danger, whiteSpace: "pre-wrap" }}>Error: {error}</p>;
@@ -997,7 +982,7 @@ export default function ClubLadderPage() {
           </div>
 
         <div style={{ display: "grid", gap: 6, padding: "8px 8px 6px" }}>
-          {displayRows.map((r) => {
+          {rows.map((r) => {
             const eligible = isEligible(r.player_id, posById);
             const isMe = myPlayerId === r.player_id;
             const targetGender = genderByPlayerId[r.player_id] ?? "";
@@ -1145,7 +1130,7 @@ export default function ClubLadderPage() {
         )}
       </div>
     );
-  }, [loading, error, rows, displayRows, posById, myPosition, myPlayerId, viewType, genderFilter, myGender, genderByPlayerId]);
+  }, [loading, error, rows, posById, myPosition, myPlayerId, viewType, genderFilter, myGender, genderByPlayerId]);
 
   const pendingSection = useMemo(() => {
     if (loading) return null;
