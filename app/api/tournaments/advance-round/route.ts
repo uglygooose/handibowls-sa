@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { completeTournamentIfDone } from "@/lib/tournaments/completeTournamentIfDone";
 
 function asInt(v: any) {
   const n = typeof v === "number" ? v : Number(v);
@@ -156,7 +157,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `No matches found in round ${round_no}` }, { status: 400 });
     }
 
-    const notDone = roundMatches.filter((m: any) => !isMatchDone(m));
+    const notDone = roundMatches.filter((m: any) => !isMatchDone(m) && !isMatchBye(m));
+    if (notDone.length) {
+      return NextResponse.json({ error: `Round ${round_no} has incomplete matches` }, { status: 400 });
+    }
 
     // 7) Load team order (for fixed bracket seeding)
     const { data: teams, error: teamErr } = await supabase
@@ -285,6 +289,21 @@ export async function POST(req: Request) {
           source_match_id: winnerId ? null : String(m.id),
         } as { team_id: string | null; source_type: "TEAM" | "WINNER_OF_MATCH"; source_match_id: string | null };
       });
+
+      // If only one winner remains, the tournament is complete (avoid creating a 1-team "next round").
+      if (entries.length === 1) {
+        const done = await completeTournamentIfDone({ supabase, tournamentId: String(tournament_id) });
+        if (done.attempted && !done.completed) {
+          return NextResponse.json({ error: done.error ?? "Could not complete tournament" }, { status: 400 });
+        }
+
+        return NextResponse.json({
+          ok: true,
+          tournament_completed: true,
+          champion_team_id: entries[0]?.team_id ?? null,
+          completed_at: new Date().toISOString(),
+        });
+      }
 
       for (let i = 0; i < entries.length; i += 2) {
         const aEntry = entries[i] ?? null;

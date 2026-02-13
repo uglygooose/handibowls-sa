@@ -1,10 +1,11 @@
-// app/admin/tournaments/[id]/page.tsx
+﻿// app/admin/tournaments/[id]/page.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { theme } from "@/lib/theme";
+import { deriveTournamentCompletion } from "@/lib/tournaments/deriveTournamentCompletion";
 import BottomNav from "../../../components/BottomNav";
 
 type TournamentScope = "CLUB" | "DISTRICT" | "NATIONAL";
@@ -117,6 +118,20 @@ function isMatchDone(m: MatchRow) {
   const st = String(m.status ?? "");
   const hasWinner = m.winner_team_id != null && m.winner_team_id !== "";
   return st === "COMPLETED" || bool(m.finalized_by_admin) || hasWinner;
+}
+
+function winnerTeamIdFromMatch(m: MatchRow) {
+  if (m.winner_team_id != null && String(m.winner_team_id) !== "") return String(m.winner_team_id);
+  if (!isMatchDone(m)) return null;
+
+  // BYE finalisation can legitimately have no team_b_id.
+  if (isMatchBye(m)) return m.team_a_id ? String(m.team_a_id) : null;
+
+  if (!m.team_a_id || !m.team_b_id) return null;
+  if (m.score_a == null || m.score_b == null) return null;
+  if (Number(m.score_a) === Number(m.score_b)) return null;
+
+  return Number(m.score_a) > Number(m.score_b) ? String(m.team_a_id) : String(m.team_b_id);
 }
 
 type DrawerMode = "SCORE" | "ADMIN_FINAL";
@@ -509,13 +524,25 @@ export default function AdminTournamentDetailPage() {
       setMatches(ms);
 
       const roundNos = Array.from(new Set(ms.map((m) => Number(m.round_no ?? 0)).filter((n) => n && !Number.isNaN(n)))).sort((a, b) => a - b);
+      const fullRoundNos = Array.from(
+        new Set(
+          ms
+            .filter((m) => !isMatchBye(m) && !!m.team_a_id && !!m.team_b_id)
+            .map((m) => Number(m.round_no ?? 0))
+            .filter((n) => n && !Number.isNaN(n))
+        )
+      ).sort((a, b) => a - b);
 
       const latest = roundNos[roundNos.length - 1] ?? null;
-      const nextSelected = selectedRound ?? latest;
+      const latestFull = fullRoundNos[fullRoundNos.length - 1] ?? null;
+
+      const nextSelected = selectedRound ?? latestFull ?? latest;
       setSelectedRound(nextSelected);
 
-      if (tRow.status === "COMPLETED") setViewTab("AUDIT");
-      else if (tRow.status === "ANNOUNCED") setViewTab("CONTROL");
+      if (tRow.status === "COMPLETED") {
+        setViewTab(ms.length ? "ROUNDS" : "CONTROL");
+        setRoundsViewMode("TREE");
+      } else if (tRow.status === "ANNOUNCED") setViewTab("CONTROL");
       else if (!ms.length) setViewTab("CONTROL");
       else setViewTab("ROUNDS");
     }
@@ -708,6 +735,28 @@ function singlesHandicapLine(m: MatchRow) {
 
     return rounds.map((r) => ({ round: r, matches: map[r] ?? [] }));
   }, [matches]);
+
+  const maxFullRound = useMemo(() => {
+    const rounds = matches
+      .filter((m) => {
+        const rn = Number(m?.round_no ?? 0);
+        if (!rn) return false;
+        if (isMatchBye(m)) return false;
+        return !!m.team_a_id && !!m.team_b_id;
+      })
+      .map((m) => Number(m.round_no ?? 0))
+      .filter((n) => n && !Number.isNaN(n));
+
+    return rounds.length ? Math.max(...rounds) : null;
+  }, [matches]);
+
+  const derived = useMemo(() => {
+    const limited = maxFullRound != null ? matches.filter((m) => Number(m.round_no ?? 0) <= maxFullRound) : matches;
+    return deriveTournamentCompletion(limited);
+  }, [matches, maxFullRound]);
+
+  const inferredCompleted = derived.completed;
+  const maxPlayableRound = maxFullRound ?? derived.maxPlayableRound;
 
   const roundMeta = useMemo(() => {
     const byRound: Record<number, { total: number; completed: number; byes: number; byesPending: number; hasAny: boolean }> = {};
@@ -986,16 +1035,27 @@ function singlesHandicapLine(m: MatchRow) {
     if (!tournamentId || typeof tournamentId !== "string") return;
     if (!tournament) return;
 
-    const ok = window.confirm(`Mark tournament as Completed?\n\nTournament: ${tournament.name}`);
+    const ok = window.confirm(`Complete tournament?\n\nTournament: ${tournament.name}\n\nThis will mark it as Completed and publish the winner.`);
     if (!ok) return;
 
     setBusy(true);
     setError(null);
 
-    const res = await supabase.from("tournaments").update({ status: "COMPLETED" }).eq("id", tournamentId);
+    try {
+      const res = await fetch("/api/tournaments/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tournament_id: tournamentId }),
+      });
 
-    if (res.error) {
-      setError(`Could not complete tournament.\n${res.error.message}`);
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(json?.error ?? "Could not complete tournament.");
+        setBusy(false);
+        return;
+      }
+    } catch (e: any) {
+      setError(e?.message ?? "Network error.");
       setBusy(false);
       return;
     }
@@ -1827,8 +1887,11 @@ function singlesHandicapLine(m: MatchRow) {
     // Guardrails
     const nextRoundNo = r + 1;
     const nextRoundExists = matches.some((m) => Number(m.round_no ?? 0) === nextRoundNo);
+
     const latestRound = roundMeta.rounds[roundMeta.rounds.length - 1] ?? r;
-    const isLatestRound = r === latestRound;
+    const latestActionableRound = maxPlayableRound ?? latestRound;
+    const isLatestRound = r === latestActionableRound;
+    const isFinalRound = maxPlayableRound != null && r === maxPlayableRound;
     const hasIncompleteEarlierRound = roundMeta.rounds.some((rn) => {
       if (rn >= r) return false;
       const meta = roundMeta.byRound[rn];
@@ -1836,12 +1899,28 @@ function singlesHandicapLine(m: MatchRow) {
       return meta.total > 0 && (meta.completed < meta.total || meta.byesPending > 0);
     });
 
+    const roundMatches = matchesByRound.find((x) => x.round === r)?.matches ?? [];
+    const playableRoundMatches = roundMatches.filter((m) => !isMatchBye(m));
+    const finalMatch = isFinalRound ? playableRoundMatches[0] ?? null : null;
+    const finalWinnerId = finalMatch ? winnerTeamIdFromMatch(finalMatch) : null;
+    const finalWinnerName = finalWinnerId ? teamDisplayName(finalWinnerId) : null;
+
     const canAdvance =
       !!tournament &&
       tournament.status !== "COMPLETED" &&
       isLatestRound &&
+      !isFinalRound &&
       !hasIncompleteEarlierRound &&
       !nextRoundExists &&
+      !busy;
+
+    const canCompleteTournament =
+      !!tournament &&
+      tournament.status !== "COMPLETED" &&
+      isLatestRound &&
+      isFinalRound &&
+      isComplete &&
+      !!finalWinnerId &&
       !busy;
 
     const advanceTitle = nextRoundExists
@@ -1850,6 +1929,8 @@ function singlesHandicapLine(m: MatchRow) {
       ? "Tournament not loaded"
       : tournament.status === "COMPLETED"
       ? "Tournament is completed"
+      : isFinalRound
+      ? "This is the final round"
       : !isLatestRound
       ? "Only the latest round can be advanced"
       : hasIncompleteEarlierRound
@@ -1862,6 +1943,10 @@ function singlesHandicapLine(m: MatchRow) {
       ? `Next round (${roundLabel(nextRoundNo)}) already exists.`
       : tournament?.status === "COMPLETED"
       ? "Tournament is completed."
+      : isFinalRound && isComplete
+      ? "Final complete - complete the tournament to publish the winner."
+      : isFinalRound
+      ? "Final round - complete the match to determine a winner."
       : !isLatestRound
       ? "Select the latest round to advance (only one round ahead)."
       : hasIncompleteEarlierRound
@@ -1870,7 +1955,6 @@ function singlesHandicapLine(m: MatchRow) {
       ? "BYEs still pending — auto-processing now."
       : "Advance now (next round will use placeholders if needed).";
 
-    const roundMatches = matchesByRound.find((x) => x.round === r)?.matches ?? [];
     const scheduledCount = roundMatches.filter((m) => !isMatchBye(m) && !isMatchDone(m) && String(m.status ?? "") === "SCHEDULED").length;
 
     const withScoresCount = roundMatches.filter((m) => {
@@ -1894,6 +1978,11 @@ function singlesHandicapLine(m: MatchRow) {
         </div>
 
         <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+          {isFinalRound && isComplete && finalWinnerName ? (
+            <div style={{ fontSize: 13, color: theme.text, fontWeight: 900 }}>
+              Winner: <span style={{ color: "#0F7A3D" }}>{finalWinnerName}</span>
+            </div>
+          ) : null}
           {scheduledCount > 0 ? (
             <button
               type="button"
@@ -1936,25 +2025,56 @@ function singlesHandicapLine(m: MatchRow) {
             </button>
           ) : null}
 
-          {isLatestRound && !nextRoundExists ? (
-            <button
-              type="button"
-              disabled={!canAdvance}
-              onClick={advanceSelectedRound}
-              style={{
-                width: "100%",
-                border: "none",
-                background: canAdvance ? theme.maroon : "#9CA3AF",
-                color: "#fff",
-                padding: "10px 12px",
-                borderRadius: 12,
-                fontWeight: 900,
-                cursor: canAdvance ? "pointer" : "not-allowed",
-              }}
-              title={advanceTitle}
-            >
-              {busy ? "Working..." : "Advance round"}
-            </button>
+          {isLatestRound ? (
+            isFinalRound ? (
+              tournament?.status === "COMPLETED" ? null : (
+                <button
+                  type="button"
+                  disabled={!canCompleteTournament}
+                  onClick={endTournament}
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    background: canCompleteTournament ? theme.maroon : "#9CA3AF",
+                    color: "#fff",
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    fontWeight: 900,
+                    cursor: canCompleteTournament ? "pointer" : "not-allowed",
+                  }}
+                  title={
+                    !isComplete
+                      ? "Final is not complete yet"
+                      : !finalWinnerId
+                      ? "Final needs a winner to complete the tournament"
+                      : "Complete tournament"
+                  }
+                >
+                  {busy ? "Working..." : "Complete tournament"}
+                </button>
+              )
+            ) : (
+              !nextRoundExists ? (
+                <button
+                  type="button"
+                  disabled={!canAdvance}
+                  onClick={advanceSelectedRound}
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    background: canAdvance ? theme.maroon : "#9CA3AF",
+                    color: "#fff",
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    fontWeight: 900,
+                    cursor: canAdvance ? "pointer" : "not-allowed",
+                  }}
+                  title={advanceTitle}
+                >
+                  {busy ? "Working..." : "Advance round"}
+                </button>
+              ) : null
+            )
           ) : null}
 
           {!isLatestRound ? (
@@ -2786,7 +2906,7 @@ function singlesHandicapLine(m: MatchRow) {
                       const y = pos ? pos.top : headerOffset;
                       const left = slotLabel(m, "A");
                       const right = slotLabel(m, "B");
-                      const winnerId = m.winner_team_id ? String(m.winner_team_id) : null;
+                      const winnerId = winnerTeamIdFromMatch(m);
                       const winA = winnerId && m.team_a_id && String(m.team_a_id) === winnerId;
                       const winB = winnerId && m.team_b_id && String(m.team_b_id) === winnerId;
                       return (
@@ -2860,7 +2980,7 @@ function singlesHandicapLine(m: MatchRow) {
                 fontWeight: 900,
               }}
             >
-              ✅ Round complete. You can advance to the next round.
+              {maxPlayableRound != null && roundMeta.selectedRound === maxPlayableRound ? 'Final complete. Click "Complete tournament" to finalise and publish the winner.' : "Round complete. You can advance to the next round."}
             </div>
           ) : null}
 
@@ -3052,10 +3172,7 @@ function singlesHandicapLine(m: MatchRow) {
     // Try infer "current winner" if there's exactly one non-BYE winner in the latest round
     const latestRound = rounds[rounds.length - 1] ?? null;
     const latestDone = latestRound != null ? byRound[latestRound] ?? [] : [];
-    const latestWinners = latestDone
-      .map((m) => m.winner_team_id)
-      .filter((x) => x != null && x !== "")
-      .map((x) => String(x));
+    const latestWinners = latestDone.map((m) => winnerTeamIdFromMatch(m)).filter((x) => x != null) as string[];
 
     const uniqLatestWinners = Array.from(new Set(latestWinners));
     const inferredWinnerTeamId = uniqLatestWinners.length === 1 ? uniqLatestWinners[0] : null;
@@ -3068,7 +3185,7 @@ function singlesHandicapLine(m: MatchRow) {
       const isBye = isMatchBye(m);
       const score = m.score_a == null || m.score_b == null ? "-" : `${m.score_a}-${m.score_b}`;
 
-      const winnerId = m.winner_team_id ? String(m.winner_team_id) : null;
+      const winnerId = winnerTeamIdFromMatch(m);
       const winA = winnerId && m.team_a_id && String(m.team_a_id) === winnerId;
       const winB = winnerId && m.team_b_id && String(m.team_b_id) === winnerId;
 
@@ -3509,3 +3626,4 @@ function singlesHandicapLine(m: MatchRow) {
     </div>
   );
 }
+

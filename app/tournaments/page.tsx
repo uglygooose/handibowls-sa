@@ -28,6 +28,27 @@ type TournamentRow = {
   rule_type?: TournamentRule | null;
 };
 
+type MatchLite = {
+  id: string;
+  tournament_id: string | null;
+  round_no: number | null;
+  match_no?: number | null;
+  status: string | null;
+  finalized_by_admin: boolean | null;
+  winner_team_id: string | null;
+  team_a_id: string | null;
+  team_b_id: string | null;
+  submitted_by_player_id?: string | null;
+  confirmed_by_a?: boolean | null;
+  confirmed_by_b?: boolean | null;
+  score_a: number | null;
+  score_b: number | null;
+  slot_b_source_type: string | null;
+  slot_a_source_type?: string | null;
+  slot_a_source_match_id?: string | null;
+  slot_b_source_match_id?: string | null;
+};
+
 function scopeLabel(scope: TournamentScope) {
   if (scope === "CLUB") return "Club";
   if (scope === "DISTRICT") return "District";
@@ -37,7 +58,7 @@ function scopeLabel(scope: TournamentScope) {
 function statusLabel(status: TournamentStatus) {
   if (status === "ANNOUNCED") return "Upcoming";
   if (status === "IN_PLAY") return "In-play";
-  return "Past";
+  return "Completed";
 }
 
 function formatLabel(fmt: TournamentFormat) {
@@ -61,6 +82,56 @@ function cleanTournamentName(name: string) {
   return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
 }
 
+function hasValue(v: any) {
+  return v != null && String(v) !== "";
+}
+
+function bool(v: any) {
+  return v === true;
+}
+
+function isByeMatch(m: MatchLite) {
+  const st = String(m?.status ?? "");
+  if (st === "BYE") return true;
+  if (String(m?.slot_b_source_type ?? "") === "BYE") return true;
+  return !m?.team_b_id && !m?.slot_b_source_type;
+}
+
+function isMatchDone(m: MatchLite) {
+  const st = String(m?.status ?? "");
+  const hasWinner = hasValue(m?.winner_team_id);
+  return st === "COMPLETED" || bool(m?.finalized_by_admin) || hasWinner;
+}
+
+function inferWinnerTeamId(m: MatchLite) {
+  if (hasValue(m?.winner_team_id)) return String(m.winner_team_id);
+  if (!isMatchDone(m)) return null;
+
+  if (isByeMatch(m)) return hasValue(m?.team_a_id) ? String(m.team_a_id) : null;
+
+  if (!hasValue(m?.team_a_id) || !hasValue(m?.team_b_id)) return null;
+  if (m?.score_a == null || m?.score_b == null) return null;
+  if (Number(m.score_a) === Number(m.score_b)) return null;
+
+  return Number(m.score_a) > Number(m.score_b) ? String(m.team_a_id) : String(m.team_b_id);
+}
+
+function matchStatusLabel(status: string) {
+  if (status === "SCHEDULED") return "Scheduled";
+  if (status === "IN_PLAY") return "In play";
+  if (status === "COMPLETED") return "Completed";
+  if (status === "OPEN") return "Open";
+  if (status === "FINAL") return "Final";
+  if (status === "BYE") return "BYE";
+  return status || "-";
+}
+
+function largestPowerOfTwoLE(n: number) {
+  let p = 1;
+  while (p * 2 <= n) p *= 2;
+  return p;
+}
+
 export default function TournamentsPage() {
   const supabase = createClient();
 
@@ -82,6 +153,8 @@ export default function TournamentsPage() {
   >({});
   const [teamMembersByTeamId, setTeamMembersByTeamId] = useState<Record<string, string[]>>({});
   const [nameByPlayerId, setNameByPlayerId] = useState<Record<string, string>>({});
+  const [winnerNameByTournamentId, setWinnerNameByTournamentId] = useState<Record<string, string>>({});
+  const [matchesByTournamentId, setMatchesByTournamentId] = useState<Record<string, MatchLite[]>>({});
 
   async function saveGender(next: PlayerGender) {
     if (!playerId) return;
@@ -104,6 +177,8 @@ export default function TournamentsPage() {
     setLoading(true);
     setError(null);
     setClubNameById({});
+    setWinnerNameByTournamentId({});
+    setMatchesByTournamentId({});
 
     const userRes = await supabase.auth.getUser();
     const user = userRes.data.user;
@@ -358,6 +433,92 @@ export default function TournamentsPage() {
     }
 
     setNameByPlayerId(nameByPlayer);
+
+    // Matches for IN_PLAY + COMPLETED tournaments (best-effort; may be blocked by RLS)
+    const idsForMatches = filtered.filter((t) => t.status !== "ANNOUNCED").map((t) => t.id);
+    const completed = filtered.filter((t) => t.status === "COMPLETED");
+
+    if (idsForMatches.length) {
+      const mRes = await supabase
+        .from("matches")
+        .select(
+          "id, tournament_id, round_no, match_no, status, score_a, score_b, submitted_by_player_id, confirmed_by_a, confirmed_by_b, finalized_by_admin, winner_team_id, team_a_id, team_b_id, slot_a_source_type, slot_a_source_match_id, slot_b_source_type, slot_b_source_match_id"
+        )
+        .in("tournament_id", idsForMatches);
+
+      if (!mRes.error) {
+        const matchRows = (mRes.data ?? []).map((r: any) => ({
+          id: String(r.id),
+          tournament_id: r.tournament_id == null ? null : String(r.tournament_id),
+          round_no: r.round_no == null ? null : Number(r.round_no),
+          match_no: r.match_no == null ? null : Number(r.match_no),
+          status: r.status == null ? null : String(r.status),
+          score_a: r.score_a == null ? null : Number(r.score_a),
+          score_b: r.score_b == null ? null : Number(r.score_b),
+          submitted_by_player_id: r.submitted_by_player_id == null ? null : String(r.submitted_by_player_id),
+          confirmed_by_a: r.confirmed_by_a == null ? null : Boolean(r.confirmed_by_a),
+          confirmed_by_b: r.confirmed_by_b == null ? null : Boolean(r.confirmed_by_b),
+          finalized_by_admin: r.finalized_by_admin == null ? null : Boolean(r.finalized_by_admin),
+          winner_team_id: r.winner_team_id == null ? null : String(r.winner_team_id),
+          team_a_id: r.team_a_id == null ? null : String(r.team_a_id),
+          team_b_id: r.team_b_id == null ? null : String(r.team_b_id),
+          slot_a_source_type: r.slot_a_source_type == null ? null : String(r.slot_a_source_type),
+          slot_a_source_match_id: r.slot_a_source_match_id == null ? null : String(r.slot_a_source_match_id),
+          slot_b_source_type: r.slot_b_source_type == null ? null : String(r.slot_b_source_type),
+          slot_b_source_match_id: r.slot_b_source_match_id == null ? null : String(r.slot_b_source_match_id),
+        })) as MatchLite[];
+
+        const byTid: Record<string, MatchLite[]> = {};
+        for (const m of matchRows) {
+          const tid = String(m.tournament_id ?? "");
+          if (!tid) continue;
+          byTid[tid] = byTid[tid] ?? [];
+          byTid[tid].push(m);
+        }
+        setMatchesByTournamentId(byTid);
+
+        // Winner names for completed cards
+        const winnerMap: Record<string, string> = {};
+
+        for (const t of completed) {
+          const ms = byTid[t.id] ?? [];
+          const playable = ms.filter((m) => {
+            const rn = Number(m.round_no ?? 0);
+            if (!rn) return false;
+            return !isByeMatch(m);
+          });
+          if (!playable.length) continue;
+
+          const maxRound = Math.max(...playable.map((m) => Number(m.round_no ?? 0)).filter((r) => r > 0));
+          if (!maxRound) continue;
+
+          const finals = playable.filter((m) => Number(m.round_no ?? 0) === maxRound);
+          const finalMatch = finals.find((m) => inferWinnerTeamId(m) != null) ?? finals[0];
+          if (!finalMatch) continue;
+
+          const winnerTeamId = inferWinnerTeamId(finalMatch);
+          if (!winnerTeamId) continue;
+
+          const teams = tByTid[t.id] ?? [];
+          const winnerTeam = teams.find((tm) => tm.id === winnerTeamId) ?? null;
+
+          const memberIds = membersByTeam[winnerTeamId] ?? [];
+          const memberNames = memberIds.map((pid) => nameByPlayer[pid] ?? "Unknown");
+
+          const winnerName =
+            t.format === "SINGLES"
+              ? (memberNames[0] as string) ?? "Winner"
+              : winnerTeam?.team_no
+              ? `Team ${winnerTeam.team_no}`
+              : "Winner";
+
+          winnerMap[t.id] = winnerName;
+        }
+
+        setWinnerNameByTournamentId(winnerMap);
+      }
+    }
+
     setLoading(false);
   }
 
@@ -402,7 +563,163 @@ export default function TournamentsPage() {
     }
   }
 
+  function teamDisplayName(t: TournamentRow, teamId: string | null) {
+    if (!teamId) return "TBD";
+
+    const teams = teamsByTournamentId[t.id] ?? [];
+    const tm = teams.find((x) => x.id === teamId) ?? null;
+    const memberIds = teamMembersByTeamId[teamId] ?? [];
+    const memberNames = memberIds.map((pid) => nameByPlayerId[pid] ?? "Unknown");
+
+    if (t.format === "SINGLES") {
+      return (memberNames[0] as string) ?? "Entry";
+    }
+    return tm?.team_no ? `Team ${tm.team_no}` : "Team";
+  }
+
+  function roundLabelForTournament(t: TournamentRow, roundNo: number | null | undefined) {
+    const r = Number(roundNo ?? 0);
+    if (!r) return "Round -";
+
+    const totalTeams = (teamsByTournamentId[t.id] ?? []).length;
+    if (!totalTeams || totalTeams < 2) return `Round ${r}`;
+
+    const base = largestPowerOfTwoLE(totalTeams);
+    const hasPreRound = totalTeams > base;
+    if (hasPreRound && r === 1) return "Pre-Rd";
+
+    const mainRoundNo = hasPreRound ? r - 1 : r;
+    const playersLeft = Math.floor(base / Math.pow(2, mainRoundNo - 1));
+
+    if (playersLeft === 2) return "Final";
+    if (playersLeft === 4) return "Semis";
+    if (playersLeft === 8) return "Quarters";
+    if (playersLeft >= 16) return `RD ${mainRoundNo}`;
+
+    return `Round ${r}`;
+  }
+
+  function finishPlacementLabel(t: TournamentRow, roundNo: number | null | undefined) {
+    const r = Number(roundNo ?? 0);
+    if (!r) return null;
+
+    const totalTeams = (teamsByTournamentId[t.id] ?? []).length;
+    if (!totalTeams || totalTeams < 2) return null;
+
+    const base = largestPowerOfTwoLE(totalTeams);
+    const hasPreRound = totalTeams > base;
+    const mainRoundNo = hasPreRound ? r - 1 : r;
+    if (mainRoundNo <= 0) return null;
+
+    const playersLeft = Math.floor(base / Math.pow(2, mainRoundNo - 1));
+    if (!playersLeft) return null;
+
+    if (playersLeft === 2) return "Runner-up";
+    if (playersLeft === 4) return "Tied 3rd";
+
+    const start = playersLeft / 2 + 1;
+    const endPos = playersLeft;
+    return `Tied ${start}-${endPos}`;
+  }
+
   function renderTournamentCard(t: TournamentRow) {
+    const entered = !!enteredByTournamentId[t.id];
+    const winnerName = (winnerNameByTournamentId[t.id] ?? "").trim();
+    const showWinner = t.status === "COMPLETED" && !!winnerName;
+
+    const teams = teamsByTournamentId[t.id] ?? [];
+    const myTeam = entered ? teams.find((tm) => (teamMembersByTeamId[tm.id] ?? []).includes(playerId)) ?? null : null;
+    const myTeamId = myTeam?.id ?? null;
+    const ms = matchesByTournamentId[t.id] ?? [];
+
+    const myMatches = myTeamId
+      ? ms.filter((m) => String(m.team_a_id ?? "") === myTeamId || String(m.team_b_id ?? "") === myTeamId)
+      : [];
+
+    const nextMatch = (() => {
+      if (t.status !== "IN_PLAY" || !myTeamId) return null;
+      const pending = myMatches.filter((m) => !isByeMatch(m) && !isMatchDone(m));
+      if (!pending.length) return null;
+      const sorted = pending.slice().sort(
+        (a, b) =>
+          Number(a.round_no ?? 0) - Number(b.round_no ?? 0) ||
+          Number(a.match_no ?? 0) - Number(b.match_no ?? 0) ||
+          String(a.id).localeCompare(String(b.id))
+      );
+      return sorted[0] ?? null;
+    })();
+
+    const actionNeeded = (() => {
+      if (t.status !== "IN_PLAY" || !nextMatch || !myTeamId || !playerId) return null;
+
+      // Captain = min player_id in team (matches tournament room logic)
+      const captainForTeam = (teamId: string | null) => {
+        if (!teamId) return null;
+        const ids = (teamMembersByTeamId[teamId] ?? []).slice().sort();
+        return ids[0] ?? null;
+      };
+      const capA = captainForTeam(nextMatch.team_a_id);
+      const capB = captainForTeam(nextMatch.team_b_id);
+      const iAmCaptainA = capA && capA === playerId;
+      const iAmCaptainB = capB && capB === playerId;
+
+      const mySide = iAmCaptainA ? "A" : iAmCaptainB ? "B" : null;
+      if (!mySide) return null;
+
+      const st = String(nextMatch.status ?? "");
+      if (st === "IN_PLAY" && !bool(nextMatch.finalized_by_admin)) {
+        return "Submit score";
+      }
+
+      const hasScores = nextMatch.score_a != null && nextMatch.score_b != null;
+      const hasSubmitter = hasValue(nextMatch.submitted_by_player_id);
+      if (!bool(nextMatch.finalized_by_admin) && hasScores && hasSubmitter && String(nextMatch.submitted_by_player_id) !== playerId) {
+        if (mySide === "A" && !bool(nextMatch.confirmed_by_a)) return "Confirm score";
+        if (mySide === "B" && !bool(nextMatch.confirmed_by_b)) return "Confirm score";
+      }
+
+      return null;
+    })();
+
+    const myFinish = (() => {
+      if (t.status !== "COMPLETED" || !myTeamId) return null;
+      const done = myMatches.filter((m) => isMatchDone(m));
+      if (!done.length) return null;
+      const sorted = done.slice().sort(
+        (a, b) =>
+          Number(b.round_no ?? 0) - Number(a.round_no ?? 0) ||
+          Number(b.match_no ?? 0) - Number(a.match_no ?? 0) ||
+          String(b.id).localeCompare(String(a.id))
+      );
+      const last = sorted[0];
+      const winnerId = last ? inferWinnerTeamId(last) : null;
+      if (winnerId && winnerId === myTeamId) return { label: "Champion", detail: null as string | null };
+      const round = roundLabelForTournament(t, last?.round_no ?? null);
+      const place = finishPlacementLabel(t, last?.round_no ?? null);
+      return { label: `Knocked out: ${round}`, detail: place ? `Finish: ${place}` : null };
+    })();
+
+    const primary = (() => {
+      if (t.status === "ANNOUNCED" && !entered && t.entries_open !== false) {
+        return { label: "Enter tournament", onClick: () => enterTournament(t.id), variant: "solid" as const };
+      }
+      if (t.status === "COMPLETED") {
+        return { label: "View results", onClick: () => (window.location.href = `/tournaments/${t.id}`), variant: "solid" as const };
+      }
+      if (t.status === "IN_PLAY") {
+        return {
+          label: entered ? "Open tournament" : "View bracket",
+          onClick: () => (window.location.href = `/tournaments/${t.id}`),
+          variant: "solid" as const,
+        };
+      }
+      return {
+        label: "View tournament",
+        onClick: () => (window.location.href = `/tournaments/${t.id}`),
+        variant: entered ? ("solid" as const) : ("outline" as const),
+      };
+    })();
+
     return (
       <div
         key={t.id}
@@ -445,6 +762,21 @@ export default function TournamentsPage() {
           <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
             {statusLabel(t.status)}
           </span>
+          {entered ? (
+            <span
+              style={{
+                border: `1px solid ${theme.maroon}`,
+                borderRadius: 999,
+                padding: "2px 8px",
+                fontSize: 12,
+                fontWeight: 900,
+                color: theme.maroon,
+              }}
+              title="You have entered this tournament"
+            >
+              Entered
+            </span>
+          ) : null}
           {t.scope === "CLUB" && t.club_id && clubNameById[t.club_id] ? (
             <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
               Host: {clubNameById[t.club_id]}
@@ -454,85 +786,59 @@ export default function TournamentsPage() {
 
         <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 13, color: theme.muted }}>
           <div><span style={{ fontWeight: 800, color: theme.text }}>Type</span> {formatLabel(t.format)} knockout</div>
-          <div><span style={{ fontWeight: 800, color: theme.text }}>Entries</span> {t.entries_open === false ? "Locked" : "Open"}</div>
+          {t.status === "COMPLETED" ? (
+            <div><span style={{ fontWeight: 800, color: theme.text }}>Winner</span> {showWinner ? winnerName : "-"}</div>
+          ) : t.status === "IN_PLAY" ? (
+            <div><span style={{ fontWeight: 800, color: theme.text }}>Status</span> {entered ? "In draw" : "Spectator"}</div>
+          ) : (
+            <div><span style={{ fontWeight: 800, color: theme.text }}>Entries</span> {t.entries_open === false ? "Locked" : "Open"}</div>
+          )}
           <div><span style={{ fontWeight: 800, color: theme.text }}>Starts</span> {t.starts_at ? new Date(t.starts_at).toLocaleString() : "TBC"}</div>
-          <div><span style={{ fontWeight: 800, color: theme.text }}>Ends</span> {t.ends_at ? new Date(t.ends_at).toLocaleString() : "TBC"}</div>
+          <div><span style={{ fontWeight: 800, color: theme.text }}>Ends</span> {t.ends_at ? new Date(t.ends_at).toLocaleString() : t.status === "COMPLETED" ? "-" : "TBC"}</div>
+          {t.status === "IN_PLAY" && entered ? (
+            <>
+              <div style={{ gridColumn: "1 / span 2" }}>
+                <span style={{ fontWeight: 800, color: theme.text }}>Next match</span>{" "}
+                {nextMatch
+                  ? `${roundLabelForTournament(t, nextMatch.round_no)} • vs ${teamDisplayName(
+                      t,
+                      String(nextMatch.team_a_id ?? "") === myTeamId ? nextMatch.team_b_id : nextMatch.team_a_id
+                    )} • ${matchStatusLabel(String(nextMatch.status ?? ""))}`
+                  : "-"}
+              </div>
+              <div style={{ gridColumn: "1 / span 2" }}>
+                <span style={{ fontWeight: 800, color: theme.text }}>Action</span> {actionNeeded ?? "None"}
+              </div>
+            </>
+          ) : null}
+          {t.status === "COMPLETED" && entered && myFinish ? (
+            <>
+              <div style={{ gridColumn: "1 / span 2" }}>
+                <span style={{ fontWeight: 800, color: theme.text }}>Your result</span> {myFinish.label}
+                {myFinish.detail ? <span style={{ color: theme.muted }}>{` • ${myFinish.detail}`}</span> : null}
+              </div>
+            </>
+          ) : null}
         </div>
 
         <div style={{ marginTop: 10 }}>
-          {t.status === "IN_PLAY" ? (
-            <button
-              type="button"
-              onClick={() => (window.location.href = `/tournaments/${t.id}`)}
-              style={{
-                width: "100%",
-                border: "none",
-                background: theme.maroon,
-                color: "#fff",
-                padding: "10px 12px",
-                borderRadius: 12,
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-              title="View tournament"
-            >
-              {enteredByTournamentId[t.id] ? "Open tournament" : "View bracket"}
-            </button>
-          ) : enteredByTournamentId[t.id] ? (
-            <button
-              type="button"
-              disabled
-              style={{
-                width: "100%",
-                border: `1px solid ${theme.border}`,
-                background: "rgba(122,31,43,0.10)",
-                color: theme.maroon,
-                padding: "10px 12px",
-                borderRadius: 12,
-                fontWeight: 900,
-                cursor: "not-allowed",
-              }}
-              title="You have entered this tournament"
-            >
-              Entered
-            </button>
-          ) : t.status === "ANNOUNCED" && t.entries_open !== false ? (
-            <button
-              type="button"
-              onClick={() => enterTournament(t.id)}
-              style={{
-                width: "100%",
-                border: "none",
-                background: theme.maroon,
-                color: "#fff",
-                padding: "10px 12px",
-                borderRadius: 12,
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-              title="Enter tournament"
-            >
-              Enter tournament
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled
-              style={{
-                width: "100%",
-                border: `1px solid ${theme.border}`,
-                background: theme.surface,
-                color: theme.muted,
-                padding: "10px 12px",
-                borderRadius: 12,
-                fontWeight: 900,
-                cursor: "not-allowed",
-              }}
-              title={t.entries_open === false ? "Entries are locked" : "Entries are closed"}
-            >
-              {t.entries_open === false ? "Entries locked" : "Closed"}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={primary.onClick}
+            style={{
+              width: "100%",
+              border: primary.variant === "outline" ? `1px solid ${theme.border}` : "none",
+              background: primary.variant === "outline" ? "#fff" : theme.maroon,
+              color: primary.variant === "outline" ? theme.text : "#fff",
+              padding: "10px 12px",
+              borderRadius: 12,
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+            title={primary.label}
+          >
+            {primary.label}
+          </button>
         </div>
 
         {teamsByTournamentId[t.id]?.length ? (
@@ -619,7 +925,7 @@ export default function TournamentsPage() {
   function renderBucket(title: string, items: TournamentRow[]) {
     const upcoming = items.filter((r) => r.status === "ANNOUNCED");
     const inplay = items.filter((r) => r.status === "IN_PLAY");
-    const past = items.filter((r) => r.status === "COMPLETED");
+    const completed = items.filter((r) => r.status === "COMPLETED");
     const bucketOpen = bucketOpenByTitle[title] !== false;
 
     function section(label: string, list: TournamentRow[]) {
@@ -701,11 +1007,11 @@ export default function TournamentsPage() {
 
         {bucketOpen ? (
           <div style={{ padding: 14, borderTop: `1px solid ${theme.border}` }}>
-            {section("Upcoming", upcoming)}
-            {section("In-play", inplay)}
-            {section("Past", past)}
-          </div>
-        ) : null}
+          {section("Upcoming", upcoming)}
+          {section("In-play", inplay)}
+          {section("Completed", completed)}
+        </div>
+      ) : null}
       </div>
     );
   }

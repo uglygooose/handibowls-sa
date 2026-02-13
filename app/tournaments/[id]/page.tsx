@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { theme } from "@/lib/theme";
 import BottomNav from "../../components/BottomNav";
+import { deriveTournamentCompletion } from "@/lib/tournaments/deriveTournamentCompletion";
 
 type TournamentScope = "CLUB" | "DISTRICT" | "NATIONAL";
 type TournamentStatus = "ANNOUNCED" | "IN_PLAY" | "COMPLETED";
@@ -98,9 +99,13 @@ function bool(v: any) {
   return v === true;
 }
 
+function hasWinnerTeamId(m: MatchRow) {
+  return m?.winner_team_id != null && String(m.winner_team_id) !== "";
+}
+
 function isMatchDone(m: MatchRow) {
   const st = String(m?.status ?? "");
-  return st === "COMPLETED" || bool(m?.finalized_by_admin);
+  return st === "COMPLETED" || bool(m?.finalized_by_admin) || hasWinnerTeamId(m);
 }
 
 function isMatchBye(m: MatchRow) {
@@ -108,6 +113,20 @@ function isMatchBye(m: MatchRow) {
   if (st === "BYE") return true;
   if (m.slot_b_source_type === "BYE") return true;
   return !m.team_b_id && !m.slot_b_source_type;
+}
+
+function winnerTeamIdFromMatch(m: MatchRow) {
+  if (hasWinnerTeamId(m)) return String(m.winner_team_id);
+  if (!isMatchDone(m)) return null;
+
+  // BYE finalisation can legitimately have no team_b_id.
+  if (isMatchBye(m)) return m.team_a_id ? String(m.team_a_id) : null;
+
+  if (!m.team_a_id || !m.team_b_id) return null;
+  if (m.score_a == null || m.score_b == null) return null;
+  if (m.score_a === m.score_b) return null;
+
+  return m.score_a > m.score_b ? String(m.team_a_id) : String(m.team_b_id);
 }
 
 function largestPowerOfTwoLE(n: number) {
@@ -554,12 +573,18 @@ export default function TournamentRoomPage() {
 
   function winnerNameFromMatches() {
     if (!matches.length) return null;
-    const maxRound = Math.max(...matches.map((m) => Number(m.round_no ?? 0)).filter((r) => r > 0));
+    const maxRound =
+      (maxPlayableRound ?? null) ||
+      Math.max(...matches.map((m) => Number(m.round_no ?? 0)).filter((r) => r > 0));
     if (!maxRound) return null;
-    const finals = matches.filter((m) => Number(m.round_no ?? 0) === maxRound);
-    const finalMatch = finals.find((m) => m.winner_team_id) ?? finals[0];
-    if (!finalMatch?.winner_team_id) return null;
-    return slotLabel(finalMatch, finalMatch.team_a_id === finalMatch.winner_team_id ? "A" : "B");
+    const finals = matches.filter((m) => Number(m.round_no ?? 0) === maxRound && !isMatchBye(m));
+    const finalMatch = finals.find((m) => winnerTeamIdFromMatch(m)) ?? finals[0];
+    if (!finalMatch) return null;
+
+    const winnerId = winnerTeamIdFromMatch(finalMatch);
+    if (!winnerId) return null;
+
+    return slotLabel(finalMatch, finalMatch.team_a_id && String(finalMatch.team_a_id) === winnerId ? "A" : "B");
   }
 
   function myFinishSummary() {
@@ -572,7 +597,8 @@ export default function TournamentRoomPage() {
         Number((b as any).match_no ?? 0) - Number((a as any).match_no ?? 0)
     );
     const last = sorted[0];
-    if (last?.winner_team_id && last.winner_team_id === myTeam.id) {
+    const winnerId = last ? winnerTeamIdFromMatch(last) : null;
+    if (winnerId && winnerId === myTeam.id) {
       return { label: "Champion", detail: null as string | null };
     }
     const round = roundLabel(last?.round_no ?? null);
@@ -1149,7 +1175,7 @@ export default function TournamentRoomPage() {
                     const y = pos ? pos.top : headerOffset;
                     const left = slotLabel(m, "A");
                     const right = slotLabel(m, "B");
-                    const winnerId = m.winner_team_id ? String(m.winner_team_id) : null;
+                    const winnerId = winnerTeamIdFromMatch(m);
                     const winA = winnerId && m.team_a_id && String(m.team_a_id) === winnerId;
                     const winB = winnerId && m.team_b_id && String(m.team_b_id) === winnerId;
 
@@ -1209,6 +1235,16 @@ export default function TournamentRoomPage() {
 
 
 
+  const derived = useMemo(() => deriveTournamentCompletion(matches), [matches]);
+  const inferredCompleted = derived.completed;
+  const maxPlayableRound = derived.maxPlayableRound;
+
+  const effectiveStatus: TournamentStatus | null = tournament
+    ? tournament.status === "COMPLETED" || inferredCompleted
+      ? "COMPLETED"
+      : tournament.status
+    : null;
+
   const winnerName = winnerNameFromMatches();
   const finish = myFinishSummary();
 
@@ -1224,7 +1260,7 @@ export default function TournamentRoomPage() {
               {loading
                 ? "Loading..."
                 : tournament
-                ? `${scopeLabel(tournament.scope)} * ${formatLabel(tournament.format)} * ${statusLabel(tournament.status)}`
+                ? `${scopeLabel(tournament.scope)} * ${formatLabel(tournament.format)} * ${statusLabel(effectiveStatus ?? tournament.status)}`
                 : "-"}
             </div>
           </div>
@@ -1371,19 +1407,19 @@ export default function TournamentRoomPage() {
               {myTeam ? "You are viewing as a past participant." : "You are viewing as a spectator."}
             </div>
 
-            <div style={{ marginTop: 10, display: "grid", gap: 6, fontSize: 13, color: theme.muted }}>
-              <div><span style={{ fontWeight: 800, color: theme.text }}>Type</span> {formatLabel(tournament?.format ?? "SINGLES")} knockout</div>
-              <div><span style={{ fontWeight: 800, color: theme.text }}>Rule</span> {tournament ? ruleLabel(tournament.rule_type ?? "HANDICAP_START") : "-"}</div>
-              <div><span style={{ fontWeight: 800, color: theme.text }}>Status</span> {tournament ? statusLabel(tournament.status) : "-"}</div>
-              <div><span style={{ fontWeight: 800, color: theme.text }}>Starts</span> {tournament?.starts_at ? new Date(tournament.starts_at).toLocaleString() : "TBC"}</div>
-              <div><span style={{ fontWeight: 800, color: theme.text }}>Ends</span> {tournament?.ends_at ? new Date(tournament.ends_at).toLocaleString() : "TBC"}</div>
-            </div>
-
-            {winnerName && tournament?.status === "COMPLETED" ? (
-              <div style={{ marginTop: 10, fontSize: 13 }}>
-                <span style={{ fontWeight: 900 }}>Winner:</span> {winnerName}
+              <div style={{ marginTop: 10, display: "grid", gap: 6, fontSize: 13, color: theme.muted }}>
+                <div><span style={{ fontWeight: 800, color: theme.text }}>Type</span> {formatLabel(tournament?.format ?? "SINGLES")} knockout</div>
+                <div><span style={{ fontWeight: 800, color: theme.text }}>Rule</span> {tournament ? ruleLabel(tournament.rule_type ?? "HANDICAP_START") : "-"}</div>
+                <div><span style={{ fontWeight: 800, color: theme.text }}>Status</span> {effectiveStatus ? statusLabel(effectiveStatus) : "-"}</div>
+                <div><span style={{ fontWeight: 800, color: theme.text }}>Starts</span> {tournament?.starts_at ? new Date(tournament.starts_at).toLocaleString() : "TBC"}</div>
+                <div><span style={{ fontWeight: 800, color: theme.text }}>Ends</span> {tournament?.ends_at ? new Date(tournament.ends_at).toLocaleString() : "TBC"}</div>
               </div>
-            ) : null}
+
+              {winnerName && effectiveStatus === "COMPLETED" ? (
+                <div style={{ marginTop: 10, fontSize: 13 }}>
+                  <span style={{ fontWeight: 900 }}>Winner:</span> {winnerName}
+                </div>
+              ) : null}
 
             {finish ? (
               <div style={{ marginTop: 8, fontSize: 13 }}>
@@ -1465,7 +1501,7 @@ export default function TournamentRoomPage() {
                     const isBye = isMatchBye(m);
                     const scoreLine = m.score_a == null || m.score_b == null ? "-" : `${m.score_a} - ${m.score_b}`;
                     const isMine = myTeam && (m.team_a_id === myTeam.id || m.team_b_id === myTeam.id);
-                    const winnerId = m.winner_team_id;
+                    const winnerId = winnerTeamIdFromMatch(m);
                     const winA = winnerId && m.team_a_id === winnerId;
                     const winB = winnerId && m.team_b_id === winnerId;
                     const cardBorder = isMine ? theme.maroon : theme.border;
@@ -1645,7 +1681,7 @@ export default function TournamentRoomPage() {
                                 const scoreLine = m.score_a == null || m.score_b == null ? "-" : `${m.score_a} - ${m.score_b}`;
 
                                 const isFinal = bool(m.finalized_by_admin);
-                                const winnerId = m.winner_team_id;
+                                const winnerId = winnerTeamIdFromMatch(m);
                                 const winA = winnerId && m.team_a_id === winnerId;
                                 const winB = winnerId && m.team_b_id === winnerId;
 

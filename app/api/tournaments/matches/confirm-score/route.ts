@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { completeTournamentIfDone } from "@/lib/tournaments/completeTournamentIfDone";
 
 function minId(ids: string[]) {
   if (!ids.length) return null;
@@ -217,6 +218,14 @@ export async function POST(req: Request) {
         .eq("status", "OPEN")
         .not("team_a_id", "is", null)
         .not("team_b_id", "is", null);
+
+      // Best-effort: if the final has been played, mark the tournament completed.
+      // (May be blocked by RLS for non-admin users; do not fail match confirmation.)
+      try {
+        await completeTournamentIfDone({ supabase, tournamentId: String(updated.tournament_id) });
+      } catch {
+        // ignore
+      }
     }
 
     return NextResponse.json({ ok: true, match: updated });

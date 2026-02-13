@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { completeTournamentIfDone } from "@/lib/tournaments/completeTournamentIfDone";
 
 export async function GET() {
   return NextResponse.json({
@@ -195,6 +196,13 @@ export async function POST(req: Request) {
         .eq("status", "OPEN")
         .not("team_a_id", "is", null)
         .not("team_b_id", "is", null);
+
+      // If this was the last match, close out the tournament too.
+      try {
+        await completeTournamentIfDone({ supabase, tournamentId: String(updated.tournament_id) });
+      } catch {
+        // ignore
+      }
     }
 
     return NextResponse.json({ ok: true, match: updated });
