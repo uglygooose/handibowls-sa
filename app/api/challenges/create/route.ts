@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     // 3) Find challenger player
     const { data: challenger, error: chErr } = await supabase
       .from("players")
-      .select("id")
+      .select("id, gender")
       .eq("user_id", authData.user.id)
       .single();
 
@@ -83,10 +83,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cannot challenge yourself" }, { status: 400 });
     }
 
-    // 4) Ensure both players exist on this ladder
+    const challengerGender = String((challenger as any)?.gender ?? "");
+
+    // 4) Load challenged player (for gender + existence)
+    const { data: challengedPlayer, error: cpErr } = await supabase
+      .from("players")
+      .select("id, gender")
+      .eq("id", challenged_player_id)
+      .single();
+
+    if (cpErr || !challengedPlayer?.id) {
+      return NextResponse.json({ error: "Challenged player not found" }, { status: 400 });
+    }
+
+    const challengedGender = String((challengedPlayer as any)?.gender ?? "");
+
+    if (challengerGender && challengedGender && challengerGender !== challengedGender) {
+      return NextResponse.json({ error: "You can only challenge players of the same gender" }, { status: 400 });
+    }
+
+    // 5) Ensure both players exist on this ladder
     const { data: existingEntries, error: exEntriesErr } = await supabase
       .from("ladder_entries")
-      .select("player_id, played")
+      .select("player_id")
       .eq("ladder_id", ladder_id)
       .in("player_id", [challenger.id, challenged_player_id]);
 
@@ -98,9 +117,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Both players must be on the ladder" }, { status: 400 });
     }
 
-    const playedById = new Map(existingEntries.map((e: any) => [String(e.player_id), Number(e.played ?? 0)]));
-
-    // 5) Ranked rule enforcement (+/-2 after both have 3+ games) MUST match UI ordering:
+    // 6) Ranked rule enforcement (+/-2) MUST match UI ordering:
     // Bowls convention: PTS -> SD -> SF, with position as tie-break for determinism.
     if (match_type === "RANKED") {
       const { data: leaderboard, error: lbErr } = await supabase
@@ -117,39 +134,37 @@ export async function POST(req: Request) {
       }
 
       const list = leaderboard ?? [];
-      const challengerRow = list.find((r: any) => r.player_id === challenger.id);
-      const challengedRow = list.find((r: any) => r.player_id === challenged_player_id);
 
-      if (!challengerRow || !challengedRow) {
+      // Match UI: challenges are gender-based, so enforce +/-2 within the challenger's gender group when known.
+      let listForRule = list;
+      if (challengerGender) {
+        const ids = Array.from(new Set(list.map((r: any) => String(r.player_id)).filter(Boolean)));
+        const { data: genders, error: gErr } = ids.length
+          ? await supabase.from("players").select("id, gender").in("id", ids)
+          : { data: [], error: null as any };
+
+        if (!gErr) {
+          const genderById = new Map((genders ?? []).map((p: any) => [String(p.id), String(p.gender ?? "")]));
+          listForRule = list.filter((r: any) => genderById.get(String(r.player_id)) === challengerGender);
+        }
+      }
+
+      const challengerIdx = listForRule.findIndex((r: any) => String(r.player_id) === String(challenger.id));
+      const challengedIdx = listForRule.findIndex((r: any) => String(r.player_id) === String(challenged_player_id));
+
+      if (challengerIdx < 0 || challengedIdx < 0) {
         return NextResponse.json({ error: "Both players must be on the ladder" }, { status: 400 });
       }
 
-      const challengerPlayed = playedById.get(String(challenger.id)) ?? Number(challengerRow.played ?? 0);
-      const challengedPlayed = playedById.get(String(challenged_player_id)) ?? Number(challengedRow.played ?? 0);
+      const challengerPos = challengerIdx + 1; // computed position in this rule set
+      const challengedPos = challengedIdx + 1;
 
-      // Until both have played 3+, allow any ranked challenge.
-      if (challengerPlayed >= 3 && challengedPlayed >= 3) {
-        const qualified = list.filter((r: any) => Number(r.played ?? 0) >= 3);
-        const challengerIdx = qualified.findIndex((r: any) => r.player_id === challenger.id);
-        const challengedIdx = qualified.findIndex((r: any) => r.player_id === challenged_player_id);
-
-        if (challengerIdx < 0 || challengedIdx < 0) {
-          return NextResponse.json({ error: "Both players must be on the ladder" }, { status: 400 });
-        }
-
-        const challengerPos = challengerIdx + 1; // computed position among 3+ players
-        const challengedPos = challengedIdx + 1; // computed position among 3+ players
-
-        if (Math.abs(challengedPos - challengerPos) > 2) {
-          return NextResponse.json(
-            { error: "Ranked challenge must be within +/-2 ladder positions (after 3 games)" },
-            { status: 400 }
-          );
-        }
+      if (Math.abs(challengedPos - challengerPos) > 2) {
+        return NextResponse.json({ error: "Ranked challenge must be within +/-2 ladder positions" }, { status: 400 });
       }
     }
 
-    // 6) Prevent duplicates: any active PROPOSED between these two players on same ladder
+    // 7) Prevent duplicates: any active PROPOSED between these two players on same ladder
     const { data: existing, error: exErr } = await supabase
       .from("challenges")
       .select("id, status")
@@ -162,7 +177,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "A challenge is already pending for this opponent." }, { status: 400 });
     }
 
-    // 7) Insert challenge (3-day expiry)
+    // 8) Insert challenge (3-day expiry)
     const expires_at = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
 
     const insertBase: any = {

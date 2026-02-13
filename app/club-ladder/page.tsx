@@ -201,32 +201,18 @@ export default function ClubLadderPage() {
   // Eligibility:
   // - Friendly: challenge anyone except self
   // - Ranked: must be within +/-2 (computed positions)
-  function isEligible(
-    targetPlayerId: string,
-    rowsById: Map<string, LadderRow>,
-    qualifiedPosById: Map<string, number>
-  ) {
+  function isEligible(targetPlayerId: string, posById: Map<string, number>) {
     if (!myPlayerId) return false;
     if (targetPlayerId === myPlayerId) return false;
 
     if (viewType === "FRIENDLY") return true;
 
     // Ranked
-    const myRow = rowsById.get(myPlayerId);
-    const targetRow = rowsById.get(targetPlayerId);
-    if (!myRow || !targetRow) return false;
+    const myPos = posById.get(myPlayerId);
+    const targetPos = posById.get(targetPlayerId);
+    if (!myPos || !targetPos) return false;
 
-    const myPlayed = Number(myRow.played ?? 0);
-    const targetPlayed = Number(targetRow.played ?? 0);
-
-    // Until both have played 3+, allow any ranked challenge.
-    if (myPlayed < 3 || targetPlayed < 3) return true;
-
-    const myQualifiedPos = qualifiedPosById.get(myPlayerId);
-    const targetQualifiedPos = qualifiedPosById.get(targetPlayerId);
-    if (!myQualifiedPos || !targetQualifiedPos) return false;
-
-    return Math.abs(targetQualifiedPos - myQualifiedPos) <= 2;
+    return Math.abs(targetPos - myPos) <= 2;
   }
 
   async function loadAllClubs() {
@@ -907,11 +893,32 @@ export default function ClubLadderPage() {
     return String(v);
   }
 
-  const rowsById = useMemo(() => new Map(rows.map((row) => [row.player_id, row])), [rows]);
-  const qualifiedPosById = useMemo(() => {
-    const qualified = rows.filter((row) => Number(row.played ?? 0) >= 3);
-    return new Map(qualified.map((row, i) => [row.player_id, i + 1]));
-  }, [rows]);
+  const posById = useMemo(() => new Map(rows.map((row, i) => [row.player_id, i + 1])), [rows]);
+
+  // Ranked rule is gender-specific; when showing ALL genders, enforce +/-2 within my gender group.
+  const posByIdForEligibility = useMemo(() => {
+    if (viewType !== "RANKED") return posById;
+    if (genderFilter !== "ALL") return posById;
+    if (myGender !== "MALE" && myGender !== "FEMALE") return posById;
+
+    const sameGender = rows.filter((r) => (genderByPlayerId[r.player_id] ?? "") === myGender);
+    return new Map(sameGender.map((row, i) => [row.player_id, i + 1]));
+  }, [rows, posById, viewType, genderFilter, myGender, genderByPlayerId]);
+
+  const displayRows = useMemo(() => {
+    if (!rows.length) return [] as LadderRow[];
+
+    // In ranked, default to a window around my position so challenge options are immediately relevant.
+    if (viewType !== "RANKED") return rows;
+
+    const myPos = (myPlayerId ? posById.get(myPlayerId) : null) ?? myPosition;
+    if (!myPos) return rows.slice(0, Math.min(rows.length, 30));
+
+    const radius = 10;
+    const start = Math.max(0, myPos - 1 - radius);
+    const end = Math.min(rows.length, myPos - 1 + radius + 1);
+    return rows.slice(start, end);
+  }, [rows, viewType, myPlayerId, myPosition, posById]);
 
   const ladderContent = useMemo(() => {
     if (loading) return <p style={{ color: theme.muted }}>Loading ladder...</p>;
@@ -978,17 +985,19 @@ export default function ClubLadderPage() {
           </div>
 
         <div style={{ display: "grid", gap: 6, padding: "8px 8px 6px" }}>
-          {rows.map((r, idx) => {
-            const eligible = isEligible(r.player_id, rowsById, qualifiedPosById);
+          {displayRows.map((r) => {
+            const eligible = isEligible(r.player_id, posByIdForEligibility);
             const isMe = myPlayerId === r.player_id;
             const targetGender = genderByPlayerId[r.player_id] ?? "";
             const canChallengeGender = !!myGender && !!targetGender && myGender === targetGender;
+            const showPlay = !isMe && canChallengeGender && (viewType === "FRIENDLY" || eligible);
+            const pos = posById.get(r.player_id) ?? null;
 
             const buttonTitle =
               viewType === "RANKED"
                 ? eligible
-                  ? "Create a ranked challenge (+/-2 after 3 games)"
-                  : "Ranked challenges must be within +/-2 positions (after 3 games)"
+                  ? "Create a ranked challenge (+/-2 positions)"
+                  : "Ranked challenges must be within +/-2 positions"
                 : eligible
                 ? "Create a friendly match (no ladder impact)"
                 : "Cannot challenge yourself";
@@ -1027,9 +1036,9 @@ export default function ClubLadderPage() {
                       color: theme.maroon,
                       fontWeight: 900,
                     }}
-                  >
-                    {idx + 1}
-                  </div>
+	                  >
+	                    {pos ?? "-"}
+	                  </div>
 
                   {/* Player */}
                   <div style={{ minWidth: 0 }}>
@@ -1050,11 +1059,11 @@ export default function ClubLadderPage() {
                   </div>
 
                   {/* Action */}
-                  <div style={{ display: "flex", justifyContent: "flex-start" }}>
-                    {!isMe && canChallengeGender && (
-                      <button
-                        disabled={!eligible}
-                        onClick={() => eligible && createChallenge(r.player_id)}
+	                  <div style={{ display: "flex", justifyContent: "flex-start" }}>
+	                    {showPlay ? (
+	                      <button
+	                        disabled={!eligible}
+	                        onClick={() => eligible && createChallenge(r.player_id)}
                         style={{
                           border: eligible ? "none" : `1px solid ${theme.border}`,
                           background: eligible ? theme.maroon : "transparent",
@@ -1069,10 +1078,12 @@ export default function ClubLadderPage() {
                         }}
                         title={finalTitle}
                       >
-                        Play
-                      </button>
-                    )}
-                  </div>
+	                        Play
+	                      </button>
+	                    ) : (
+	                      <div style={{ width: 54 }} />
+	                    )}
+	                  </div>
 
                   {/* Stats (scroll controlled by header only) */}
                   <div
@@ -1122,7 +1133,7 @@ export default function ClubLadderPage() {
         )}
       </div>
     );
-  }, [loading, error, rows, rowsById, qualifiedPosById, myPosition, myPlayerId, viewType, genderFilter, myGender, genderByPlayerId]);
+  }, [loading, error, rows, displayRows, posById, posByIdForEligibility, myPosition, myPlayerId, viewType, genderFilter, myGender, genderByPlayerId]);
 
   const pendingSection = useMemo(() => {
     if (loading) return null;
@@ -1306,7 +1317,7 @@ export default function ClubLadderPage() {
           <div>
             <div style={{ fontWeight: 900, fontSize: 18 }}>HandiBowls SA</div>
             <div style={{ color: theme.muted, fontSize: 13, marginTop: 4 }}>
-              {`Leaderboards | Scope: ${scope} | Gender: ${genderFilter} | Format: ${formatFilter} | Your position: ${myPosition ?? "-"} | Ranked rule: +/-2 (after 3 games) | Friendly: any`}
+              {`Leaderboards | Scope: ${scope} | Gender: ${genderFilter} | Format: ${formatFilter} | Your position: ${myPosition ?? "-"} | Ranked rule: +/-2 | Friendly: any`}
             </div>
           </div>
 
