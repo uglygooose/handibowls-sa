@@ -73,6 +73,14 @@ type ClubNewsRow = {
   created_at: string | null;
 };
 
+type RecentWinnerItem = {
+  tournament_id: string;
+  tournament_name: string;
+  tournament_format: TournamentFormat;
+  ends_at: string | null;
+  winner_name: string | null;
+};
+
 function scopeLabel(scope: "CLUB" | "DISTRICT" | "NATIONAL") {
   if (scope === "CLUB") return "Club";
   if (scope === "DISTRICT") return "District";
@@ -128,6 +136,40 @@ function isNewsActive(n: ClubNewsRow | null, now: Date) {
   return startOk && endOk;
 }
 
+function hasValue(v: any) {
+  return v != null && String(v) !== "";
+}
+
+function bool(v: any) {
+  return v === true;
+}
+
+function isByeMatch(m: any) {
+  const st = String(m?.status ?? "");
+  if (st === "BYE") return true;
+  if (String(m?.slot_b_source_type ?? "") === "BYE") return true;
+  return !m?.team_b_id && !m?.slot_b_source_type;
+}
+
+function isMatchDone(m: any) {
+  const st = String(m?.status ?? "");
+  const hasWinner = hasValue(m?.winner_team_id);
+  return st === "COMPLETED" || bool(m?.finalized_by_admin) || hasWinner;
+}
+
+function inferWinnerTeamId(m: any) {
+  if (hasValue(m?.winner_team_id)) return String(m.winner_team_id);
+  if (!isMatchDone(m)) return null;
+
+  if (isByeMatch(m)) return hasValue(m?.team_a_id) ? String(m.team_a_id) : null;
+
+  if (!hasValue(m?.team_a_id) || !hasValue(m?.team_b_id)) return null;
+  if (m?.score_a == null || m?.score_b == null) return null;
+  if (Number(m.score_a) === Number(m.score_b)) return null;
+
+  return Number(m.score_a) > Number(m.score_b) ? String(m.team_a_id) : String(m.team_b_id);
+}
+
 export default function HomePage() {
   const supabase = createClient();
 
@@ -163,6 +205,10 @@ export default function HomePage() {
   const [clubNewsEditOpen, setClubNewsEditOpen] = useState(false);
   const [clubNewsSaving, setClubNewsSaving] = useState(false);
   const [isClubAdmin, setIsClubAdmin] = useState(false);
+
+  const [recentWinners, setRecentWinners] = useState<RecentWinnerItem[]>([]);
+  const [recentWinnersLoading, setRecentWinnersLoading] = useState(false);
+  const [recentWinnersNote, setRecentWinnersNote] = useState<string | null>(null);
 
   const [newsTitle, setNewsTitle] = useState("");
   const [newsBody, setNewsBody] = useState("");
@@ -361,6 +407,149 @@ export default function HomePage() {
       next[String((c as any).id)] = String((c as any).name ?? "Club");
     }
     setClubNameById(next);
+  }
+
+  async function loadRecentWinners(clubIdIn: string) {
+    setRecentWinnersLoading(true);
+    setRecentWinnersNote(null);
+    setRecentWinners([]);
+
+    if (!clubIdIn) {
+      setRecentWinnersLoading(false);
+      return;
+    }
+
+    // Latest completed club tournaments
+    const tRes = await supabase
+      .from("tournaments")
+      .select("id, name, ends_at, format")
+      .eq("scope", "CLUB")
+      .eq("club_id", clubIdIn)
+      .eq("status", "COMPLETED")
+      .order("ends_at", { ascending: false, nullsFirst: false })
+      .order("starts_at", { ascending: false, nullsFirst: false })
+      .limit(3);
+
+    if (tRes.error) {
+      setRecentWinnersNote("Could not load recent winners.");
+      setRecentWinnersLoading(false);
+      return;
+    }
+
+    const tournaments = (tRes.data ?? []) as Array<{ id: string; name: string; ends_at: string | null; format: TournamentFormat }>;
+    if (!tournaments.length) {
+      setRecentWinnersNote("No completed tournaments yet.");
+      setRecentWinnersLoading(false);
+      return;
+    }
+
+    const ids = tournaments.map((t) => String(t.id));
+
+    // Matches for winner inference
+    const mRes = await supabase
+      .from("matches")
+      .select("id, tournament_id, round_no, match_no, status, finalized_by_admin, winner_team_id, team_a_id, team_b_id, score_a, score_b, slot_b_source_type")
+      .in("tournament_id", ids);
+
+    const matches = (mRes.data ?? []) as any[];
+
+    const matchesByTournamentId: Record<string, any[]> = {};
+    for (const m of matches) {
+      const tid = String(m?.tournament_id ?? "");
+      if (!tid) continue;
+      matchesByTournamentId[tid] = matchesByTournamentId[tid] ?? [];
+      matchesByTournamentId[tid].push(m);
+    }
+
+    // Determine champion team_id per tournament
+    const winnerTeamIdByTournamentId: Record<string, string | null> = {};
+    for (const t of tournaments) {
+      const ms = matchesByTournamentId[String(t.id)] ?? [];
+      if (!ms.length) {
+        winnerTeamIdByTournamentId[String(t.id)] = null;
+        continue;
+      }
+
+      const fullRounds = ms
+        .filter((m) => {
+          const rn = Number(m?.round_no ?? 0);
+          if (!rn) return false;
+          if (isByeMatch(m)) return false;
+          return hasValue(m?.team_a_id) && hasValue(m?.team_b_id);
+        })
+        .map((m) => Number(m?.round_no ?? 0))
+        .filter((n) => n > 0 && !Number.isNaN(n));
+
+      const playableRounds = ms
+        .filter((m) => {
+          const rn = Number(m?.round_no ?? 0);
+          if (!rn) return false;
+          return !isByeMatch(m);
+        })
+        .map((m) => Number(m?.round_no ?? 0))
+        .filter((n) => n > 0 && !Number.isNaN(n));
+
+      const maxRound = fullRounds.length ? Math.max(...fullRounds) : playableRounds.length ? Math.max(...playableRounds) : null;
+      if (!maxRound) {
+        winnerTeamIdByTournamentId[String(t.id)] = null;
+        continue;
+      }
+
+      const finals = ms.filter((m) => Number(m?.round_no ?? 0) === maxRound && !isByeMatch(m));
+      const finalMatch = finals.find((m) => inferWinnerTeamId(m)) ?? finals[0] ?? null;
+      const winnerTeamId = finalMatch ? inferWinnerTeamId(finalMatch) : null;
+      winnerTeamIdByTournamentId[String(t.id)] = winnerTeamId;
+    }
+
+    const winnerTeamIds = Array.from(new Set(Object.values(winnerTeamIdByTournamentId).filter(Boolean) as string[]));
+
+    // Winner names via team members -> players display_name
+    const membersByTeamId: Record<string, string[]> = {};
+    if (winnerTeamIds.length) {
+      const memRes = await supabase
+        .from("tournament_team_members")
+        .select("team_id, player_id")
+        .in("team_id", winnerTeamIds);
+
+      for (const r of memRes.data ?? []) {
+        const tid = String((r as any)?.team_id ?? "");
+        const pid = String((r as any)?.player_id ?? "");
+        if (!tid || !pid) continue;
+        membersByTeamId[tid] = membersByTeamId[tid] ?? [];
+        membersByTeamId[tid].push(pid);
+      }
+    }
+
+    const allWinnerPlayerIds = Array.from(new Set(Object.values(membersByTeamId).flat().filter(Boolean)));
+    const nameByPlayerId: Record<string, string> = {};
+    if (allWinnerPlayerIds.length) {
+      const pRes = await supabase.from("players").select("id, display_name").in("id", allWinnerPlayerIds);
+      for (const p of pRes.data ?? []) {
+        const id = String((p as any)?.id ?? "");
+        if (!id) continue;
+        const dn = String((p as any)?.display_name ?? "").trim();
+        nameByPlayerId[id] = dn || "Unknown";
+      }
+    }
+
+    const items: RecentWinnerItem[] = tournaments.map((t) => {
+      const winnerTeamId = winnerTeamIdByTournamentId[String(t.id)] ?? null;
+      const memberIds = winnerTeamId ? (membersByTeamId[winnerTeamId] ?? []) : [];
+      const names = memberIds.map((pid) => nameByPlayerId[pid]).filter(Boolean);
+      const winnerName =
+        !winnerTeamId ? null : t.format === "SINGLES" ? (names[0] ?? null) : names.length ? names.join(" • ") : null;
+
+      return {
+        tournament_id: String(t.id),
+        tournament_name: cleanTournamentName(String(t.name ?? "Tournament")),
+        tournament_format: t.format,
+        ends_at: t.ends_at ?? null,
+        winner_name: winnerName,
+      };
+    });
+
+    setRecentWinners(items);
+    setRecentWinnersLoading(false);
   }
 
   async function loadClubNews(clubIdIn: string) {
@@ -643,6 +832,7 @@ export default function HomePage() {
     if (!clubId) return;
     resolveClubName(clubId);
     loadClubNews(clubId);
+    loadRecentWinners(clubId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId]);
 
@@ -1094,52 +1284,101 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Club News */}
-        <div
-          style={{
-            marginTop: 14,
-            background: "#fff",
-            border: `1px solid ${theme.border}`,
-            borderRadius: 16,
-            padding: 14,
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-            <div style={{ fontWeight: 900, fontSize: 16 }}>Club News</div>
-            {isClubAdmin ? (
-              <button
-                type="button"
-                onClick={() => setClubNewsEditOpen(true)}
-                style={{
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  color: theme.text,
-                  padding: "6px 10px",
-                  borderRadius: 999,
-                  fontWeight: 900,
-                  fontSize: 12,
-                  cursor: "pointer",
-                }}
-              >
-                {clubNews ? "Edit popup" : "Create popup"}
-              </button>
-            ) : (
-              <span style={{ fontSize: 12, color: theme.muted }}>Read-only</span>
-            )}
-          </div>
+	        {/* Club News */}
+	        <div
+	          style={{
+	            marginTop: 14,
+	            background: "#fff",
+	            border: `1px solid ${theme.border}`,
+	            borderRadius: 16,
+	            padding: 14,
+	          }}
+	        >
+	          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+	            <div style={{ fontWeight: 900, fontSize: 16 }}>Club News</div>
+	            {isClubAdmin ? (
+	              <button
+	                type="button"
+	                onClick={() => setClubNewsEditOpen(true)}
+	                style={{
+	                  border: `1px solid ${theme.border}`,
+	                  background: "#fff",
+	                  color: theme.text,
+	                  padding: "6px 10px",
+	                  borderRadius: 999,
+	                  fontWeight: 900,
+	                  fontSize: 12,
+	                  cursor: "pointer",
+	                }}
+	              >
+	                {clubNews ? "Edit popup" : "Create popup"}
+	              </button>
+	            ) : (
+	              <span style={{ fontSize: 12, color: theme.muted }}>Read-only</span>
+	            )}
+	          </div>
 
-          {clubNewsError ? (
-            <div style={{ marginTop: 8, fontSize: 13, color: theme.danger }}>News error: {clubNewsError}</div>
-          ) : clubNewsLoading ? (
-            <div style={{ marginTop: 8, fontSize: 13, color: theme.muted }}>Loading news...</div>
-          ) : newsHasContent ? (
-            <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
-              <div style={{ fontWeight: 900 }}>{clubNews?.title ?? "Club Update"}</div>
-              {clubNews?.body ? (
-                <div style={{ fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-                  {clubNews.body.length > 160 ? `${clubNews.body.slice(0, 160)}...` : clubNews.body}
-                </div>
-              ) : null}
+	          {/* Recent Winners (stopgap for read-only news) */}
+	          <div style={{ marginTop: 10 }}>
+	            <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>Recent tournament winners</div>
+	            {recentWinnersLoading ? (
+	              <div style={{ marginTop: 6, fontSize: 13, color: theme.muted }}>Loading results...</div>
+	            ) : recentWinnersNote ? (
+	              <div style={{ marginTop: 6, fontSize: 13, color: theme.muted }}>{recentWinnersNote}</div>
+	            ) : recentWinners.length ? (
+	              <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
+	                {recentWinners.map((w) => (
+	                  <div
+	                    key={`winner-${w.tournament_id}`}
+	                    style={{
+	                      border: `1px solid ${theme.border}`,
+	                      borderRadius: 14,
+	                      padding: 10,
+	                      background: "#fff",
+	                    }}
+	                  >
+	                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
+	                      <div style={{ fontWeight: 900, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+	                        {w.tournament_name}
+	                      </div>
+	                      <a
+	                        href={`/tournaments/${w.tournament_id}`}
+	                        style={{ textDecoration: "none", color: theme.maroon, fontWeight: 900, fontSize: 12, whiteSpace: "nowrap" }}
+	                      >
+	                        View
+	                      </a>
+	                    </div>
+	                    <div style={{ marginTop: 6, fontSize: 13, color: theme.text, fontWeight: 900 }}>
+	                      Winner: {w.winner_name ?? "-"}
+	                    </div>
+	                    {w.ends_at ? (
+	                      <div style={{ marginTop: 4, fontSize: 12, color: theme.muted }}>
+	                        Ended: {new Date(w.ends_at).toLocaleString()}
+	                      </div>
+	                    ) : null}
+	                  </div>
+	                ))}
+	              </div>
+	            ) : (
+	              <div style={{ marginTop: 6, fontSize: 13, color: theme.muted }}>No recent results yet.</div>
+	            )}
+	          </div>
+
+	          <div style={{ marginTop: 12, borderTop: `1px solid ${theme.border}`, paddingTop: 12 }} />
+
+	          {clubNewsError ? (
+	            <div style={{ marginTop: 8, fontSize: 13, color: theme.danger }}>News error: {clubNewsError}</div>
+	          ) : clubNewsLoading ? (
+	            <div style={{ marginTop: 8, fontSize: 13, color: theme.muted }}>Loading news...</div>
+	          ) : newsHasContent ? (
+	            <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
+	              <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>Announcements</div>
+	              <div style={{ fontWeight: 900 }}>{clubNews?.title ?? "Club Update"}</div>
+	              {clubNews?.body ? (
+	                <div style={{ fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
+	                  {clubNews.body.length > 160 ? `${clubNews.body.slice(0, 160)}...` : clubNews.body}
+	                </div>
+	              ) : null}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button
                   type="button"
@@ -1179,15 +1418,14 @@ export default function HomePage() {
                     {clubNews.ends_at ? ` · Ends ${new Date(clubNews.ends_at).toLocaleString()}` : ""}
                   </div>
                 ) : null}
-              </div>
-            </div>
-          ) : (
-            <div style={{ marginTop: 8, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-              No news posted yet. This section will show announcements like tournament dates, practice sessions, and club
-              updates.
-            </div>
-          )}
-        </div>
+	              </div>
+	            </div>
+	          ) : (
+	            <div style={{ marginTop: 8, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
+	              No announcements posted yet.
+	            </div>
+	          )}
+	        </div>
 
         {/* How it works */}
         <div
