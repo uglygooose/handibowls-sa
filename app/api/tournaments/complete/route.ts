@@ -4,10 +4,6 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { completeTournamentIfDone } from "@/lib/tournaments/completeTournamentIfDone";
 
-function hasValue(v: any) {
-  return v != null && String(v) !== "";
-}
-
 export async function GET() {
   return NextResponse.json({
     ok: true,
@@ -97,74 +93,25 @@ export async function POST(req: Request) {
       }
     }
 
-    if (String((t as any)?.status ?? "") === "COMPLETED") {
-      return NextResponse.json({ ok: true, completed: true, already_completed: true });
-    }
-
-    // Cleanup: remove any stray rounds created past the real final (e.g. 1-team placeholder round).
-    // Determine the last round that actually had two teams playing.
-    try {
-      const { data: ms, error: mErr } = await supabase
-        .from("matches")
-        .select(
-          "id, round_no, status, score_a, score_b, winner_team_id, finalized_by_admin, team_a_id, team_b_id, slot_b_source_type"
-        )
-        .eq("tournament_id", tournament_id);
-
-      if (!mErr && (ms ?? []).length) {
-        const fullRounds = (ms ?? [])
-          .filter((m: any) => {
-            const rn = Number(m?.round_no ?? 0);
-            if (!rn) return false;
-            const a = hasValue(m?.team_a_id);
-            const b = hasValue(m?.team_b_id);
-            return a && b;
-          })
-          .map((m: any) => Number(m?.round_no ?? 0))
-          .filter((n: number) => n > 0);
-
-        const maxFullRound = fullRounds.length ? Math.max(...fullRounds) : null;
-        if (maxFullRound != null) {
-          const extra = (ms ?? []).filter((m: any) => Number(m?.round_no ?? 0) > maxFullRound);
-          if (extra.length) {
-            const extraIds = extra
-              .filter((m: any) => {
-                // Only delete obvious placeholders: no winner, no scores, not admin-final.
-                const hasWinner = hasValue(m?.winner_team_id);
-                const adminFinal = m?.finalized_by_admin === true;
-                const hasScores = m?.score_a != null || m?.score_b != null;
-                if (hasWinner || adminFinal || hasScores) return false;
-
-                // Must be missing at least one team (single-team "round").
-                const a = hasValue(m?.team_a_id);
-                const b = hasValue(m?.team_b_id);
-                return !(a && b);
-              })
-              .map((m: any) => String(m.id))
-              .filter(Boolean);
-
-            if (extraIds.length) {
-              await supabase.from("matches").delete().in("id", extraIds);
-            }
-          }
-        }
-      }
-    } catch {
-      // best-effort only
-    }
+    const alreadyCompleted = String((t as any)?.status ?? "") === "COMPLETED";
 
     const done = await completeTournamentIfDone({ supabase, tournamentId: String(tournament_id) });
-    if (!done.attempted) {
+    if (!done.attempted && !alreadyCompleted) {
       return NextResponse.json(
         { error: "Final is not complete yet (winner required before completing tournament)." },
         { status: 400 }
       );
     }
-    if (!done.completed) {
+    if (!done.completed && !alreadyCompleted) {
       return NextResponse.json({ error: done.error ?? "Could not complete tournament" }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true, completed: true, completed_at: new Date().toISOString() });
+    return NextResponse.json({
+      ok: true,
+      completed: alreadyCompleted ? true : done.completed,
+      already_completed: alreadyCompleted,
+      completed_at: new Date().toISOString(),
+    });
   } catch (err: any) {
     return NextResponse.json({ error: `Server error: ${err?.message ?? String(err)}` }, { status: 500 });
   }

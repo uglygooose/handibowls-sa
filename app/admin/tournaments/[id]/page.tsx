@@ -93,6 +93,11 @@ function formatLabel(fmt: TournamentFormat) {
   return fmt.charAt(0) + fmt.slice(1).toLowerCase();
 }
 
+function cleanTournamentName(name: string) {
+  const raw = (name ?? "").toString();
+  return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
+}
+
 function matchStatusLabel(status: string) {
   if (status === "SCHEDULED") return "Scheduled";
   if (status === "IN_PLAY") return "In play";
@@ -720,22 +725,6 @@ function singlesHandicapLine(m: MatchRow) {
     setBulkDraftByMatchId({});
   }
 
-  const matchesByRound = useMemo(() => {
-    const map: Record<number, MatchRow[]> = {};
-    for (const m of matches) {
-      const rn = Number(m.round_no ?? 0);
-      if (!rn) continue;
-      if (!map[rn]) map[rn] = [];
-      map[rn].push(m);
-    }
-    const rounds = Object.keys(map)
-      .map((k) => Number(k))
-      .filter((n) => !Number.isNaN(n))
-      .sort((a, b) => a - b);
-
-    return rounds.map((r) => ({ round: r, matches: map[r] ?? [] }));
-  }, [matches]);
-
   const maxFullRound = useMemo(() => {
     const rounds = matches
       .filter((m) => {
@@ -750,17 +739,41 @@ function singlesHandicapLine(m: MatchRow) {
     return rounds.length ? Math.max(...rounds) : null;
   }, [matches]);
 
-  const derived = useMemo(() => {
-    const limited = maxFullRound != null ? matches.filter((m) => Number(m.round_no ?? 0) <= maxFullRound) : matches;
-    return deriveTournamentCompletion(limited);
+  const matchesForUi = useMemo(() => {
+    if (maxFullRound == null) return matches;
+    return matches.filter((m) => {
+      const rn = Number(m?.round_no ?? 0);
+      if (!rn) return true;
+      return rn <= maxFullRound;
+    });
   }, [matches, maxFullRound]);
+
+  const matchesByRound = useMemo(() => {
+    const map: Record<number, MatchRow[]> = {};
+    for (const m of matchesForUi) {
+      const rn = Number(m.round_no ?? 0);
+      if (!rn) continue;
+      if (!map[rn]) map[rn] = [];
+      map[rn].push(m);
+    }
+    const rounds = Object.keys(map)
+      .map((k) => Number(k))
+      .filter((n) => !Number.isNaN(n))
+      .sort((a, b) => a - b);
+
+    return rounds.map((r) => ({ round: r, matches: map[r] ?? [] }));
+  }, [matchesForUi]);
+
+  const derived = useMemo(() => {
+    return deriveTournamentCompletion(matchesForUi);
+  }, [matchesForUi]);
 
   const inferredCompleted = derived.completed;
   const maxPlayableRound = maxFullRound ?? derived.maxPlayableRound;
 
   const roundMeta = useMemo(() => {
     const byRound: Record<number, { total: number; completed: number; byes: number; byesPending: number; hasAny: boolean }> = {};
-    for (const m of matches) {
+    for (const m of matchesForUi) {
       const rn = Number(m.round_no ?? 0);
       if (!rn) continue;
       byRound[rn] = byRound[rn] ?? { total: 0, completed: 0, byes: 0, byesPending: 0, hasAny: false };
@@ -788,7 +801,7 @@ function singlesHandicapLine(m: MatchRow) {
     const roundIsComplete = !!selected && !!cur && cur.total > 0 && cur.completed >= cur.total && cur.byesPending === 0;
 
     return { byRound, rounds, selectedRound: selected, roundIsComplete };
-  }, [matches, selectedRound]);
+  }, [matchesForUi, selectedRound]);
 
   const treeRoundsToShow = useMemo(() => {
     const selected = roundMeta.selectedRound;
@@ -3400,7 +3413,7 @@ function singlesHandicapLine(m: MatchRow) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 900, fontSize: 18, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {tournament?.name ?? "Admin • Tournament"}
+              {tournament?.name ? cleanTournamentName(tournament.name) : "Admin • Tournament"}
             </div>
             <div style={{ color: theme.muted, fontSize: 13, marginTop: 4, lineHeight: 1.25 }}>
               {loading
@@ -3462,7 +3475,9 @@ function singlesHandicapLine(m: MatchRow) {
                       textAlign: "left",
                     }}
                   >
-                    <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</div>
+                    <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {cleanTournamentName(t.name)}
+                    </div>
                     <div style={{ fontSize: 11, opacity: active ? 0.95 : 0.7 }}>{label}</div>
                   </button>
                 );

@@ -511,6 +511,29 @@ export default function TournamentRoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentId]);
 
+  const maxFullRound = useMemo(() => {
+    const rounds = matches
+      .filter((m) => {
+        const rn = Number(m?.round_no ?? 0);
+        if (!rn) return false;
+        if (isMatchBye(m)) return false;
+        return !!m.team_a_id && !!m.team_b_id;
+      })
+      .map((m) => Number(m.round_no ?? 0))
+      .filter((n) => n && !Number.isNaN(n));
+
+    return rounds.length ? Math.max(...rounds) : null;
+  }, [matches]);
+
+  const matchesForUi = useMemo(() => {
+    if (maxFullRound == null) return matches;
+    return matches.filter((m) => {
+      const rn = Number(m?.round_no ?? 0);
+      if (!rn) return true;
+      return rn <= maxFullRound;
+    });
+  }, [matches, maxFullRound]);
+
   const myTeam = useMemo(() => {
     if (!playerId || !teams.length) return null;
     return teams.find((tm) => (teamMembersByTeamId[tm.id] ?? []).includes(playerId)) ?? null;
@@ -518,7 +541,7 @@ export default function TournamentRoomPage() {
 
   const nextMatch = useMemo(() => {
     if (!myTeam) return null;
-    const mine = matches.filter((m) => m.team_a_id === myTeam.id || m.team_b_id === myTeam.id);
+    const mine = matchesForUi.filter((m) => m.team_a_id === myTeam.id || m.team_b_id === myTeam.id);
     const pending = mine.filter((m) => !isMatchDone(m));
     const list = (pending.length ? pending : mine).slice();
     list.sort(
@@ -528,12 +551,12 @@ export default function TournamentRoomPage() {
         String(a.id).localeCompare(String(b.id))
     );
     return list[0] ?? null;
-  }, [myTeam, matches]);
+  }, [myTeam, matchesForUi]);
 
   const myMatches = useMemo(() => {
     if (!myTeam) return [] as MatchRow[];
-    return matches.filter((m) => m.team_a_id === myTeam.id || m.team_b_id === myTeam.id);
-  }, [myTeam, matches]);
+    return matchesForUi.filter((m) => m.team_a_id === myTeam.id || m.team_b_id === myTeam.id);
+  }, [myTeam, matchesForUi]);
 
   const hasPendingMatch = useMemo(() => {
     if (!myMatches.length) return false;
@@ -572,12 +595,12 @@ export default function TournamentRoomPage() {
   }
 
   function winnerNameFromMatches() {
-    if (!matches.length) return null;
+    if (!matchesForUi.length) return null;
     const maxRound =
       (maxPlayableRound ?? null) ||
-      Math.max(...matches.map((m) => Number(m.round_no ?? 0)).filter((r) => r > 0));
+      Math.max(...matchesForUi.map((m) => Number(m.round_no ?? 0)).filter((r) => r > 0));
     if (!maxRound) return null;
-    const finals = matches.filter((m) => Number(m.round_no ?? 0) === maxRound && !isMatchBye(m));
+    const finals = matchesForUi.filter((m) => Number(m.round_no ?? 0) === maxRound && !isMatchBye(m));
     const finalMatch = finals.find((m) => winnerTeamIdFromMatch(m)) ?? finals[0];
     if (!finalMatch) return null;
 
@@ -737,7 +760,7 @@ export default function TournamentRoomPage() {
 
   const matchesByRound = useMemo(() => {
     const map: Record<number, MatchRow[]> = {};
-    for (const m of matches) {
+    for (const m of matchesForUi) {
       const rn = Number(m.round_no ?? 0);
       if (!rn) continue;
       if (!map[rn]) map[rn] = [];
@@ -749,7 +772,7 @@ export default function TournamentRoomPage() {
       .sort((a, b) => a - b);
 
     return rounds.map((r) => ({ round: r, matches: map[r] ?? [] }));
-  }, [matches]);
+  }, [matchesForUi]);
 
   useEffect(() => {
     if (!matchesByRound.length) return;
@@ -880,7 +903,7 @@ export default function TournamentRoomPage() {
 
     const roundMeta = (() => {
       const byRound: Record<number, { total: number; completed: number }> = {};
-      for (const m of matches) {
+      for (const m of matchesForUi) {
         const rn = Number(m.round_no ?? 0);
         if (!rn) continue;
         byRound[rn] = byRound[rn] ?? { total: 0, completed: 0 };
@@ -1235,7 +1258,7 @@ export default function TournamentRoomPage() {
 
 
 
-  const derived = useMemo(() => deriveTournamentCompletion(matches), [matches]);
+  const derived = useMemo(() => deriveTournamentCompletion(matchesForUi), [matchesForUi]);
   const inferredCompleted = derived.completed;
   const maxPlayableRound = derived.maxPlayableRound;
 

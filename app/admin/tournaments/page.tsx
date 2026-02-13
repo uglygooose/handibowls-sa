@@ -46,6 +46,11 @@ function formatLabel(fmt: TournamentFormat) {
   return fmt.charAt(0) + fmt.slice(1).toLowerCase();
 }
 
+function cleanTournamentName(name: string) {
+  const raw = (name ?? "").toString();
+  return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
+}
+
 function genderLabel(g: TournamentGender | null | undefined) {
   if (g === "MALE") return "Men";
   if (g === "FEMALE") return "Ladies";
@@ -607,7 +612,7 @@ export default function AdminTournamentsPage() {
   async function cancelTournament(t: TournamentRow) {
     const tid = t.id;
     const ok = window.confirm(
-      `Cancel tournament?\n\nThis will permanently delete:\n• entries\n• teams\n• fixtures\n\nTournament: ${t.name}\n\nThis cannot be undone.`
+      `Cancel tournament?\n\nThis will permanently delete:\n• entries\n• teams\n• fixtures\n\nTournament: ${cleanTournamentName(t.name)}\n\nThis cannot be undone.`
     );
     if (!ok) return;
 
@@ -757,9 +762,9 @@ export default function AdminTournamentsPage() {
                 overflow: "hidden",
                 textOverflow: "ellipsis",
               }}
-              title={t.name}
+              title={cleanTournamentName(t.name)}
             >
-              {t.name}
+              {cleanTournamentName(t.name)}
             </div>
           </div>
 
