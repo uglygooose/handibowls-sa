@@ -12,7 +12,6 @@ type TournamentScope = "CLUB" | "DISTRICT" | "NATIONAL";
 type TournamentStatus = "ANNOUNCED" | "IN_PLAY" | "COMPLETED";
 type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
 type TournamentGender = "MALE" | "FEMALE" | null;
-type PlayerGender = "MALE" | "FEMALE" | "";
 type TournamentRule = "SCRATCH" | "HANDICAP_START";
 
 type MatchRow = {
@@ -250,20 +249,6 @@ export default function TournamentRoomPage() {
 
     const myPlayerId = me.data?.id ? String(me.data.id) : "";
     if (myPlayerId) setPlayerId(myPlayerId);
-    const myGender = ((me.data as any)?.gender ?? "") as PlayerGender;
-
-    if (!myGender && !superAdmin) {
-      setError("Please select your gender to view tournaments.");
-      setTournament(null);
-      setTeams([]);
-      setTeamMembersByTeamId({});
-      setNameByPlayerId({});
-      setHandicapByPlayerId({});
-      setMatches([]);
-      setOpenRounds({});
-      setLoading(false);
-      return;
-    }
 
     // Load tournament
     const tRes = await supabase
@@ -291,20 +276,6 @@ export default function TournamentRoomPage() {
       ...(tRaw as TournamentRow),
       entries_open: tRaw.entries_open === false ? false : true,
     };
-
-    const tGender = (normalizedTournament.gender ?? null) as TournamentGender | null;
-    if (!superAdmin && myGender && tGender && myGender !== tGender) {
-      setError("This tournament is not available for your gender.");
-      setTournament(null);
-      setTeams([]);
-      setTeamMembersByTeamId({});
-      setNameByPlayerId({});
-      setHandicapByPlayerId({});
-      setMatches([]);
-      setOpenRounds({});
-      setLoading(false);
-      return;
-    }
 
     setTournament(normalizedTournament);
 

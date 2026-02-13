@@ -217,16 +217,6 @@ export default function TournamentsPage() {
     const myGender = ((me.data as any)?.gender ?? "") as PlayerGender | "";
     setPlayerGender(myGender);
 
-    if (!myGender && !superAdmin) {
-      setRows([]);
-      setEnteredByTournamentId({});
-      setTeamsByTournamentId({});
-      setTeamMembersByTeamId({});
-      setNameByPlayerId({});
-      setLoading(false);
-      return;
-    }
-
     const res = await supabase
       .from("tournaments")
       .select("id, name, scope, format, status, announced_at, starts_at, ends_at, entries_open, gender, club_id, rule_type")
@@ -245,18 +235,12 @@ export default function TournamentsPage() {
     }
 
     const tournaments = (res.data ?? []) as TournamentRow[];
-    const filtered = superAdmin
-      ? tournaments
-      : tournaments.filter((t) => {
-          const tg = (t.gender ?? null) as TournamentGender | null;
-          if (!tg) return true;
-          return tg === myGender;
-        });
-    setRows(filtered);
+    const visible = tournaments;
+    setRows(visible);
 
     const clubIds = Array.from(
       new Set(
-        filtered
+        visible
           .map((t) => (t.club_id ?? "").toString())
           .filter((id) => id)
       )
@@ -273,7 +257,7 @@ export default function TournamentsPage() {
       }
     }
 
-    const tournamentIds = filtered.map((t) => t.id);
+    const tournamentIds = visible.map((t) => t.id);
     if (!tournamentIds.length) {
       setEnteredByTournamentId({});
       setTeamsByTournamentId({});
@@ -435,8 +419,8 @@ export default function TournamentsPage() {
     setNameByPlayerId(nameByPlayer);
 
     // Matches for IN_PLAY + COMPLETED tournaments (best-effort; may be blocked by RLS)
-    const idsForMatches = filtered.filter((t) => t.status !== "ANNOUNCED").map((t) => t.id);
-    const completed = filtered.filter((t) => t.status === "COMPLETED");
+    const idsForMatches = visible.filter((t) => t.status !== "ANNOUNCED").map((t) => t.id);
+    const completed = visible.filter((t) => t.status === "COMPLETED");
 
     if (idsForMatches.length) {
       const mRes = await supabase
@@ -534,8 +518,27 @@ export default function TournamentsPage() {
     return { club, district, national };
   }, [rows]);
 
+  function canEnterTournamentRow(t: TournamentRow | null | undefined) {
+    if (!t) return { ok: false, reason: "Tournament not found." };
+
+    const tg = (t.gender ?? null) as TournamentGender | null;
+    if (!tg) return { ok: true, reason: null as string | null };
+
+    if (!playerGender) return { ok: false, reason: "Select your gender to enter this tournament." };
+    if (tg !== playerGender) return { ok: false, reason: "This tournament is not available for your gender." };
+
+    return { ok: true, reason: null as string | null };
+  }
+
   async function enterTournament(tournamentId: string) {
     if (!playerId) return;
+
+    const t = rows.find((r) => r.id === tournamentId) ?? null;
+    const elig = canEnterTournamentRow(t);
+    if (!elig.ok) {
+      setError(elig.reason ?? "You are not eligible to enter this tournament.");
+      return;
+    }
 
     setEnteredByTournamentId((m) => ({ ...m, [tournamentId]: true }));
 
@@ -701,7 +704,11 @@ export default function TournamentsPage() {
 
     const primary = (() => {
       if (t.status === "ANNOUNCED" && !entered && t.entries_open !== false) {
-        return { label: "Enter tournament", onClick: () => enterTournament(t.id), variant: "solid" as const };
+        const elig = canEnterTournamentRow(t);
+        if (elig.ok) {
+          return { label: "Enter tournament", onClick: () => enterTournament(t.id), variant: "solid" as const };
+        }
+        return { label: "View tournament", onClick: () => (window.location.href = `/tournaments/${t.id}`), variant: "solid" as const };
       }
       if (t.status === "COMPLETED") {
         return { label: "View results", onClick: () => (window.location.href = `/tournaments/${t.id}`), variant: "solid" as const };
@@ -1021,11 +1028,11 @@ export default function TournamentsPage() {
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 14px 18px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 18 }}>Tournaments</div>
-            <div style={{ color: theme.muted, fontSize: 13, marginTop: 4, lineHeight: 1.25 }}>
-              {loading ? "Loading..." : "Eligible tournaments only (scope + gender)."}
-            </div>
-          </div>
+	            <div style={{ fontWeight: 900, fontSize: 18 }}>Tournaments</div>
+	            <div style={{ color: theme.muted, fontSize: 13, marginTop: 4, lineHeight: 1.25 }}>
+	              {loading ? "Loading..." : "All tournaments. Entering may be gender-restricted."}
+	            </div>
+	          </div>
 
           <button
             onClick={load}
@@ -1074,10 +1081,10 @@ export default function TournamentsPage() {
               lineHeight: 1.35,
             }}
           >
-            <div style={{ fontWeight: 900, fontSize: 14 }}>Select your gender</div>
-            <div style={{ marginTop: 6, color: theme.muted }}>
-              You must choose a gender to view eligible tournaments.
-            </div>
+	            <div style={{ fontWeight: 900, fontSize: 14 }}>Select your gender</div>
+	            <div style={{ marginTop: 6, color: theme.muted }}>
+	              Choose a gender to enter gender-specific tournaments.
+	            </div>
 
             <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
               <button
