@@ -472,7 +472,8 @@ export default function ClubLadderPage() {
         // Bowls convention: PTS -> SD -> SF
         .order("points", { ascending: false })
         .order("shot_diff", { ascending: false })
-        .order("shots_for", { ascending: false });
+        .order("shots_for", { ascending: false })
+        .order("position", { ascending: true }); // deterministic tie-break (must match API)
 
       const { data: entries, error: e1 } =
         allowedPlayerIds && allowedPlayerIds.length > 0 ? await q.in("player_id", allowedPlayerIds) : await q;
@@ -651,9 +652,10 @@ export default function ClubLadderPage() {
       (r.points ?? 0) === 0
     );
 
-    const finalRows = shouldAlpha
-      ? [...filteredMerged].sort((a, b) => a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" }))
-      : filteredMerged;
+    const finalRows =
+      shouldAlpha && viewType === "FRIENDLY"
+        ? [...filteredMerged].sort((a, b) => a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" }))
+        : filteredMerged;
 
     setRows(finalRows);
     const myIdx = mePlayerId ? finalRows.findIndex((x) => x.player_id === mePlayerId) : -1;
@@ -813,6 +815,23 @@ export default function ClubLadderPage() {
     } catch {}
   }, [scope, viewType, genderFilter, formatFilter]);
 
+  // Clamp gender filter to the signed-in player's gender (non-admins).
+  useEffect(() => {
+    if (isSuperAdmin) return;
+
+    if (myGender === "MALE") {
+      if (genderFilter === "FEMALE") setGenderFilter("MALE");
+      return;
+    }
+    if (myGender === "FEMALE") {
+      if (genderFilter === "MALE") setGenderFilter("FEMALE");
+      return;
+    }
+
+    // Unknown / unset gender: default to ALL
+    if (genderFilter !== "ALL") setGenderFilter("ALL");
+  }, [isSuperAdmin, myGender, genderFilter]);
+
   useEffect(() => {
     if (!isSuperAdmin || !superClubId) return;
     try {
@@ -848,6 +867,7 @@ export default function ClubLadderPage() {
           ladder_id: activeLadderId,
           challenged_player_id,
           match_type: viewType,
+          gender_filter: genderFilter,
         }),
       });
     } catch (e: any) {
@@ -895,15 +915,7 @@ export default function ClubLadderPage() {
 
   const posById = useMemo(() => new Map(rows.map((row, i) => [row.player_id, i + 1])), [rows]);
 
-  // Ranked rule is gender-specific; when showing ALL genders, enforce +/-2 within my gender group.
-  const posByIdForEligibility = useMemo(() => {
-    if (viewType !== "RANKED") return posById;
-    if (genderFilter !== "ALL") return posById;
-    if (myGender !== "MALE" && myGender !== "FEMALE") return posById;
-
-    const sameGender = rows.filter((r) => (genderByPlayerId[r.player_id] ?? "") === myGender);
-    return new Map(sameGender.map((row, i) => [row.player_id, i + 1]));
-  }, [rows, posById, viewType, genderFilter, myGender, genderByPlayerId]);
+  // Eligibility uses the currently selected leaderboard (rows already reflect genderFilter).
 
   const displayRows = useMemo(() => {
     if (!rows.length) return [] as LadderRow[];
@@ -986,7 +998,7 @@ export default function ClubLadderPage() {
 
         <div style={{ display: "grid", gap: 6, padding: "8px 8px 6px" }}>
           {displayRows.map((r) => {
-            const eligible = isEligible(r.player_id, posByIdForEligibility);
+            const eligible = isEligible(r.player_id, posById);
             const isMe = myPlayerId === r.player_id;
             const targetGender = genderByPlayerId[r.player_id] ?? "";
             const canChallengeGender = !!myGender && !!targetGender && myGender === targetGender;
@@ -1133,7 +1145,7 @@ export default function ClubLadderPage() {
         )}
       </div>
     );
-  }, [loading, error, rows, displayRows, posById, posByIdForEligibility, myPosition, myPlayerId, viewType, genderFilter, myGender, genderByPlayerId]);
+  }, [loading, error, rows, displayRows, posById, myPosition, myPlayerId, viewType, genderFilter, myGender, genderByPlayerId]);
 
   const pendingSection = useMemo(() => {
     if (loading) return null;
@@ -1415,24 +1427,24 @@ export default function ClubLadderPage() {
 
             <div>
               <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, marginBottom: 6 }}>Gender</div>
-              <select
-                value={genderFilter}
-                onChange={(e) => setGenderFilter(e.target.value as GenderFilter)}
-                style={{
-                  width: "100%",
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                }}
-              >
-                <option value="ALL">All</option>
-                <option value="MALE">Men</option>
-                <option value="FEMALE">Ladies</option>
-              </select>
-            </div>
-          </div>
+	              <select
+	                value={genderFilter}
+	                onChange={(e) => setGenderFilter(e.target.value as GenderFilter)}
+	                style={{
+	                  width: "100%",
+	                  border: `1px solid ${theme.border}`,
+	                  background: "#fff",
+	                  padding: "10px 12px",
+	                  borderRadius: 12,
+	                  fontWeight: 900,
+	                }}
+	              >
+	                <option value="ALL">All</option>
+	                {isSuperAdmin || myGender === "MALE" ? <option value="MALE">Men</option> : null}
+	                {isSuperAdmin || myGender === "FEMALE" ? <option value="FEMALE">Ladies</option> : null}
+	              </select>
+	            </div>
+	          </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <div>

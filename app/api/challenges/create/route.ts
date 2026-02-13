@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 type MatchType = "RANKED" | "FRIENDLY";
+type GenderFilter = "ALL" | "MALE" | "FEMALE";
 
 function normalizeMatchType(v: any): MatchType {
   const t = String(v ?? "RANKED").toUpperCase();
@@ -13,6 +14,13 @@ function isMissingColumnError(errMsg: string | undefined, columnName: string) {
   if (!errMsg) return false;
   const m = errMsg.toLowerCase();
   return m.includes(`column "${columnName.toLowerCase()}"`) && m.includes("does not exist");
+}
+
+function normalizeGenderFilter(v: any): GenderFilter {
+  const t = String(v ?? "ALL").toUpperCase();
+  if (t === "MALE") return "MALE";
+  if (t === "FEMALE") return "FEMALE";
+  return "ALL";
 }
 
 // Debug GET - confirms route is alive
@@ -63,6 +71,7 @@ export async function POST(req: Request) {
     const ladder_id: string | undefined = body?.ladder_id;
     const challenged_player_id: string | undefined = body?.challenged_player_id;
     const match_type: MatchType = normalizeMatchType(body?.match_type);
+    const gender_filter: GenderFilter = normalizeGenderFilter(body?.gender_filter);
 
     if (!ladder_id || !challenged_player_id) {
       return NextResponse.json({ error: "Missing ladder_id or challenged_player_id" }, { status: 400 });
@@ -102,6 +111,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "You can only challenge players of the same gender" }, { status: 400 });
     }
 
+    if (gender_filter !== "ALL" && challengerGender && gender_filter !== challengerGender) {
+      return NextResponse.json({ error: "Gender filter does not match your profile" }, { status: 400 });
+    }
+
     // 5) Ensure both players exist on this ladder
     const { data: existingEntries, error: exEntriesErr } = await supabase
       .from("ladder_entries")
@@ -135,9 +148,9 @@ export async function POST(req: Request) {
 
       const list = leaderboard ?? [];
 
-      // Match UI: challenges are gender-based, so enforce +/-2 within the challenger's gender group when known.
+      // Enforce +/-2 within the leaderboard the user is viewing (ALL / MALE / FEMALE).
       let listForRule = list;
-      if (challengerGender) {
+      if (gender_filter !== "ALL") {
         const ids = Array.from(new Set(list.map((r: any) => String(r.player_id)).filter(Boolean)));
         const { data: genders, error: gErr } = ids.length
           ? await supabase.from("players").select("id, gender").in("id", ids)
@@ -145,7 +158,7 @@ export async function POST(req: Request) {
 
         if (!gErr) {
           const genderById = new Map((genders ?? []).map((p: any) => [String(p.id), String(p.gender ?? "")]));
-          listForRule = list.filter((r: any) => genderById.get(String(r.player_id)) === challengerGender);
+          listForRule = list.filter((r: any) => genderById.get(String(r.player_id)) === gender_filter);
         }
       }
 
