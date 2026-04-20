@@ -77,6 +77,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing ladder_id or challenged_player_id" }, { status: 400 });
     }
 
+    if (match_type === "FRIENDLY") {
+      return NextResponse.json(
+        { error: "Friendly games have moved to Games. Use the Games page to invite a member and book a lane." },
+        { status: 400 }
+      );
+    }
+
     // 3) Find challenger player
     const { data: challenger, error: chErr } = await supabase
       .from("players")

@@ -668,7 +668,7 @@ export default function AdminTournamentsPage() {
 
   function TopQuickNav() {
     return (
-      <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
         <button
           type="button"
           onClick={() => (window.location.href = "/admin/tournaments")}
@@ -685,6 +685,24 @@ export default function AdminTournamentsPage() {
           title="Admin tournaments"
         >
           Admin tournaments
+        </button>
+
+        <button
+          type="button"
+          onClick={() => (window.location.href = "/admin/greens")}
+          style={{
+            width: "100%",
+            border: `1px solid ${theme.border}`,
+            background: "#fff",
+            color: theme.text,
+            padding: "10px 12px",
+            borderRadius: 12,
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
+          title="Admin greens"
+        >
+          Greens
         </button>
 
         <button

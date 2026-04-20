@@ -28,8 +28,9 @@ export default function BottomNav() {
         .eq("id", user.id)
         .maybeSingle();
 
-      const role = String((res.data as any)?.role ?? "").toUpperCase();
-      const adminFlag = Boolean((res.data as any)?.is_admin);
+      const row = (res.data ?? null) as unknown as { role?: unknown; is_admin?: unknown } | null;
+      const role = String(row?.role ?? "").toUpperCase();
+      const adminFlag = row?.is_admin === true;
       setIsAdmin(role === "SUPER_ADMIN" || adminFlag);
     }
 
@@ -57,7 +58,7 @@ export default function BottomNav() {
     }`;
   }
 
-  const cols = isAdmin ? "grid-cols-5" : "grid-cols-4";
+  const cols = isAdmin ? "grid-cols-7" : "grid-cols-6";
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white/95 backdrop-blur">
@@ -73,8 +74,18 @@ export default function BottomNav() {
           </Link>
 
           <Link href="/my-challenges" className={pill(isActive("/my-challenges"))}>
-            <span className="hidden sm:inline">Challenges</span>
-            <span className="sm:hidden">Chal.</span>
+            <span className="hidden sm:inline">Ranked</span>
+            <span className="sm:hidden">Rank</span>
+          </Link>
+
+          <Link href="/games" className={pill(isActive("/games"))}>
+            <span className="hidden sm:inline">Games</span>
+            <span className="sm:hidden">Game</span>
+          </Link>
+
+          <Link href="/bookings" className={pill(isActive("/bookings"))}>
+            <span className="hidden sm:inline">Bookings</span>
+            <span className="sm:hidden">Book</span>
           </Link>
 
           <Link href="/tournaments" className={pill(isActive("/tournaments"))}>

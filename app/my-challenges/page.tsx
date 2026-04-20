@@ -6,9 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import BottomNav from "../components/BottomNav";
 
-type MatchType = "RANKED" | "FRIENDLY";
-type Tab = "INCOMING" | "OUTGOING" | "MATCHES";
-
 type ChallengeRow = {
   id: string;
   ladder_id: string;
@@ -71,9 +68,12 @@ function formatTimeRemaining(expiresAtIso: string) {
   return `${minutes}m`;
 }
 
-function normalizeMatchType(v: any): MatchType {
-  const t = String(v ?? "RANKED").toUpperCase();
-  return t === "FRIENDLY" ? "FRIENDLY" : "RANKED";
+type MatchType = "RANKED";
+type Tab = "INCOMING" | "OUTGOING" | "MATCHES";
+
+function normalizeMatchType(_v: unknown): MatchType {
+  void _v;
+  return "RANKED";
 }
 
 function isMissingColumnError(msg: string | null | undefined, col: string) {
@@ -82,11 +82,8 @@ function isMissingColumnError(msg: string | null | undefined, col: string) {
   return m.includes(`column "${col.toLowerCase()}"`) && m.includes("does not exist");
 }
 
-function badge(matchType: MatchType) {
-  const isFriendly = matchType === "FRIENDLY";
-  const bg = isFriendly ? "rgba(107,114,128,.10)" : "rgba(46,125,50,.10)";
-  const color = isFriendly ? theme.muted : theme.maroon;
-
+function badge(_matchType: MatchType) {
+  void _matchType;
   return (
     <span
       style={{
@@ -95,13 +92,13 @@ function badge(matchType: MatchType) {
         fontWeight: 900,
         padding: "4px 8px",
         borderRadius: 999,
-        background: bg,
-        color,
+        background: "rgba(46,125,50,.10)",
+        color: theme.maroon,
         border: `1px solid ${theme.border}`,
       }}
-      title={isFriendly ? "Friendly (no ladder impact)" : "Ranked (affects ladder)"}
+      title="Ranked (affects ladder)"
     >
-      {isFriendly ? "Friendly" : "Ranked"}
+      Ranked
     </span>
   );
 }
@@ -127,15 +124,8 @@ function scopeBadge(scope: LadderScope | "UNKNOWN") {
   );
 }
 
-function splitCounts(items: Array<{ match_type?: any }>) {
-  const ranked = items.filter((x) => normalizeMatchType(x.match_type) === "RANKED").length;
-  const friendly = items.filter((x) => normalizeMatchType(x.match_type) === "FRIENDLY").length;
-  return { ranked, friendly };
-}
-
-function applyTypeFilter<T extends { match_type?: any }>(items: T[], filter: MatchType | null) {
-  if (!filter) return items;
-  return items.filter((x) => normalizeMatchType(x.match_type) === filter);
+function applyTypeFilter<T>(items: T[]) {
+  return items;
 }
 
 export default function MyChallengesPage() {
@@ -144,12 +134,8 @@ export default function MyChallengesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const [tab, setTab] = useState<Tab>("INCOMING");
-
-  // Row 2 filter: null = ALL (no filter), otherwise RANKED / FRIENDLY
-  const [typeFilter, setTypeFilter] = useState<MatchType | null>(null);
 
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
 
@@ -182,8 +168,6 @@ export default function MyChallengesPage() {
     const profRes = await supabase.from("profiles").select("role").eq("id", user.id).single();
     const role = ((profRes.data as any)?.role ?? "").toString().toUpperCase();
     const superAdmin = role === "SUPER_ADMIN";
-    setIsSuperAdmin(superAdmin);
-
     const { data: mePlayer, error: meErr } = await supabase
       .from("players")
       .select("id")
@@ -217,6 +201,7 @@ export default function MyChallengesPage() {
           "id, ladder_id, challenger_player_id, challenged_player_id, status, expires_at, match_id, created_at, match_type"
         )
         .or(`challenger_player_id.eq.${mePlayer.id},challenged_player_id.eq.${mePlayer.id}`)
+        .eq("match_type", "RANKED")
         .order("created_at", { ascending: false });
 
       if (!q1.error) {
@@ -257,6 +242,7 @@ export default function MyChallengesPage() {
           "id, ladder_id, match_type, status, challenger_player_id, challenged_player_id, challenger_score, challenged_score, submitted_by_player_id, submitted_at, created_at"
         )
         .or(`challenger_player_id.eq.${mePlayer.id},challenged_player_id.eq.${mePlayer.id}`)
+        .eq("match_type", "RANKED")
         .order("created_at", { ascending: false })
         .limit(100);
 
@@ -423,30 +409,11 @@ export default function MyChallengesPage() {
   const outgoingCount = outgoingBase.length;
   const matchesCount = activeMatchesBase.length; // ACTIVE ONLY
 
-  // -------------------- Row 2 split counts depend on active tab --------------------
-  const splitForActiveTab = useMemo(() => {
-    if (tab === "INCOMING") return splitCounts(incomingBase);
-    if (tab === "OUTGOING") return splitCounts(outgoingBase);
-    return splitCounts(activeMatchesBase); // MATCHES tab uses ACTIVE ONLY
-  }, [tab, incomingBase, outgoingBase, activeMatchesBase]);
-
-  // -------------------- Filtered lists for display (Row 2 filter) --------------------
-  const incomingShown = useMemo(
-    () => applyTypeFilter(incomingBase, typeFilter),
-    [incomingBase, typeFilter]
-  );
-  const outgoingShown = useMemo(
-    () => applyTypeFilter(outgoingBase, typeFilter),
-    [outgoingBase, typeFilter]
-  );
-  const activeMatchesShown = useMemo(
-    () => applyTypeFilter(activeMatchesBase, typeFilter),
-    [activeMatchesBase, typeFilter]
-  );
-  const completedMatchesShown = useMemo(
-    () => applyTypeFilter(completedMatchesBase, typeFilter),
-    [completedMatchesBase, typeFilter]
-  );
+  // Ranked-only: no type filter, so display == base lists
+  const incomingShown = useMemo(() => applyTypeFilter(incomingBase), [incomingBase]);
+  const outgoingShown = useMemo(() => applyTypeFilter(outgoingBase), [outgoingBase]);
+  const activeMatchesShown = useMemo(() => applyTypeFilter(activeMatchesBase), [activeMatchesBase]);
+  const completedMatchesShown = useMemo(() => applyTypeFilter(completedMatchesBase), [completedMatchesBase]);
 
   // -------------------- Actions --------------------
   async function respond(challenge_id: string, action: "ACCEPT" | "DECLINE") {
@@ -866,28 +833,14 @@ export default function MyChallengesPage() {
     cursor: "pointer",
   });
 
-  const typeButtonStyle = (active: boolean) => ({
-    border: `1px solid ${theme.border}`,
-    background: active ? theme.maroon : "#fff",
-    color: active ? "#fff" : theme.text,
-    padding: "10px 10px",
-    borderRadius: 14,
-    fontWeight: 900 as const,
-    cursor: "pointer",
-  });
-
-  function toggleType(next: MatchType) {
-    setTypeFilter((prev) => (prev === next ? null : next)); // click again => ALL
-  }
-
   return (
     <div style={{ background: theme.background, minHeight: "100vh", color: theme.text, paddingBottom: 92 }}>
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 14px 18px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-          <div>
-            <div style={{ fontWeight: 900, fontSize: 18 }}>HandiBowls SA</div>
-            <div style={{ color: theme.muted, fontSize: 13, marginTop: 4 }}>My Challenges</div>
-          </div>
+            <div>
+              <div style={{ fontWeight: 900, fontSize: 18 }}>HandiBowls SA</div>
+              <div style={{ color: theme.muted, fontSize: 13, marginTop: 4 }}>Ranked Challenges</div>
+            </div>
           {headerRight}
         </div>
 
@@ -922,18 +875,7 @@ export default function MyChallengesPage() {
           </button>
         </div>
 
-        {/* Row 2: Ranked / Friendly (split for selected tab) */}
-        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <button onClick={() => toggleType("RANKED")} style={typeButtonStyle(typeFilter === "RANKED")}>
-            Ranked ({splitForActiveTab.ranked})
-          </button>
-
-          <button onClick={() => toggleType("FRIENDLY")} style={typeButtonStyle(typeFilter === "FRIENDLY")}>
-            Friendly ({splitForActiveTab.friendly})
-          </button>
-        </div>
-
-        {loading && <p style={{ color: theme.muted, marginTop: 12 }}>Loading...</p>}
+	        {loading && <p style={{ color: theme.muted, marginTop: 12 }}>Loading...</p>}
 
         {error && (
           <p style={{ color: theme.danger, whiteSpace: "pre-wrap", marginTop: 12 }}>
@@ -943,29 +885,25 @@ export default function MyChallengesPage() {
 
         {!loading && !error && (
           <>
-            {tab === "INCOMING" && (
-              <div style={{ marginTop: 14 }}>
-                {incomingShown.length === 0 ? (
-                  <p style={{ color: theme.muted }}>
-                    No incoming challenges{typeFilter ? ` (${typeFilter.toLowerCase()})` : ""}.
-                  </p>
-                ) : (
-                  <div style={{ marginTop: 12 }}>{renderGroupedChallenges(incomingShown, "incoming")}</div>
-                )}
-              </div>
-            )}
+	            {tab === "INCOMING" && (
+	              <div style={{ marginTop: 14 }}>
+	                {incomingShown.length === 0 ? (
+	                  <p style={{ color: theme.muted }}>No incoming challenges.</p>
+	                ) : (
+	                  <div style={{ marginTop: 12 }}>{renderGroupedChallenges(incomingShown, "incoming")}</div>
+	                )}
+	              </div>
+	            )}
 
-            {tab === "OUTGOING" && (
-              <div style={{ marginTop: 14 }}>
-                {outgoingShown.length === 0 ? (
-                  <p style={{ color: theme.muted }}>
-                    No outgoing challenges{typeFilter ? ` (${typeFilter.toLowerCase()})` : ""}.
-                  </p>
-                ) : (
-                  <div style={{ marginTop: 12 }}>{renderGroupedChallenges(outgoingShown, "outgoing")}</div>
-                )}
-              </div>
-            )}
+	            {tab === "OUTGOING" && (
+	              <div style={{ marginTop: 14 }}>
+	                {outgoingShown.length === 0 ? (
+	                  <p style={{ color: theme.muted }}>No outgoing challenges.</p>
+	                ) : (
+	                  <div style={{ marginTop: 12 }}>{renderGroupedChallenges(outgoingShown, "outgoing")}</div>
+	                )}
+	              </div>
+	            )}
 
             {tab === "MATCHES" && (
               <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -979,13 +917,13 @@ export default function MyChallengesPage() {
                 >
                   <SectionHeader title="Active Matches" count={activeMatchesShown.length} />
 
-                  {activeMatchesShown.length === 0 ? (
-                    <div style={{ marginTop: 8, color: theme.muted, fontSize: 13 }}>
-                      No active matches{typeFilter ? ` (${typeFilter.toLowerCase()})` : ""}.
-                    </div>
-                  ) : (
-                    <div style={{ marginTop: 12 }}>{renderGroupedMatches(activeMatchesShown)}</div>
-                  )}
+	                  {activeMatchesShown.length === 0 ? (
+	                    <div style={{ marginTop: 8, color: theme.muted, fontSize: 13 }}>
+	                      No active matches.
+	                    </div>
+	                  ) : (
+	                    <div style={{ marginTop: 12 }}>{renderGroupedMatches(activeMatchesShown)}</div>
+	                  )}
                 </div>
 
                 <div
@@ -998,13 +936,13 @@ export default function MyChallengesPage() {
                 >
                   <SectionHeader title="Completed Matches" count={completedMatchesShown.length} />
 
-                  {completedMatchesShown.length === 0 ? (
-                    <div style={{ marginTop: 8, color: theme.muted, fontSize: 13 }}>
-                      No completed matches yet{typeFilter ? ` (${typeFilter.toLowerCase()})` : ""}.
-                    </div>
-                  ) : (
-                    <div style={{ marginTop: 12 }}>{renderGroupedMatches(completedMatchesShown)}</div>
-                  )}
+	                  {completedMatchesShown.length === 0 ? (
+	                    <div style={{ marginTop: 8, color: theme.muted, fontSize: 13 }}>
+	                      No completed matches yet.
+	                    </div>
+	                  ) : (
+	                    <div style={{ marginTop: 12 }}>{renderGroupedMatches(completedMatchesShown)}</div>
+	                  )}
                 </div>
               </div>
             )}

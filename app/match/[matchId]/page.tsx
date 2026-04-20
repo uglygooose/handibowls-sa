@@ -32,6 +32,22 @@ function isUuid(v: unknown): v is string {
   return typeof v === "string" && UUID_RE.test(v);
 }
 
+type MatchScheduleRow = {
+  match_id: string;
+  booking_id: string | null;
+  game_format: string;
+};
+
+type BookingRow = {
+  id: string;
+  green_id: string;
+  booking_date: string;
+  session: "AM" | "PM";
+  lane_number: number;
+};
+
+type GreenRow = { id: string; name: string | null };
+
 export default function MatchPage() {
   const supabase = createClient();
   const params = useParams();
@@ -51,6 +67,16 @@ export default function MatchPage() {
   const [match, setMatch] = useState<MatchRow | null>(null);
   const [nameByPlayerId, setNameByPlayerId] = useState<Map<string, string>>(new Map());
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
+  const [schedule, setSchedule] = useState<
+    | null
+    | {
+        game_format: string;
+        booking_date: string;
+        session: "AM" | "PM";
+        lane_number: number;
+        green_name: string;
+      }
+  >(null);
 
   const [challengerScore, setChallengerScore] = useState<string>("");
   const [challengedScore, setChallengedScore] = useState<string>("");
@@ -147,6 +173,41 @@ export default function MatchPage() {
 
     setChallengerScore(mRow.challenger_score?.toString() ?? "");
     setChallengedScore(mRow.challenged_score?.toString() ?? "");
+
+    // schedule (optional)
+    setSchedule(null);
+    {
+      const schedQ = await supabase
+        .from("match_schedules")
+        .select("match_id, booking_id, game_format")
+        .eq("match_id", matchId)
+        .maybeSingle();
+
+      const schedRow = (schedQ.data ?? null) as unknown as MatchScheduleRow | null;
+      const bookingId = String(schedRow?.booking_id ?? "");
+
+      if (!schedQ.error && schedRow && isUuid(bookingId)) {
+        const bQ = await supabase
+          .from("lane_bookings")
+          .select("id, green_id, booking_date, session, lane_number")
+          .eq("id", bookingId)
+          .maybeSingle();
+
+        const bRow = (bQ.data ?? null) as unknown as BookingRow | null;
+        if (!bQ.error && bRow && isUuid(bRow.green_id)) {
+          const gQ = await supabase.from("club_greens").select("id, name").eq("id", bRow.green_id).maybeSingle();
+          const gRow = (gQ.data ?? null) as unknown as GreenRow | null;
+
+          setSchedule({
+            game_format: String(schedRow.game_format ?? ""),
+            booking_date: String(bRow.booking_date ?? ""),
+            session: String(bRow.session ?? "AM").toUpperCase() === "PM" ? "PM" : "AM",
+            lane_number: Number(bRow.lane_number ?? 0),
+            green_name: String(gRow?.name ?? "Green"),
+          });
+        }
+      }
+    }
 
     if (!isUuid(mRow.challenger_player_id) || !isUuid(mRow.challenged_player_id)) {
       setError(
@@ -461,6 +522,26 @@ export default function MatchPage() {
             {notice}
           </div>
         )}
+
+        {schedule ? (
+          <div
+            style={{
+              marginTop: 12,
+              background: "#fff",
+              border: `1px solid ${theme.border}`,
+              borderRadius: 16,
+              padding: 12,
+            }}
+          >
+            <div style={{ fontWeight: 900 }}>Schedule</div>
+            <div style={{ marginTop: 6, fontSize: 13, color: theme.text, fontWeight: 800 }}>
+              {schedule.booking_date} {schedule.session} — {schedule.green_name} lane {schedule.lane_number}
+            </div>
+            {schedule.game_format ? (
+              <div style={{ marginTop: 4, fontSize: 12, color: theme.muted }}>Format: {schedule.game_format}</div>
+            ) : null}
+          </div>
+        ) : null}
 
         {isAdmin && match.status !== "FINAL" && (
           <div

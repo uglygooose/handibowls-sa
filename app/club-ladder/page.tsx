@@ -3,12 +3,11 @@
 
 import { theme } from "@/lib/theme";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
 import BottomNav from "../components/BottomNav";
 
-type MatchType = "RANKED" | "FRIENDLY";
+type MatchType = "RANKED";
 type PlayerGender = "MALE" | "FEMALE" | "";
 
 type LadderEntry = {
@@ -99,19 +98,13 @@ function safeDateLabel(iso: string) {
   });
 }
 
-function normalizeMatchType(v: any): MatchType {
-  const t = String(v ?? "RANKED").toUpperCase();
-  return t === "FRIENDLY" ? "FRIENDLY" : "RANKED";
-}
-
 function isMissingColumnError(errMsg: string | undefined, columnName: string) {
   if (!errMsg) return false;
   const m = errMsg.toLowerCase();
   return m.includes(`column "${columnName.toLowerCase()}"`) && m.includes("does not exist");
 }
 
-function matchTypeBadge(type: MatchType) {
-  const isRanked = type === "RANKED";
+function matchTypeBadge() {
   return (
     <span
       style={{
@@ -120,22 +113,20 @@ function matchTypeBadge(type: MatchType) {
         padding: "4px 8px",
         borderRadius: 999,
         border: `1px solid ${theme.border}`,
-        background: isRanked ? "rgba(46,125,50,.10)" : "rgba(107,114,128,.10)",
-        color: isRanked ? theme.maroon : theme.muted,
+        background: "rgba(46,125,50,.10)",
+        color: theme.maroon,
         whiteSpace: "nowrap",
       }}
     >
-      {isRanked ? "Ranked" : "Friendly"}
+      Ranked
     </span>
   );
 }
 
 export default function ClubLadderPage() {
   const supabase = createClient();
-  const router = useRouter();
 
   const [scope, setScope] = useState<Scope>("CLUB");
-  const [viewType, setViewType] = useState<MatchType>("RANKED"); // Ranked/Friendly toggle for lists + create
   const [genderFilter, setGenderFilter] = useState<GenderFilter>("ALL");
   const [formatFilter, setFormatFilter] = useState<LadderFormat>("SINGLES");
   const [filtersReady, setFiltersReady] = useState(false);
@@ -192,20 +183,17 @@ export default function ClubLadderPage() {
     syncStatsScroll(left);
   }
 
-  // When rows change (or viewType changes), keep rows aligned to header scroll position
+  // When rows change, keep rows aligned to header scroll position
   useEffect(() => {
     const left = headerStatsScrollRef.current?.scrollLeft ?? 0;
     syncStatsScroll(left);
-  }, [rows, viewType]);
+  }, [rows]);
 
   // Eligibility:
-  // - Friendly: challenge anyone except self
   // - Ranked: must be within +/-2 (computed positions)
   function isEligible(targetPlayerId: string, posById: Map<string, number>) {
     if (!myPlayerId) return false;
     if (targetPlayerId === myPlayerId) return false;
-
-    if (viewType === "FRIENDLY") return true;
 
     // Ranked
     const myPos = posById.get(myPlayerId);
@@ -652,17 +640,16 @@ export default function ClubLadderPage() {
       (r.points ?? 0) === 0
     );
 
-    const finalRows =
-      shouldAlpha && viewType === "FRIENDLY"
-        ? [...filteredMerged].sort((a, b) => a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" }))
-        : filteredMerged;
+    const finalRows = shouldAlpha
+      ? [...filteredMerged].sort((a, b) => a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" }))
+      : filteredMerged;
 
     setRows(finalRows);
     const myIdx = mePlayerId ? finalRows.findIndex((x) => x.player_id === mePlayerId) : -1;
     setMyPosition(myIdx >= 0 ? myIdx + 1 : null);
 
 
-    // pending matches for me (this ladder) - filter by viewType
+	    // pending matches for me (this ladder) - ranked only
     {
       if (!mePlayerId) {
         setPendingMatches([]);
@@ -676,49 +663,45 @@ export default function ClubLadderPage() {
       const q1 = await supabase
         .from("matches")
         .select(withTypeSelect)
-        .eq("ladder_id", fallback)
-        .in("status", ["OPEN", "RESULT_SUBMITTED"])
-        .or(`challenger_player_id.eq.${mePlayerId},challenged_player_id.eq.${mePlayerId}`)
-        .eq("match_type", viewType)
-        .order("created_at", { ascending: false })
-        .limit(10);
+	        .eq("ladder_id", fallback)
+	        .in("status", ["OPEN", "RESULT_SUBMITTED"])
+	        .or(`challenger_player_id.eq.${mePlayerId},challenged_player_id.eq.${mePlayerId}`)
+	        .eq("match_type", "RANKED")
+	        .order("created_at", { ascending: false })
+	        .limit(10);
 
       if (!q1.error) {
         setPendingMatches((q1.data ?? []) as MatchRow[]);
-      } else if (q1.error && isMissingColumnError(q1.error.message, "match_type")) {
-        // fallback: if no match_type column, only show "Ranked" view (since we can't filter)
-        if (viewType === "FRIENDLY") {
-          setPendingMatches([]);
-        } else {
-          const q2 = await supabase
-            .from("matches")
-            .select(baseSelect)
-            .eq("ladder_id", fallback)
-            .in("status", ["OPEN", "RESULT_SUBMITTED"])
-            .or(`challenger_player_id.eq.${mePlayerId},challenged_player_id.eq.${mePlayerId}`)
-            .order("created_at", { ascending: false })
-            .limit(10);
+	      } else if (q1.error && isMissingColumnError(q1.error.message, "match_type")) {
+	        // fallback: if no match_type column, show what we can (assumes ranked-only)
+	        const q2 = await supabase
+	          .from("matches")
+	          .select(baseSelect)
+	          .eq("ladder_id", fallback)
+	          .in("status", ["OPEN", "RESULT_SUBMITTED"])
+	          .or(`challenger_player_id.eq.${mePlayerId},challenged_player_id.eq.${mePlayerId}`)
+	          .order("created_at", { ascending: false })
+	          .limit(10);
 
-          if (q2.error) {
-            setError(`pending matches: ${q2.error.message}`);
-            setPendingMatches([]);
-            setLoading(false);
-            return;
-          }
+	        if (q2.error) {
+	          setError(`pending matches: ${q2.error.message}`);
+	          setPendingMatches([]);
+	          setLoading(false);
+	          return;
+	        }
 
-          const patched = (q2.data ?? []).map((m: any) => ({ ...m, match_type: "RANKED" as MatchType }));
-          setPendingMatches(patched as MatchRow[]);
-        }
-      } else {
-        setError(`pending matches: ${q1.error.message}`);
-        setPendingMatches([]);
-        setLoading(false);
+	        const patched = (q2.data ?? []).map((m: any) => ({ ...m, match_type: "RANKED" as MatchType }));
+	        setPendingMatches(patched as MatchRow[]);
+	      } else {
+	        setError(`pending matches: ${q1.error.message}`);
+	        setPendingMatches([]);
+	        setLoading(false);
         return;
       }
       }
     }
 
-    // recent FINAL matches (this ladder) - filter by viewType
+	    // recent FINAL matches (this ladder) - ranked only
     {
       if (!mePlayerId) {
         setRecentMatches([]);
@@ -729,43 +712,39 @@ export default function ClubLadderPage() {
       const withTypeSelect =
         "id, ladder_id, match_type, status, challenger_player_id, challenged_player_id, challenger_score, challenged_score, challenger_position_at_start, challenged_position_at_start, created_at";
 
-      const q1 = await supabase
-        .from("matches")
-        .select(withTypeSelect)
-        .eq("ladder_id", fallback)
-        .eq("status", "FINAL")
-        .eq("match_type", viewType)
-        .order("created_at", { ascending: false })
-        .limit(10);
+	      const q1 = await supabase
+	        .from("matches")
+	        .select(withTypeSelect)
+	        .eq("ladder_id", fallback)
+	        .eq("status", "FINAL")
+	        .eq("match_type", "RANKED")
+	        .order("created_at", { ascending: false })
+	        .limit(10);
 
-      if (!q1.error) {
-        setRecentMatches((q1.data ?? []) as MatchRow[]);
-      } else if (q1.error && isMissingColumnError(q1.error.message, "match_type")) {
-        if (viewType === "FRIENDLY") {
-          setRecentMatches([]);
-        } else {
-          const q2 = await supabase
-            .from("matches")
-            .select(baseSelect)
-            .eq("ladder_id", fallback)
-            .eq("status", "FINAL")
-            .order("created_at", { ascending: false })
-            .limit(10);
+	      if (!q1.error) {
+	        setRecentMatches((q1.data ?? []) as MatchRow[]);
+	      } else if (q1.error && isMissingColumnError(q1.error.message, "match_type")) {
+	        const q2 = await supabase
+	          .from("matches")
+	          .select(baseSelect)
+	          .eq("ladder_id", fallback)
+	          .eq("status", "FINAL")
+	          .order("created_at", { ascending: false })
+	          .limit(10);
 
-          if (q2.error) {
-            setError(`matches: ${q2.error.message}`);
-            setRecentMatches([]);
-            setLoading(false);
-            return;
-          }
+	        if (q2.error) {
+	          setError(`matches: ${q2.error.message}`);
+	          setRecentMatches([]);
+	          setLoading(false);
+	          return;
+	        }
 
-          const patched = (q2.data ?? []).map((m: any) => ({ ...m, match_type: "RANKED" as MatchType }));
-          setRecentMatches(patched as MatchRow[]);
-        }
-      } else {
-        setError(`matches: ${q1.error.message}`);
-        setRecentMatches([]);
-        setLoading(false);
+	        const patched = (q2.data ?? []).map((m: any) => ({ ...m, match_type: "RANKED" as MatchType }));
+	        setRecentMatches(patched as MatchRow[]);
+	      } else {
+	        setError(`matches: ${q1.error.message}`);
+	        setRecentMatches([]);
+	        setLoading(false);
         return;
       }
       }
@@ -778,42 +757,39 @@ export default function ClubLadderPage() {
     try {
       const raw = window.localStorage.getItem("clubLadderFilters");
       if (raw) {
-        filtersFromStorageRef.current = true;
-        const parsed = JSON.parse(raw) as {
-          scope?: Scope;
-          viewType?: MatchType;
-          gender?: GenderFilter;
-          format?: LadderFormat;
-        };
+	        filtersFromStorageRef.current = true;
+	        const parsed = JSON.parse(raw) as {
+	          scope?: Scope;
+	          gender?: GenderFilter;
+	          format?: LadderFormat;
+	        };
 
-        if (parsed.scope) setScope(parsed.scope);
-        if (parsed.viewType) setViewType(parsed.viewType);
-        if (parsed.gender) setGenderFilter(parsed.gender);
-        if (parsed.format) setFormatFilter(parsed.format);
-      }
-    } catch {}
-    setFiltersReady(true);
-  }, []);
+	        if (parsed.scope) setScope(parsed.scope);
+	        if (parsed.gender) setGenderFilter(parsed.gender);
+	        if (parsed.format) setFormatFilter(parsed.format);
+	      }
+	    } catch {}
+	    setFiltersReady(true);
+	  }, []);
 
-  useEffect(() => {
-    if (!filtersReady) return;
-    loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtersReady, scope, viewType, genderFilter, superClubId]);
+	  useEffect(() => {
+	    if (!filtersReady) return;
+	    loadAll();
+	    // eslint-disable-next-line react-hooks/exhaustive-deps
+	  }, [filtersReady, scope, genderFilter, superClubId]);
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        "clubLadderFilters",
-        JSON.stringify({
-          scope,
-          viewType,
-          gender: genderFilter,
-          format: formatFilter,
-        })
-      );
-    } catch {}
-  }, [scope, viewType, genderFilter, formatFilter]);
+	  useEffect(() => {
+	    try {
+	      window.localStorage.setItem(
+	        "clubLadderFilters",
+	        JSON.stringify({
+	          scope,
+	          gender: genderFilter,
+	          format: formatFilter,
+	        })
+	      );
+	    } catch {}
+	  }, [scope, genderFilter, formatFilter]);
 
   // Clamp gender filter to the signed-in player's gender (non-admins).
   useEffect(() => {
@@ -847,7 +823,7 @@ export default function ClubLadderPage() {
     const container = listScrollRef.current;
     const targetTop = row.offsetTop - container.clientHeight / 2 + row.clientHeight / 2;
     container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
-  }, [rows, myPlayerId, scope, viewType, genderFilter]);
+	  }, [rows, myPlayerId, scope, genderFilter]);
 
   async function createChallenge(challenged_player_id: string) {
     setNotice(null);
@@ -863,13 +839,13 @@ export default function ClubLadderPage() {
       res = await fetch("/api/challenges/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ladder_id: activeLadderId,
-          challenged_player_id,
-          match_type: viewType,
-          gender_filter: genderFilter,
-        }),
-      });
+	        body: JSON.stringify({
+	          ladder_id: activeLadderId,
+	          challenged_player_id,
+	          match_type: "RANKED",
+	          gender_filter: genderFilter,
+	        }),
+	      });
     } catch (e: any) {
       setError(`Network error calling API: ${e?.message ?? String(e)}`);
       return;
@@ -892,8 +868,8 @@ export default function ClubLadderPage() {
       return;
     }
 
-    setNotice(json?.ok ? `Challenge created (${viewType}) - expires in 3 days.` : `Challenge created (${viewType}).`);
-  }
+	    setNotice(json?.ok ? "Challenge created (Ranked) - expires in 3 days." : "Challenge created (Ranked).");
+	  }
 
   // --- Stats helpers (display-only) ---
   const statsCols = "3ch 1ch  2ch 2ch 2ch 2ch  1ch  3.2ch 3.2ch 3.2ch";
@@ -922,7 +898,7 @@ export default function ClubLadderPage() {
     if (error) return <p style={{ color: theme.danger, whiteSpace: "pre-wrap" }}>Error: {error}</p>;
     if (!rows.length) return <p style={{ color: theme.muted }}>No ladder entries found.</p>;
 
-    const showDash = viewType === "FRIENDLY";
+	    const showDash = false;
 
     return (
       <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 8 }}>
@@ -983,24 +959,19 @@ export default function ClubLadderPage() {
 
         <div style={{ display: "grid", gap: 6, padding: "8px 8px 6px" }}>
           {rows.map((r) => {
-            const eligible = isEligible(r.player_id, posById);
-            const isMe = myPlayerId === r.player_id;
-            const targetGender = genderByPlayerId[r.player_id] ?? "";
-            const canChallengeGender = !!myGender && !!targetGender && myGender === targetGender;
-            const showPlay = !isMe && canChallengeGender && (viewType === "FRIENDLY" || eligible);
-            const pos = posById.get(r.player_id) ?? null;
+	            const eligible = isEligible(r.player_id, posById);
+	            const isMe = myPlayerId === r.player_id;
+	            const targetGender = genderByPlayerId[r.player_id] ?? "";
+	            const canChallengeGender = !!myGender && !!targetGender && myGender === targetGender;
+	            const showPlay = !isMe && canChallengeGender && eligible;
+	            const pos = posById.get(r.player_id) ?? null;
 
-            const buttonTitle =
-              viewType === "RANKED"
-                ? eligible
-                  ? "Create a ranked challenge (+/-2 positions)"
-                  : "Ranked challenges must be within +/-2 positions"
-                : eligible
-                ? "Create a friendly match (no ladder impact)"
-                : "Cannot challenge yourself";
-            const finalTitle = !canChallengeGender
-              ? "You can only challenge players of the same gender."
-              : buttonTitle;
+	            const buttonTitle = eligible
+	              ? "Create a ranked challenge (+/-2 positions)"
+	              : "Ranked challenges must be within +/-2 positions";
+	            const finalTitle = !canChallengeGender
+	              ? "You can only challenge players of the same gender."
+	              : buttonTitle;
 
             return (
               <div
@@ -1122,28 +1093,22 @@ export default function ClubLadderPage() {
         </div>
         </div>
 
-        {/* Friendly note */}
-        {viewType === "FRIENDLY" && (
-          <div style={{ padding: "10px 10px 2px", color: theme.muted, fontSize: 12, fontWeight: 800 }}>
-            Friendly matches do not affect ladder stats or movement (stats shown as -).
-          </div>
-        )}
-      </div>
-    );
-  }, [loading, error, rows, posById, myPosition, myPlayerId, viewType, genderFilter, myGender, genderByPlayerId]);
+	      </div>
+	    );
+	  }, [loading, error, rows, posById, myPosition, myPlayerId, genderFilter, myGender, genderByPlayerId]);
 
   const pendingSection = useMemo(() => {
     if (loading) return null;
 
     return (
       <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-          <div style={{ fontWeight: 900 }}>Your Pending Matches</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {matchTypeBadge(viewType)}
-            <div style={{ color: theme.muted, fontSize: 12 }}>OPEN / RESULT_SUBMITTED</div>
-          </div>
-        </div>
+	        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+	          <div style={{ fontWeight: 900 }}>Your Pending Matches</div>
+	          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+	            {matchTypeBadge()}
+	            <div style={{ color: theme.muted, fontSize: 12 }}>OPEN / RESULT_SUBMITTED</div>
+	          </div>
+	        </div>
 
         {!pendingMatches.length ? (
           <div style={{ marginTop: 6, color: theme.muted, fontSize: 13 }}>No pending matches.</div>
@@ -1157,9 +1122,7 @@ export default function ClubLadderPage() {
               const bScore = m.challenged_score ?? 0;
 
               const label = m.status === "OPEN" ? "Open (enter score)" : "Result submitted (confirm if you didn't submit)";
-              const mt = normalizeMatchType(m.match_type);
-
-              return (
+	              return (
                 <a
                   key={m.id}
                   href={`/match/${m.id}`}
@@ -1173,12 +1136,12 @@ export default function ClubLadderPage() {
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                    <div style={{ color: theme.muted, fontSize: 12 }}>{safeDateLabel(m.created_at)}</div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      {matchTypeBadge(mt)}
-                      <div style={{ color: theme.muted, fontSize: 12 }}>{label}</div>
-                    </div>
-                  </div>
+	                    <div style={{ color: theme.muted, fontSize: 12 }}>{safeDateLabel(m.created_at)}</div>
+	                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+	                      {matchTypeBadge()}
+	                      <div style={{ color: theme.muted, fontSize: 12 }}>{label}</div>
+	                    </div>
+	                  </div>
 
                   <div
                     style={{
@@ -1218,20 +1181,20 @@ export default function ClubLadderPage() {
         )}
       </div>
     );
-  }, [loading, pendingMatches, nameByPlayerId, viewType]);
+	  }, [loading, pendingMatches, nameByPlayerId]);
 
   const recentResults = useMemo(() => {
     if (loading) return null;
 
     return (
       <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-          <div style={{ fontWeight: 900 }}>Recent Results</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {matchTypeBadge(viewType)}
-            <div style={{ color: theme.muted, fontSize: 12 }}>Last 10 FINAL</div>
-          </div>
-        </div>
+	        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+	          <div style={{ fontWeight: 900 }}>Recent Results</div>
+	          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+	            {matchTypeBadge()}
+	            <div style={{ color: theme.muted, fontSize: 12 }}>Last 10 FINAL</div>
+	          </div>
+	        </div>
 
         {!recentMatches.length ? (
           <div style={{ marginTop: 6, color: theme.muted, fontSize: 13 }}>No finalised matches yet.</div>
@@ -1247,17 +1210,15 @@ export default function ClubLadderPage() {
               const aWon = aScore > bScore;
               const bWon = bScore > aScore;
 
-              const mt = normalizeMatchType(m.match_type);
-
-              return (
+	              return (
                 <div key={m.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 10 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                    <div style={{ color: theme.muted, fontSize: 12 }}>{safeDateLabel(m.created_at)}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      {matchTypeBadge(mt)}
-                      <div style={{ color: theme.muted, fontSize: 12 }}>Match: {m.id.slice(0, 8)}...</div>
-                    </div>
-                  </div>
+	                    <div style={{ color: theme.muted, fontSize: 12 }}>{safeDateLabel(m.created_at)}</div>
+	                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+	                      {matchTypeBadge()}
+	                      <div style={{ color: theme.muted, fontSize: 12 }}>Match: {m.id.slice(0, 8)}...</div>
+	                    </div>
+	                  </div>
 
                   <div
                     style={{
@@ -1305,7 +1266,7 @@ export default function ClubLadderPage() {
         )}
       </div>
     );
-  }, [loading, recentMatches, nameByPlayerId, viewType]);
+	  }, [loading, recentMatches, nameByPlayerId]);
 
   return (
     <div style={{ background: theme.background, minHeight: "100vh", color: theme.text }}>
@@ -1314,7 +1275,7 @@ export default function ClubLadderPage() {
           <div>
             <div style={{ fontWeight: 900, fontSize: 18 }}>HandiBowls SA</div>
             <div style={{ color: theme.muted, fontSize: 13, marginTop: 4 }}>
-              {`Leaderboards | Scope: ${scope} | Gender: ${genderFilter} | Format: ${formatFilter} | Your position: ${myPosition ?? "-"} | Ranked rule: +/-2 | Friendly: any`}
+              {`Leaderboards | Scope: ${scope} | Gender: ${genderFilter} | Format: ${formatFilter} | Your position: ${myPosition ?? "-"} | Ranked rule: +/-2`}
             </div>
           </div>
 
@@ -1431,11 +1392,11 @@ export default function ClubLadderPage() {
 	            </div>
 	          </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, marginBottom: 6 }}>Format</div>
-              <select
-                value={formatFilter}
+	          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
+	            <div>
+	              <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, marginBottom: 6 }}>Format</div>
+	              <select
+	                value={formatFilter}
                 onChange={(e) => setFormatFilter(e.target.value as LadderFormat)}
                 style={{
                   width: "100%",
@@ -1451,30 +1412,11 @@ export default function ClubLadderPage() {
                 <option value="DOUBLES">Doubles</option>
                 <option value="TRIPLES">Triples</option>
                 <option value="FOUR_BALL">4 Balls</option>
-              </select>
-              <div style={{ marginTop: 4, fontSize: 11, color: theme.muted }}>Format filter will apply once ladder data includes formats.</div>
-            </div>
-
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, marginBottom: 6 }}>Match Type</div>
-              <select
-                value={viewType}
-                onChange={(e) => setViewType(e.target.value as MatchType)}
-                style={{
-                  width: "100%",
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                }}
-              >
-                <option value="RANKED">Ranked</option>
-                <option value="FRIENDLY">Friendly</option>
-              </select>
-            </div>
-          </div>
-        </div>
+	              </select>
+	              <div style={{ marginTop: 4, fontSize: 11, color: theme.muted }}>Format filter will apply once ladder data includes formats.</div>
+	            </div>
+	          </div>
+	        </div>
 
         {notice && (
           <div

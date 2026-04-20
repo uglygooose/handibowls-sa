@@ -1441,7 +1441,7 @@ export default function HomePage() {
 
           <div style={{ marginTop: 8, fontSize: 13, color: theme.muted, lineHeight: 1.4 }}>
             Use the leaderboard to see current rankings, challenge players within the allowed range for ranked matches,
-            or play friendly games that don't affect ladder position. Track all your challenges and matches in one place.
+            or invite members to a game and book a lane. Track your ranked challenges and matches in one place.
           </div>
         </div>
       </div>
