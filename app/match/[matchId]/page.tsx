@@ -25,7 +25,11 @@ type MatchRow = {
 };
 
 type PlayerRow = { id: string; user_id: string };
-type ProfileRow = { id: string; full_name: string | null; is_admin?: boolean | null };const UUID_RE =
+type ProfileRow = { id: string; full_name: string | null; is_admin?: boolean | null };
+type ProfileAdminRow = { is_admin?: boolean | null; role?: string | null };
+type ApiResponseJson = { error?: string; reason?: string; ladder_moved?: boolean } | null;
+
+const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isUuid(v: unknown): v is string {
@@ -128,8 +132,8 @@ export default function MatchPage() {
       .single();
 
     if (!profErr && prof) {
-      const role = String((prof as any).role ?? "").toUpperCase();
-      setIsAdmin(Boolean((prof as any).is_admin) || role === "SUPER_ADMIN");
+      const role = String((prof as ProfileAdminRow).role ?? "").toUpperCase();
+      setIsAdmin(Boolean((prof as ProfileAdminRow).is_admin) || role === "SUPER_ADMIN");
     } else {
       setIsAdmin(false);
     }
@@ -142,7 +146,7 @@ export default function MatchPage() {
       .single();
 
     if (meErr || !mePlayer) {
-      const role = String((prof as any)?.role ?? "").toUpperCase();
+      const role = String((prof as ProfileAdminRow | null)?.role ?? "").toUpperCase();
       if (role !== "SUPER_ADMIN") {
         setError("Signed-in user not linked to a player record.");
         setLoading(false);
@@ -334,10 +338,10 @@ export default function MatchPage() {
       });
 
       const text = await res.text();
-      let json: any = null;
+      let json: ApiResponseJson = null;
       if (text?.trim()) {
         try {
-          json = JSON.parse(text);
+          json = JSON.parse(text) as ApiResponseJson;
         } catch {}
       }
 
@@ -374,10 +378,10 @@ export default function MatchPage() {
       });
 
       const text = await res.text();
-      let json: any = null;
+      let json: ApiResponseJson = null;
       if (text?.trim()) {
         try {
-          json = JSON.parse(text);
+          json = JSON.parse(text) as ApiResponseJson;
         } catch {}
       }
 
@@ -435,10 +439,10 @@ export default function MatchPage() {
       });
 
       const text = await res.text();
-      let json: any = null;
+      let json: ApiResponseJson = null;
       if (text?.trim()) {
         try {
-          json = JSON.parse(text);
+          json = JSON.parse(text) as ApiResponseJson;
         } catch {}
       }
 
