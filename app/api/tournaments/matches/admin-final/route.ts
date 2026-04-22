@@ -3,6 +3,22 @@ import { NextResponse } from "next/server";
 import { createAuthedServerClient } from "@/lib/supabase/server";
 import { completeTournamentIfDone } from "@/lib/tournaments/completeTournamentIfDone";
 
+type ProfileAdminRow = { role?: string | null; is_admin?: boolean | null; club_id?: string | null };
+type TournamentScopeRow = { id?: string | null; scope?: string | null; club_id?: string | null };
+type AdminFinalBody = { match_id?: unknown; score_a?: unknown; score_b?: unknown };
+type MatchPatch = {
+  score_a: number;
+  score_b: number;
+  status: "COMPLETED";
+  confirmed_by_a: true;
+  confirmed_by_b: true;
+  finalized_by_admin: true;
+  finalized_at: string;
+  admin_final_by: string;
+  admin_final_at: string;
+  winner_team_id: string;
+};
+
 export async function GET() {
   return NextResponse.json({
     ok: true,
@@ -32,24 +48,26 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    const role = String((prof as any)?.role ?? "").toUpperCase();
+    const profRow = (prof ?? null) as ProfileAdminRow | null;
+    const role = String(profRow?.role ?? "").toUpperCase();
     const isSuperAdmin = role === "SUPER_ADMIN";
-    const isAdminFlag = Boolean((prof as any)?.is_admin);
-    const adminClubId = (prof as any)?.club_id ? String((prof as any).club_id) : "";
+    const isAdminFlag = Boolean(profRow?.is_admin);
+    const adminClubId = profRow?.club_id ? String(profRow.club_id) : "";
 
     if (!isSuperAdmin && !isAdminFlag) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
     // 3) Body
-    let body: any = null;
+    let body: AdminFinalBody | null = null;
     try {
-      body = await req.json();
+      body = (await req.json()) as AdminFinalBody;
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const match_id: string | undefined = body?.match_id;
+    const match_id: string | undefined =
+      typeof body?.match_id === "string" ? body.match_id : undefined;
     const score_a_raw = body?.score_a;
     const score_b_raw = body?.score_b;
 
@@ -86,11 +104,12 @@ export async function POST(req: Request) {
     }
     if (!isSuperAdmin) {
       const tRes = await supabase.from("tournaments").select("id, scope, club_id").eq("id", match.tournament_id).single();
-      if (tRes.error || !tRes.data?.id) {
+      const tRow = (tRes.data ?? null) as TournamentScopeRow | null;
+      if (tRes.error || !tRow?.id) {
         return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
       }
-      const tClub = String((tRes.data as any)?.club_id ?? "");
-      const tScope = String((tRes.data as any)?.scope ?? "");
+      const tClub = String(tRow.club_id ?? "");
+      const tScope = String(tRow.scope ?? "");
       if (!adminClubId || tScope !== "CLUB" || tClub !== adminClubId) {
         return NextResponse.json({ error: "Club admin access denied" }, { status: 403 });
       }
@@ -105,7 +124,7 @@ export async function POST(req: Request) {
     // 5) Admin-final patch
     const nowIso = new Date().toISOString();
 
-    const patch: any = {
+    const patch: MatchPatch = {
       score_a: scoreA,
       score_b: scoreB,
 
@@ -185,7 +204,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, match: updated });
-  } catch (err: any) {
-    return NextResponse.json({ error: `Server error: ${err?.message ?? String(err)}` }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Server error: ${message}` }, { status: 500 });
   }
 }
