@@ -92,17 +92,19 @@ Reconstructed from merge artifacts — details to be fleshed out by whoever has 
 
 ### Deferral 4.4 — (from Phase 4)
 
-- **What:** `<describe the API-route carve-out that was deferred>`
-- **Why deferred:** `<describe the reason — likely scope/risk>`
-- **Entry points:** `<files / routes to start from>`
-- **Acceptance:** `<what "done" looks like>`
+Phase 4.4 — Deduplicate MatchRow / TournamentRow / TeamRow types against generated Database types (deferred).
+
+Scope: Each page file (admin detail, public detail, admin index, public index, home) defines its own local TournamentRow, MatchRow, TeamRow. These are near-duplicates of Database["public"]["Tables"]["..."]["Row"]. Replace local definitions with imports from lib/tournaments/types.ts which re-exports the generated types.
+
+Why deferred: The local types use narrow unions (status: "ANNOUNCED" | "IN_PLAY" | "COMPLETED") where the generated types have status: string. Every if (status === "ANNOUNCED") call site relies on this narrowing. Migrating requires adding the narrow unions as separate types in lib/tournaments/labels.ts (already partially present there) and using them alongside the row types at every call site. Estimated ~5 page files × ~10 call sites each = 50 sites. Mechanical but cross-cutting; deferred from Phase 4 to avoid regressing typecheck across the whole app mid-phase.
 
 ### Deferral 5.5 — (from Phase 5)
 
-- **What:** `<describe the tournament-batch carve-out that was deferred>`
-- **Why deferred:** `<describe the reason>`
-- **Entry points:** `<files / routes to start from>`
-- **Acceptance:** `<what "done" looks like>`
+Phase 5.5 — Extract BracketTree component (deferred from Phase 5).
+
+Scope: Lift the ~320-line knockout bracket render (currently duplicated between app/admin/tournaments/[id]/views/RoundsView.tsx and app/tournaments/[id]/views/BracketView.tsx) into a shared component at components/BracketTree.tsx. Migrate both call sites. Verify visual parity on mobile and desktop.
+
+Why deferred: The render depends on ~15 locally-derived values (roundLayouts, cardW, cardH, colGap, headerOffset, width, height, lines, treeRoundRefs, roundPositions, slotLabel, winnerTeamIdFromMatch, roundLabel, etc.). Clean extraction requires either a large explicit-prop surface or a pre-computed BracketModel value object. The bracket geometry helpers (computeTreeLayout, computeBracketLines, treeSlotLabel) were already hoisted to lib/tournaments/matchHelpers.ts in Phase 9.3, which is the precondition for this work. Deferred to give full attention in a dedicated phase.
 
 ### Other carry-forwards
 
