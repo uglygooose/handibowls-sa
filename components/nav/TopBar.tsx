@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 import { HandiBowlsWordmark } from "@/components/brand/HandiBowlsWordmark";
+import { SignOutButton } from "@/components/auth/SignOutButton";
 
 type Props = {
   title?: ReactNode;
@@ -40,7 +41,10 @@ export function TopBar({
           <HandiBowlsWordmark variant={isDark ? "dark" : "light"} height={24} />
         )}
       </div>
-      {right && <div className="ml-auto flex items-center gap-2">{right}</div>}
+      <div className="ml-auto flex items-center gap-2">
+        {right}
+        <SignOutButton variant={variant} />
+      </div>
     </header>
   );
 }
