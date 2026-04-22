@@ -3,6 +3,7 @@
 import { theme } from "@/lib/theme";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { adminGate } from "@/lib/auth/adminGate";
 import {
   cleanTournamentName,
   formatLabel,
@@ -92,44 +93,23 @@ export default function AdminTournamentsPage() {
     setBusyByTournamentId((m) => ({ ...m, [tournamentId]: v }));
   }
 
-  async function adminGate() {
+  async function runAdminGate() {
     setAccessDenied(false);
-
-    const userRes = await supabase.auth.getUser();
-    const user = userRes.data.user;
-
-    if (!user) {
-      window.location.href = "/login";
-      return { ok: false as const };
-    }
-
-    const profRes = await supabase
-      .from("profiles")
-      .select("role, is_admin, club_id")
-      .eq("id", user.id)
-      .single();
-
-    if (profRes.error) {
-      setError(`Could not verify admin access.\n${profRes.error.message}`);
+    const gate = await adminGate(supabase);
+    if (!gate.ok) {
+      if (gate.reason === "NOT_AUTHENTICATED") {
+        window.location.href = "/login";
+        return { ok: false as const };
+      }
+      if (gate.reason === "PROFILE_ERROR") {
+        setError(`Could not verify admin access.\n${gate.message ?? ""}`);
+      }
       setIsAdmin(false);
       setAccessDenied(true);
       return { ok: false as const };
     }
-
-    const role = String((profRes.data as any)?.role ?? "").toUpperCase();
-    const isSuper = role === "SUPER_ADMIN";
-    const isAdminFlag = Boolean((profRes.data as any)?.is_admin);
-    const clubId = (profRes.data as any)?.club_id ?? null;
-
-    setIsSuperAdmin(isSuper);
-    setAdminClubId(isSuper ? null : (clubId ? String(clubId) : null));
-
-    if (!isSuper && !isAdminFlag) {
-      setIsAdmin(false);
-      setAccessDenied(true);
-      return { ok: false as const };
-    }
-
+    setIsSuperAdmin(gate.isSuperAdmin);
+    setAdminClubId(gate.adminClubId);
     setIsAdmin(true);
     return { ok: true as const };
   }
@@ -138,7 +118,7 @@ export default function AdminTournamentsPage() {
     setLoading(true);
     setError(null);
 
-    const gate = await adminGate();
+    const gate = await runAdminGate();
     if (!gate.ok) {
       setRows([]);
       setEntryCountByTournamentId({});
