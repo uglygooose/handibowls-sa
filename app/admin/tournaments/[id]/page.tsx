@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { theme } from "@/lib/theme";
 import { adminGate } from "@/lib/auth/adminGate";
 import PrimaryButton from "../../../components/PrimaryButton";
+import ScoreInput from "../../../components/ScoreInput";
 import SectionCard from "../../../components/SectionCard";
 import StatusPill from "../../../components/StatusPill";
 import { deriveTournamentCompletion } from "@/lib/tournaments/deriveTournamentCompletion";
@@ -2010,27 +2011,15 @@ export default function AdminTournamentDetailPage() {
                     </div>
                   ) : null}
 
-                  <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 46px 1fr", gap: 8, alignItems: "center" }}>
-                    <input
-                      inputMode="numeric"
-                      value={(d.a ?? "").toString()}
+                  <div style={{ marginTop: 10 }}>
+                    <ScoreInput
+                      valueA={(d.a ?? "").toString()}
+                      valueB={(d.b ?? "").toString()}
+                      onChangeA={(next) => setBulkDraftByMatchId((p) => ({ ...p, [m.id]: { a: next, b: p[m.id]?.b ?? "" } }))}
+                      onChangeB={(next) => setBulkDraftByMatchId((p) => ({ ...p, [m.id]: { a: p[m.id]?.a ?? "", b: next } }))}
+                      disabled={busy}
                       onFocus={pinScrollForInput}
                       onBlur={restorePinnedScrollForInput}
-                      onChange={(e) => setBulkDraftByMatchId((p) => ({ ...p, [m.id]: { a: e.target.value, b: p[m.id]?.b ?? "" } }))}
-                      placeholder="A"
-                      disabled={busy}
-                      style={{ width: "100%", border: `1px solid ${theme.border}`, borderRadius: 12, padding: "10px 10px", fontWeight: 900 }}
-                    />
-                    <div style={{ textAlign: "center", fontWeight: 900, color: theme.muted }}>-</div>
-                    <input
-                      inputMode="numeric"
-                      value={(d.b ?? "").toString()}
-                      onFocus={pinScrollForInput}
-                      onBlur={restorePinnedScrollForInput}
-                      onChange={(e) => setBulkDraftByMatchId((p) => ({ ...p, [m.id]: { a: p[m.id]?.a ?? "", b: e.target.value } }))}
-                      placeholder="B"
-                      disabled={busy}
-                      style={{ width: "100%", border: `1px solid ${theme.border}`, borderRadius: 12, padding: "10px 10px", fontWeight: 900 }}
                     />
                   </div>
                 </div>
@@ -2237,51 +2226,25 @@ export default function AdminTournamentDetailPage() {
 
           {!locked && !isMatchBye(m) ? (
             <div style={{ marginTop: 10 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 46px 1fr", gap: 8, alignItems: "center" }}>
-                <input
-                  inputMode="numeric"
-                  value={(scoreDraftByMatchId[m.id]?.a ?? (m.score_a == null ? "" : String(m.score_a))).toString()}
-                  onFocus={pinScrollForInput}
-                  onBlur={restorePinnedScrollForInput}
-                  onChange={(e) =>
-                    setScoreDraftByMatchId((p) => ({
-                      ...p,
-                      [m.id]: { a: e.target.value, b: p[m.id]?.b ?? (m.score_b == null ? "" : String(m.score_b)) },
-                    }))
-                  }
-                  placeholder="A"
-                  disabled={busy}
-                  style={{
-                    width: "100%",
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
-                    padding: "10px 10px",
-                    fontWeight: 900,
-                  }}
-                />
-                <div style={{ textAlign: "center", fontWeight: 900, color: theme.muted }}>-</div>
-                <input
-                  inputMode="numeric"
-                  value={(scoreDraftByMatchId[m.id]?.b ?? (m.score_b == null ? "" : String(m.score_b))).toString()}
-                  onFocus={pinScrollForInput}
-                  onBlur={restorePinnedScrollForInput}
-                  onChange={(e) =>
-                    setScoreDraftByMatchId((p) => ({
-                      ...p,
-                      [m.id]: { a: p[m.id]?.a ?? (m.score_a == null ? "" : String(m.score_a)), b: e.target.value },
-                    }))
-                  }
-                  placeholder="B"
-                  disabled={busy}
-                  style={{
-                    width: "100%",
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
-                    padding: "10px 10px",
-                    fontWeight: 900,
-                  }}
-                />
-              </div>
+              <ScoreInput
+                valueA={(scoreDraftByMatchId[m.id]?.a ?? (m.score_a == null ? "" : String(m.score_a))).toString()}
+                valueB={(scoreDraftByMatchId[m.id]?.b ?? (m.score_b == null ? "" : String(m.score_b))).toString()}
+                onChangeA={(next) =>
+                  setScoreDraftByMatchId((p) => ({
+                    ...p,
+                    [m.id]: { a: next, b: p[m.id]?.b ?? (m.score_b == null ? "" : String(m.score_b)) },
+                  }))
+                }
+                onChangeB={(next) =>
+                  setScoreDraftByMatchId((p) => ({
+                    ...p,
+                    [m.id]: { a: p[m.id]?.a ?? (m.score_a == null ? "" : String(m.score_a)), b: next },
+                  }))
+                }
+                disabled={busy}
+                onFocus={pinScrollForInput}
+                onBlur={restorePinnedScrollForInput}
+              />
 
               <button
                 type="button"
@@ -2347,49 +2310,26 @@ export default function AdminTournamentDetailPage() {
                     {bool(m.finalized_by_admin) ? <span style={{ marginLeft: 8, color: theme.danger }}>Admin final</span> : null}
                   </div>
 
-                  <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 40px 1fr", gap: 8, alignItems: "center" }}>
-                    <input
-                      inputMode="numeric"
-                      value={(scoreDraftByMatchId[m.id]?.a ?? "").toString()}
-                      onFocus={pinScrollForInput}
-                      onBlur={restorePinnedScrollForInput}
-                      onChange={(e) =>
+                  <div style={{ marginTop: 8 }}>
+                    <ScoreInput
+                      valueA={(scoreDraftByMatchId[m.id]?.a ?? "").toString()}
+                      valueB={(scoreDraftByMatchId[m.id]?.b ?? "").toString()}
+                      onChangeA={(next) =>
                         setScoreDraftByMatchId((p) => ({
                           ...p,
-                          [m.id]: { a: e.target.value, b: p[m.id]?.b ?? "" },
+                          [m.id]: { a: next, b: p[m.id]?.b ?? "" },
                         }))
                       }
-                      placeholder="A"
-                      disabled={busy}
-                      style={{
-                        width: "100%",
-                        border: `1px solid ${theme.border}`,
-                        borderRadius: 12,
-                        padding: "10px 10px",
-                        fontWeight: 900,
-                      }}
-                    />
-                    <div style={{ textAlign: "center", fontWeight: 900, color: theme.muted }}>-</div>
-                    <input
-                      inputMode="numeric"
-                      value={(scoreDraftByMatchId[m.id]?.b ?? "").toString()}
-                      onFocus={pinScrollForInput}
-                      onBlur={restorePinnedScrollForInput}
-                      onChange={(e) =>
+                      onChangeB={(next) =>
                         setScoreDraftByMatchId((p) => ({
                           ...p,
-                          [m.id]: { a: p[m.id]?.a ?? "", b: e.target.value },
+                          [m.id]: { a: p[m.id]?.a ?? "", b: next },
                         }))
                       }
-                      placeholder="B"
                       disabled={busy}
-                      style={{
-                        width: "100%",
-                        border: `1px solid ${theme.border}`,
-                        borderRadius: 12,
-                        padding: "10px 10px",
-                        fontWeight: 900,
-                      }}
+                      onFocus={pinScrollForInput}
+                      onBlur={restorePinnedScrollForInput}
+                      separatorWidth={40}
                     />
                   </div>
 
@@ -3038,59 +2978,27 @@ export default function AdminTournamentDetailPage() {
                 Edit the final score. This will re-finalise the match and update any linked next-round slots.
               </div>
 
-              <div
-                style={{
-                  marginTop: 8,
-                  display: "grid",
-                  gridTemplateColumns: "minmax(0,1fr) 24px minmax(0,1fr)",
-                  gap: 8,
-                  alignItems: "center",
-                }}
-              >
-                <input
-                  inputMode="numeric"
-                  value={(scoreDraftByMatchId[m.id]?.a ?? "").toString()}
-                  onFocus={pinScrollForInput}
-                  onBlur={restorePinnedScrollForInput}
-                  onChange={(e) =>
+              <div style={{ marginTop: 8 }}>
+                <ScoreInput
+                  valueA={(scoreDraftByMatchId[m.id]?.a ?? "").toString()}
+                  valueB={(scoreDraftByMatchId[m.id]?.b ?? "").toString()}
+                  onChangeA={(next) =>
                     setScoreDraftByMatchId((p) => ({
                       ...p,
-                      [m.id]: { a: e.target.value, b: p[m.id]?.b ?? "" },
+                      [m.id]: { a: next, b: p[m.id]?.b ?? "" },
                     }))
                   }
-                  placeholder="A"
-                  disabled={busy}
-                  style={{
-                    width: "100%",
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
-                    padding: "10px 10px",
-                    fontWeight: 900,
-                    minWidth: 0,
-                  }}
-                />
-                <div style={{ textAlign: "center", fontWeight: 900, color: theme.muted }}>-</div>
-                <input
-                  inputMode="numeric"
-                  value={(scoreDraftByMatchId[m.id]?.b ?? "").toString()}
-                  onFocus={pinScrollForInput}
-                  onBlur={restorePinnedScrollForInput}
-                  onChange={(e) =>
+                  onChangeB={(next) =>
                     setScoreDraftByMatchId((p) => ({
                       ...p,
-                      [m.id]: { a: p[m.id]?.a ?? "", b: e.target.value },
+                      [m.id]: { a: p[m.id]?.a ?? "", b: next },
                     }))
                   }
-                  placeholder="B"
                   disabled={busy}
-                  style={{
-                    width: "100%",
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
-                    padding: "10px 10px",
-                    fontWeight: 900,
-                    minWidth: 0,
-                  }}
+                  onFocus={pinScrollForInput}
+                  onBlur={restorePinnedScrollForInput}
+                  separatorWidth={24}
+                  flexibleColumns
                 />
               </div>
 
