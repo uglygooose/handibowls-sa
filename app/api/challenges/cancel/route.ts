@@ -7,6 +7,18 @@ function isMissingColumnError(errMsg: string | undefined, columnName: string) {
   return m.includes(`column "${columnName.toLowerCase()}"`) && m.includes("does not exist");
 }
 
+type ChallengeRow = {
+  id: string;
+  challenger_player_id: string;
+  status: string;
+  expires_at: string;
+  match_id?: string | null;
+};
+
+type CancelRequestBody = {
+  challenge_id?: unknown;
+};
+
 export async function POST(req: Request) {
   try {
     const { supabase, user } = await createAuthedServerClient();
@@ -14,14 +26,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    let body: any = null;
+    let body: CancelRequestBody | null = null;
     try {
-      body = await req.json();
+      body = (await req.json()) as CancelRequestBody;
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const challenge_id = body?.challenge_id as string | undefined;
+    const challenge_id = typeof body?.challenge_id === "string" ? body.challenge_id : undefined;
     if (!challenge_id) {
       return NextResponse.json({ error: "Missing challenge_id" }, { status: 400 });
     }
@@ -38,7 +50,7 @@ export async function POST(req: Request) {
     }
 
     // Load challenge (defensive)
-    let challenge: any = null;
+    let challenge: ChallengeRow | null = null;
 
     {
       const q1 = await supabase
@@ -48,7 +60,7 @@ export async function POST(req: Request) {
         .single();
 
       if (!q1.error && q1.data) {
-        challenge = q1.data;
+        challenge = q1.data as ChallengeRow;
       } else if (q1.error && isMissingColumnError(q1.error.message, "match_id")) {
         const q2 = await supabase
           .from("challenges")
@@ -59,14 +71,14 @@ export async function POST(req: Request) {
         if (q2.error || !q2.data) {
           return NextResponse.json({ error: "Challenge not found" }, { status: 404 });
         }
-        challenge = q2.data;
+        challenge = q2.data as ChallengeRow;
       } else {
         return NextResponse.json({ error: q1.error?.message ?? "Challenge not found" }, { status: 404 });
       }
     }
 
     // Only challenger can cancel
-    if (challenge.challenger_player_id !== mePlayer.id) {
+    if (challenge.challenger_player_id !== String(mePlayer.id)) {
       return NextResponse.json({ error: "Only the challenger can cancel" }, { status: 403 });
     }
 
@@ -100,7 +112,8 @@ export async function POST(req: Request) {
     if (upErr) return NextResponse.json({ error: upErr.message }, { status: 400 });
 
     return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: `Server error: ${err.message}` }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Server error: ${message}` }, { status: 500 });
   }
 }
