@@ -1,7 +1,6 @@
 // app/api/tournaments/advance-round/route.ts
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createAuthedServerClient } from "@/lib/supabase/server";
 import { completeTournamentIfDone } from "@/lib/tournaments/completeTournamentIfDone";
 
 function asInt(v: any) {
@@ -42,29 +41,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            cookieStore.set({ name, value, ...options });
-          },
-          remove(name: string, options: any) {
-            cookieStore.delete({ name, ...options });
-          },
-        },
-      }
-    );
-
     // 1) Auth
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData?.user) {
+    const { supabase, user } = await createAuthedServerClient();
+    if (!user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
@@ -72,7 +51,7 @@ export async function POST(req: Request) {
     const { data: prof, error: prErr } = await supabase
       .from("profiles")
       .select("role, is_admin, club_id")
-      .eq("id", authData.user.id)
+      .eq("id", user.id)
       .single();
 
     if (prErr) {
