@@ -3,7 +3,6 @@
 // Shared tournament match helpers used by both the admin and the public
 // tournament detail pages. Pure functions; no React / no DOM.
 
-import { theme } from "@/lib/theme";
 import { bool } from "@/lib/tournaments/match";
 
 // -------------------- shared match shape --------------------
@@ -79,7 +78,7 @@ export function getMatchCardTone(m: MatchCardToneInput): { tone: MatchCardTone; 
   const isFinal = bool(m.finalized_by_admin) || st === "COMPLETED" || hasWinner;
 
   const tone: MatchCardTone = isFinal ? "complete" : st === "IN_PLAY" ? "inplay" : "pending";
-  const border = tone === "complete" ? "#16A34A" : tone === "inplay" ? "#FACC15" : theme.border;
+  const border = tone === "complete" ? "#16A34A" : tone === "inplay" ? "#FACC15" : "var(--color-border)";
   const bg = tone === "complete" ? "#F0FDF4" : tone === "inplay" ? "#FEFCE8" : "#fff";
   return { tone, border, bg };
 }
