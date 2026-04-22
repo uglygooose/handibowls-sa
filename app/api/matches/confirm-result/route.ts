@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createAuthedServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 type MatchType = "RANKED" | "FRIENDLY";
@@ -24,28 +23,8 @@ function revalidateAfterFinal() {
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            cookieStore.set({ name, value, ...options });
-          },
-          remove(name: string, options: any) {
-            cookieStore.delete({ name, ...options });
-          },
-        },
-      }
-    );
-
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData?.user) {
+    const { supabase, user } = await createAuthedServerClient();
+    if (!user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
@@ -63,7 +42,7 @@ export async function POST(req: Request) {
     const { data: mePlayer, error: meErr } = await supabase
       .from("players")
       .select("id")
-      .eq("user_id", authData.user.id)
+      .eq("user_id", user.id)
       .single();
 
     if (meErr || !mePlayer) {
