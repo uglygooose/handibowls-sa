@@ -22,8 +22,8 @@ alter table public.consents enable row level security;
 
 create policy consents_super_admin_all on public.consents
   for all to authenticated
-  using (auth.current_role() = 'super_admin')
-  with check (auth.current_role() = 'super_admin');
+  using (public.current_role() = 'super_admin')
+  with check (public.current_role() = 'super_admin');
 
 create policy consents_self_insert on public.consents
   for insert to authenticated
@@ -37,10 +37,10 @@ create policy consents_self_read on public.consents
 create policy consents_club_admin_read on public.consents
   for select to authenticated
   using (
-    auth.current_role() = 'club_admin'
+    public.current_role() = 'club_admin'
     and exists (
       select 1 from public.club_memberships cm
        where cm.profile_id = consents.profile_id
-         and cm.club_id = any(auth.current_club_ids())
+         and cm.club_id = any(public.current_club_ids())
     )
   );

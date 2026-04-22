@@ -35,18 +35,18 @@ alter table public.invites enable row level security;
 
 create policy invites_super_admin_all on public.invites
   for all to authenticated
-  using (auth.current_role() = 'super_admin')
-  with check (auth.current_role() = 'super_admin');
+  using (public.current_role() = 'super_admin')
+  with check (public.current_role() = 'super_admin');
 
 create policy invites_club_admin_rw on public.invites
   for all to authenticated
   using (
-    auth.current_role() = 'club_admin'
-    and club_id = any(auth.current_club_ids())
+    public.current_role() = 'club_admin'
+    and club_id = any(public.current_club_ids())
   )
   with check (
-    auth.current_role() = 'club_admin'
-    and club_id = any(auth.current_club_ids())
+    public.current_role() = 'club_admin'
+    and club_id = any(public.current_club_ids())
   );
 
 -- Invite recipients can fetch their own row by email to show status (rarely
