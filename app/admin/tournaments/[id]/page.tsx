@@ -6,6 +6,9 @@ import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { theme } from "@/lib/theme";
 import { adminGate } from "@/lib/auth/adminGate";
+import PrimaryButton from "../../../components/PrimaryButton";
+import SectionCard from "../../../components/SectionCard";
+import StatusPill from "../../../components/StatusPill";
 import { deriveTournamentCompletion } from "@/lib/tournaments/deriveTournamentCompletion";
 import {
   cleanTournamentName,
@@ -1214,118 +1217,6 @@ export default function AdminTournamentDetailPage() {
     );
   }
 
-  function StatusPill({ label, tone }: { label: string; tone?: "neutral" | "good" | "warn" | "danger" }) {
-    const bg = tone === "good" ? "#ECFDF5" : tone === "warn" ? "#FFF7ED" : tone === "danger" ? "#FEF2F2" : "#fff";
-    const fg = tone === "good" ? "#047857" : tone === "warn" ? "#9A3412" : tone === "danger" ? theme.danger : theme.text;
-
-    return (
-      <div
-        style={{
-          border: `1px solid ${theme.border}`,
-          borderRadius: 999,
-          padding: "5px 10px",
-          fontSize: 12,
-          fontWeight: 900,
-          background: bg,
-          color: fg,
-          whiteSpace: "nowrap",
-        }}
-      >
-        {label}
-      </div>
-    );
-  }
-
-  function PrimaryButton({
-    label,
-    onClick,
-    disabled,
-    variant,
-    title,
-  }: {
-    label: string;
-    onClick: () => void;
-    disabled?: boolean;
-    variant?: "solid" | "outline" | "danger";
-    title?: string;
-  }) {
-    const isSolid = variant === "solid";
-    const isDanger = variant === "danger";
-
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={!!disabled}
-        title={title}
-        style={{
-          width: "100%",
-          border: isSolid ? "none" : `1px solid ${theme.border}`,
-          background: disabled ? "#9CA3AF" : isDanger ? "#fff" : isSolid ? theme.maroon : "#fff",
-          color: disabled ? "#fff" : isDanger ? theme.danger : isSolid ? "#fff" : theme.text,
-          padding: "10px 12px",
-          borderRadius: 12,
-          fontWeight: 900,
-          cursor: disabled ? "not-allowed" : "pointer",
-        }}
-      >
-        {busy ? "Working..." : label}
-      </button>
-    );
-  }
-
-  function SectionCard({
-    title,
-    count,
-    open,
-    onToggle,
-    tone,
-    children,
-    subtitle,
-  }: {
-    title: string;
-    count?: number;
-    open: boolean;
-    onToggle: () => void;
-    tone?: "neutral" | "good" | "warn" | "danger";
-    subtitle?: string;
-    children: React.ReactNode;
-  }) {
-    return (
-      <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, overflow: "hidden", background: "#fff" }}>
-        <button
-          type="button"
-          onClick={onToggle}
-          style={{
-            width: "100%",
-            border: "none",
-            background: "#fff",
-            color: theme.text,
-            padding: "12px 12px",
-            fontWeight: 900,
-            cursor: "pointer",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "baseline",
-            gap: 10,
-          }}
-          title="Show/hide section"
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-            <div style={{ whiteSpace: "nowrap" }}>{title}</div>
-            {typeof count === "number" ? <div style={{ color: theme.muted, fontSize: 12, fontWeight: 900 }}>({count})</div> : null}
-            {tone ? <StatusPill label={tone === "warn" ? "In progress" : tone === "good" ? "OK" : tone === "danger" ? "Attention" : "—"} tone={tone} /> : null}
-          </div>
-          <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>{open ? "▾" : "▸"}</div>
-        </button>
-
-        {subtitle ? <div style={{ padding: "0 12px 10px", fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>{subtitle}</div> : null}
-
-        {open ? <div style={{ borderTop: `1px solid ${theme.border}`, padding: 12 }}>{children}</div> : null}
-      </div>
-    );
-  }
-
   function TournamentControlBar() {
     const t = tournament;
     const fmt = t?.format ?? "SINGLES";
@@ -1438,6 +1329,7 @@ export default function AdminTournamentDetailPage() {
 
           <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
             <PrimaryButton
+              busy={busy}
               label={!entriesOpen ? "Entries locked" : "Lock entries"}
               onClick={lockEntries}
               disabled={!canLock}
@@ -1447,6 +1339,7 @@ export default function AdminTournamentDetailPage() {
 
             {t?.format === "DOUBLES" ? (
               <PrimaryButton
+                busy={busy}
                 label="Generate teams"
                 onClick={generateDoublesTeams}
                 disabled={!canGenTeams}
@@ -1455,13 +1348,13 @@ export default function AdminTournamentDetailPage() {
               />
             ) : null}
 
-            <PrimaryButton label={bracketLabel} onClick={generateMatches} disabled={!canGenMatches} variant={hasMatches ? "outline" : "solid"} title={bracketTitle} />
+            <PrimaryButton busy={busy} label={bracketLabel} onClick={generateMatches} disabled={!canGenMatches} variant={hasMatches ? "outline" : "solid"} title={bracketTitle} />
 
             {t?.status === "ANNOUNCED" ? (
-              <PrimaryButton label="Start tournament" onClick={startTournament} disabled={!canStart} variant="solid" title="Move tournament to In-play" />
+              <PrimaryButton busy={busy} label="Start tournament" onClick={startTournament} disabled={!canStart} variant="solid" title="Move tournament to In-play" />
             ) : null}
 
-            {t?.status === "IN_PLAY" ? <PrimaryButton label="End tournament" onClick={endTournament} disabled={!canEnd} variant="outline" title="Mark tournament as Completed" /> : null}
+            {t?.status === "IN_PLAY" ? <PrimaryButton busy={busy} label="End tournament" onClick={endTournament} disabled={!canEnd} variant="outline" title="Mark tournament as Completed" /> : null}
           </div>
         </div>
       </div>
@@ -2964,50 +2857,53 @@ export default function AdminTournamentDetailPage() {
           renderTreeView()
         ) : (
           <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-            {SectionCard({
-              title: "Needs attention",
-              count: attentionList.length,
-              open: attentionOpen,
-              onToggle: () => setAttentionOpen((v) => !v),
-              tone: attentionList.length ? "warn" : "good",
-              children: attentionList.length ? (
+            <SectionCard
+              title="Needs attention"
+              count={attentionList.length}
+              open={attentionOpen}
+              onToggle={() => setAttentionOpen((v) => !v)}
+              tone={attentionList.length ? "warn" : "good"}
+            >
+              {attentionList.length ? (
                 <div style={{ display: "grid", gap: 12 }}>
                   {attentionList.map((m) => renderMatchCard(m))}
                 </div>
               ) : (
                 <div style={{ fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>Nothing needs attention right now.</div>
-              ),
-            })}
+              )}
+            </SectionCard>
 
-            {SectionCard({
-              title: "In play",
-              count: inPlayList.length,
-              open: inPlayOpen,
-              onToggle: () => setInPlayOpen((v) => !v),
-              tone: inPlayList.length ? "warn" : "neutral",
-              children: inPlayList.length ? (
+            <SectionCard
+              title="In play"
+              count={inPlayList.length}
+              open={inPlayOpen}
+              onToggle={() => setInPlayOpen((v) => !v)}
+              tone={inPlayList.length ? "warn" : "neutral"}
+            >
+              {inPlayList.length ? (
                 <div style={{ display: "grid", gap: 12 }}>
                   {inPlayList.map((m) => renderMatchCard(m))}
                 </div>
               ) : (
                 <div style={{ fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>No matches in progress.</div>
-              ),
-            })}
+              )}
+            </SectionCard>
 
-            {SectionCard({
-              title: "Completed",
-              count: completedList.length,
-              open: completedOpen,
-              onToggle: () => setCompletedOpen((v) => !v),
-              tone: completedList.length ? "good" : "neutral",
-              children: completedList.length ? (
+            <SectionCard
+              title="Completed"
+              count={completedList.length}
+              open={completedOpen}
+              onToggle={() => setCompletedOpen((v) => !v)}
+              tone={completedList.length ? "good" : "neutral"}
+            >
+              {completedList.length ? (
                 <div style={{ display: "grid", gap: 12 }}>
                   {completedList.map((m) => renderMatchCard(m))}
                 </div>
               ) : (
                 <div style={{ fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>No completed matches yet.</div>
-              ),
-            })}
+              )}
+            </SectionCard>
           </div>
         )}
 
