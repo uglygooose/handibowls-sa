@@ -4,6 +4,20 @@
 import { theme } from "@/lib/theme";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  cleanTournamentName,
+  formatLabel,
+  genderLabel,
+  ruleLabel,
+  scopeLabel,
+  type TournamentFormat,
+  type TournamentRule,
+} from "@/lib/tournaments/labels";
+import {
+  hasValue,
+  isMatchBye as isByeMatch,
+  winnerTeamIdFromMatch as inferWinnerTeamId,
+} from "@/lib/tournaments/match";
 import BottomNav from "./components/BottomNav";
 
 type ProfileRow = {
@@ -39,10 +53,8 @@ type PlayerMini = {
   shots_for: number;
 };
 
-type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
 type TournamentGender = "MALE" | "FEMALE" | null;
 type GenderFilter = "ALL" | "MALE" | "FEMALE";
-type TournamentRule = "SCRATCH" | "HANDICAP_START";
 
 type TournamentMini = {
   id: string;
@@ -79,33 +91,6 @@ type RecentWinnerItem = {
   winner_name: string | null;
 };
 
-function scopeLabel(scope: "CLUB" | "DISTRICT" | "NATIONAL") {
-  if (scope === "CLUB") return "Club";
-  if (scope === "DISTRICT") return "District";
-  return "National";
-}
-
-function formatLabel(fmt: TournamentFormat) {
-  if (fmt === "FOUR_BALL") return "4 Balls";
-  return fmt.charAt(0) + fmt.slice(1).toLowerCase();
-}
-
-function genderLabel(g: TournamentGender | undefined | null) {
-  if (g === "MALE") return "Men";
-  if (g === "FEMALE") return "Ladies";
-  return "Open";
-}
-
-function ruleLabel(rule: TournamentRule | null | undefined) {
-  if (rule === "SCRATCH") return "Scratch";
-  return "Handicap start";
-}
-
-function cleanTournamentName(name: string) {
-  const raw = (name ?? "").toString();
-  return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
-}
-
 function clubLogoFor(name: string) {
   const lower = (name ?? "").toLowerCase();
   if (lower.includes("ridgepark")) return "/ridgepark-logo.png";
@@ -132,40 +117,6 @@ function isNewsActive(n: ClubNewsRow | null, now: Date) {
   const startOk = n.starts_at ? new Date(n.starts_at) <= now : true;
   const endOk = n.ends_at ? new Date(n.ends_at) >= now : true;
   return startOk && endOk;
-}
-
-function hasValue(v: any) {
-  return v != null && String(v) !== "";
-}
-
-function bool(v: any) {
-  return v === true;
-}
-
-function isByeMatch(m: any) {
-  const st = String(m?.status ?? "");
-  if (st === "BYE") return true;
-  if (String(m?.slot_b_source_type ?? "") === "BYE") return true;
-  return !m?.team_b_id && !m?.slot_b_source_type;
-}
-
-function isMatchDone(m: any) {
-  const st = String(m?.status ?? "");
-  const hasWinner = hasValue(m?.winner_team_id);
-  return st === "COMPLETED" || bool(m?.finalized_by_admin) || hasWinner;
-}
-
-function inferWinnerTeamId(m: any) {
-  if (hasValue(m?.winner_team_id)) return String(m.winner_team_id);
-  if (!isMatchDone(m)) return null;
-
-  if (isByeMatch(m)) return hasValue(m?.team_a_id) ? String(m.team_a_id) : null;
-
-  if (!hasValue(m?.team_a_id) || !hasValue(m?.team_b_id)) return null;
-  if (m?.score_a == null || m?.score_b == null) return null;
-  if (Number(m.score_a) === Number(m.score_b)) return null;
-
-  return Number(m.score_a) > Number(m.score_b) ? String(m.team_a_id) : String(m.team_b_id);
 }
 
 export default function HomePage() {
