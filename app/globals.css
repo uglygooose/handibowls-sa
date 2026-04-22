@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* HandiBowls design system — Henselite-aesthetic speckle palette.
+/* HandiBowls design system — bowl-inspired speckle palette.
    Light mode only (v1, per plan Q12). Nine theme presets via html[data-theme].
    Base surface/ink + functional colours live in :root (theme-invariant).
    Preset blocks override only --primary-*, --speckle-*, --on-primary. */
