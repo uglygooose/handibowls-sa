@@ -128,11 +128,11 @@ export default function HomePage() {
   const [clubName, setClubName] = useState<string>("");
   const [clubId, setClubId] = useState<string>("");
   const [baseClubId, setBaseClubId] = useState<string>("");
-  const [playerId, setPlayerId] = useState<string>("");
 
   const [handicap, setHandicap] = useState<number | null>(null);
   const [showHandicapInfo, setShowHandicapInfo] = useState(false);
   const [playerGender, setPlayerGender] = useState<"MALE" | "FEMALE" | "">("");
+  const [genderDefaulted, setGenderDefaulted] = useState(false);
 
   const [clubLeaderboard, setClubLeaderboard] = useState<PlayerMini[]>([]);
   const [clubLbNote, setClubLbNote] = useState<string | null>(null);
@@ -677,14 +677,9 @@ export default function HomePage() {
       setHandicap(typeof (mePlayer as PlayerRow | null)?.handicap === "number" ? mePlayer.handicap : null);
     }
 
-    if (!mePlayer) {
-      if (!isSuperAdmin) {
-        setLoading(false);
-        return;
-      }
-      setPlayerId("");
-    } else {
-      setPlayerId(String((mePlayer as PlayerRow).id));
+    if (!mePlayer && !isSuperAdmin) {
+      setLoading(false);
+      return;
     }
 
     // Resolve club name (prefer DB via players.club_id; only display fallbacks if name can't be resolved)
@@ -733,6 +728,15 @@ export default function HomePage() {
     loadClubLeaderboardPreview(clubId, clubLbGender);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId, clubLbGender]);
+
+  // Default the club-leaderboard gender filter to the user's own gender once,
+  // as soon as it is known. User selections afterwards stick.
+  useEffect(() => {
+    if (genderDefaulted) return;
+    if (!playerGender) return;
+    setClubLbGender(playerGender as GenderFilter);
+    setGenderDefaulted(true);
+  }, [playerGender, genderDefaulted]);
 
   useEffect(() => {
     if (!isSuperAdmin) return;
