@@ -10,6 +10,10 @@ export type ScoreInputProps = {
   disabled?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
+  /** Width of the centre "-" separator column in pixels. Default 46. */
+  separatorWidth?: number;
+  /** When true, use `minmax(0, 1fr)` columns and apply `minWidth: 0` to inputs so the pair can shrink inside a tight flex/grid parent. */
+  flexibleColumns?: boolean;
 };
 
 export default function ScoreInput({
@@ -20,17 +24,23 @@ export default function ScoreInput({
   disabled,
   onFocus,
   onBlur,
+  separatorWidth,
+  flexibleColumns,
 }: ScoreInputProps) {
+  const sep = typeof separatorWidth === "number" ? separatorWidth : 46;
+  const colDef = flexibleColumns ? "minmax(0,1fr)" : "1fr";
+
   const inputStyle = {
     width: "100%",
     border: `1px solid ${theme.border}`,
     borderRadius: 12,
     padding: "10px 10px",
     fontWeight: 900,
+    ...(flexibleColumns ? { minWidth: 0 } : null),
   } as const;
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 46px 1fr", gap: 8, alignItems: "center" }}>
+    <div style={{ display: "grid", gridTemplateColumns: `${colDef} ${sep}px ${colDef}`, gap: 8, alignItems: "center" }}>
       <input
         inputMode="numeric"
         value={valueA}
