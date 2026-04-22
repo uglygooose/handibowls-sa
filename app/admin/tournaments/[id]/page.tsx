@@ -6,12 +6,34 @@ import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { theme } from "@/lib/theme";
 import { deriveTournamentCompletion } from "@/lib/tournaments/deriveTournamentCompletion";
+import {
+  cleanTournamentName,
+  formatLabel,
+  matchStatusLabel,
+  scopeLabel,
+  statusLabel,
+  type TournamentFormat,
+  type TournamentRule,
+  type TournamentScope,
+  type TournamentStatus,
+} from "@/lib/tournaments/labels";
+import {
+  bool,
+  isMatchBye,
+  isMatchDone,
+  winnerTeamIdFromMatch,
+} from "@/lib/tournaments/match";
+import { roundLabel as libRoundLabel } from "@/lib/tournaments/bracket";
+import { singlesHandicapLine as libSinglesHandicapLine } from "@/lib/tournaments/handicap";
+import {
+  slotLabel as libSlotLabel,
+  slotMembersLine as libSlotMembersLine,
+  teamDisplayName as libTeamDisplayName,
+  teamLabel as libTeamLabel,
+  teamMembersLine as libTeamMembersLine,
+  winnerLabelForMatch as libWinnerLabelForMatch,
+} from "@/lib/tournaments/teams";
 import BottomNav from "../../../components/BottomNav";
-
-type TournamentScope = "CLUB" | "DISTRICT" | "NATIONAL";
-type TournamentStatus = "ANNOUNCED" | "IN_PLAY" | "COMPLETED";
-type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
-type TournamentRule = "SCRATCH" | "HANDICAP_START";
 
 type MatchStatus = "OPEN" | "FINAL" | "SCHEDULED" | "IN_PLAY" | "COMPLETED" | "BYE";
 
@@ -75,69 +97,6 @@ type MatchRow = {
 };
 
 type ViewTab = "CONTROL" | "ROUNDS" | "AUDIT";
-
-function scopeLabel(scope: TournamentScope) {
-  if (scope === "CLUB") return "Club";
-  if (scope === "DISTRICT") return "District";
-  return "National";
-}
-
-function statusLabel(status: TournamentStatus) {
-  if (status === "ANNOUNCED") return "Upcoming";
-  if (status === "IN_PLAY") return "In-play";
-  return "Past";
-}
-
-function formatLabel(fmt: TournamentFormat) {
-  if (fmt === "FOUR_BALL") return "4 Balls";
-  return fmt.charAt(0) + fmt.slice(1).toLowerCase();
-}
-
-function cleanTournamentName(name: string) {
-  const raw = (name ?? "").toString();
-  return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
-}
-
-function matchStatusLabel(status: string) {
-  if (status === "SCHEDULED") return "Scheduled";
-  if (status === "IN_PLAY") return "In play";
-  if (status === "COMPLETED") return "Completed";
-  if (status === "OPEN") return "Open";
-  if (status === "FINAL") return "Final";
-  if (status === "BYE") return "BYE";
-  return status || "-";
-}
-
-function bool(v: any) {
-  return v === true;
-}
-
-function isMatchBye(m: MatchRow) {
-  const st = String(m.status ?? "");
-  if (st === "BYE") return true;
-  if (m.slot_b_source_type === "BYE") return true;
-  return !m.team_b_id && !m.slot_b_source_type;
-}
-
-function isMatchDone(m: MatchRow) {
-  const st = String(m.status ?? "");
-  const hasWinner = m.winner_team_id != null && m.winner_team_id !== "";
-  return st === "COMPLETED" || bool(m.finalized_by_admin) || hasWinner;
-}
-
-function winnerTeamIdFromMatch(m: MatchRow) {
-  if (m.winner_team_id != null && String(m.winner_team_id) !== "") return String(m.winner_team_id);
-  if (!isMatchDone(m)) return null;
-
-  // BYE finalisation can legitimately have no team_b_id.
-  if (isMatchBye(m)) return m.team_a_id ? String(m.team_a_id) : null;
-
-  if (!m.team_a_id || !m.team_b_id) return null;
-  if (m.score_a == null || m.score_b == null) return null;
-  if (Number(m.score_a) === Number(m.score_b)) return null;
-
-  return Number(m.score_a) > Number(m.score_b) ? String(m.team_a_id) : String(m.team_b_id);
-}
 
 export default function AdminTournamentDetailPage() {
   const supabase = createClient();
@@ -553,111 +512,79 @@ export default function AdminTournamentDetailPage() {
     return m;
   }, [teams]);
 
-  function teamLabel(teamId: string | null) {
-    if (!teamId) return "Team -";
-    const t = teamById[teamId];
-    if (!t) return "Team -";
-    return `Team ${t.team_no}`;
-  }
+  const teamLabel = (teamId: string | null) => libTeamLabel(teamId, teamById);
 
-  function teamDisplayName(teamId: string | null) {
-    if (!teamId) return "BYE";
-    const memberIds = teamMembersByTeamId[teamId] ?? [];
-    const names = memberIds.map((pid) => nameByPlayerId[pid]).filter(Boolean);
+  const isHandicapTournament = () => tournament?.rule_type !== "SCRATCH";
 
-    if (tournament?.format === "SINGLES") {
-      return (names[0] as string) ?? teamLabel(teamId);
-    }
-    if (names.length) return (names as string[]).join(" • ");
-    return teamLabel(teamId);
-  }
+  const teamDisplayName = (teamId: string | null) =>
+    libTeamDisplayName({
+      teamId,
+      format: tournament?.format ?? null,
+      teamMembersByTeamId,
+      teamById,
+      nameByPlayerId,
+      handicapByPlayerId,
+      isHandicapTournament: isHandicapTournament(),
+    });
 
-  function teamMembersLine(teamId: string | null) {
-    if (!teamId) return "—";
-    const memberIds = teamMembersByTeamId[teamId] ?? [];
-    const names = memberIds.map((pid) => nameByPlayerId[pid]).filter(Boolean);
-    if (tournament?.format === "SINGLES") return (names[0] as string) ?? teamLabel(teamId);
-    return names.length ? (names as string[]).join(" • ") : teamLabel(teamId);
-  }
+  const teamMembersLine = (teamId: string | null) =>
+    libTeamMembersLine({
+      teamId,
+      teamMembersByTeamId,
+      nameByPlayerId,
+      handicapByPlayerId,
+      isHandicapTournament: isHandicapTournament(),
+    });
 
-  function winnerLabelForMatch(matchId: string | null | undefined) {
-    if (!matchId) return "Winner";
-    const no = matchNoById[matchId];
-    if (!no) return "Winner";
-    return `M${no} W`;
-  }
+  const winnerLabelForMatch = (matchId: string | null | undefined) =>
+    libWinnerLabelForMatch(matchId ?? null, matchNoById);
 
-  function slotLabel(m: MatchRow, side: "A" | "B") {
-    const teamId = side === "A" ? m.team_a_id : m.team_b_id;
-    const sourceType = side === "A" ? m.slot_a_source_type : m.slot_b_source_type;
-    const sourceMatchId = side === "A" ? m.slot_a_source_match_id : m.slot_b_source_match_id;
+  const slotLabel = (m: MatchRow, side: "A" | "B") =>
+    libSlotLabel({
+      teamId: side === "A" ? m.team_a_id : m.team_b_id,
+      sourceType: side === "A" ? m.slot_a_source_type ?? null : m.slot_b_source_type ?? null,
+      sourceMatchId: side === "A" ? m.slot_a_source_match_id ?? null : m.slot_b_source_match_id ?? null,
+      format: tournament?.format ?? null,
+      teamMembersByTeamId,
+      teamById,
+      nameByPlayerId,
+      handicapByPlayerId,
+      isHandicapTournament: isHandicapTournament(),
+      matchNoById,
+    });
 
-    if (teamId) return teamDisplayName(teamId);
-    if (sourceType === "WINNER_OF_MATCH") return winnerLabelForMatch(sourceMatchId);
-    if (sourceType === "BYE") return "BYE";
-    return "TBD";
-  }
+  const slotMembersLine = (m: MatchRow, side: "A" | "B") =>
+    libSlotMembersLine({
+      teamId: side === "A" ? m.team_a_id : m.team_b_id,
+      sourceType: side === "A" ? m.slot_a_source_type ?? null : m.slot_b_source_type ?? null,
+      sourceMatchId: side === "A" ? m.slot_a_source_match_id ?? null : m.slot_b_source_match_id ?? null,
+      teamMembersByTeamId,
+      nameByPlayerId,
+      handicapByPlayerId,
+      isHandicapTournament: isHandicapTournament(),
+    });
 
-  function slotMembersLine(m: MatchRow, side: "A" | "B") {
-    const teamId = side === "A" ? m.team_a_id : m.team_b_id;
-    const sourceType = side === "A" ? m.slot_a_source_type : m.slot_b_source_type;
-    if (teamId) return teamMembersLine(teamId);
-    if (sourceType === "WINNER_OF_MATCH") return "Pending winner";
-    if (sourceType === "BYE") return "BYE";
-    return "Pending";
-  }
+  const roundLabel = (roundNo: number | null | undefined) =>
+    libRoundLabel({
+      totalTeams:
+        teams.length > 0
+          ? teams.length
+          : tournament?.format === "SINGLES" && entryCount > 0
+          ? entryCount
+          : 0,
+      roundNo: roundNo ?? null,
+    });
 
-  function largestPowerOfTwoLE(n: number) {
-    let p = 1;
-    while (p * 2 <= n) p *= 2;
-    return p;
-  }
-
-  function roundLabel(roundNo: number | null | undefined) {
-    const r = Number(roundNo ?? 0);
-    if (!r) return "Round -";
-
-    const totalTeams =
-      teams.length > 0 ? teams.length : tournament?.format === "SINGLES" && entryCount > 0 ? entryCount : 0;
-
-    if (!totalTeams || totalTeams < 2) return `Round ${r}`;
-
-    const base = largestPowerOfTwoLE(totalTeams);
-    const hasPreRound = totalTeams > base;
-
-    if (hasPreRound && r === 1) return "Pre-Rd";
-
-    const mainRoundNo = hasPreRound ? r - 1 : r;
-    const playersLeft = Math.floor(base / Math.pow(2, mainRoundNo - 1));
-
-    if (playersLeft === 2) return "Final";
-    if (playersLeft === 4) return "Semis";
-    if (playersLeft === 8) return "Quarters";
-    if (playersLeft >= 16) return `RD ${mainRoundNo}`;
-
-    return `Round ${r}`;
-  }
-
-  function isHandicapTournament() {
-    return tournament?.rule_type !== "SCRATCH";
-  }
-
-  function singlesHandicapInfo(m: MatchRow) {
+  const singlesHandicapInfo = (m: MatchRow) => {
     if (tournament?.format !== "SINGLES") return null;
     if (!m.team_a_id || !m.team_b_id) return null;
-
     const pa = teamMembersByTeamId[m.team_a_id]?.[0] ?? null;
     const pb = teamMembersByTeamId[m.team_b_id]?.[0] ?? null;
-
     if (!pa || !pb) return null;
-
     const ha = handicapByPlayerId[pa] ?? null;
     const hb = handicapByPlayerId[pb] ?? null;
-
     const nameA = teamDisplayName(m.team_a_id);
     const nameB = teamDisplayName(m.team_b_id);
-
-    // If either handicap unknown, show "-" and no +diff
     if (ha == null || hb == null) {
       return {
         nameA,
@@ -668,30 +595,23 @@ export default function AdminTournamentDetailPage() {
         plusTo: null as "A" | "B" | null,
       };
     }
-
     const diff = Math.abs(ha - hb);
-    const plusTo = diff === 0 ? null : ha < hb ? "A" : "B"; // lower handicap gets the plus
-
+    const plusTo = diff === 0 ? null : ha < hb ? "A" : "B";
     return { nameA, nameB, ha, hb, diff, plusTo };
-  }
-function shortName(s: string) {
-  const t = (s ?? "").trim();
-  if (!t) return t;
-  // Prefer first name or first token for compact “+X to …”
-  const first = t.split(" ")[0] ?? t;
-  return first.length ? first : t;
-}
+  };
 
-function singlesHandicapLine(m: MatchRow) {
-  if (!isHandicapTournament()) return null;
-  const hc = singlesHandicapInfo(m);
-  if (!hc) return null;
-
-  if (hc.diff == null) return "Handicap: —";
-  if (hc.diff === 0) return "Handicap: level";
-  const to = hc.plusTo === "A" ? shortName(hc.nameA) : shortName(hc.nameB);
-  return `Handicap: +${hc.diff} to ${to}`;
-}
+  const singlesHandicapLine = (m: MatchRow) =>
+    libSinglesHandicapLine(
+      {
+        format: tournament?.format ?? null,
+        teamAId: m.team_a_id,
+        teamBId: m.team_b_id,
+        teamMembersByTeamId,
+        handicapByPlayerId,
+        nameByPlayerId,
+      },
+      tournament?.rule_type ?? null
+    );
 
   function selectRound(r: number) {
     setSelectedRound(r);
