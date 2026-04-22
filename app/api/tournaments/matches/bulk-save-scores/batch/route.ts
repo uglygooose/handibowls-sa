@@ -12,6 +12,9 @@ type BulkEntry = {
   score_a: number | null;
   score_b: number | null;
 };
+type ProfileAdminRow = { role?: string | null; is_admin?: boolean | null; club_id?: string | null };
+type TournamentScopeRow = { id?: string | null; scope?: string | null; club_id?: string | null };
+type BulkSaveBatchBody = { tournament_id?: unknown; matches?: unknown };
 
 export async function GET() {
   return NextResponse.json({
@@ -40,18 +43,19 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    const role = String((prof as any)?.role ?? "").toUpperCase();
+    const profRow = (prof ?? null) as ProfileAdminRow | null;
+    const role = String(profRow?.role ?? "").toUpperCase();
     const isSuperAdmin = role === "SUPER_ADMIN";
-    const isAdminFlag = Boolean((prof as any)?.is_admin);
-    const adminClubId = (prof as any)?.club_id ? String((prof as any).club_id) : "";
+    const isAdminFlag = Boolean(profRow?.is_admin);
+    const adminClubId = profRow?.club_id ? String(profRow.club_id) : "";
 
     if (!isSuperAdmin && !isAdminFlag) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
-    let body: any = null;
+    let body: BulkSaveBatchBody | null = null;
     try {
-      body = await req.json();
+      body = (await req.json()) as BulkSaveBatchBody;
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
@@ -69,7 +73,10 @@ export async function POST(req: Request) {
 
     const normalised: BulkEntry[] = [];
     for (let i = 0; i < rawMatches.length; i++) {
-      const m = rawMatches[i];
+      const m = rawMatches[i] as
+        | { match_id?: unknown; score_a?: unknown; score_b?: unknown }
+        | null
+        | undefined;
       const mid = typeof m?.match_id === "string" ? m.match_id : "";
       if (!mid) {
         return NextResponse.json({ error: `matches[${i}]: missing match_id` }, { status: 400 });
@@ -103,11 +110,12 @@ export async function POST(req: Request) {
         .select("id, scope, club_id")
         .eq("id", tournamentId)
         .single();
-      if (tRes.error || !tRes.data?.id) {
+      const tRow = (tRes.data ?? null) as TournamentScopeRow | null;
+      if (tRes.error || !tRow?.id) {
         return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
       }
-      const tScope = String((tRes.data as any).scope ?? "");
-      const tClub = String((tRes.data as any).club_id ?? "");
+      const tScope = String(tRow.scope ?? "");
+      const tClub = String(tRow.club_id ?? "");
       if (!adminClubId || tScope !== "CLUB" || tClub !== adminClubId) {
         return NextResponse.json({ error: "Club admin access denied" }, { status: 403 });
       }
@@ -123,10 +131,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, result: rpc.data });
-  } catch (err: any) {
-    return NextResponse.json(
-      { error: `Server error: ${err?.message ?? String(err)}` },
-      { status: 500 }
-    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Server error: ${message}` }, { status: 500 });
   }
 }
