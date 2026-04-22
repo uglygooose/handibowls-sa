@@ -1,11 +1,28 @@
-// app/admin/tournaments/[id]/utils/matchHelpers.ts
+// lib/tournaments/matchHelpers.ts
 //
-// Page-local helpers for the admin tournament detail page.
-// These are narrow enough that they don't belong in lib/tournaments/.
+// Shared tournament match helpers used by both the admin and the public
+// tournament detail pages. Pure functions; no React / no DOM.
 
 import { theme } from "@/lib/theme";
 import { bool } from "@/lib/tournaments/match";
-import type { MatchRow } from "../page";
+
+// -------------------- shared match shape --------------------
+//
+// Narrow structural shape covering the fields the geometry helpers below
+// read. The admin and public pages each have their own wider MatchRow
+// types; both are structurally assignable to this.
+
+export type BracketMatchLike = {
+  id: string;
+  round_no: number | null;
+  match_no?: number | null;
+  team_a_id: string | null;
+  team_b_id: string | null;
+  slot_a_source_type?: string | null;
+  slot_a_source_match_id?: string | null;
+  slot_b_source_type?: string | null;
+  slot_b_source_match_id?: string | null;
+};
 
 // -------------------- singlesHandicapInfo --------------------
 
@@ -50,7 +67,11 @@ export function singlesHandicapInfo(input: SinglesHandicapInfoInput): SinglesHan
 
 export type MatchCardTone = "complete" | "inplay" | "pending";
 
-export type MatchCardToneInput = Pick<MatchRow, "finalized_by_admin" | "status" | "winner_team_id">;
+export type MatchCardToneInput = {
+  finalized_by_admin?: boolean | null;
+  status?: string | null;
+  winner_team_id?: string | null;
+};
 
 export function getMatchCardTone(m: MatchCardToneInput): { tone: MatchCardTone; border: string; bg: string } {
   const st = String(m.status ?? "");
@@ -75,28 +96,28 @@ export type TreeDims = {
   headerOffset: number;
 };
 
-export type RoundLayoutEntry = {
-  round: { round: number; matches: MatchRow[] };
+export type RoundLayoutEntry<M extends BracketMatchLike = BracketMatchLike> = {
+  round: { round: number; matches: M[] };
   roundIndex: number;
-  list: MatchRow[];
+  list: M[];
 };
 
-export type TreeLayout = {
-  roundLayouts: RoundLayoutEntry[];
+export type TreeLayout<M extends BracketMatchLike = BracketMatchLike> = {
+  roundLayouts: RoundLayoutEntry<M>[];
   posById: Record<string, MatchPos>;
   roundPositions: { roundIndex: number; matches: MatchPos[] }[];
   width: number;
   height: number;
 };
 
-export function computeTreeLayout(
-  roundsForTree: { round: number; matches: MatchRow[] }[],
+export function computeTreeLayout<M extends BracketMatchLike>(
+  roundsForTree: { round: number; matches: M[] }[],
   dims: TreeDims
-): TreeLayout {
+): TreeLayout<M> {
   const { cardW, cardH, baseGap, colGap, headerOffset } = dims;
   const baseStep = cardH + baseGap;
 
-  const roundLayouts: RoundLayoutEntry[] = roundsForTree.map((round, roundIndex) => {
+  const roundLayouts: RoundLayoutEntry<M>[] = roundsForTree.map((round, roundIndex) => {
     const list = [...(round.matches ?? [])].sort(
       (a, b) => Number(a.match_no ?? 0) - Number(b.match_no ?? 0) || String(a.id).localeCompare(String(b.id))
     );
@@ -135,8 +156,8 @@ export function computeTreeLayout(
   return { roundLayouts, posById, roundPositions, width, height };
 }
 
-export function computeBracketLines(
-  roundLayouts: RoundLayoutEntry[],
+export function computeBracketLines<M extends BracketMatchLike>(
+  roundLayouts: RoundLayoutEntry<M>[],
   posById: Record<string, MatchPos>,
   positionsByRoundIndex: Map<number, MatchPos[]>,
   cardW: number
@@ -193,7 +214,7 @@ export function computeBracketLines(
 // slotLabel, so that the bracket cells fit without ellipsis.
 
 export function treeSlotLabel(
-  m: MatchRow,
+  m: BracketMatchLike,
   side: "A" | "B",
   teamDisplayName: (teamId: string | null) => string,
   matchNoById: Record<string, number | null>

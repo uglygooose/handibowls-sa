@@ -12,7 +12,7 @@ import {
   computeBracketLines,
   getMatchCardTone,
   treeSlotLabel,
-} from "../utils/matchHelpers";
+} from "@/lib/tournaments/matchHelpers";
 import type {
   Labelers,
   MatchRow,

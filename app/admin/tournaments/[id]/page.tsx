@@ -32,8 +32,8 @@ import {
   winnerLabelForMatch as libWinnerLabelForMatch,
 } from "@/lib/tournaments/teams";
 import BottomNav from "../../../components/BottomNav";
-import { singlesHandicapInfo as computeSinglesHandicapInfo } from "./utils/matchHelpers";
-import type { SinglesHandicapInfo } from "./utils/matchHelpers";
+import { singlesHandicapInfo as computeSinglesHandicapInfo } from "@/lib/tournaments/matchHelpers";
+import type { SinglesHandicapInfo } from "@/lib/tournaments/matchHelpers";
 import AuditView from "./views/AuditView";
 import ControlView from "./views/ControlView";
 import RoundsView from "./views/RoundsView";
