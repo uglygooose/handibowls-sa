@@ -18,6 +18,7 @@ import {
   type TournamentStatus,
 } from "@/lib/tournaments/labels";
 import BottomNav from "../../components/BottomNav";
+import { toIsoOrNull } from "./utils/dates";
 
 type TournamentRow = {
   id: string;
@@ -504,14 +505,6 @@ export default function AdminTournamentsPage() {
 
     await load();
     setBusy(tournamentId, false);
-  }
-
-  function toIsoOrNull(dtLocal: string) {
-    const v = (dtLocal ?? "").trim();
-    if (!v) return null;
-    const d = new Date(v);
-    if (Number.isNaN(d.getTime())) return null;
-    return d.toISOString();
   }
 
   function closeCreateModal() {
