@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HandiBowls
 
-## Getting Started
+> Tournaments, scores, and skills in your pocket — for South African lawn bowls.
 
-First, run the development server:
+HandiBowls is a Bowls South Africa–native platform for running club, district, and national tournaments, booking greens, running T20 skill assessments, and communicating with members. Mobile-first for players, desktop-first for admins, offline-capable scoring.
+
+## Status
+
+**Rebuild in progress.** This repository is being rebuilt from a fresh Supabase project, fresh routing, a fresh design system, and a three-role architecture. See [`HANDIBOWLS_REBUILD_PLAN.md`](HANDIBOWLS_REBUILD_PLAN.md) for the phase-gated plan. Current phase: **0 — teardown & fresh setup**.
+
+Preserved from the previous iteration: tournament primitives (`lib/tournaments/`). Everything else is being rebuilt.
+
+## Roles
+
+- **super_admin** — platform operator; manages clubs, runs national tournaments.
+- **club_admin** — runs their club(s); manages players, greens, tournaments, T20.
+- **player** — mobile-first; scores, books, enters tournaments, completes T20.
+
+## Stack
+
+- Next.js 16, React 19, TypeScript 5 (strict)
+- Tailwind v4 + shadcn/ui (Phase 1)
+- Supabase (Postgres + Auth + Storage + Edge Functions + Realtime)
+- Vitest, ESLint 9
+
+Additions land phase by phase: TanStack Query/Table, React Hook Form + Zod, Dexie (offline scoring), Serwist (PWA), Resend (email), React PDF.
+
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env.local    # fill in Supabase + Resend keys
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run dev         # next dev
+npm run build       # next build
+npm run typecheck   # tsc --noEmit
+npm run lint        # eslint
+npm run test        # vitest run
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Visual identity
 
-## Learn More
+HandiBowls uses a **Henselite-inspired speckle aesthetic** (bright, speckled bowl colours applied as surfaces and accents) with **no Henselite branding** — no logo, no name, no wordmarks. Nine theme presets (Atomic Red, Ocean Blue, Sunburst, Midnight, Ruby, Ocean Green, Grape, White Speckle, Core Black) ship in Phase 1; clubs pick one and it drives their app chrome.
 
-To learn more about Next.js, take a look at the following resources:
+## Licensing & data
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Product name: **HandiBowls**.
+- BSA terminology used throughout (rink, Skip/Third/Second/Lead, shots up, ends, peel).
+- Region: `af-south-1` preferred (data stays in South Africa), `eu-west-1` fallback.
+- POPIA-compliant consent and unsubscribe pipelines.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Contributing
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Phase-gated — one phase per PR, referencing `HANDIBOWLS_REBUILD_PLAN.md`. See the plan for the phase checklist and the "App Review & Update Standards" appendix.
