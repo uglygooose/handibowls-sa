@@ -3,7 +3,29 @@ import { createAuthedServerClient } from "@/lib/supabase/server";
 
 type MatchType = "RANKED" | "FRIENDLY";
 
-function normalizeMatchType(v: any): MatchType {
+type RespondBody = { challenge_id?: unknown; action?: unknown };
+type ChallengeRow = {
+  id: string;
+  ladder_id: string;
+  challenger_player_id: string;
+  challenged_player_id: string;
+  status: string;
+  expires_at: string;
+  match_id?: string | null;
+  match_type?: string | null;
+};
+type LadderEntryPositionRow = { player_id?: string | null; position?: number | null };
+type MatchInsertBase = {
+  challenge_id: string;
+  ladder_id: string;
+  challenger_player_id: string;
+  challenged_player_id: string;
+  status: "OPEN";
+  challenger_position_at_start: number | null;
+  challenged_position_at_start: number | null;
+};
+
+function normalizeMatchType(v: unknown): MatchType {
   const t = String(v ?? "RANKED").toUpperCase();
   return t === "FRIENDLY" ? "FRIENDLY" : "RANKED";
 }
@@ -21,15 +43,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    let body: any = null;
+    let body: RespondBody | null = null;
     try {
-      body = await req.json();
+      body = (await req.json()) as RespondBody;
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const challenge_id = body?.challenge_id as string | undefined;
-    const action = body?.action as "ACCEPT" | "DECLINE" | undefined;
+    const challenge_id = typeof body?.challenge_id === "string" ? body.challenge_id : undefined;
+    const rawAction = typeof body?.action === "string" ? body.action : undefined;
+    const action: "ACCEPT" | "DECLINE" | undefined =
+      rawAction === "ACCEPT" || rawAction === "DECLINE" ? rawAction : undefined;
 
     if (!challenge_id || !action) {
       return NextResponse.json({ error: "Missing challenge_id or action" }, { status: 400 });
@@ -47,7 +71,7 @@ export async function POST(req: Request) {
     }
 
     // Load challenge (try with match_type, fallback if not present)
-    let challenge: any = null;
+    let challenge: ChallengeRow | null = null;
 
     {
       const q1 = await supabase
@@ -57,7 +81,7 @@ export async function POST(req: Request) {
         .single();
 
       if (!q1.error && q1.data) {
-        challenge = q1.data;
+        challenge = q1.data as ChallengeRow;
       } else if (q1.error && isMissingColumnError(q1.error.message, "match_type")) {
         const q2 = await supabase
           .from("challenges")
@@ -68,14 +92,18 @@ export async function POST(req: Request) {
         if (q2.error || !q2.data) {
           return NextResponse.json({ error: "Challenge not found" }, { status: 404 });
         }
-        challenge = q2.data;
+        challenge = q2.data as ChallengeRow;
       } else {
         return NextResponse.json({ error: q1.error?.message ?? "Challenge not found" }, { status: 404 });
       }
     }
 
+    if (!challenge) return NextResponse.json({ error: "Challenge not found" }, { status: 404 });
+
+    const mePlayerId = String((mePlayer as { id: string }).id);
+
     // Only challenged player can respond
-    if (challenge.challenged_player_id !== mePlayer.id) {
+    if (challenge.challenged_player_id !== mePlayerId) {
       return NextResponse.json({ error: "Only the challenged player can respond" }, { status: 403 });
     }
 
@@ -135,8 +163,9 @@ export async function POST(req: Request) {
 
     if (posErr) return NextResponse.json({ error: `ladder_entries: ${posErr.message}` }, { status: 400 });
 
-    const challengerRow = (posRows ?? []).find((r: any) => r.player_id === challenge.challenger_player_id);
-    const challengedRow = (posRows ?? []).find((r: any) => r.player_id === challenge.challenged_player_id);
+    const posRowsTyped = (posRows ?? []) as LadderEntryPositionRow[];
+    const challengerRow = posRowsTyped.find((r) => r.player_id === challenge.challenger_player_id);
+    const challengedRow = posRowsTyped.find((r) => r.player_id === challenge.challenged_player_id);
 
     if (!challengerRow || !challengedRow) {
       return NextResponse.json({ error: "Both players must be on the ladder" }, { status: 400 });
@@ -149,7 +178,7 @@ export async function POST(req: Request) {
     // Attempt insert including match_type + start positions; fallback if those columns don't exist.
     let matchId: string | null = null;
 
-    const insertBase: any = {
+    const insertBase: MatchInsertBase = {
       challenge_id: challenge.id,
       ladder_id: challenge.ladder_id,
       challenger_player_id: challenge.challenger_player_id,
@@ -212,7 +241,8 @@ export async function POST(req: Request) {
         source: "ladder_entries.position",
       },
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: `Server error: ${err.message}` }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Server error: ${message}` }, { status: 500 });
   }
 }
