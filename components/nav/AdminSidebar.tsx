@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { HandiBowlsMark } from "@/components/brand/HandiBowlsMark";
 import { HandiBowlsWordmark } from "@/components/brand/HandiBowlsWordmark";
+import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
 
 export type AdminSidebarItem = {
   href: string;
@@ -66,12 +67,23 @@ export function AdminSidebar({
       data-slot="admin-sidebar"
       data-collapsed={collapsed}
       className={cn(
-        "flex h-dvh flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200",
+        "relative flex h-dvh flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200",
         collapsed ? "w-16" : "w-64",
         className,
       )}
     >
-      <div className="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border px-3">
+      {/* Subtle speckle texture so the sidebar reads as a branded surface
+          instead of a flat black slab. Uses the theme's speckle-a/b tokens so
+          it tints with each preset (red+bone on core-black, black+bone on
+          atomic-red, etc). */}
+      <SpeckleLayer
+        seed="admin-sidebar"
+        density="med"
+        opacity={0.06}
+        className="z-0"
+      />
+
+      <div className="relative z-10 flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border px-3">
         {collapsed ? (
           <HandiBowlsMark size={32} />
         ) : (
@@ -92,7 +104,7 @@ export function AdminSidebar({
         </button>
       </div>
 
-      <nav aria-label="Admin navigation" className="flex-1 overflow-y-auto py-3">
+      <nav aria-label="Admin navigation" className="relative z-10 flex-1 overflow-y-auto py-3">
         <ul className="flex flex-col gap-0.5 px-2">
           {items.map((item) => {
             const isActive =
