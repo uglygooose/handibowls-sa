@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { theme } from "@/lib/theme";
 import BottomNav from "../../components/BottomNav";
+import ScoreInput from "../../components/ScoreInput";
 import { deriveTournamentCompletion } from "@/lib/tournaments/deriveTournamentCompletion";
 import {
   cleanTournamentName,
@@ -1637,43 +1638,18 @@ export default function TournamentRoomPage() {
                                           Enter score (captain only)
                                         </div>
 
-                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 40px 1fr", gap: 8, alignItems: "center" }}>
-                                          <input
-                                            inputMode="numeric"
-                                            value={draft.a}
-                                            onChange={(e) =>
-                                              setScoreDraftByMatchId((p) => ({ ...p, [m.id]: { ...draft, a: e.target.value } }))
-                                            }
-                                            placeholder="A"
-                                            style={{
-                                              width: "100%",
-                                              border: `1px solid ${theme.border}`,
-                                              borderRadius: 12,
-                                              padding: "10px 10px",
-                                              fontWeight: 900,
-                                              outline: "none",
-                                            }}
-                                            disabled={busy}
-                                          />
-                                          <div style={{ textAlign: "center", fontWeight: 900, color: theme.muted }}>-</div>
-                                          <input
-                                            inputMode="numeric"
-                                            value={draft.b}
-                                            onChange={(e) =>
-                                              setScoreDraftByMatchId((p) => ({ ...p, [m.id]: { ...draft, b: e.target.value } }))
-                                            }
-                                            placeholder="B"
-                                            style={{
-                                              width: "100%",
-                                              border: `1px solid ${theme.border}`,
-                                              borderRadius: 12,
-                                              padding: "10px 10px",
-                                              fontWeight: 900,
-                                              outline: "none",
-                                            }}
-                                            disabled={busy}
-                                          />
-                                        </div>
+                                        <ScoreInput
+                                          valueA={draft.a}
+                                          valueB={draft.b}
+                                          onChangeA={(next) =>
+                                            setScoreDraftByMatchId((p) => ({ ...p, [m.id]: { ...draft, a: next } }))
+                                          }
+                                          onChangeB={(next) =>
+                                            setScoreDraftByMatchId((p) => ({ ...p, [m.id]: { ...draft, b: next } }))
+                                          }
+                                          disabled={busy}
+                                          separatorWidth={40}
+                                        />
 
                                         <button
                                           type="button"
