@@ -4,7 +4,30 @@ import { createAuthedServerClient } from "@/lib/supabase/server";
 type MatchType = "RANKED" | "FRIENDLY";
 type GenderFilter = "ALL" | "MALE" | "FEMALE";
 
-function normalizeMatchType(v: any): MatchType {
+type CreateChallengeBody = {
+  ladder_id?: unknown;
+  challenged_player_id?: unknown;
+  match_type?: unknown;
+  gender_filter?: unknown;
+};
+type PlayerRow = { id?: string | null; gender?: string | null };
+type LadderEntryRow = {
+  player_id?: string | null;
+  points?: number | null;
+  shot_diff?: number | null;
+  shots_for?: number | null;
+  position?: number | null;
+  played?: number | null;
+};
+type InsertChallengeBase = {
+  ladder_id: string;
+  challenger_player_id: string;
+  challenged_player_id: string;
+  status: "PROPOSED";
+  expires_at: string;
+};
+
+function normalizeMatchType(v: unknown): MatchType {
   const t = String(v ?? "RANKED").toUpperCase();
   return t === "FRIENDLY" ? "FRIENDLY" : "RANKED";
 }
@@ -15,7 +38,7 @@ function isMissingColumnError(errMsg: string | undefined, columnName: string) {
   return m.includes(`column "${columnName.toLowerCase()}"`) && m.includes("does not exist");
 }
 
-function normalizeGenderFilter(v: any): GenderFilter {
+function normalizeGenderFilter(v: unknown): GenderFilter {
   const t = String(v ?? "ALL").toUpperCase();
   if (t === "MALE") return "MALE";
   if (t === "FEMALE") return "FEMALE";
@@ -40,15 +63,17 @@ export async function POST(req: Request) {
     }
 
     // 2) Parse body
-    let body: any = null;
+    let body: CreateChallengeBody | null = null;
     try {
-      body = await req.json();
+      body = (await req.json()) as CreateChallengeBody;
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const ladder_id: string | undefined = body?.ladder_id;
-    const challenged_player_id: string | undefined = body?.challenged_player_id;
+    const ladder_id: string | undefined =
+      typeof body?.ladder_id === "string" ? body.ladder_id : undefined;
+    const challenged_player_id: string | undefined =
+      typeof body?.challenged_player_id === "string" ? body.challenged_player_id : undefined;
     const match_type: MatchType = normalizeMatchType(body?.match_type);
     const gender_filter: GenderFilter = normalizeGenderFilter(body?.gender_filter);
 
@@ -74,11 +99,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Signed-in user is not linked to a player record" }, { status: 400 });
     }
 
-    if (challenger.id === challenged_player_id) {
+    const challengerRow = challenger as PlayerRow;
+    if (String(challengerRow.id) === challenged_player_id) {
       return NextResponse.json({ error: "Cannot challenge yourself" }, { status: 400 });
     }
 
-    const challengerGender = String((challenger as any)?.gender ?? "");
+    const challengerGender = String(challengerRow.gender ?? "");
 
     // 4) Load challenged player (for gender + existence)
     const { data: challengedPlayer, error: cpErr } = await supabase
@@ -87,11 +113,12 @@ export async function POST(req: Request) {
       .eq("id", challenged_player_id)
       .single();
 
-    if (cpErr || !challengedPlayer?.id) {
+    const challengedRow = (challengedPlayer ?? null) as PlayerRow | null;
+    if (cpErr || !challengedRow?.id) {
       return NextResponse.json({ error: "Challenged player not found" }, { status: 400 });
     }
 
-    const challengedGender = String((challengedPlayer as any)?.gender ?? "");
+    const challengedGender = String(challengedRow.gender ?? "");
 
     if (challengerGender && challengedGender && challengerGender !== challengedGender) {
       return NextResponse.json({ error: "You can only challenge players of the same gender" }, { status: 400 });
@@ -106,7 +133,7 @@ export async function POST(req: Request) {
       .from("ladder_entries")
       .select("player_id")
       .eq("ladder_id", ladder_id)
-      .in("player_id", [challenger.id, challenged_player_id]);
+      .in("player_id", [String(challengerRow.id), challenged_player_id]);
 
     if (exEntriesErr) {
       return NextResponse.json({ error: `ladder_entries: ${exEntriesErr.message}` }, { status: 400 });
@@ -132,24 +159,34 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: `ladder_entries: ${lbErr.message}` }, { status: 400 });
       }
 
-      const list = leaderboard ?? [];
+      const list = (leaderboard ?? []) as LadderEntryRow[];
 
       // Enforce +/-2 within the leaderboard the user is viewing (ALL / MALE / FEMALE).
-      let listForRule = list;
+      let listForRule: LadderEntryRow[] = list;
       if (gender_filter !== "ALL") {
-        const ids = Array.from(new Set(list.map((r: any) => String(r.player_id)).filter(Boolean)));
+        const ids = Array.from(
+          new Set(list.map((r: LadderEntryRow) => String(r.player_id ?? "")).filter(Boolean))
+        );
         const { data: genders, error: gErr } = ids.length
           ? await supabase.from("players").select("id, gender").in("id", ids)
-          : { data: [], error: null as any };
+          : { data: [] as PlayerRow[], error: null as Error | null };
 
         if (!gErr) {
-          const genderById = new Map((genders ?? []).map((p: any) => [String(p.id), String(p.gender ?? "")]));
-          listForRule = list.filter((r: any) => genderById.get(String(r.player_id)) === gender_filter);
+          const genderById = new Map(
+            ((genders ?? []) as PlayerRow[]).map((p) => [String(p.id ?? ""), String(p.gender ?? "")])
+          );
+          listForRule = list.filter(
+            (r: LadderEntryRow) => genderById.get(String(r.player_id ?? "")) === gender_filter
+          );
         }
       }
 
-      const challengerIdx = listForRule.findIndex((r: any) => String(r.player_id) === String(challenger.id));
-      const challengedIdx = listForRule.findIndex((r: any) => String(r.player_id) === String(challenged_player_id));
+      const challengerIdx = listForRule.findIndex(
+        (r: LadderEntryRow) => String(r.player_id ?? "") === String(challengerRow.id)
+      );
+      const challengedIdx = listForRule.findIndex(
+        (r: LadderEntryRow) => String(r.player_id ?? "") === String(challenged_player_id)
+      );
 
       if (challengerIdx < 0 || challengedIdx < 0) {
         return NextResponse.json({ error: "Both players must be on the ladder" }, { status: 400 });
@@ -168,7 +205,7 @@ export async function POST(req: Request) {
       .from("challenges")
       .select("id, status")
       .eq("ladder_id", ladder_id)
-      .eq("challenger_player_id", challenger.id)
+      .eq("challenger_player_id", String(challengerRow.id))
       .eq("challenged_player_id", challenged_player_id)
       .in("status", ["PROPOSED"]);
 
@@ -179,9 +216,9 @@ export async function POST(req: Request) {
     // 8) Insert challenge (3-day expiry)
     const expires_at = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
 
-    const insertBase: any = {
+    const insertBase: InsertChallengeBase = {
       ladder_id,
-      challenger_player_id: challenger.id,
+      challenger_player_id: String(challengerRow.id),
       challenged_player_id,
       status: "PROPOSED",
       expires_at,
@@ -203,7 +240,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ error: withType.error?.message ?? "Unknown insert error" }, { status: 400 });
-  } catch (err: any) {
-    return NextResponse.json({ error: `Server error: ${err.message}` }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Server error: ${message}` }, { status: 500 });
   }
 }
