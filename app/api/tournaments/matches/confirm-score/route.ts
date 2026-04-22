@@ -3,6 +3,16 @@ import { NextResponse } from "next/server";
 import { createAuthedServerClient } from "@/lib/supabase/server";
 import { completeTournamentIfDone } from "@/lib/tournaments/completeTournamentIfDone";
 
+type ConfirmScoreBody = { match_id?: unknown };
+type TeamMemberRow = { team_id?: unknown; player_id?: unknown };
+type MatchPatch = {
+  confirmed_by_a: boolean;
+  confirmed_by_b: boolean;
+  status?: "COMPLETED";
+  finalized_at?: string;
+  winner_team_id?: string;
+};
+
 function minId(ids: string[]) {
   if (!ids.length) return null;
   const sorted = ids.slice().sort();
@@ -36,17 +46,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Could not resolve your player profile" }, { status: 400 });
     }
 
-    const myPlayerId = String(me.id);
+    const myPlayerId = String((me as { id: string }).id);
 
     // 3) Body
-    let body: any = null;
+    let body: ConfirmScoreBody | null = null;
     try {
-      body = await req.json();
+      body = (await req.json()) as ConfirmScoreBody;
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const match_id: string | undefined = body?.match_id;
+    const match_id: string | undefined =
+      typeof body?.match_id === "string" ? body.match_id : undefined;
     if (!match_id) return NextResponse.json({ error: "Missing match_id" }, { status: 400 });
 
     // 4) Load match
@@ -93,9 +104,9 @@ export async function POST(req: Request) {
     const idsA: string[] = [];
     const idsB: string[] = [];
 
-    for (const r of memRows ?? []) {
-      const tid = String((r as any).team_id ?? "");
-      const pid = String((r as any).player_id ?? "");
+    for (const r of (memRows ?? []) as TeamMemberRow[]) {
+      const tid = String(r.team_id ?? "");
+      const pid = String(r.player_id ?? "");
       if (!tid || !pid) continue;
       if (tid === teamAId) idsA.push(pid);
       if (tid === teamBId) idsB.push(pid);
@@ -130,9 +141,9 @@ export async function POST(req: Request) {
 
     const nowIso = new Date().toISOString();
 
-    const patch: any = {
-      confirmed_by_a: iAmCaptainA ? true : match.confirmed_by_a,
-      confirmed_by_b: iAmCaptainB ? true : match.confirmed_by_b,
+    const patch: MatchPatch = {
+      confirmed_by_a: iAmCaptainA ? true : Boolean(match.confirmed_by_a),
+      confirmed_by_b: iAmCaptainB ? true : Boolean(match.confirmed_by_b),
     };
 
     // If both confirmed, complete the match
@@ -208,7 +219,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, match: updated });
-  } catch (err: any) {
-    return NextResponse.json({ error: `Server error: ${err.message}` }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Server error: ${message}` }, { status: 500 });
   }
 }
