@@ -39,10 +39,17 @@ import {
   winnerLabelForMatch as libWinnerLabelForMatch,
 } from "@/lib/tournaments/teams";
 import BottomNav from "../../../components/BottomNav";
+import {
+  singlesHandicapInfo as computeSinglesHandicapInfo,
+  getMatchCardTone,
+  computeTreeLayout,
+  computeBracketLines,
+  treeSlotLabel,
+} from "./utils/matchHelpers";
 
 type MatchStatus = "OPEN" | "FINAL" | "SCHEDULED" | "IN_PLAY" | "COMPLETED" | "BYE";
 
-type TournamentRow = {
+export type TournamentRow = {
   id: string;
   name: string;
   scope: TournamentScope;
@@ -57,9 +64,9 @@ type TournamentRow = {
   rule_type?: TournamentRule | null;
 };
 
-type TeamRow = { id: string; team_no: number; team_handicap: number | null };
+export type TeamRow = { id: string; team_no: number; team_handicap: number | null };
 
-type QuickTournament = {
+export type QuickTournament = {
   id: string;
   name: string;
   scope: TournamentScope;
@@ -67,7 +74,7 @@ type QuickTournament = {
   gender?: "MALE" | "FEMALE" | null;
 };
 
-type MatchRow = {
+export type MatchRow = {
   id: string;
   tournament_id: string | null;
 
@@ -605,30 +612,15 @@ export default function AdminTournamentDetailPage() {
       roundNo: roundNo ?? null,
     });
 
-  const singlesHandicapInfo = (m: MatchRow) => {
-    if (tournament?.format !== "SINGLES") return null;
-    if (!m.team_a_id || !m.team_b_id) return null;
-    const pa = teamMembersByTeamId[m.team_a_id]?.[0] ?? null;
-    const pb = teamMembersByTeamId[m.team_b_id]?.[0] ?? null;
-    if (!pa || !pb) return null;
-    const ha = handicapByPlayerId[pa] ?? null;
-    const hb = handicapByPlayerId[pb] ?? null;
-    const nameA = teamDisplayName(m.team_a_id);
-    const nameB = teamDisplayName(m.team_b_id);
-    if (ha == null || hb == null) {
-      return {
-        nameA,
-        nameB,
-        ha: ha as number | null,
-        hb: hb as number | null,
-        diff: null as number | null,
-        plusTo: null as "A" | "B" | null,
-      };
-    }
-    const diff = Math.abs(ha - hb);
-    const plusTo = diff === 0 ? null : ha < hb ? "A" : "B";
-    return { nameA, nameB, ha, hb, diff, plusTo };
-  };
+  const singlesHandicapInfo = (m: MatchRow) =>
+    computeSinglesHandicapInfo({
+      format: tournament?.format ?? null,
+      teamAId: m.team_a_id,
+      teamBId: m.team_b_id,
+      teamMembersByTeamId,
+      handicapByPlayerId,
+      teamDisplayName,
+    });
 
   const singlesHandicapLine = (m: MatchRow) =>
     libSinglesHandicapLine(
@@ -2177,24 +2169,15 @@ export default function AdminTournamentDetailPage() {
 
       const needsAdmin = !locked && (m.score_a == null || m.score_b == null || !(confirmedA && confirmedB));
 
-      const statusTone = locked
-        ? "complete"
-        : st === "IN_PLAY"
-        ? "inplay"
-        : "pending";
-
-      const cardBorder =
-        statusTone === "complete" ? "#16A34A" : statusTone === "inplay" ? "#FACC15" : theme.border;
-      const cardBg =
-        statusTone === "complete" ? "#F0FDF4" : statusTone === "inplay" ? "#FEFCE8" : "#fff";
+      const cardTone = getMatchCardTone(m);
 
       return (
         <div
           key={m.id}
           style={{
-            border: `1px solid ${cardBorder}`,
+            border: `1px solid ${cardTone.border}`,
             borderRadius: 16,
-            background: cardBg,
+            background: cardTone.bg,
             padding: 12,
           }}
         >
@@ -2510,102 +2493,19 @@ export default function AdminTournamentDetailPage() {
       const baseGap = 18;
       const colGap = 110;
       const headerOffset = 28;
-      const baseStep = cardH + baseGap;
 
-      const roundLayouts = roundsForTree.map((round, roundIndex) => {
-        const list = [...(round.matches ?? [])].sort(
-          (a, b) => Number(a.match_no ?? 0) - Number(b.match_no ?? 0) || String(a.id).localeCompare(String(b.id))
-        );
-        return { round, roundIndex, list };
+      const { roundLayouts, posById, roundPositions, width, height } = computeTreeLayout(roundsForTree, {
+        cardW,
+        cardH,
+        baseGap,
+        colGap,
+        headerOffset,
       });
 
-      type MatchPos = { id: string; roundIndex: number; x: number; top: number; centerY: number };
-      const posById: Record<string, MatchPos> = {};
-      const roundPositions: { roundIndex: number; matches: MatchPos[] }[] = [];
+      const positionsByRoundIndex = new Map(roundPositions.map((layout) => [layout.roundIndex, layout.matches]));
+      const lines = computeBracketLines(roundLayouts, posById, positionsByRoundIndex, cardW);
 
-      roundLayouts.forEach((layout, roundIndex) => {
-        const x = roundIndex * (cardW + colGap);
-        const list = layout.list;
-        const matches: MatchPos[] = [];
-
-        list.forEach((m, i) => {
-          const centerY = headerOffset + baseStep * ((i + 0.5) * Math.pow(2, roundIndex));
-          const top = centerY - cardH / 2;
-          const pos = { id: m.id, roundIndex, x, top, centerY };
-          matches.push(pos);
-          posById[m.id] = pos;
-        });
-
-        roundPositions.push({ roundIndex, matches });
-      });
-
-      let maxBottom = 0;
-      roundPositions.forEach((layout) => {
-        layout.matches.forEach((m) => {
-          maxBottom = Math.max(maxBottom, m.top + cardH);
-        });
-      });
-
-      const width = roundLayouts.length ? roundLayouts.length * (cardW + colGap) - colGap : cardW;
-      const height = Math.max(maxBottom + baseGap, cardH + headerOffset);
-
-      const lines: string[] = [];
-      const positionsByRoundIndex = new Map<number, MatchPos[]>(
-        roundPositions.map((layout) => [layout.roundIndex, layout.matches])
-      );
-      for (const layout of roundLayouts) {
-        if (layout.roundIndex === 0) continue;
-        const list = layout.list;
-        list.forEach((m) => {
-          const childPos = posById[m.id];
-          if (!childPos) return;
-          const childX = childPos.x;
-          const childCenterY = childPos.centerY;
-
-          const sourceIds = [m.slot_a_source_match_id, m.slot_b_source_match_id].filter(
-            (id): id is string => typeof id === "string" && id.length > 0
-          );
-          const parentPositions = sourceIds
-            .map((id) => posById[id])
-            .filter((p) => p && p.roundIndex === layout.roundIndex - 1) as MatchPos[];
-
-          if (parentPositions.length === 0) {
-            const fallbackParents = positionsByRoundIndex.get(layout.roundIndex - 1) ?? [];
-            const i = list.indexOf(m);
-            const aIdx = i * 2;
-            const bIdx = i * 2 + 1;
-            [aIdx, bIdx].forEach((idx) => {
-              const parentPos = fallbackParents[idx];
-              if (!parentPos) return;
-              const parentX = parentPos.x + cardW;
-              const parentCenterY = parentPos.centerY;
-              const midX = (parentX + childX) / 2;
-              lines.push(`M ${parentX} ${parentCenterY} H ${midX} V ${childCenterY} H ${childX}`);
-            });
-            return;
-          }
-
-          parentPositions.forEach((parentPos) => {
-            const parentX = parentPos.x + cardW;
-            const parentCenterY = parentPos.centerY;
-            const midX = (parentX + childX) / 2;
-            lines.push(`M ${parentX} ${parentCenterY} H ${midX} V ${childCenterY} H ${childX}`);
-          });
-        });
-      }
-
-      const slotLabel = (m: MatchRow, side: "A" | "B") => {
-        const teamId = side === "A" ? m.team_a_id : m.team_b_id;
-        if (teamId) return teamDisplayName(teamId);
-        const sourceType = side === "A" ? m.slot_a_source_type : m.slot_b_source_type;
-        const sourceMatchId = side === "A" ? m.slot_a_source_match_id : m.slot_b_source_match_id;
-        if (sourceType === "BYE") return "BYE";
-        if (sourceType === "WINNER_OF_MATCH" && sourceMatchId) {
-          const no = matchNoById[sourceMatchId];
-          return no ? `M${no} W` : "Winner";
-        }
-        return "TBD";
-      };
+      const slotLabel = (m: MatchRow, side: "A" | "B") => treeSlotLabel(m, side, teamDisplayName, matchNoById);
 
       return (
         <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, overflow: "hidden" }}>
