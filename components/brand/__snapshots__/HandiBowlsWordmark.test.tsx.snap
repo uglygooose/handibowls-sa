@@ -1,0 +1,54 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`HandiBowlsWordmark > matches snapshot 1`] = `
+<svg
+  aria-label="HandiBowls"
+  class="select-none"
+  height="48"
+  role="img"
+  viewBox="0 0 360 64"
+>
+  <text
+    fill="var(--color-ink)"
+    font-family="var(--font-display)"
+    font-size="56"
+    font-style="italic"
+    font-weight="900"
+    letter-spacing="-0.02em"
+    x="0"
+    y="48"
+  >
+    HANDI
+  </text>
+  <text
+    fill="var(--color-primary-500)"
+    font-family="var(--font-display)"
+    font-size="56"
+    font-style="italic"
+    font-weight="900"
+    letter-spacing="-0.02em"
+    x="162"
+    y="48"
+  >
+    BOWLS
+  </text>
+  <circle
+    cx="340"
+    cy="14"
+    fill="var(--color-primary-500)"
+    r="6"
+  />
+  <circle
+    cx="348"
+    cy="10"
+    fill="var(--color-ink)"
+    r="2"
+  />
+  <circle
+    cx="336"
+    cy="18"
+    fill="var(--color-speckle-a)"
+    r="1.5"
+  />
+</svg>
+`;
