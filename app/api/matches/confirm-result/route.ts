@@ -358,8 +358,9 @@ export async function POST(req: Request) {
         rule: "winner swaps with player above",
         stats_recalced,
       });
-    } catch (e: any) {
-      return NextResponse.json({ error: e.message }, { status: 400 });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return NextResponse.json({ error: message }, { status: 400 });
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
