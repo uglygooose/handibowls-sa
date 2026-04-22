@@ -2,13 +2,24 @@
 import { NextResponse } from "next/server";
 import { createAuthedServerClient } from "@/lib/supabase/server";
 
+type SubmitScoreBody = { match_id?: unknown; score_a?: unknown; score_b?: unknown };
+type TeamMemberRow = { team_id?: unknown; player_id?: unknown };
+type MatchPatch = {
+  score_a: number;
+  score_b: number;
+  submitted_by_player_id: string;
+  submitted_at: string;
+  confirmed_by_a: boolean;
+  confirmed_by_b: boolean;
+};
+
 function minId(ids: string[]) {
   if (!ids.length) return null;
   const sorted = ids.slice().sort();
   return sorted[0] ?? null;
 }
 
-function asInt(v: any) {
+function asInt(v: unknown) {
   if (v == null) return null;
   const n = Number(v);
   if (!Number.isFinite(n) || !Number.isInteger(n)) return null;
@@ -42,17 +53,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Could not resolve your player profile" }, { status: 400 });
     }
 
-    const myPlayerId = String(me.id);
+    const myPlayerId = String((me as { id: string }).id);
 
     // 3) Body
-    let body: any = null;
+    let body: SubmitScoreBody | null = null;
     try {
-      body = await req.json();
+      body = (await req.json()) as SubmitScoreBody;
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const match_id: string | undefined = body?.match_id;
+    const match_id: string | undefined =
+      typeof body?.match_id === "string" ? body.match_id : undefined;
     const score_a = asInt(body?.score_a);
     const score_b = asInt(body?.score_b);
 
@@ -101,9 +113,9 @@ export async function POST(req: Request) {
     const idsA: string[] = [];
     const idsB: string[] = [];
 
-    for (const r of memRows ?? []) {
-      const tid = String((r as any).team_id ?? "");
-      const pid = String((r as any).player_id ?? "");
+    for (const r of (memRows ?? []) as TeamMemberRow[]) {
+      const tid = String(r.team_id ?? "");
+      const pid = String(r.player_id ?? "");
       if (!tid || !pid) continue;
       if (tid === teamAId) idsA.push(pid);
       if (tid === teamBId) idsB.push(pid);
@@ -126,7 +138,7 @@ export async function POST(req: Request) {
     const nowIso = new Date().toISOString();
 
     // Submitting captain auto-confirms their side; other side must confirm later.
-    const patch: any = {
+    const patch: MatchPatch = {
       score_a,
       score_b,
       submitted_by_player_id: myPlayerId,
@@ -149,7 +161,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, match: updated });
-  } catch (err: any) {
-    return NextResponse.json({ error: `Server error: ${err.message}` }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Server error: ${message}` }, { status: 500 });
   }
 }
