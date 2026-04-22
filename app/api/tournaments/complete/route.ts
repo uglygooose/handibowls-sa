@@ -1,8 +1,16 @@
 // app/api/tournaments/complete/route.ts
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createAuthedServerClient } from "@/lib/supabase/server";
 import { completeTournamentIfDone } from "@/lib/tournaments/completeTournamentIfDone";
+
+type ProfileAdminRow = { role?: string | null; is_admin?: boolean | null; club_id?: string | null };
+type TournamentRow = {
+  id?: string | null;
+  status?: string | null;
+  scope?: string | null;
+  club_id?: string | null;
+};
+type CompleteTournamentBody = { tournament_id?: unknown };
 
 export async function GET() {
   return NextResponse.json({
@@ -14,29 +22,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            cookieStore.set({ name, value, ...options });
-          },
-          remove(name: string, options: any) {
-            cookieStore.delete({ name, ...options });
-          },
-        },
-      }
-    );
-
     // 1) Auth
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData?.user) {
+    const { supabase, user } = await createAuthedServerClient();
+    if (!user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
@@ -44,7 +32,7 @@ export async function POST(req: Request) {
     const { data: prof, error: prErr } = await supabase
       .from("profiles")
       .select("role, is_admin, club_id")
-      .eq("id", authData.user.id)
+      .eq("id", user.id)
       .single();
 
     if (prErr) {
@@ -54,24 +42,26 @@ export async function POST(req: Request) {
       );
     }
 
-    const role = String((prof as any)?.role ?? "").toUpperCase();
+    const profRow = (prof ?? null) as ProfileAdminRow | null;
+    const role = String(profRow?.role ?? "").toUpperCase();
     const isSuperAdmin = role === "SUPER_ADMIN";
-    const isAdminFlag = Boolean((prof as any)?.is_admin);
-    const adminClubId = (prof as any)?.club_id ? String((prof as any).club_id) : "";
+    const isAdminFlag = Boolean(profRow?.is_admin);
+    const adminClubId = profRow?.club_id ? String(profRow.club_id) : "";
 
     if (!isSuperAdmin && !isAdminFlag) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
     // 3) Body
-    let body: any = null;
+    let body: CompleteTournamentBody | null = null;
     try {
-      body = await req.json();
+      body = (await req.json()) as CompleteTournamentBody;
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const tournament_id: string | undefined = body?.tournament_id;
+    const tournament_id: string | undefined =
+      typeof body?.tournament_id === "string" ? body.tournament_id : undefined;
     if (!tournament_id) return NextResponse.json({ error: "Missing tournament_id" }, { status: 400 });
 
     // 4) Tournament exists + club gate
@@ -81,19 +71,20 @@ export async function POST(req: Request) {
       .eq("id", tournament_id)
       .single();
 
-    if (tErr || !t?.id) {
+    const tRow = (t ?? null) as TournamentRow | null;
+    if (tErr || !tRow?.id) {
       return NextResponse.json({ error: tErr?.message ?? "Tournament not found" }, { status: 404 });
     }
 
     if (!isSuperAdmin) {
-      const tClub = String((t as any)?.club_id ?? "");
-      const tScope = String((t as any)?.scope ?? "");
+      const tClub = String(tRow.club_id ?? "");
+      const tScope = String(tRow.scope ?? "");
       if (!adminClubId || tScope !== "CLUB" || tClub !== adminClubId) {
         return NextResponse.json({ error: "Club admin access denied" }, { status: 403 });
       }
     }
 
-    const alreadyCompleted = String((t as any)?.status ?? "") === "COMPLETED";
+    const alreadyCompleted = String(tRow.status ?? "") === "COMPLETED";
 
     const done = await completeTournamentIfDone({ supabase, tournamentId: String(tournament_id) });
     if (!done.attempted && !alreadyCompleted) {
@@ -112,7 +103,8 @@ export async function POST(req: Request) {
       already_completed: alreadyCompleted,
       completed_at: new Date().toISOString(),
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: `Server error: ${err?.message ?? String(err)}` }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Server error: ${message}` }, { status: 500 });
   }
 }

@@ -6,10 +6,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import BottomNav from "../../components/BottomNav";
+import { ScoreSubmissionView } from "./views/ScoreSubmissionView";
 
 type MatchRow = {
   id: string;
-  ladder_id: string; // ✅ added (needed to recalc leaderboard)
+  ladder_id: string; // needed to recalc leaderboard
   match_type?: string | null;
 
   status: string;
@@ -25,7 +26,11 @@ type MatchRow = {
 };
 
 type PlayerRow = { id: string; user_id: string };
-type ProfileRow = { id: string; full_name: string | null; is_admin?: boolean | null };const UUID_RE =
+type ProfileRow = { id: string; full_name: string | null; is_admin?: boolean | null };
+type ProfileAdminRow = { is_admin?: boolean | null; role?: string | null };
+type ApiResponseJson = { error?: string; reason?: string; ladder_moved?: boolean } | null;
+
+const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isUuid(v: unknown): v is string {
@@ -87,7 +92,7 @@ export default function MatchPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminFinalising, setAdminFinalising] = useState(false);
 
-  // ✅ Recalc leaderboard AFTER a match becomes FINAL
+  // Recalc leaderboard AFTER a match becomes FINAL
   async function recalcLadderForMatch(m: MatchRow | null) {
     if (!m) return;
     if (!isUuid(m.ladder_id)) return;
@@ -128,8 +133,8 @@ export default function MatchPage() {
       .single();
 
     if (!profErr && prof) {
-      const role = String((prof as any).role ?? "").toUpperCase();
-      setIsAdmin(Boolean((prof as any).is_admin) || role === "SUPER_ADMIN");
+      const role = String((prof as ProfileAdminRow).role ?? "").toUpperCase();
+      setIsAdmin(Boolean((prof as ProfileAdminRow).is_admin) || role === "SUPER_ADMIN");
     } else {
       setIsAdmin(false);
     }
@@ -142,7 +147,7 @@ export default function MatchPage() {
       .single();
 
     if (meErr || !mePlayer) {
-      const role = String((prof as any)?.role ?? "").toUpperCase();
+      const role = String((prof as ProfileAdminRow | null)?.role ?? "").toUpperCase();
       if (role !== "SUPER_ADMIN") {
         setError("Signed-in user not linked to a player record.");
         setLoading(false);
@@ -256,7 +261,7 @@ export default function MatchPage() {
 
     setNameByPlayerId(map);
 
-    // ✅ If this match is already FINAL, make sure ladder stats exist
+    // If this match is already FINAL, make sure ladder stats exist
     await recalcLadderForMatch(mRow);
 
     setLoading(false);
@@ -334,10 +339,10 @@ export default function MatchPage() {
       });
 
       const text = await res.text();
-      let json: any = null;
+      let json: ApiResponseJson = null;
       if (text?.trim()) {
         try {
-          json = JSON.parse(text);
+          json = JSON.parse(text) as ApiResponseJson;
         } catch {}
       }
 
@@ -374,10 +379,10 @@ export default function MatchPage() {
       });
 
       const text = await res.text();
-      let json: any = null;
+      let json: ApiResponseJson = null;
       if (text?.trim()) {
         try {
-          json = JSON.parse(text);
+          json = JSON.parse(text) as ApiResponseJson;
         } catch {}
       }
 
@@ -435,10 +440,10 @@ export default function MatchPage() {
       });
 
       const text = await res.text();
-      let json: any = null;
+      let json: ApiResponseJson = null;
       if (text?.trim()) {
         try {
-          json = JSON.parse(text);
+          json = JSON.parse(text) as ApiResponseJson;
         } catch {}
       }
 
@@ -579,109 +584,21 @@ export default function MatchPage() {
           </div>
         )}
 
-        <div
-          style={{
-            marginTop: 12,
-            background: "#fff",
-            border: `1px solid ${theme.border}`,
-            borderRadius: 16,
-            padding: 12,
-          }}
-        >
-          <div style={{ fontWeight: 900, marginBottom: 10 }}>Score</div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 110px",
-              gap: 10,
-              alignItems: "center",
-              marginBottom: 10,
-            }}
-          >
-            <div style={{ fontWeight: 800 }}>{challengerName}</div>
-            <input
-              value={challengerScore}
-              onChange={(e) => setChallengerScore(e.target.value)}
-              inputMode="numeric"
-              disabled={!canSubmit}
-              style={{
-                padding: 10,
-                borderRadius: 12,
-                border: `1px solid ${theme.border}`,
-                width: "100%",
-                opacity: canSubmit ? 1 : 0.7,
-              }}
-              placeholder="0"
-            />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 110px", gap: 10, alignItems: "center" }}>
-            <div style={{ fontWeight: 800 }}>{challengedName}</div>
-            <input
-              value={challengedScore}
-              onChange={(e) => setChallengedScore(e.target.value)}
-              inputMode="numeric"
-              disabled={!canSubmit}
-              style={{
-                padding: 10,
-                borderRadius: 12,
-                border: `1px solid ${theme.border}`,
-                width: "100%",
-                opacity: canSubmit ? 1 : 0.7,
-              }}
-              placeholder="0"
-            />
-          </div>
-
-          {match.status === "FINAL" ? (
-            <div style={{ marginTop: 12, color: theme.maroon, fontWeight: 900 }}>Match finalised.</div>
-          ) : (
-            <>
-              <button
-                onClick={submitResult}
-                disabled={!canSubmit}
-                style={{
-                  marginTop: 12,
-                  width: "100%",
-                  border: "none",
-                  background: theme.maroon,
-                  color: "#fff",
-                  padding: "11px 12px",
-                  borderRadius: 14,
-                  fontWeight: 900,
-                  cursor: canSubmit ? "pointer" : "not-allowed",
-                  opacity: canSubmit ? 1 : 0.6,
-                }}
-              >
-                {submitting ? "Submitting..." : "Submit Result"}
-              </button>
-
-              <button
-                onClick={confirmResult}
-                disabled={!canConfirm}
-                style={{
-                  marginTop: 10,
-                  width: "100%",
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  color: theme.text,
-                  padding: "11px 12px",
-                  borderRadius: 14,
-                  fontWeight: 900,
-                  cursor: canConfirm ? "pointer" : "not-allowed",
-                  opacity: canConfirm ? 1 : 0.6,
-                }}
-              >
-                {confirming ? "Confirming..." : "Confirm Result"}
-              </button>
-
-              <div style={{ marginTop: 10, fontSize: 12, color: theme.muted }}>
-                Submitter enters the score. Opponent confirms to finalise. Club admin override available to admins.
-              </div>
-            </>
-          )}
-        </div>
+        <ScoreSubmissionView
+          matchStatus={match.status}
+          challengerName={challengerName}
+          challengedName={challengedName}
+          challengerScore={challengerScore}
+          setChallengerScore={setChallengerScore}
+          challengedScore={challengedScore}
+          setChallengedScore={setChallengedScore}
+          canSubmit={canSubmit}
+          canConfirm={canConfirm}
+          submitting={submitting}
+          confirming={confirming}
+          submitResult={submitResult}
+          confirmResult={confirmResult}
+        />
       </div>
 
       <BottomNav />

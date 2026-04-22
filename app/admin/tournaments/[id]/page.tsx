@@ -5,17 +5,42 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { theme } from "@/lib/theme";
+import { adminGate } from "@/lib/auth/adminGate";
 import { deriveTournamentCompletion } from "@/lib/tournaments/deriveTournamentCompletion";
+import {
+  cleanTournamentName,
+  formatLabel,
+  scopeLabel,
+  statusLabel,
+  type TournamentFormat,
+  type TournamentRule,
+  type TournamentScope,
+  type TournamentStatus,
+} from "@/lib/tournaments/labels";
+import {
+  isMatchBye,
+  isMatchDone,
+} from "@/lib/tournaments/match";
+import { roundLabel as libRoundLabel } from "@/lib/tournaments/bracket";
+import { singlesHandicapLine as libSinglesHandicapLine } from "@/lib/tournaments/handicap";
+import {
+  slotLabel as libSlotLabel,
+  slotMembersLine as libSlotMembersLine,
+  teamDisplayName as libTeamDisplayName,
+  teamLabel as libTeamLabel,
+  teamMembersLine as libTeamMembersLine,
+  winnerLabelForMatch as libWinnerLabelForMatch,
+} from "@/lib/tournaments/teams";
 import BottomNav from "../../../components/BottomNav";
-
-type TournamentScope = "CLUB" | "DISTRICT" | "NATIONAL";
-type TournamentStatus = "ANNOUNCED" | "IN_PLAY" | "COMPLETED";
-type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
-type TournamentRule = "SCRATCH" | "HANDICAP_START";
+import { singlesHandicapInfo as computeSinglesHandicapInfo } from "@/lib/tournaments/matchHelpers";
+import type { SinglesHandicapInfo } from "@/lib/tournaments/matchHelpers";
+import AuditView from "./views/AuditView";
+import ControlView from "./views/ControlView";
+import RoundsView from "./views/RoundsView";
 
 type MatchStatus = "OPEN" | "FINAL" | "SCHEDULED" | "IN_PLAY" | "COMPLETED" | "BYE";
 
-type TournamentRow = {
+export type TournamentRow = {
   id: string;
   name: string;
   scope: TournamentScope;
@@ -30,9 +55,9 @@ type TournamentRow = {
   rule_type?: TournamentRule | null;
 };
 
-type TeamRow = { id: string; team_no: number; team_handicap: number | null };
+export type TeamRow = { id: string; team_no: number; team_handicap: number | null };
 
-type QuickTournament = {
+export type QuickTournament = {
   id: string;
   name: string;
   scope: TournamentScope;
@@ -40,7 +65,7 @@ type QuickTournament = {
   gender?: "MALE" | "FEMALE" | null;
 };
 
-type MatchRow = {
+export type MatchRow = {
   id: string;
   tournament_id: string | null;
 
@@ -76,77 +101,79 @@ type MatchRow = {
 
 type ViewTab = "CONTROL" | "ROUNDS" | "AUDIT";
 
-function scopeLabel(scope: TournamentScope) {
-  if (scope === "CLUB") return "Club";
-  if (scope === "DISTRICT") return "District";
-  return "National";
-}
+export type Labelers = {
+  teamLabel: (teamId: string | null) => string;
+  teamDisplayName: (teamId: string | null) => string;
+  teamMembersLine: (teamId: string | null) => string;
+  slotLabel: (m: MatchRow, side: "A" | "B") => string;
+  slotMembersLine: (m: MatchRow, side: "A" | "B") => string;
+  roundLabel: (roundNo: number | null | undefined) => string;
+  singlesHandicapLine: (m: MatchRow) => string | null;
+  singlesHandicapInfo: (m: MatchRow) => SinglesHandicapInfo | null;
+  isHandicapTournament: () => boolean;
+};
 
-function statusLabel(status: TournamentStatus) {
-  if (status === "ANNOUNCED") return "Upcoming";
-  if (status === "IN_PLAY") return "In-play";
-  return "Past";
-}
+export type ScrollHelpers = {
+  pinScrollForInput: () => void;
+  restorePinnedScrollForInput: () => void;
+};
 
-function formatLabel(fmt: TournamentFormat) {
-  if (fmt === "FOUR_BALL") return "4 Balls";
-  return fmt.charAt(0) + fmt.slice(1).toLowerCase();
-}
+export type RoundMetaEntry = { total: number; completed: number; byes: number; byesPending: number; hasAny: boolean };
+export type RoundMeta = {
+  byRound: Record<number, RoundMetaEntry>;
+  rounds: number[];
+  selectedRound: number | null;
+  roundIsComplete: boolean;
+};
 
-function cleanTournamentName(name: string) {
-  const raw = (name ?? "").toString();
-  return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
-}
-
-function matchStatusLabel(status: string) {
-  if (status === "SCHEDULED") return "Scheduled";
-  if (status === "IN_PLAY") return "In play";
-  if (status === "COMPLETED") return "Completed";
-  if (status === "OPEN") return "Open";
-  if (status === "FINAL") return "Final";
-  if (status === "BYE") return "BYE";
-  return status || "-";
-}
-
-function bool(v: any) {
-  return v === true;
-}
-
-function isMatchBye(m: MatchRow) {
-  const st = String(m.status ?? "");
-  if (st === "BYE") return true;
-  if (m.slot_b_source_type === "BYE") return true;
-  return !m.team_b_id && !m.slot_b_source_type;
-}
-
-function isMatchDone(m: MatchRow) {
-  const st = String(m.status ?? "");
-  const hasWinner = m.winner_team_id != null && m.winner_team_id !== "";
-  return st === "COMPLETED" || bool(m.finalized_by_admin) || hasWinner;
-}
-
-function winnerTeamIdFromMatch(m: MatchRow) {
-  if (m.winner_team_id != null && String(m.winner_team_id) !== "") return String(m.winner_team_id);
-  if (!isMatchDone(m)) return null;
-
-  // BYE finalisation can legitimately have no team_b_id.
-  if (isMatchBye(m)) return m.team_a_id ? String(m.team_a_id) : null;
-
-  if (!m.team_a_id || !m.team_b_id) return null;
-  if (m.score_a == null || m.score_b == null) return null;
-  if (Number(m.score_a) === Number(m.score_b)) return null;
-
-  return Number(m.score_a) > Number(m.score_b) ? String(m.team_a_id) : String(m.team_b_id);
-}
-
-type DrawerMode = "SCORE" | "ADMIN_FINAL";
-type DrawerDraft = { a: string; b: string };
+type TournamentScopeClubRow = { club_id?: string | null; scope?: string | null };
+type ParamsWithId = { id?: string | string[] | null };
+type RawQuickTournamentRow = {
+  id: string | number;
+  name?: string | null;
+  scope?: string | null;
+  status?: string | null;
+  gender?: string | null;
+};
+type RawTeamRow = {
+  id?: string | number | null;
+  team_no?: number | string | null;
+  team_handicap?: number | string | null;
+};
+type RawTeamMemberRow = { team_id?: string | number | null; player_id?: string | number | null };
+type PlayerDetailRow = { id?: string | number | null; display_name?: string | null; handicap?: number | string | null };
+type PlayerIdFKRow = { player_id?: string | number | null };
+type PlayerHandicapRow = { handicap?: number | string | null };
+type RawMatchRow = {
+  id: string | number;
+  tournament_id?: string | number | null;
+  team_a_id?: string | number | null;
+  team_b_id?: string | number | null;
+  slot_a_source_type?: string | null;
+  slot_a_source_match_id?: string | number | null;
+  slot_b_source_type?: string | null;
+  slot_b_source_match_id?: string | number | null;
+  round_no?: number | string | null;
+  match_no?: number | string | null;
+  status?: string | null;
+  score_a?: number | string | null;
+  score_b?: number | string | null;
+  submitted_by_player_id?: string | number | null;
+  submitted_at?: string | null;
+  confirmed_by_a?: boolean | null;
+  confirmed_by_b?: boolean | null;
+  finalized_by_admin?: boolean | null;
+  finalized_at?: string | null;
+  admin_final_by?: string | number | null;
+  admin_final_at?: string | null;
+  winner_team_id?: string | number | null;
+};
 
 export default function AdminTournamentDetailPage() {
   const supabase = createClient();
   const params = useParams();
 
-  const rawId = (params as any)?.id;
+  const rawId = (params as ParamsWithId | null)?.id;
   const tournamentId = Array.isArray(rawId) ? rawId[0] : rawId;
 
   const [loading, setLoading] = useState(true);
@@ -202,11 +229,6 @@ export default function AdminTournamentDetailPage() {
   const [auditEditOpenByMatchId, setAuditEditOpenByMatchId] = useState<Record<string, boolean>>({});
   const treeRoundRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
-  // Bottom drawer (keeps list stable; stops scroll-jump) — still supported
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerMatchId, setDrawerMatchId] = useState<string | null>(null);
-  const [drawerMode, setDrawerMode] = useState<DrawerMode>("SCORE");
-  const [drawerDraft, setDrawerDraft] = useState<DrawerDraft>({ a: "", b: "" });
   const scrollYBeforeAction = useRef<number>(0);
 
   const matchNoById = useMemo(() => {
@@ -236,29 +258,11 @@ export default function AdminTournamentDetailPage() {
     scrollYBeforeAction.current = typeof window !== "undefined" ? window.scrollY : 0;
   }
 
-  // ✅ KEY FIX: if we never remembered scroll, do NOT “restore” to 0 (that causes the snap-to-top).
+  // if we never remembered scroll, do NOT "restore" to 0 (that causes the snap-to-top).
   function restoreScroll() {
     const y = scrollYBeforeAction.current || 0;
     if (!y) return;
     requestAnimationFrame(() => window.scrollTo(0, y));
-  }
-
-  function closeDrawer() {
-    setDrawerOpen(false);
-    setDrawerMatchId(null);
-  }
-
-  function openDrawerForMatch(matchId: string, mode: DrawerMode) {
-    const m = matches.find((x) => x.id === matchId);
-    if (!m) return;
-
-    setDrawerMatchId(matchId);
-    setDrawerMode(mode);
-    setDrawerDraft({
-      a: m.score_a == null ? "" : String(m.score_a),
-      b: m.score_b == null ? "" : String(m.score_b),
-    });
-    setDrawerOpen(true);
   }
 
   function goBack() {
@@ -270,47 +274,28 @@ export default function AdminTournamentDetailPage() {
     window.location.href = `/tournaments/${tournamentId}`;
   }
 
-  async function adminGate() {
+  async function runAdminGate(): Promise<
+    | { ok: true; isSuperAdmin: boolean; adminClubId: string | null }
+    | { ok: false; isSuperAdmin: false; adminClubId: null }
+  > {
     setAccessDenied(false);
-
-    const userRes = await supabase.auth.getUser();
-    const user = userRes.data.user;
-
-    if (!user) {
-      window.location.href = "/login";
-      return { ok: false as const, isSuperAdmin: false, adminClubId: null as string | null };
-    }
-
-    const profRes = await supabase
-      .from("profiles")
-      .select("role, is_admin, club_id")
-      .eq("id", user.id)
-      .single();
-
-    if (profRes.error) {
-      setError(`Could not verify admin access.\n${profRes.error.message}`);
+    const gate = await adminGate(supabase);
+    if (!gate.ok) {
+      if (gate.reason === "NOT_AUTHENTICATED") {
+        window.location.href = "/login";
+        return { ok: false, isSuperAdmin: false, adminClubId: null };
+      }
+      if (gate.reason === "PROFILE_ERROR") {
+        setError(`Could not verify admin access.\n${gate.message ?? ""}`);
+      }
       setIsAdmin(false);
       setAccessDenied(true);
-      return { ok: false as const, isSuperAdmin: false, adminClubId: null as string | null };
+      return { ok: false, isSuperAdmin: false, adminClubId: null };
     }
-
-    const role = String((profRes.data as any)?.role ?? "").toUpperCase();
-    const isSuper = role === "SUPER_ADMIN";
-    const isAdminFlag = Boolean((profRes.data as any)?.is_admin);
-    const clubId = (profRes.data as any)?.club_id ?? null;
-
-    const adminClub = isSuper ? null : (clubId ? String(clubId) : null);
-    setIsSuperAdmin(isSuper);
-    setAdminClubId(adminClub);
-
-    if (!isSuper && !isAdminFlag) {
-      setIsAdmin(false);
-      setAccessDenied(true);
-      return { ok: false as const, isSuperAdmin: isSuper, adminClubId: adminClub };
-    }
-
+    setIsSuperAdmin(gate.isSuperAdmin);
+    setAdminClubId(gate.adminClubId);
     setIsAdmin(true);
-    return { ok: true as const, isSuperAdmin: isSuper, adminClubId: adminClub };
+    return { ok: true, isSuperAdmin: gate.isSuperAdmin, adminClubId: gate.adminClubId };
   }
 
   async function load(opts?: { preserveScroll?: boolean }) {
@@ -334,7 +319,7 @@ export default function AdminTournamentDetailPage() {
       return;
     }
 
-    const gate = await adminGate();
+    const gate = await runAdminGate();
     if (!gate.ok) {
       setTournament(null);
       setEntryCount(0);
@@ -368,8 +353,9 @@ export default function AdminTournamentDetailPage() {
 
     const tRow = tRes.data as TournamentRow;
     if (!gate.isSuperAdmin) {
-      const cid = String((tRes.data as any)?.club_id ?? "");
-      if (!gate.adminClubId || !cid || cid !== gate.adminClubId || String((tRes.data as any)?.scope ?? "") !== "CLUB") {
+      const tScopeRow = tRes.data as TournamentScopeClubRow | null;
+      const cid = String(tScopeRow?.club_id ?? "");
+      if (!gate.adminClubId || !cid || cid !== gate.adminClubId || String(tScopeRow?.scope ?? "") !== "CLUB") {
         setError("You do not have access to this tournament.");
         setTournament(null);
         setAccessDenied(true);
@@ -392,7 +378,7 @@ export default function AdminTournamentDetailPage() {
     const quickRes = gate.adminClubId ? await quickQuery.eq("club_id", gate.adminClubId) : await quickQuery;
 
     if (!quickRes.error) {
-      const list = (quickRes.data ?? []).map((r: any) => ({
+      const list = ((quickRes.data ?? []) as RawQuickTournamentRow[]).map((r) => ({
         id: String(r.id),
         name: String(r.name ?? "Tournament"),
         scope: String(r.scope ?? "CLUB") as TournamentScope,
@@ -418,8 +404,8 @@ export default function AdminTournamentDetailPage() {
       setNameByPlayerId({});
       setHandicapByPlayerId({});
     } else {
-      const teamRows = (teamRes.data ?? []).map((r: any) => ({
-        id: String(r.id),
+      const teamRows = ((teamRes.data ?? []) as RawTeamRow[]).map((r) => ({
+        id: String(r.id ?? ""),
         team_no: Number(r.team_no ?? 0),
         team_handicap: r.team_handicap == null ? null : typeof r.team_handicap === "number" ? r.team_handicap : Number(r.team_handicap),
       })) as TeamRow[];
@@ -442,9 +428,9 @@ export default function AdminTournamentDetailPage() {
           const membersByTeam: Record<string, string[]> = {};
           const allPlayerIds: string[] = [];
 
-          for (const r of memRes.data ?? []) {
-            const teamId = String((r as any).team_id ?? "");
-            const pid = String((r as any).player_id ?? "");
+          for (const r of ((memRes.data ?? []) as RawTeamMemberRow[])) {
+            const teamId = String(r.team_id ?? "");
+            const pid = String(r.player_id ?? "");
             if (!teamId || !pid) continue;
 
             membersByTeam[teamId] = membersByTeam[teamId] ?? [];
@@ -468,11 +454,11 @@ export default function AdminTournamentDetailPage() {
               const nameByPlayer: Record<string, string> = {};
               const handicapByPlayer: Record<string, number | null> = {};
 
-              for (const p of pRes.data ?? []) {
-                const pid = String((p as any).id);
-                nameByPlayer[pid] = String((p as any).display_name ?? "Unknown");
+              for (const p of ((pRes.data ?? []) as PlayerDetailRow[])) {
+                const pid = String(p.id ?? "");
+                nameByPlayer[pid] = String(p.display_name ?? "Unknown");
 
-                const h = (p as any).handicap;
+                const h = p.handicap;
                 if (h == null || h === "") handicapByPlayer[pid] = null;
                 else {
                   const hn = typeof h === "number" ? h : Number(h);
@@ -501,7 +487,7 @@ export default function AdminTournamentDetailPage() {
     if (mRes.error) {
       setMatches([]);
     } else {
-      const ms = (mRes.data ?? []).map((r: any) => ({
+      const ms = ((mRes.data ?? []) as RawMatchRow[]).map((r) => ({
         id: String(r.id),
         tournament_id: r.tournament_id == null ? null : String(r.tournament_id),
         team_a_id: r.team_a_id == null ? null : String(r.team_a_id),
@@ -579,145 +565,91 @@ export default function AdminTournamentDetailPage() {
     return m;
   }, [teams]);
 
-  function teamLabel(teamId: string | null) {
-    if (!teamId) return "Team -";
-    const t = teamById[teamId];
-    if (!t) return "Team -";
-    return `Team ${t.team_no}`;
-  }
+  const teamLabel = (teamId: string | null) => libTeamLabel(teamId, teamById);
 
-  function teamDisplayName(teamId: string | null) {
-    if (!teamId) return "BYE";
-    const memberIds = teamMembersByTeamId[teamId] ?? [];
-    const names = memberIds.map((pid) => nameByPlayerId[pid]).filter(Boolean);
+  const isHandicapTournament = () => tournament?.rule_type !== "SCRATCH";
 
-    if (tournament?.format === "SINGLES") {
-      return (names[0] as string) ?? teamLabel(teamId);
-    }
-    if (names.length) return (names as string[]).join(" • ");
-    return teamLabel(teamId);
-  }
+  const teamDisplayName = (teamId: string | null) =>
+    libTeamDisplayName({
+      teamId,
+      format: tournament?.format ?? null,
+      teamMembersByTeamId,
+      teamById,
+      nameByPlayerId,
+      handicapByPlayerId,
+      isHandicapTournament: isHandicapTournament(),
+    });
 
-  function teamMembersLine(teamId: string | null) {
-    if (!teamId) return "—";
-    const memberIds = teamMembersByTeamId[teamId] ?? [];
-    const names = memberIds.map((pid) => nameByPlayerId[pid]).filter(Boolean);
-    if (tournament?.format === "SINGLES") return (names[0] as string) ?? teamLabel(teamId);
-    return names.length ? (names as string[]).join(" • ") : teamLabel(teamId);
-  }
+  const teamMembersLine = (teamId: string | null) =>
+    libTeamMembersLine({
+      teamId,
+      teamMembersByTeamId,
+      nameByPlayerId,
+      handicapByPlayerId,
+      isHandicapTournament: isHandicapTournament(),
+    });
 
-  function winnerLabelForMatch(matchId: string | null | undefined) {
-    if (!matchId) return "Winner";
-    const no = matchNoById[matchId];
-    if (!no) return "Winner";
-    return `M${no} W`;
-  }
+  const winnerLabelForMatch = (matchId: string | null | undefined) =>
+    libWinnerLabelForMatch(matchId ?? null, matchNoById);
 
-  function slotLabel(m: MatchRow, side: "A" | "B") {
-    const teamId = side === "A" ? m.team_a_id : m.team_b_id;
-    const sourceType = side === "A" ? m.slot_a_source_type : m.slot_b_source_type;
-    const sourceMatchId = side === "A" ? m.slot_a_source_match_id : m.slot_b_source_match_id;
+  const slotLabel = (m: MatchRow, side: "A" | "B") =>
+    libSlotLabel({
+      teamId: side === "A" ? m.team_a_id : m.team_b_id,
+      sourceType: side === "A" ? m.slot_a_source_type ?? null : m.slot_b_source_type ?? null,
+      sourceMatchId: side === "A" ? m.slot_a_source_match_id ?? null : m.slot_b_source_match_id ?? null,
+      format: tournament?.format ?? null,
+      teamMembersByTeamId,
+      teamById,
+      nameByPlayerId,
+      handicapByPlayerId,
+      isHandicapTournament: isHandicapTournament(),
+      matchNoById,
+    });
 
-    if (teamId) return teamDisplayName(teamId);
-    if (sourceType === "WINNER_OF_MATCH") return winnerLabelForMatch(sourceMatchId);
-    if (sourceType === "BYE") return "BYE";
-    return "TBD";
-  }
+  const slotMembersLine = (m: MatchRow, side: "A" | "B") =>
+    libSlotMembersLine({
+      teamId: side === "A" ? m.team_a_id : m.team_b_id,
+      sourceType: side === "A" ? m.slot_a_source_type ?? null : m.slot_b_source_type ?? null,
+      sourceMatchId: side === "A" ? m.slot_a_source_match_id ?? null : m.slot_b_source_match_id ?? null,
+      teamMembersByTeamId,
+      nameByPlayerId,
+      handicapByPlayerId,
+      isHandicapTournament: isHandicapTournament(),
+    });
 
-  function slotMembersLine(m: MatchRow, side: "A" | "B") {
-    const teamId = side === "A" ? m.team_a_id : m.team_b_id;
-    const sourceType = side === "A" ? m.slot_a_source_type : m.slot_b_source_type;
-    if (teamId) return teamMembersLine(teamId);
-    if (sourceType === "WINNER_OF_MATCH") return "Pending winner";
-    if (sourceType === "BYE") return "BYE";
-    return "Pending";
-  }
+  const roundLabel = (roundNo: number | null | undefined) =>
+    libRoundLabel({
+      totalTeams:
+        teams.length > 0
+          ? teams.length
+          : tournament?.format === "SINGLES" && entryCount > 0
+          ? entryCount
+          : 0,
+      roundNo: roundNo ?? null,
+    });
 
-  function largestPowerOfTwoLE(n: number) {
-    let p = 1;
-    while (p * 2 <= n) p *= 2;
-    return p;
-  }
+  const singlesHandicapInfo = (m: MatchRow) =>
+    computeSinglesHandicapInfo({
+      format: tournament?.format ?? null,
+      teamAId: m.team_a_id,
+      teamBId: m.team_b_id,
+      teamMembersByTeamId,
+      handicapByPlayerId,
+      teamDisplayName,
+    });
 
-  function roundLabel(roundNo: number | null | undefined) {
-    const r = Number(roundNo ?? 0);
-    if (!r) return "Round -";
-
-    const totalTeams =
-      teams.length > 0 ? teams.length : tournament?.format === "SINGLES" && entryCount > 0 ? entryCount : 0;
-
-    if (!totalTeams || totalTeams < 2) return `Round ${r}`;
-
-    const base = largestPowerOfTwoLE(totalTeams);
-    const hasPreRound = totalTeams > base;
-
-    if (hasPreRound && r === 1) return "Pre-Rd";
-
-    const mainRoundNo = hasPreRound ? r - 1 : r;
-    const playersLeft = Math.floor(base / Math.pow(2, mainRoundNo - 1));
-
-    if (playersLeft === 2) return "Final";
-    if (playersLeft === 4) return "Semis";
-    if (playersLeft === 8) return "Quarters";
-    if (playersLeft >= 16) return `RD ${mainRoundNo}`;
-
-    return `Round ${r}`;
-  }
-
-  function isHandicapTournament() {
-    return tournament?.rule_type !== "SCRATCH";
-  }
-
-  function singlesHandicapInfo(m: MatchRow) {
-    if (tournament?.format !== "SINGLES") return null;
-    if (!m.team_a_id || !m.team_b_id) return null;
-
-    const pa = teamMembersByTeamId[m.team_a_id]?.[0] ?? null;
-    const pb = teamMembersByTeamId[m.team_b_id]?.[0] ?? null;
-
-    if (!pa || !pb) return null;
-
-    const ha = handicapByPlayerId[pa] ?? null;
-    const hb = handicapByPlayerId[pb] ?? null;
-
-    const nameA = teamDisplayName(m.team_a_id);
-    const nameB = teamDisplayName(m.team_b_id);
-
-    // If either handicap unknown, show "-" and no +diff
-    if (ha == null || hb == null) {
-      return {
-        nameA,
-        nameB,
-        ha: ha as number | null,
-        hb: hb as number | null,
-        diff: null as number | null,
-        plusTo: null as "A" | "B" | null,
-      };
-    }
-
-    const diff = Math.abs(ha - hb);
-    const plusTo = diff === 0 ? null : ha < hb ? "A" : "B"; // lower handicap gets the plus
-
-    return { nameA, nameB, ha, hb, diff, plusTo };
-  }
-function shortName(s: string) {
-  const t = (s ?? "").trim();
-  if (!t) return t;
-  // Prefer first name or first token for compact “+X to …”
-  const first = t.split(" ")[0] ?? t;
-  return first.length ? first : t;
-}
-
-function singlesHandicapLine(m: MatchRow) {
-  if (!isHandicapTournament()) return null;
-  const hc = singlesHandicapInfo(m);
-  if (!hc) return null;
-
-  if (hc.diff == null) return "Handicap: —";
-  if (hc.diff === 0) return "Handicap: level";
-  const to = hc.plusTo === "A" ? shortName(hc.nameA) : shortName(hc.nameB);
-  return `Handicap: +${hc.diff} to ${to}`;
-}
+  const singlesHandicapLine = (m: MatchRow) =>
+    libSinglesHandicapLine(
+      {
+        format: tournament?.format ?? null,
+        teamAId: m.team_a_id,
+        teamBId: m.team_b_id,
+        teamMembersByTeamId,
+        handicapByPlayerId,
+        nameByPlayerId,
+      },
+      tournament?.rule_type ?? null
+    );
 
   function selectRound(r: number) {
     setSelectedRound(r);
@@ -918,7 +850,7 @@ function singlesHandicapLine(m: MatchRow) {
       return;
     }
 
-    const playerIds = Array.from(new Set((res.data ?? []).map((r: any) => String(r.player_id)).filter(Boolean)));
+    const playerIds = Array.from(new Set(((res.data ?? []) as PlayerIdFKRow[]).map((r) => String(r.player_id ?? "")).filter(Boolean)));
 
     if (playerIds.length === 0) {
       setError("No entrants yet.");
@@ -934,9 +866,9 @@ function singlesHandicapLine(m: MatchRow) {
       return;
     }
 
-    const hs = (pRes.data ?? [])
-      .map((p: any) => (typeof p.handicap === "number" ? Number(p.handicap) : p.handicap != null ? Number(p.handicap) : null))
-      .filter((v: any) => v !== null && !Number.isNaN(v)) as number[];
+    const hs = ((pRes.data ?? []) as PlayerHandicapRow[])
+      .map((p) => (typeof p.handicap === "number" ? Number(p.handicap) : p.handicap != null ? Number(p.handicap) : null))
+      .filter((v): v is number => v !== null && !Number.isNaN(v));
 
     if (hs.length === 0) {
       setError("No handicaps available for entrants.");
@@ -1067,8 +999,8 @@ function singlesHandicapLine(m: MatchRow) {
         setBusy(false);
         return;
       }
-    } catch (e: any) {
-      setError(e?.message ?? "Network error.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error.");
       setBusy(false);
       return;
     }
@@ -1122,7 +1054,7 @@ function singlesHandicapLine(m: MatchRow) {
   async function adminFinalScore(matchId: string) {
     if (!matchId) return;
 
-    const draft = scoreDraftByMatchId[matchId] ?? drawerDraft;
+    const draft = scoreDraftByMatchId[matchId] ?? { a: "", b: "" };
 
     const scoreA = Number((draft?.a ?? "").trim());
     const scoreB = Number((draft?.b ?? "").trim());
@@ -1158,11 +1090,10 @@ function singlesHandicapLine(m: MatchRow) {
         return;
       }
 
-      closeDrawer();
       await load({ preserveScroll: true });
       setBusy(false);
-    } catch (e: any) {
-      setError(e?.message ?? "Network error.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error.");
       setBusy(false);
       restoreScroll();
     }
@@ -1252,27 +1183,28 @@ function singlesHandicapLine(m: MatchRow) {
     setBusy(true);
     setError(null);
 
-    for (const m of eligible) {
-      try {
-        const res = await fetch("/api/tournaments/matches/admin-final", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ match_id: m.id, score_a: m.score_a, score_b: m.score_b }),
-        });
+    try {
+      const res = await fetch("/api/tournaments/matches/admin-final/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tournament_id: tournamentId,
+          matches: eligible.map((m) => ({ match_id: m.id, score_a: m.score_a, score_b: m.score_b })),
+        }),
+      });
 
-        const json = await res.json().catch(() => null);
-        if (!res.ok) {
-          setError(json?.error ?? `Could not complete match ${m.match_no ?? ""}.`);
-          setBusy(false);
-          restoreScroll();
-          return;
-        }
-      } catch (e: any) {
-        setError(e?.message ?? "Network error.");
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(json?.error ?? "Could not complete matches.");
         setBusy(false);
         restoreScroll();
         return;
       }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error.");
+      setBusy(false);
+      restoreScroll();
+      return;
     }
 
     await load({ preserveScroll: true });
@@ -1305,8 +1237,8 @@ function singlesHandicapLine(m: MatchRow) {
 
       await load({ preserveScroll: true });
       setBusy(false);
-    } catch (e: any) {
-      setError(e?.message ?? "Network error.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error.");
       setBusy(false);
       restoreScroll();
     }
@@ -1339,2072 +1271,22 @@ function singlesHandicapLine(m: MatchRow) {
     );
   }
 
-  function StatusPill({ label, tone }: { label: string; tone?: "neutral" | "good" | "warn" | "danger" }) {
-    const bg = tone === "good" ? "#ECFDF5" : tone === "warn" ? "#FFF7ED" : tone === "danger" ? "#FEF2F2" : "#fff";
-    const fg = tone === "good" ? "#047857" : tone === "warn" ? "#9A3412" : tone === "danger" ? theme.danger : theme.text;
-
-    return (
-      <div
-        style={{
-          border: `1px solid ${theme.border}`,
-          borderRadius: 999,
-          padding: "5px 10px",
-          fontSize: 12,
-          fontWeight: 900,
-          background: bg,
-          color: fg,
-          whiteSpace: "nowrap",
-        }}
-      >
-        {label}
-      </div>
-    );
-  }
-
-  function PrimaryButton({
-    label,
-    onClick,
-    disabled,
-    variant,
-    title,
-  }: {
-    label: string;
-    onClick: () => void;
-    disabled?: boolean;
-    variant?: "solid" | "outline" | "danger";
-    title?: string;
-  }) {
-    const isSolid = variant === "solid";
-    const isDanger = variant === "danger";
-
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={!!disabled}
-        title={title}
-        style={{
-          width: "100%",
-          border: isSolid ? "none" : `1px solid ${theme.border}`,
-          background: disabled ? "#9CA3AF" : isDanger ? "#fff" : isSolid ? theme.maroon : "#fff",
-          color: disabled ? "#fff" : isDanger ? theme.danger : isSolid ? "#fff" : theme.text,
-          padding: "10px 12px",
-          borderRadius: 12,
-          fontWeight: 900,
-          cursor: disabled ? "not-allowed" : "pointer",
-        }}
-      >
-        {busy ? "Working..." : label}
-      </button>
-    );
-  }
-
-  function SectionCard({
-    title,
-    count,
-    open,
-    onToggle,
-    tone,
-    children,
-    subtitle,
-  }: {
-    title: string;
-    count?: number;
-    open: boolean;
-    onToggle: () => void;
-    tone?: "neutral" | "good" | "warn" | "danger";
-    subtitle?: string;
-    children: React.ReactNode;
-  }) {
-    return (
-      <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, overflow: "hidden", background: "#fff" }}>
-        <button
-          type="button"
-          onClick={onToggle}
-          style={{
-            width: "100%",
-            border: "none",
-            background: "#fff",
-            color: theme.text,
-            padding: "12px 12px",
-            fontWeight: 900,
-            cursor: "pointer",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "baseline",
-            gap: 10,
-          }}
-          title="Show/hide section"
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-            <div style={{ whiteSpace: "nowrap" }}>{title}</div>
-            {typeof count === "number" ? <div style={{ color: theme.muted, fontSize: 12, fontWeight: 900 }}>({count})</div> : null}
-            {tone ? <StatusPill label={tone === "warn" ? "In progress" : tone === "good" ? "OK" : tone === "danger" ? "Attention" : "—"} tone={tone} /> : null}
-          </div>
-          <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>{open ? "▾" : "▸"}</div>
-        </button>
-
-        {subtitle ? <div style={{ padding: "0 12px 10px", fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>{subtitle}</div> : null}
-
-        {open ? <div style={{ borderTop: `1px solid ${theme.border}`, padding: 12 }}>{children}</div> : null}
-      </div>
-    );
-  }
-
-  function TournamentControlBar() {
-    const t = tournament;
-    const fmt = t?.format ?? "SINGLES";
-
-    const canLock = !!t && entriesOpen && !busy && !mustSetTargetBeforeLock;
-    const canGenTeams = !!t && fmt === "DOUBLES" && !entriesOpen && !busy;
-    const canGenMatches = !!t && !entriesOpen && !busy && !hasMatches && (t.format === "SINGLES" || hasTeams);
-    const canStart = !!t && t.status === "ANNOUNCED" && !entriesOpen && (fmt !== "DOUBLES" || hasTeams) && !busy;
-    const canEnd = !!t && t.status === "IN_PLAY" && !busy;
-
-    const entriesTone = entriesOpen ? "good" : "danger";
-    const tourTone = t?.status === "IN_PLAY" ? "warn" : t?.status === "COMPLETED" ? "neutral" : "good";
-
-    const bracketLabel = hasMatches ? "Bracket generated ✓" : fmt === "SINGLES" ? "Generate round 1" : "Generate matches";
-    const bracketTitle = entriesOpen
-      ? "Lock entries first"
-      : !hasTeams
-      ? "Generate teams first"
-      : hasMatches
-      ? "Matches already exist for this tournament"
-      : "Generate fixtures";
-
-    return (
-      <div style={{ marginTop: 14, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, overflow: "hidden" }}>
-        <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-          <div style={{ fontWeight: 900, fontSize: 16 }}>Tournament control</div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <StatusPill label={t ? statusLabel(t.status) : "—"} tone={tourTone as any} />
-            <StatusPill label={entriesOpen ? "Entries open" : "Entries locked"} tone={entriesTone as any} />
-          </div>
-        </div>
-
-        <div style={{ borderTop: `1px solid ${theme.border}`, padding: 14 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-            <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 10 }}>
-              <div style={{ fontSize: 12, color: theme.muted, fontWeight: 900 }}>Entrants</div>
-              <div style={{ marginTop: 2, fontSize: 16, fontWeight: 900 }}>{entryCount}</div>
-            </div>
-            <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 10 }}>
-              <div style={{ fontSize: 12, color: theme.muted, fontWeight: 900 }}>Teams</div>
-              <div style={{ marginTop: 2, fontSize: 16, fontWeight: 900 }}>{teams.length}</div>
-            </div>
-            <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 10 }}>
-              <div style={{ fontSize: 12, color: theme.muted, fontWeight: 900 }}>Matches</div>
-              <div style={{ marginTop: 2, fontSize: 16, fontWeight: 900 }}>{matches.length}</div>
-            </div>
-          </div>
-
-          {t?.format === "DOUBLES" ? (
-            <div style={{ marginTop: 12, border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12 }}>
-              <div style={{ fontWeight: 900, fontSize: 13 }}>Target team handicap</div>
-              <div style={{ marginTop: 6, fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>Required before locking entries for Doubles.</div>
-
-              <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <input
-                  inputMode="decimal"
-                  value={targetInput}
-                  onChange={(e) => setTargetInput(e.target.value)}
-                  placeholder="e.g. 18"
-                  disabled={busy || !entriesOpen}
-                  style={{
-                    width: "100%",
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
-                    padding: "10px 12px",
-                    fontWeight: 900,
-                    outline: "none",
-                  }}
-                />
-                <button
-                  type="button"
-                  disabled={busy || !entriesOpen}
-                  onClick={suggestTargetFromEntries}
-                  style={{
-                    width: "100%",
-                    border: `1px solid ${theme.border}`,
-                    background: "#fff",
-                    color: theme.text,
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    fontWeight: 900,
-                    cursor: busy || !entriesOpen ? "not-allowed" : "pointer",
-                  }}
-                  title={!entriesOpen ? "Entries are locked" : "Suggest from current entrants"}
-                >
-                  Suggest
-                </button>
-              </div>
-
-              <button
-                type="button"
-                disabled={busy || !entriesOpen || !targetValid}
-                onClick={saveTarget}
-                style={{
-                  marginTop: 8,
-                  width: "100%",
-                  border: "none",
-                  background: entriesOpen && targetValid ? theme.maroon : "#9CA3AF",
-                  color: "#fff",
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                  cursor: busy || !entriesOpen || !targetValid ? "not-allowed" : "pointer",
-                }}
-              >
-                {busy ? "Working..." : "Save target"}
-              </button>
-            </div>
-          ) : null}
-
-          <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-            <PrimaryButton
-              label={!entriesOpen ? "Entries locked" : "Lock entries"}
-              onClick={lockEntries}
-              disabled={!canLock}
-              variant="outline"
-              title={!entriesOpen ? "Entries already locked" : mustSetTargetBeforeLock ? "Set target team handicap first" : "Lock entries"}
-            />
-
-            {t?.format === "DOUBLES" ? (
-              <PrimaryButton
-                label="Generate teams"
-                onClick={generateDoublesTeams}
-                disabled={!canGenTeams}
-                variant="solid"
-                title={entriesOpen ? "Lock entries first" : "Generate doubles teams"}
-              />
-            ) : null}
-
-            <PrimaryButton label={bracketLabel} onClick={generateMatches} disabled={!canGenMatches} variant={hasMatches ? "outline" : "solid"} title={bracketTitle} />
-
-            {t?.status === "ANNOUNCED" ? (
-              <PrimaryButton label="Start tournament" onClick={startTournament} disabled={!canStart} variant="solid" title="Move tournament to In-play" />
-            ) : null}
-
-            {t?.status === "IN_PLAY" ? <PrimaryButton label="End tournament" onClick={endTournament} disabled={!canEnd} variant="outline" title="Mark tournament as Completed" /> : null}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  function Round1PreviewCard() {
-    // Only show once fixtures exist
-    if (!matches.length) return null;
-
-    const roundNos = matches
-      .map((m) => Number(m.round_no ?? 0))
-      .filter((n) => n && !Number.isNaN(n))
-      .sort((a, b) => a - b);
-
-    const firstRound = roundNos[0] ?? null;
-    if (!firstRound) return null;
-
-    const round1 = matches
-      .filter((m) => Number(m.round_no ?? 0) === firstRound)
-      .sort((a, b) => Number(a.match_no ?? 0) - Number(b.match_no ?? 0) || String(a.id).localeCompare(String(b.id)));
-
-    if (!round1.length) return null;
-
-    const playable = round1.filter((m) => !isMatchBye(m));
-    const byes = round1.filter((m) => isMatchBye(m));
-
-    const canEdit = tournament?.status === "ANNOUNCED" && !busy;
-
-    async function saveFixtureEdits() {
-      if (!tournamentId || typeof tournamentId !== "string") return;
-      if (!canEdit) return;
-
-      const used = new Set<string>();
-
-      for (const m of round1) {
-        const d = fixturesDraftByMatchId[m.id] ?? { a: "", b: "" };
-        const a = (d.a ?? "").trim();
-        const b = (d.b ?? "").trim();
-
-        if (!a) {
-          setError("Each match must have Team A set.");
-          return;
-        }
-        if (a && b && a === b) {
-          setError("A team cannot play itself.");
-          return;
-        }
-        if (used.has(a)) {
-          setError("Each team can only appear once in the round.");
-          return;
-        }
-        used.add(a);
-        if (b) {
-          if (used.has(b)) {
-            setError("Each team can only appear once in the round.");
-            return;
-          }
-          used.add(b);
-        }
-      }
-
-      setBusy(true);
-      setError(null);
-
-      for (const m of round1) {
-        const d = fixturesDraftByMatchId[m.id] ?? { a: "", b: "" };
-        const a = (d.a ?? "").trim();
-        const b = (d.b ?? "").trim();
-
-        const status = b ? "SCHEDULED" : "BYE";
-
-        const up = await supabase
-          .from("matches")
-          .update({
-            team_a_id: a,
-            team_b_id: b || null,
-            status,
-            score_a: null,
-            score_b: null,
-            confirmed_by_a: false,
-            confirmed_by_b: false,
-            finalized_by_admin: false,
-            finalized_at: null,
-            admin_final_by: null,
-            admin_final_at: null,
-            submitted_by_player_id: null,
-            submitted_at: null,
-            winner_team_id: null,
-          })
-          .eq("id", m.id);
-
-        if (up.error) {
-          setError(`Could not update match ${m.match_no ?? ""}.\n${up.error.message}`.trim());
-          setBusy(false);
-          return;
-        }
-      }
-
-      setFixturesEditOpen(false);
-      await load({ preserveScroll: true });
-      setBusy(false);
-    }
-
-    return (
-      <div style={{ marginTop: 14, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, overflow: "hidden" }}>
-        <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-          <div style={{ fontWeight: 900, fontSize: 16 }}>{roundLabel(firstRound)} fixtures</div>
-          <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, whiteSpace: "nowrap" }}>
-            {playable.length} matches{byes.length ? ` • ${byes.length} BYE` : ""}
-          </div>
-        </div>
-
-        <div style={{ borderTop: `1px solid ${theme.border}`, padding: 14 }}>
-          <div style={{ fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-            Review fixtures before starting. You can switch to <span style={{ fontWeight: 900, color: theme.text }}>Rounds</span> to manage scoring and admin actions.
-          </div>
-
-          <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-            <button
-              type="button"
-              disabled={!canEdit}
-              onClick={() => setFixturesEditOpen((v) => !v)}
-              style={{
-                width: "100%",
-                border: `1px solid ${theme.border}`,
-                background: "#fff",
-                color: theme.text,
-                padding: "10px 12px",
-                borderRadius: 12,
-                fontWeight: 900,
-                cursor: canEdit ? "pointer" : "not-allowed",
-              }}
-              title={canEdit ? "Edit fixtures before starting" : "Start tournament to edit fixtures"}
-            >
-              {fixturesEditOpen ? "Close fixture editor" : "Edit fixtures"}
-            </button>
-
-            {fixturesEditOpen ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={saveFixtureEdits}
-                style={{
-                  width: "100%",
-                  border: "none",
-                  background: theme.maroon,
-                  color: "#fff",
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                  cursor: busy ? "not-allowed" : "pointer",
-                }}
-              >
-                {busy ? "Working..." : "Save fixture edits"}
-              </button>
-            ) : null}
-          </div>
-
-          <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-            {round1.map((m) => {
-              const leftName = teamDisplayName(m.team_a_id);
-              const rightName = teamDisplayName(m.team_b_id);
-              const hc = singlesHandicapInfo(m);
-              const leftHC =
-                tournament?.format === "SINGLES" && hc && isHandicapTournament() ? (hc.ha == null ? "" : ` (HC ${hc.ha})`) : "";
-              const rightHC =
-                tournament?.format === "SINGLES" && hc && isHandicapTournament() ? (hc.hb == null ? "" : ` (HC ${hc.hb})`) : "";
-
-              const isBye = isMatchBye(m);
-
-              return (
-                <div key={`r1-prev-${m.id}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12, background: "#fff" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-                    <div style={{ fontWeight: 900, minWidth: 0 }}>
-                      {fixturesEditOpen ? (
-                        <div style={{ display: "grid", gap: 6 }}>
-                          <select
-                            value={fixturesDraftByMatchId[m.id]?.a ?? ""}
-                            onChange={(e) =>
-                              setFixturesDraftByMatchId((p) => ({
-                                ...p,
-                                [m.id]: { a: e.target.value, b: p[m.id]?.b ?? "" },
-                              }))
-                            }
-                            style={{
-                              width: "100%",
-                              border: `1px solid ${theme.border}`,
-                              borderRadius: 10,
-                              padding: "8px 8px",
-                              fontWeight: 900,
-                            }}
-                          >
-                            <option value="">Select Team A</option>
-                            {teams.map((t) => (
-                              <option key={`team-a-${m.id}-${t.id}`} value={t.id}>
-                                {tournament?.format === "SINGLES"
-                                  ? teamDisplayName(t.id)
-                                  : `${teamDisplayName(t.id)} (${teamLabel(t.id)})`}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            value={fixturesDraftByMatchId[m.id]?.b ?? ""}
-                            onChange={(e) =>
-                              setFixturesDraftByMatchId((p) => ({
-                                ...p,
-                                [m.id]: { a: p[m.id]?.a ?? "", b: e.target.value },
-                              }))
-                            }
-                            style={{
-                              width: "100%",
-                              border: `1px solid ${theme.border}`,
-                              borderRadius: 10,
-                              padding: "8px 8px",
-                              fontWeight: 900,
-                            }}
-                          >
-                            <option value="">BYE / empty</option>
-                            {teams.map((t) => (
-                              <option key={`team-b-${m.id}-${t.id}`} value={t.id}>
-                                {tournament?.format === "SINGLES"
-                                  ? teamDisplayName(t.id)
-                                  : `${teamDisplayName(t.id)} (${teamLabel(t.id)})`}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      ) : (
-                        <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {isBye ? `${leftName}${leftHC} — Auto-advance (BYE)` : `${leftName}${leftHC} vs ${rightName}${rightHC}`}
-                        </div>
-                      )}
-                      <div style={{ marginTop: 4, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
-                        {m.match_no != null ? `Match ${m.match_no} • ` : ""}{roundLabel(m.round_no)}
-                      </div>
-
-                      {hc && !isBye && !fixturesEditOpen && isHandicapTournament() ? (
-                        <div style={{ marginTop: 6, fontSize: 12, color: theme.muted, fontWeight: 800, lineHeight: 1.25 }}>
-                          {singlesHandicapLine(m)}
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <StatusPill label={isBye ? "BYE" : matchStatusLabel(String(m.status ?? ""))} tone={isBye ? "warn" : "neutral"} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  function RoundSelector() {
-    if (!roundMeta.rounds.length) return null;
-
-    const rounds = roundMeta.rounds;
-    if (!rounds.length) return null;
-
-    return (
-      <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {rounds.map((r) => {
-          const p = roundMeta.byRound[r];
-          const done = p?.completed ?? 0;
-          const total = p?.total ?? 0;
-          const active = (roundMeta.selectedRound ?? rounds[rounds.length - 1]) === r;
-
-          return (
-            <button
-              key={`chip-${r}`}
-              type="button"
-              onClick={() => selectRound(r)}
-              style={{
-                border: `1px solid ${theme.border}`,
-                background: active ? theme.maroon : "#fff",
-                color: active ? "#fff" : theme.text,
-                padding: "8px 10px",
-                borderRadius: 999,
-                fontWeight: 900,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-              title={`${done}/${total} complete`}
-            >
-              <span>{roundLabel(r)}</span>
-              <span style={{ fontSize: 12, fontWeight: 900, opacity: active ? 0.95 : 0.8, whiteSpace: "nowrap" }}>
-                {done}/{total}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
-
-  function RoundAdminBar() {
-    const r = roundMeta.selectedRound;
-    if (!r) return null;
-
-    const p = roundMeta.byRound[r];
-    const total = p?.total ?? 0;
-    const done = p?.completed ?? 0;
-    const byesPending = p?.byesPending ?? 0;
-
-    const isComplete = roundMeta.roundIsComplete;
-
-    // Guardrails
-    const nextRoundNo = r + 1;
-    const nextRoundExists = matches.some((m) => Number(m.round_no ?? 0) === nextRoundNo);
-
-    const latestRound = roundMeta.rounds[roundMeta.rounds.length - 1] ?? r;
-    const latestActionableRound = maxPlayableRound ?? latestRound;
-    const isLatestRound = r === latestActionableRound;
-    const isFinalRound = maxPlayableRound != null && r === maxPlayableRound;
-    const hasIncompleteEarlierRound = roundMeta.rounds.some((rn) => {
-      if (rn >= r) return false;
-      const meta = roundMeta.byRound[rn];
-      if (!meta) return false;
-      return meta.total > 0 && (meta.completed < meta.total || meta.byesPending > 0);
-    });
-
-    const roundMatches = matchesByRound.find((x) => x.round === r)?.matches ?? [];
-    const playableRoundMatches = roundMatches.filter((m) => !isMatchBye(m));
-    const finalMatch = isFinalRound ? playableRoundMatches[0] ?? null : null;
-    const finalWinnerId = finalMatch ? winnerTeamIdFromMatch(finalMatch) : null;
-    const finalWinnerName = finalWinnerId ? teamDisplayName(finalWinnerId) : null;
-
-    const canAdvance =
-      !!tournament &&
-      tournament.status !== "COMPLETED" &&
-      isLatestRound &&
-      !isFinalRound &&
-      !hasIncompleteEarlierRound &&
-      !nextRoundExists &&
-      !busy;
-
-    const canCompleteTournament =
-      !!tournament &&
-      tournament.status !== "COMPLETED" &&
-      isLatestRound &&
-      isFinalRound &&
-      isComplete &&
-      !!finalWinnerId &&
-      !busy;
-
-    const advanceTitle = nextRoundExists
-      ? `${roundLabel(nextRoundNo)} fixtures already exist`
-      : !tournament
-      ? "Tournament not loaded"
-      : tournament.status === "COMPLETED"
-      ? "Tournament is completed"
-      : isFinalRound
-      ? "This is the final round"
-      : !isLatestRound
-      ? "Only the latest round can be advanced"
-      : hasIncompleteEarlierRound
-      ? "Finish earlier rounds before advancing"
-      : byesPending > 0
-      ? "BYEs are being auto-processed"
-      : "Advance to the next round";
-
-    const advanceHint = nextRoundExists
-      ? `Next round (${roundLabel(nextRoundNo)}) already exists.`
-      : tournament?.status === "COMPLETED"
-      ? "Tournament is completed."
-      : isFinalRound && isComplete
-      ? "Final complete - complete the tournament to publish the winner."
-      : isFinalRound
-      ? "Final round - complete the match to determine a winner."
-      : !isLatestRound
-      ? "Select the latest round to advance (only one round ahead)."
-      : hasIncompleteEarlierRound
-      ? "Complete earlier rounds (including Pre-Rd) before advancing."
-      : byesPending > 0
-      ? "BYEs still pending — auto-processing now."
-      : "Advance now (next round will use placeholders if needed).";
-
-    const scheduledCount = roundMatches.filter((m) => !isMatchBye(m) && !isMatchDone(m) && String(m.status ?? "") === "SCHEDULED").length;
-
-    const withScoresCount = roundMatches.filter((m) => {
-      if (isMatchBye(m)) return false;
-      if (isMatchDone(m)) return false;
-      return m.score_a != null && m.score_b != null;
-    }).length;
-
-    // Optional strictness applied: only allow these bulk ops while tournament is IN_PLAY
-    const canStartAll = !!tournament && tournament.status === "IN_PLAY" && scheduledCount > 0 && !busy;
-    const canCompleteWithScores = !!tournament && tournament.status === "IN_PLAY" && withScoresCount > 0 && !busy;
-
-    return (
-      <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-          <div style={{ fontWeight: 900, fontSize: 16 }}>{roundLabel(r)}</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <StatusPill label={isComplete ? "Complete" : "In progress"} tone={isComplete ? "good" : "warn"} />
-            <StatusPill label={`${done}/${total} complete${byesPending ? ` • ${byesPending} BYE pending` : ""}`} tone={byesPending ? "warn" : "neutral"} />
-          </div>
-        </div>
-
-        <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-          {isFinalRound && isComplete && finalWinnerName ? (
-            <div style={{ fontSize: 13, color: theme.text, fontWeight: 900 }}>
-              Winner: <span style={{ color: "#0F7A3D" }}>{finalWinnerName}</span>
-            </div>
-          ) : null}
-          {scheduledCount > 0 ? (
-            <button
-              type="button"
-              disabled={!canStartAll}
-              onClick={startAllInSelectedRound}
-              style={{
-                width: "100%",
-                border: `1px solid ${theme.border}`,
-                background: "#fff",
-                color: theme.text,
-                padding: "10px 12px",
-                borderRadius: 12,
-                fontWeight: 900,
-                cursor: canStartAll ? "pointer" : "not-allowed",
-              }}
-              title={`Start ${scheduledCount} scheduled match(es)`}
-            >
-              {busy ? "Working..." : `Start all matches${scheduledCount ? ` (${scheduledCount})` : ""}`}
-            </button>
-          ) : null}
-
-          {withScoresCount > 0 ? (
-            <button
-              type="button"
-              disabled={!canCompleteWithScores}
-              onClick={completeAllWithScoresInSelectedRound}
-              style={{
-                width: "100%",
-                border: `1px solid ${theme.border}`,
-                background: "#fff",
-                color: theme.text,
-                padding: "10px 12px",
-                borderRadius: 12,
-                fontWeight: 900,
-                cursor: canCompleteWithScores ? "pointer" : "not-allowed",
-              }}
-              title={`Complete ${withScoresCount} match(es) that already have scores`}
-            >
-              {busy ? "Working..." : `Complete all with scores${withScoresCount ? ` (${withScoresCount})` : ""}`}
-            </button>
-          ) : null}
-
-          {isLatestRound ? (
-            isFinalRound ? (
-              tournament?.status === "COMPLETED" ? null : (
-                <button
-                  type="button"
-                  disabled={!canCompleteTournament}
-                  onClick={endTournament}
-                  style={{
-                    width: "100%",
-                    border: "none",
-                    background: canCompleteTournament ? theme.maroon : "#9CA3AF",
-                    color: "#fff",
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    fontWeight: 900,
-                    cursor: canCompleteTournament ? "pointer" : "not-allowed",
-                  }}
-                  title={
-                    !isComplete
-                      ? "Final is not complete yet"
-                      : !finalWinnerId
-                      ? "Final needs a winner to complete the tournament"
-                      : "Complete tournament"
-                  }
-                >
-                  {busy ? "Working..." : "Complete tournament"}
-                </button>
-              )
-            ) : (
-              !nextRoundExists ? (
-                <button
-                  type="button"
-                  disabled={!canAdvance}
-                  onClick={advanceSelectedRound}
-                  style={{
-                    width: "100%",
-                    border: "none",
-                    background: canAdvance ? theme.maroon : "#9CA3AF",
-                    color: "#fff",
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    fontWeight: 900,
-                    cursor: canAdvance ? "pointer" : "not-allowed",
-                  }}
-                  title={advanceTitle}
-                >
-                  {busy ? "Working..." : "Advance round"}
-                </button>
-              ) : null
-            )
-          ) : null}
-
-          {!isLatestRound ? (
-            <div style={{ fontSize: 12, fontWeight: 900, color: theme.danger }}>
-              Select the latest round to enable advancing.
-            </div>
-          ) : null}
-        </div>
-
-        <div style={{ marginTop: 8, fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>
-          {advanceHint} Tip: keep match edits minimal. Use <span style={{ fontWeight: 900, color: theme.text }}>Admin final</span> only if captains can’t resolve.
-        </div>
-      </div>
-    );
-  }
-
-  function ControlView() {
-    return (
-      <>
-        <TournamentControlBar />
-        <Round1PreviewCard />
-      </>
-    );
-  }
-  function RoundsView() {
-    const selectedRound = roundMeta.selectedRound;
-
-    const roundMatches = matchesByRound.find((x) => x.round === selectedRound)?.matches ?? (selectedRound == null ? matches : []);
-
-    const playable = roundMatches.filter((m) => !isMatchBye(m));
-
-    const inPlay = playable.filter((m) => String(m.status ?? "") === "IN_PLAY" && !isMatchDone(m));
-    const completed = playable.filter((m) => isMatchDone(m));
-    const attention = playable.filter((m) => !isMatchDone(m) && String(m.status ?? "") !== "IN_PLAY");
-    const attentionList = showProblemsOnly ? attention : attention;
-    const inPlayList = showProblemsOnly ? inPlay : inPlay;
-    const completedList = showProblemsOnly ? [] : completed;
-
-    function renderBulkRoundScoring() {
-      const r = roundMeta.selectedRound;
-      if (!r) return null;
-
-      const roundMatches = matchesByRound.find((x) => x.round === r)?.matches ?? [];
-      const editable = roundMatches.filter((m) => !isMatchBye(m) && !isMatchDone(m) && !!m.team_a_id && !!m.team_b_id);
-
-      if (!editable.length) {
-        return (
-          <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14 }}>
-            <div style={{ fontWeight: 900, fontSize: 15 }}>Bulk scoring</div>
-            <div style={{ marginTop: 6, fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>No editable matches in this round.</div>
-          </div>
-        );
-      }
-
-      async function saveOnly() {
-        setBusy(true);
-        setError(null);
-
-        for (const m of editable) {
-          const d = bulkDraftByMatchId[m.id] ?? { a: "", b: "" };
-          const aRaw = (d.a ?? "").trim();
-          const bRaw = (d.b ?? "").trim();
-          if (!aRaw || !bRaw) continue; // allow partial saves
-
-          const a = Number(aRaw);
-          const b = Number(bRaw);
-
-          if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) {
-            setError("Bulk scoring: scores must be whole numbers >= 0.");
-            setBusy(false);
-            return;
-          }
-
-          const up = await supabase.from("matches").update({ score_a: a, score_b: b }).eq("id", m.id);
-          if (up.error) {
-            setError(`Could not save score for match ${m.match_no ?? ""}.\n${up.error.message}`.trim());
-            setBusy(false);
-            return;
-          }
-        }
-
-        await load({ preserveScroll: true });
-        setBusy(false);
-      }
-
-      async function finaliseAll() {
-        const ok = window.confirm(`Finalise all entered scores for ${roundLabel(r)}?\n\nThis will complete each match and set the winner.`);
-        if (!ok) return;
-
-        setBusy(true);
-        setError(null);
-
-        for (const m of editable) {
-          const d = bulkDraftByMatchId[m.id] ?? { a: "", b: "" };
-          const a = Number((d.a ?? "").trim());
-          const b = Number((d.b ?? "").trim());
-
-          if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) {
-            setError("Bulk finalise: every match must have valid whole-number scores (>= 0).");
-            setBusy(false);
-            return;
-          }
-
-          try {
-            const res = await fetch("/api/tournaments/matches/admin-final", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ match_id: m.id, score_a: a, score_b: b }),
-            });
-
-            const json = await res.json().catch(() => null);
-            if (!res.ok) {
-              setError(json?.error ?? `Could not admin-final match ${m.match_no ?? ""}.`);
-              setBusy(false);
-              return;
-            }
-          } catch (e: any) {
-            setError(e?.message ?? "Network error.");
-            setBusy(false);
-            return;
-          }
-        }
-
-        setBulkOpen(false);
-        await load({ preserveScroll: true });
-        setBusy(false);
-      }
-
-      return (
-        <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, overflow: "hidden" }}>
-          <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-            <div style={{ fontWeight: 900, fontSize: 15 }}>Bulk scoring • {roundLabel(r)}</div>
-            <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>{editable.length} matches</div>
-          </div>
-
-          <div style={{ borderTop: `1px solid ${theme.border}`, padding: 14, display: "grid", gap: 10 }}>
-            {editable.map((m) => {
-              const d = bulkDraftByMatchId[m.id] ?? { a: "", b: "" };
-              const left = teamDisplayName(m.team_a_id);
-              const right = teamDisplayName(m.team_b_id);
-
-              return (
-                <div key={`bulk-${m.id}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12 }}>
-                  <div style={{ fontWeight: 900, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {m.match_no != null ? `Match ${m.match_no} · ` : ""}
-                    {left} vs {right}
-                  </div>
-
-                  {tournament?.format === "SINGLES" && isHandicapTournament() ? (
-                    <div style={{ marginTop: 6, fontSize: 12, color: theme.muted, fontWeight: 900 }}>
-                      {singlesHandicapLine(m)}
-                    </div>
-                  ) : null}
-
-                  <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 46px 1fr", gap: 8, alignItems: "center" }}>
-                    <input
-                      inputMode="numeric"
-                      value={(d.a ?? "").toString()}
-                      onFocus={pinScrollForInput}
-                      onBlur={restorePinnedScrollForInput}
-                      onChange={(e) => setBulkDraftByMatchId((p) => ({ ...p, [m.id]: { a: e.target.value, b: p[m.id]?.b ?? "" } }))}
-                      placeholder="A"
-                      disabled={busy}
-                      style={{ width: "100%", border: `1px solid ${theme.border}`, borderRadius: 12, padding: "10px 10px", fontWeight: 900 }}
-                    />
-                    <div style={{ textAlign: "center", fontWeight: 900, color: theme.muted }}>-</div>
-                    <input
-                      inputMode="numeric"
-                      value={(d.b ?? "").toString()}
-                      onFocus={pinScrollForInput}
-                      onBlur={restorePinnedScrollForInput}
-                      onChange={(e) => setBulkDraftByMatchId((p) => ({ ...p, [m.id]: { a: p[m.id]?.a ?? "", b: e.target.value } }))}
-                      placeholder="B"
-                      disabled={busy}
-                      style={{ width: "100%", border: `1px solid ${theme.border}`, borderRadius: 12, padding: "10px 10px", fontWeight: 900 }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-
-            <div style={{ display: "grid", gap: 8 }}>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={saveOnly}
-                style={{
-                  width: "100%",
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  color: theme.text,
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                  cursor: busy ? "not-allowed" : "pointer",
-                }}
-              >
-                {busy ? "Working..." : "Save scores (no finalise)"}
-              </button>
-
-              <button
-                type="button"
-                disabled={busy}
-                onClick={finaliseAll}
-                style={{
-                  width: "100%",
-                  border: "none",
-                  background: theme.maroon,
-                  color: "#fff",
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                  cursor: busy ? "not-allowed" : "pointer",
-                }}
-              >
-                {busy ? "Working..." : "Save & finalise all"}
-              </button>
-
-              <div style={{ fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>
-                Tip: “Save & finalise” completes each match and sets the winner. Use Admin actions per match only when needed.
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    function renderMatchCard(m: MatchRow) {
-      const st = String(m.status ?? "");
-      const hasWinner = m.winner_team_id != null && m.winner_team_id !== "";
-      const isFinal = bool(m.finalized_by_admin) || st === "COMPLETED" || hasWinner;
-      const locked = isFinal;
-
-      const canStart = st === "SCHEDULED" && !locked;
-      const canComplete = st === "IN_PLAY" && !locked;
-
-      const confirmedA = bool(m.confirmed_by_a);
-      const confirmedB = bool(m.confirmed_by_b);
-
-      const scoreLine = m.score_a == null || m.score_b == null ? "-" : `${m.score_a} - ${m.score_b}`;
-
-      const leftName = slotLabel(m, "A");
-      const rightName = slotLabel(m, "B");
-
-      const leftHC =
-        tournament?.format === "SINGLES" && isHandicapTournament()
-          ? (() => {
-              const pid = m.team_a_id ? (teamMembersByTeamId[m.team_a_id]?.[0] ?? null) : null;
-              const h = pid ? (handicapByPlayerId[pid] ?? null) : null;
-              return h == null ? "" : ` (HC ${h})`;
-            })()
-          : "";
-
-      const rightHC =
-        tournament?.format === "SINGLES" && isHandicapTournament()
-          ? (() => {
-              const pid = m.team_b_id ? (teamMembersByTeamId[m.team_b_id]?.[0] ?? null) : null;
-              const h = pid ? (handicapByPlayerId[pid] ?? null) : null;
-              return h == null ? "" : ` (HC ${h})`;
-            })()
-          : "";
-
-      const headerTitle = isMatchBye(m) ? `${leftName}${leftHC} — BYE` : `${leftName}${leftHC} vs ${rightName}${rightHC}`;
-
-      const needsAdmin = !locked && (m.score_a == null || m.score_b == null || !(confirmedA && confirmedB));
-
-      const statusTone = locked
-        ? "complete"
-        : st === "IN_PLAY"
-        ? "inplay"
-        : "pending";
-
-      const cardBorder =
-        statusTone === "complete" ? "#16A34A" : statusTone === "inplay" ? "#FACC15" : theme.border;
-      const cardBg =
-        statusTone === "complete" ? "#F0FDF4" : statusTone === "inplay" ? "#FEFCE8" : "#fff";
-
-      return (
-        <div
-          key={m.id}
-          style={{
-            border: `1px solid ${cardBorder}`,
-            borderRadius: 16,
-            background: cardBg,
-            padding: 12,
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 900, fontSize: 14, minWidth: 0 }}>
-                <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={headerTitle}>
-                  {headerTitle}
-                </div>
-              </div>
-
-              <div style={{ marginTop: 4, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
-                {m.match_no != null ? `Match ${m.match_no} • ` : ""}{roundLabel(m.round_no)}
-                {tournament?.format === "SINGLES"
-                  ? ""
-                  : m.team_a_id && m.team_b_id
-                  ? ` • ${teamLabel(m.team_a_id)} • ${teamLabel(m.team_b_id)}`
-                  : ""}
-              </div>
-
-              {tournament?.format === "SINGLES" && !isMatchBye(m) && isHandicapTournament() ? (
-                <div style={{ marginTop: 8, fontSize: 12, color: theme.muted, fontWeight: 900, lineHeight: 1.25 }}>
-                  {singlesHandicapLine(m)}
-                </div>
-              ) : null}
-
-              {canStart ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => updateMatchStatus(m.id, "IN_PLAY")}
-                  style={{
-                    marginTop: 8,
-                    border: `1px solid ${theme.border}`,
-                    background: "#fff",
-                    color: theme.text,
-                    padding: "6px 10px",
-                    borderRadius: 999,
-                    fontWeight: 900,
-                    fontSize: 12,
-                    cursor: busy ? "not-allowed" : "pointer",
-                    alignSelf: "flex-start",
-                  }}
-                >
-                  Start
-                </button>
-              ) : null}
-
-              {canComplete ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => updateMatchStatus(m.id, "COMPLETED")}
-                  style={{
-                    marginTop: 8,
-                    border: `1px solid ${theme.border}`,
-                    background: "#fff",
-                    color: theme.text,
-                    padding: "6px 10px",
-                    borderRadius: 999,
-                    fontWeight: 900,
-                    fontSize: 12,
-                    cursor: busy ? "not-allowed" : "pointer",
-                    alignSelf: "flex-start",
-                  }}
-                >
-                  Complete
-                </button>
-              ) : null}
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
-              <StatusPill label={matchStatusLabel(st)} tone={locked ? "good" : st === "IN_PLAY" ? "warn" : "neutral"} />
-            </div>
-          </div>
-
-          <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <div
-              style={{
-                border: `1px solid ${theme.border}`,
-                borderRadius: 999,
-                padding: "5px 10px",
-                fontSize: 12,
-                fontWeight: 900,
-                background: "#fff",
-                color: theme.text,
-                whiteSpace: "nowrap",
-              }}
-            >
-              Score: {scoreLine}
-            </div>
-
-            {locked ? <StatusPill label="Locked" tone="neutral" /> : needsAdmin ? <StatusPill label="Needs attention" tone="warn" /> : null}
-          </div>
-
-          {!locked && !isMatchBye(m) ? (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 46px 1fr", gap: 8, alignItems: "center" }}>
-                <input
-                  inputMode="numeric"
-                  value={(scoreDraftByMatchId[m.id]?.a ?? (m.score_a == null ? "" : String(m.score_a))).toString()}
-                  onFocus={pinScrollForInput}
-                  onBlur={restorePinnedScrollForInput}
-                  onChange={(e) =>
-                    setScoreDraftByMatchId((p) => ({
-                      ...p,
-                      [m.id]: { a: e.target.value, b: p[m.id]?.b ?? (m.score_b == null ? "" : String(m.score_b)) },
-                    }))
-                  }
-                  placeholder="A"
-                  disabled={busy}
-                  style={{
-                    width: "100%",
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
-                    padding: "10px 10px",
-                    fontWeight: 900,
-                  }}
-                />
-                <div style={{ textAlign: "center", fontWeight: 900, color: theme.muted }}>-</div>
-                <input
-                  inputMode="numeric"
-                  value={(scoreDraftByMatchId[m.id]?.b ?? (m.score_b == null ? "" : String(m.score_b))).toString()}
-                  onFocus={pinScrollForInput}
-                  onBlur={restorePinnedScrollForInput}
-                  onChange={(e) =>
-                    setScoreDraftByMatchId((p) => ({
-                      ...p,
-                      [m.id]: { a: p[m.id]?.a ?? (m.score_a == null ? "" : String(m.score_a)), b: e.target.value },
-                    }))
-                  }
-                  placeholder="B"
-                  disabled={busy}
-                  style={{
-                    width: "100%",
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
-                    padding: "10px 10px",
-                    fontWeight: 900,
-                  }}
-                />
-              </div>
-
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => adminFinalScore(m.id)}
-                style={{
-                  marginTop: 8,
-                  width: "100%",
-                  border: "none",
-                  background: theme.maroon,
-                  color: "#fff",
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                  cursor: busy ? "not-allowed" : "pointer",
-                }}
-                title="Finalise this match with the scores entered above"
-              >
-                Finalise match
-              </button>
-
-              <div style={{ marginTop: 6, fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>
-                This uses Admin final to complete the match quickly. Captains can still submit normally.
-              </div>
-            </div>
-          ) : null}
-
-          {!locked ? (
-            <div style={{ marginTop: 10 }}>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  setAdminFinalOpenByMatchId((p) => ({ ...p, [m.id]: !p[m.id] }));
-                }}
-                style={{
-                  width: "100%",
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  color: theme.text,
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                  cursor: busy ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "baseline",
-                  justifyContent: "space-between",
-                  gap: 10,
-                }}
-              >
-                <div>Admin actions</div>
-                <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>{adminFinalOpenByMatchId[m.id] ? "▾" : "▸"}</div>
-              </button>
-
-              {adminFinalOpenByMatchId[m.id] ? (
-                <div style={{ marginTop: 8 }}>
-                  <div style={{ fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>
-                    Use admin final if captains can’t resolve. This completes the match.
-                  </div>
-
-                  <div style={{ marginTop: 6, fontSize: 12, color: theme.muted, fontWeight: 900 }}>
-                    Confirmed: A {confirmedA ? "✓" : "—"} • B {confirmedB ? "✓" : "—"}
-                    {bool(m.finalized_by_admin) ? <span style={{ marginLeft: 8, color: theme.danger }}>Admin final</span> : null}
-                  </div>
-
-                  <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 40px 1fr", gap: 8, alignItems: "center" }}>
-                    <input
-                      inputMode="numeric"
-                      value={(scoreDraftByMatchId[m.id]?.a ?? "").toString()}
-                      onFocus={pinScrollForInput}
-                      onBlur={restorePinnedScrollForInput}
-                      onChange={(e) =>
-                        setScoreDraftByMatchId((p) => ({
-                          ...p,
-                          [m.id]: { a: e.target.value, b: p[m.id]?.b ?? "" },
-                        }))
-                      }
-                      placeholder="A"
-                      disabled={busy}
-                      style={{
-                        width: "100%",
-                        border: `1px solid ${theme.border}`,
-                        borderRadius: 12,
-                        padding: "10px 10px",
-                        fontWeight: 900,
-                      }}
-                    />
-                    <div style={{ textAlign: "center", fontWeight: 900, color: theme.muted }}>-</div>
-                    <input
-                      inputMode="numeric"
-                      value={(scoreDraftByMatchId[m.id]?.b ?? "").toString()}
-                      onFocus={pinScrollForInput}
-                      onBlur={restorePinnedScrollForInput}
-                      onChange={(e) =>
-                        setScoreDraftByMatchId((p) => ({
-                          ...p,
-                          [m.id]: { a: p[m.id]?.a ?? "", b: e.target.value },
-                        }))
-                      }
-                      placeholder="B"
-                      disabled={busy}
-                      style={{
-                        width: "100%",
-                        border: `1px solid ${theme.border}`,
-                        borderRadius: 12,
-                        padding: "10px 10px",
-                        fontWeight: 900,
-                      }}
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => adminFinalScore(m.id)}
-                    style={{
-                      marginTop: 8,
-                      width: "100%",
-                      border: `1px solid ${theme.border}`,
-                      background: "#fff",
-                      color: theme.danger,
-                      padding: "10px 12px",
-                      borderRadius: 12,
-                      fontWeight: 900,
-                      cursor: busy ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {busy ? "Working..." : "Admin final & complete"}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      );
-    }
-
-    function renderTreeView() {
-      if (!matchesByRound.length) {
-        return (
-          <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14 }}>
-            <div style={{ fontWeight: 900, fontSize: 16 }}>Bracket view</div>
-            <div style={{ marginTop: 6, fontSize: 12, color: theme.muted }}>No rounds to show yet.</div>
-          </div>
-        );
-      }
-
-      const selected = roundMeta.selectedRound;
-      const roundsToShow = treeRoundsDisplay;
-      if (!roundsToShow.length) {
-        return (
-          <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14 }}>
-            <div style={{ fontWeight: 900, fontSize: 16 }}>Bracket view</div>
-            <div style={{ marginTop: 6, fontSize: 12, color: theme.muted }}>No rounds to show yet.</div>
-          </div>
-        );
-      }
-
-      const preRound = matchesByRound.find((r) => roundLabel(r.round) === "Pre-Rd");
-      const selectedRound = roundMeta.selectedRound ?? roundsToShow[0]?.round ?? null;
-      const selectedLabel = selectedRound ? roundLabel(selectedRound) : null;
-      const selectedIsPre = selectedLabel === "Pre-Rd";
-      const displayRounds = matchesByRound.filter((r) => roundLabel(r.round) !== "Pre-Rd");
-      const selectedIndex = selectedIsPre
-        ? -1
-        : selectedRound
-        ? displayRounds.findIndex((r) => r.round === selectedRound)
-        : -1;
-      const nextRound = selectedIsPre
-        ? displayRounds[0] ?? null
-        : selectedIndex >= 0 && selectedIndex < displayRounds.length - 1
-        ? displayRounds[selectedIndex + 1]
-        : null;
-
-      const feederSourceIds = new Set<string>();
-      const collectFeederIds = (roundMatches: MatchRow[] | undefined) => {
-        (roundMatches ?? []).forEach((m) => {
-          if (m.slot_a_source_match_id) feederSourceIds.add(String(m.slot_a_source_match_id));
-          if (m.slot_b_source_match_id) feederSourceIds.add(String(m.slot_b_source_match_id));
-        });
-      };
-      if (nextRound) {
-        collectFeederIds(nextRound.matches);
-      }
-
-      const roundsForTree = (() => {
-        const selectedMatchesRaw = selectedIsPre
-          ? preRound?.matches ?? []
-          : selectedRound
-          ? displayRounds.find((r) => r.round === selectedRound)?.matches ?? []
-          : [];
-        const nextMatches = nextRound?.matches ?? [];
-        const filteredNextMatches = feederSourceIds.size
-          ? nextMatches.filter(
-              (m) =>
-                (m.slot_a_source_match_id && feederSourceIds.has(String(m.slot_a_source_match_id))) ||
-                (m.slot_b_source_match_id && feederSourceIds.has(String(m.slot_b_source_match_id)))
-            )
-          : nextMatches;
-        const selectedMatches = feederSourceIds.size
-          ? selectedMatchesRaw.filter((m) => feederSourceIds.has(String(m.id)))
-          : selectedMatchesRaw;
-
-        if (selectedRound && nextRound) {
-          return [
-            { round: selectedRound, matches: selectedMatches },
-            { round: nextRound.round, matches: filteredNextMatches },
-          ];
-        }
-
-        return selectedRound ? [{ round: selectedRound, matches: selectedMatches }] : roundsToShow;
-      })();
-
-      const fromLabelRaw = selected ? roundLabel(selected) : null;
-      const fromLabel =
-        fromLabelRaw === "Pre-Rd" && roundsForTree.length ? roundLabel(roundsForTree[0].round) : fromLabelRaw;
-
-      const cardW = 230;
-      const cardH = 44;
-      const baseGap = 18;
-      const colGap = 110;
-      const headerOffset = 28;
-      const baseStep = cardH + baseGap;
-
-      const roundLayouts = roundsForTree.map((round, roundIndex) => {
-        const list = [...(round.matches ?? [])].sort(
-          (a, b) => Number(a.match_no ?? 0) - Number(b.match_no ?? 0) || String(a.id).localeCompare(String(b.id))
-        );
-        return { round, roundIndex, list };
-      });
-
-      type MatchPos = { id: string; roundIndex: number; x: number; top: number; centerY: number };
-      const posById: Record<string, MatchPos> = {};
-      const roundPositions: { roundIndex: number; matches: MatchPos[] }[] = [];
-
-      roundLayouts.forEach((layout, roundIndex) => {
-        const x = roundIndex * (cardW + colGap);
-        const list = layout.list;
-        const matches: MatchPos[] = [];
-
-        list.forEach((m, i) => {
-          const centerY = headerOffset + baseStep * ((i + 0.5) * Math.pow(2, roundIndex));
-          const top = centerY - cardH / 2;
-          const pos = { id: m.id, roundIndex, x, top, centerY };
-          matches.push(pos);
-          posById[m.id] = pos;
-        });
-
-        roundPositions.push({ roundIndex, matches });
-      });
-
-      let maxBottom = 0;
-      roundPositions.forEach((layout) => {
-        layout.matches.forEach((m) => {
-          maxBottom = Math.max(maxBottom, m.top + cardH);
-        });
-      });
-
-      const width = roundLayouts.length ? roundLayouts.length * (cardW + colGap) - colGap : cardW;
-      const height = Math.max(maxBottom + baseGap, cardH + headerOffset);
-
-      const lines: string[] = [];
-      const positionsByRoundIndex = new Map<number, MatchPos[]>(
-        roundPositions.map((layout) => [layout.roundIndex, layout.matches])
-      );
-      for (const layout of roundLayouts) {
-        if (layout.roundIndex === 0) continue;
-        const list = layout.list;
-        list.forEach((m) => {
-          const childPos = posById[m.id];
-          if (!childPos) return;
-          const childX = childPos.x;
-          const childCenterY = childPos.centerY;
-
-          const sourceIds = [m.slot_a_source_match_id, m.slot_b_source_match_id].filter(
-            (id): id is string => typeof id === "string" && id.length > 0
-          );
-          const parentPositions = sourceIds
-            .map((id) => posById[id])
-            .filter((p) => p && p.roundIndex === layout.roundIndex - 1) as MatchPos[];
-
-          if (parentPositions.length === 0) {
-            const fallbackParents = positionsByRoundIndex.get(layout.roundIndex - 1) ?? [];
-            const i = list.indexOf(m);
-            const aIdx = i * 2;
-            const bIdx = i * 2 + 1;
-            [aIdx, bIdx].forEach((idx) => {
-              const parentPos = fallbackParents[idx];
-              if (!parentPos) return;
-              const parentX = parentPos.x + cardW;
-              const parentCenterY = parentPos.centerY;
-              const midX = (parentX + childX) / 2;
-              lines.push(`M ${parentX} ${parentCenterY} H ${midX} V ${childCenterY} H ${childX}`);
-            });
-            return;
-          }
-
-          parentPositions.forEach((parentPos) => {
-            const parentX = parentPos.x + cardW;
-            const parentCenterY = parentPos.centerY;
-            const midX = (parentX + childX) / 2;
-            lines.push(`M ${parentX} ${parentCenterY} H ${midX} V ${childCenterY} H ${childX}`);
-          });
-        });
-      }
-
-      const slotLabel = (m: MatchRow, side: "A" | "B") => {
-        const teamId = side === "A" ? m.team_a_id : m.team_b_id;
-        if (teamId) return teamDisplayName(teamId);
-        const sourceType = side === "A" ? m.slot_a_source_type : m.slot_b_source_type;
-        const sourceMatchId = side === "A" ? m.slot_a_source_match_id : m.slot_b_source_match_id;
-        if (sourceType === "BYE") return "BYE";
-        if (sourceType === "WINNER_OF_MATCH" && sourceMatchId) {
-          const no = matchNoById[sourceMatchId];
-          return no ? `M${no} W` : "Winner";
-        }
-        return "TBD";
-      };
-
-      return (
-        <div style={{ marginTop: 12, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, overflow: "hidden" }}>
-          <div style={{ padding: "10px 14px", borderBottom: `1px solid ${theme.border}` }}>
-            <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, marginBottom: 6 }}>
-              Show rounds from
-            </div>
-            <RoundSelector />
-          </div>
-
-          <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-            <div style={{ fontWeight: 900, fontSize: 16 }}>
-              Bracket view{fromLabel ? ` • from ${fromLabel}` : ""}
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>
-              {roundsToShow.reduce((acc, r) => acc + (r.matches?.length ?? 0), 0)} matches
-            </div>
-          </div>
-
-          <div
-            style={{
-              borderTop: `1px solid ${theme.border}`,
-              padding: 14,
-              overflowX: "auto",
-            }}
-          >
-            <div style={{ position: "relative", width, height }}>
-              <svg
-                width={width}
-                height={height}
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  pointerEvents: "none",
-                  zIndex: 1,
-                }}
-              >
-                {lines.map((d, idx) => (
-                  <path key={`path-${idx}`} d={d} stroke="#CBBBA3" strokeWidth={2.5} strokeLinecap="round" fill="none" />
-                ))}
-              </svg>
-
-              {roundLayouts.map((layout) => {
-                const meta = roundMeta.byRound[layout.round.round];
-                const total = meta?.total ?? layout.list.length;
-                const completed = meta?.completed ?? 0;
-                const focused = selected ? layout.round.round === selected : true;
-                const colX = layout.roundIndex * (cardW + colGap);
-                const positioned = roundPositions.find((r) => r.roundIndex === layout.roundIndex)?.matches ?? [];
-                const matchPos = new Map(positioned.map((p) => [p.id, p]));
-
-                return (
-                  <div
-                    key={`tree-round-${layout.round.round}`}
-                    ref={(el) => {
-                      treeRoundRefs.current[layout.round.round] = el;
-                    }}
-                    style={{
-                      position: "absolute",
-                      left: colX,
-                      top: 0,
-                      width: cardW,
-                      opacity: focused ? 1 : 0.8,
-                      transition: "opacity 160ms ease",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "baseline",
-                        fontWeight: 900,
-                        fontSize: 14,
-                        color: theme.text,
-                        paddingBottom: 6,
-                      }}
-                    >
-                      <div>{roundLabel(layout.round.round)}</div>
-                      <div style={{ fontSize: 11, color: theme.muted, fontWeight: 900 }}>{completed}/{total}</div>
-                    </div>
-
-                    {layout.list.map((m) => {
-                      const pos = matchPos.get(m.id);
-                      const y = pos ? pos.top : headerOffset;
-                      const left = slotLabel(m, "A");
-                      const right = slotLabel(m, "B");
-                      const winnerId = winnerTeamIdFromMatch(m);
-                      const winA = winnerId && m.team_a_id && String(m.team_a_id) === winnerId;
-                      const winB = winnerId && m.team_b_id && String(m.team_b_id) === winnerId;
-                      return (
-                        <div
-                          key={`tree-${m.id}`}
-                          style={{
-                            position: "absolute",
-                            left: 0,
-                            top: y,
-                            width: cardW,
-                            height: cardH,
-                            border: `1px solid ${theme.border}`,
-                            borderRadius: 10,
-                            background: "#fff",
-                            padding: "6px 10px",
-                            display: "grid",
-                            alignContent: "center",
-                            gap: 2,
-                            fontSize: 12,
-                            fontWeight: 900,
-                            overflow: "hidden",
-                            zIndex: 2,
-                          }}
-                        >
-                          <div
-                            style={{
-                              color: winA ? "#16A34A" : left === "TBD" ? theme.muted : theme.text,
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {left}
-                          </div>
-                          <div
-                            style={{
-                              color: winB ? "#16A34A" : right === "TBD" ? theme.muted : theme.text,
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {right}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <>
-        <div style={{ marginTop: 14 }}>
-          <RoundSelector />
-          <RoundAdminBar />
-
-          {roundMeta.roundIsComplete ? (
-            <div
-              style={{
-                marginTop: 10,
-                background: "#fff",
-                border: `1px solid ${theme.border}`,
-                borderRadius: 16,
-                padding: 12,
-                fontWeight: 900,
-              }}
-            >
-              {maxPlayableRound != null && roundMeta.selectedRound === maxPlayableRound ? 'Final complete. Click "Complete tournament" to finalise and publish the winner.' : "Round complete. You can advance to the next round."}
-            </div>
-          ) : null}
-
-          <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={() => setRoundsViewMode((v) => (v === "LIST" ? "TREE" : "LIST"))}
-              style={{
-                border: `1px solid ${theme.border}`,
-                background: roundsViewMode === "TREE" ? theme.maroon : "#fff",
-                color: roundsViewMode === "TREE" ? "#fff" : theme.text,
-                padding: "8px 10px",
-                borderRadius: 999,
-                fontWeight: 900,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {roundsViewMode === "TREE" ? "Tree view on" : "Tree view"}
-            </button>
-
-            {roundsViewMode === "LIST" ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowProblemsOnly((v) => !v)}
-                  style={{
-                    border: `1px solid ${theme.border}`,
-                    background: showProblemsOnly ? theme.maroon : "#fff",
-                    color: showProblemsOnly ? "#fff" : theme.text,
-                    padding: "8px 10px",
-                    borderRadius: 999,
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}
-                  title="Show only matches that still need action"
-                >
-                  {showProblemsOnly ? "Showing problems only" : "Show problems only"}
-                </button>
-
-                <div style={{ fontSize: 12, color: theme.muted, fontWeight: 900 }}>Tip: problems = not done + not BYE</div>
-              </>
-            ) : (
-              <div style={{ fontSize: 12, color: theme.muted, fontWeight: 900 }}>Tree view is read-only.</div>
-            )}
-          </div>
-
-          {roundsViewMode === "LIST" ? (
-            <>
-              <button
-                type="button"
-                disabled={!tournament || tournament.status === "COMPLETED" || busy || !roundMeta.selectedRound}
-                onClick={() => {
-                  const r = roundMeta.selectedRound;
-                  if (!r) return;
-
-                  const roundMatches = matchesByRound.find((x) => x.round === r)?.matches ?? [];
-                  const playable = roundMatches.filter((m) => !isMatchBye(m) && !isMatchDone(m));
-
-                  const next: Record<string, { a: string; b: string }> = {};
-                  for (const m of playable) {
-                    next[m.id] = {
-                      a: m.score_a == null ? "" : String(m.score_a),
-                      b: m.score_b == null ? "" : String(m.score_b),
-                    };
-                  }
-                  setBulkDraftByMatchId(next);
-                  setBulkOpen((v) => !v);
-                }}
-                style={{
-                  marginTop: 10,
-                  width: "100%",
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  color: theme.text,
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                  cursor: !tournament || tournament.status === "COMPLETED" || busy || !roundMeta.selectedRound ? "not-allowed" : "pointer",
-                }}
-                title="Enter many scores at once for this round"
-              >
-                {bulkOpen ? "Close bulk scoring" : "Bulk score this round"}
-              </button>
-
-              {bulkOpen ? renderBulkRoundScoring() : null}
-            </>
-          ) : null}
-        </div>
-
-        {roundsViewMode === "TREE" ? (
-          renderTreeView()
-        ) : (
-          <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-            {SectionCard({
-              title: "Needs attention",
-              count: attentionList.length,
-              open: attentionOpen,
-              onToggle: () => setAttentionOpen((v) => !v),
-              tone: attentionList.length ? "warn" : "good",
-              children: attentionList.length ? (
-                <div style={{ display: "grid", gap: 12 }}>
-                  {attentionList.map((m) => renderMatchCard(m))}
-                </div>
-              ) : (
-                <div style={{ fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>Nothing needs attention right now.</div>
-              ),
-            })}
-
-            {SectionCard({
-              title: "In play",
-              count: inPlayList.length,
-              open: inPlayOpen,
-              onToggle: () => setInPlayOpen((v) => !v),
-              tone: inPlayList.length ? "warn" : "neutral",
-              children: inPlayList.length ? (
-                <div style={{ display: "grid", gap: 12 }}>
-                  {inPlayList.map((m) => renderMatchCard(m))}
-                </div>
-              ) : (
-                <div style={{ fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>No matches in progress.</div>
-              ),
-            })}
-
-            {SectionCard({
-              title: "Completed",
-              count: completedList.length,
-              open: completedOpen,
-              onToggle: () => setCompletedOpen((v) => !v),
-              tone: completedList.length ? "good" : "neutral",
-              children: completedList.length ? (
-                <div style={{ display: "grid", gap: 12 }}>
-                  {completedList.map((m) => renderMatchCard(m))}
-                </div>
-              ) : (
-                <div style={{ fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>No completed matches yet.</div>
-              ),
-            })}
-          </div>
-        )}
-
-      </>
-    );
-  }
-  function AuditView() {
-    if (!matches.length) {
-      return (
-        <div style={{ marginTop: 14, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14 }}>
-          <div style={{ fontWeight: 900, fontSize: 16 }}>Audit</div>
-          <div style={{ marginTop: 6, color: theme.muted, fontSize: 13, lineHeight: 1.35 }}>No matches yet.</div>
-        </div>
-      );
-    }
-
-    // Completed/finalised matches (include BYEs once processed/finalised)
-    const done = matches
-      .filter((m) => isMatchDone(m))
-      .sort(
-        (a, b) =>
-          Number(a.round_no ?? 0) - Number(b.round_no ?? 0) ||
-          Number(a.match_no ?? 0) - Number(b.match_no ?? 0) ||
-          String(a.id).localeCompare(String(b.id))
-      );
-
-    if (!done.length) {
-      return (
-        <div style={{ marginTop: 14, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14 }}>
-          <div style={{ fontWeight: 900, fontSize: 16 }}>Audit</div>
-          <div style={{ marginTop: 6, color: theme.muted, fontSize: 13, lineHeight: 1.35 }}>
-            No completed matches yet. Completed / admin-finalled matches will appear here automatically.
-          </div>
-        </div>
-      );
-    }
-
-    const byRound: Record<number, MatchRow[]> = {};
-    for (const m of done) {
-      const rn = Number(m.round_no ?? 0);
-      const key = rn || 0;
-      byRound[key] = byRound[key] ?? [];
-      byRound[key].push(m);
-    }
-
-    const rounds = Object.keys(byRound)
-      .map((n) => Number(n))
-      .sort((a, b) => a - b);
-
-    // Try infer "current winner" if there's exactly one non-BYE winner in the latest round
-    const latestRound = rounds[rounds.length - 1] ?? null;
-    const latestDone = latestRound != null ? byRound[latestRound] ?? [] : [];
-    const latestWinners = latestDone.map((m) => winnerTeamIdFromMatch(m)).filter((x) => x != null) as string[];
-
-    const uniqLatestWinners = Array.from(new Set(latestWinners));
-    const inferredWinnerTeamId = uniqLatestWinners.length === 1 ? uniqLatestWinners[0] : null;
-    const inferredWinnerName = inferredWinnerTeamId ? teamDisplayName(inferredWinnerTeamId) : null;
-
-    function auditLine(m: MatchRow) {
-      const left = teamDisplayName(m.team_a_id);
-      const right = teamDisplayName(m.team_b_id);
-
-      const isBye = isMatchBye(m);
-      const score = m.score_a == null || m.score_b == null ? "-" : `${m.score_a}-${m.score_b}`;
-
-      const winnerId = winnerTeamIdFromMatch(m);
-      const winA = winnerId && m.team_a_id && String(m.team_a_id) === winnerId;
-      const winB = winnerId && m.team_b_id && String(m.team_b_id) === winnerId;
-
-      const baseTitle = isBye ? `${left} — BYE` : `${left} vs ${right}`;
-
-      const winnerName = winnerId ? teamDisplayName(winnerId) : null;
-
-      const winnerTag = winnerName ? ` • Winner: ${winnerName}` : "";
-
-      const adminFinalTag = bool(m.finalized_by_admin) ? " • Admin final" : "";
-
-      const editOpen = auditEditOpenByMatchId[m.id] === true;
-
-      return (
-        <div key={`audit-${m.id}`} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12, background: "#fff" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={baseTitle}>
-                {isBye ? (
-                  baseTitle
-                ) : (
-                  <>
-                    <span style={{ color: winA ? "#16A34A" : theme.text }}>{left}</span>{" "}
-                    <span style={{ color: theme.muted, fontWeight: 900 }}>vs</span>{" "}
-                    <span style={{ color: winB ? "#16A34A" : theme.text }}>{right}</span>
-                  </>
-                )}
-              </div>
-              <div style={{ marginTop: 4, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
-                {m.match_no != null ? `Match ${m.match_no} • ` : ""}{roundLabel(m.round_no)} • Score: {score}
-                {winnerTag}
-                {adminFinalTag}
-              </div>
-
-              {!isBye ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setAuditEditOpenByMatchId((p) => ({ ...p, [m.id]: !p[m.id] }))}
-                  style={{
-                    marginTop: 8,
-                    border: `1px solid ${theme.border}`,
-                    background: "#fff",
-                    color: theme.text,
-                    padding: "6px 10px",
-                    borderRadius: 999,
-                    fontWeight: 900,
-                    fontSize: 12,
-                    cursor: busy ? "not-allowed" : "pointer",
-                    alignSelf: "flex-start",
-                  }}
-                >
-                  {editOpen ? "Close edit" : "Edit score"}
-                </button>
-              ) : null}
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
-              <StatusPill label={isBye ? "BYE" : "Completed"} tone={isBye ? "warn" : "good"} />
-            </div>
-          </div>
-
-          {editOpen && !isBye ? (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>
-                Edit the final score. This will re-finalise the match and update any linked next-round slots.
-              </div>
-
-              <div
-                style={{
-                  marginTop: 8,
-                  display: "grid",
-                  gridTemplateColumns: "minmax(0,1fr) 24px minmax(0,1fr)",
-                  gap: 8,
-                  alignItems: "center",
-                }}
-              >
-                <input
-                  inputMode="numeric"
-                  value={(scoreDraftByMatchId[m.id]?.a ?? "").toString()}
-                  onFocus={pinScrollForInput}
-                  onBlur={restorePinnedScrollForInput}
-                  onChange={(e) =>
-                    setScoreDraftByMatchId((p) => ({
-                      ...p,
-                      [m.id]: { a: e.target.value, b: p[m.id]?.b ?? "" },
-                    }))
-                  }
-                  placeholder="A"
-                  disabled={busy}
-                  style={{
-                    width: "100%",
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
-                    padding: "10px 10px",
-                    fontWeight: 900,
-                    minWidth: 0,
-                  }}
-                />
-                <div style={{ textAlign: "center", fontWeight: 900, color: theme.muted }}>-</div>
-                <input
-                  inputMode="numeric"
-                  value={(scoreDraftByMatchId[m.id]?.b ?? "").toString()}
-                  onFocus={pinScrollForInput}
-                  onBlur={restorePinnedScrollForInput}
-                  onChange={(e) =>
-                    setScoreDraftByMatchId((p) => ({
-                      ...p,
-                      [m.id]: { a: p[m.id]?.a ?? "", b: e.target.value },
-                    }))
-                  }
-                  placeholder="B"
-                  disabled={busy}
-                  style={{
-                    width: "100%",
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
-                    padding: "10px 10px",
-                    fontWeight: 900,
-                    minWidth: 0,
-                  }}
-                />
-              </div>
-
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => adminFinalScore(m.id)}
-                style={{
-                  marginTop: 8,
-                  width: "100%",
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  color: theme.danger,
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                  cursor: busy ? "not-allowed" : "pointer",
-                }}
-              >
-                {busy ? "Working..." : "Save edited score"}
-              </button>
-            </div>
-          ) : null}
-        </div>
-      );
-    }
-
-    return (
-      <>
-        <div style={{ marginTop: 14, background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-            <div style={{ fontWeight: 900, fontSize: 16 }}>Audit</div>
-            <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>{done.length} completed</div>
-          </div>
-
-          {inferredWinnerName ? (
-            <div style={{ marginTop: 8, fontSize: 13, color: theme.text, fontWeight: 900 }}>
-              Current leader (inferred): <span style={{ color: theme.maroon }}>{inferredWinnerName}</span>
-            </div>
-          ) : (
-            <div style={{ marginTop: 8, fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>
-              Completed matches are listed below. Winner will show automatically once a single winner emerges in the latest round.
-            </div>
-          )}
-        </div>
-
-        <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-          {rounds.map((r) => {
-            const list = byRound[r] ?? [];
-            const isOpen = auditOpenByRound[r] === true;
-            return (
-              <div key={`audit-round-${r}`} style={{ background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 16, overflow: "hidden" }}>
-                <button
-                  type="button"
-                  onClick={() => setAuditOpenByRound((p) => ({ ...p, [r]: !p[r] }))}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    border: "none",
-                    background: "#fff",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 10,
-                    alignItems: "baseline",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ fontWeight: 900, fontSize: 15 }}>{roundLabel(r)}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>{list.length}</div>
-                    <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>{isOpen ? "▾" : "▸"}</div>
-                  </div>
-                </button>
-                {isOpen ? (
-                  <div style={{ borderTop: `1px solid ${theme.border}`, padding: 14, display: "grid", gap: 10 }}>
-                    {list.map((m) => auditLine(m))}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      </>
-    );
-  }
+  const labelers: Labelers = {
+    teamLabel,
+    teamDisplayName,
+    teamMembersLine,
+    slotLabel,
+    slotMembersLine,
+    roundLabel,
+    singlesHandicapLine,
+    singlesHandicapInfo,
+    isHandicapTournament,
+  };
+
+  const scrollHelpers: ScrollHelpers = {
+    pinScrollForInput,
+    restorePinnedScrollForInput,
+  };
 
   return (
     <div style={{ background: theme.background, minHeight: "100vh", color: theme.text, paddingBottom: 92 }}>
@@ -3628,11 +1510,97 @@ function singlesHandicapLine(m: MatchRow) {
               Loading tournament...
             </div>
           ) : viewTab === "CONTROL" ? (
-            ControlView()
+            <ControlView
+              tournament={tournament}
+              tournamentId={tournamentId}
+              entryCount={entryCount}
+              teams={teams}
+              matches={matches}
+              busy={busy}
+              entriesOpen={entriesOpen}
+              hasTeams={hasTeams}
+              hasMatches={hasMatches}
+              mustSetTargetBeforeLock={mustSetTargetBeforeLock}
+              targetInput={targetInput}
+              targetValid={targetValid}
+              fixturesEditOpen={fixturesEditOpen}
+              fixturesDraftByMatchId={fixturesDraftByMatchId}
+              setTargetInput={setTargetInput}
+              setFixturesEditOpen={setFixturesEditOpen}
+              setFixturesDraftByMatchId={setFixturesDraftByMatchId}
+              setBusy={setBusy}
+              setError={setError}
+              reload={load}
+              lockEntries={lockEntries}
+              generateDoublesTeams={generateDoublesTeams}
+              generateMatches={generateMatches}
+              startTournament={startTournament}
+              endTournament={endTournament}
+              saveTarget={saveTarget}
+              suggestTargetFromEntries={suggestTargetFromEntries}
+              labelers={labelers}
+            />
           ) : viewTab === "ROUNDS" ? (
-            RoundsView()
+            <RoundsView
+              tournament={tournament}
+              tournamentId={tournamentId}
+              matches={matches}
+              matchesByRound={matchesByRound}
+              busy={busy}
+              maxPlayableRound={maxPlayableRound}
+              roundMeta={roundMeta}
+              roundsViewMode={roundsViewMode}
+              treeRoundsDisplay={treeRoundsDisplay}
+              matchNoById={matchNoById}
+              teamMembersByTeamId={teamMembersByTeamId}
+              handicapByPlayerId={handicapByPlayerId}
+              scoreDraftByMatchId={scoreDraftByMatchId}
+              bulkOpen={bulkOpen}
+              bulkDraftByMatchId={bulkDraftByMatchId}
+              adminFinalOpenByMatchId={adminFinalOpenByMatchId}
+              showProblemsOnly={showProblemsOnly}
+              attentionOpen={attentionOpen}
+              inPlayOpen={inPlayOpen}
+              completedOpen={completedOpen}
+              setScoreDraftByMatchId={setScoreDraftByMatchId}
+              setBulkOpen={setBulkOpen}
+              setBulkDraftByMatchId={setBulkDraftByMatchId}
+              setAdminFinalOpenByMatchId={setAdminFinalOpenByMatchId}
+              setShowProblemsOnly={setShowProblemsOnly}
+              setRoundsViewMode={setRoundsViewMode}
+              setAttentionOpen={setAttentionOpen}
+              setInPlayOpen={setInPlayOpen}
+              setCompletedOpen={setCompletedOpen}
+              setBusy={setBusy}
+              setError={setError}
+              selectRound={selectRound}
+              startAllInSelectedRound={startAllInSelectedRound}
+              completeAllWithScoresInSelectedRound={completeAllWithScoresInSelectedRound}
+              advanceSelectedRound={advanceSelectedRound}
+              endTournament={endTournament}
+              adminFinalScore={adminFinalScore}
+              updateMatchStatus={updateMatchStatus}
+              reload={load}
+              treeRoundRefsSetter={(round) => (el) => {
+                treeRoundRefs.current[round] = el;
+              }}
+              labelers={labelers}
+              scrollHelpers={scrollHelpers}
+            />
           ) : (
-            AuditView()
+            <AuditView
+              matches={matches}
+              busy={busy}
+              auditOpenByRound={auditOpenByRound}
+              auditEditOpenByMatchId={auditEditOpenByMatchId}
+              scoreDraftByMatchId={scoreDraftByMatchId}
+              setAuditOpenByRound={setAuditOpenByRound}
+              setAuditEditOpenByMatchId={setAuditEditOpenByMatchId}
+              setScoreDraftByMatchId={setScoreDraftByMatchId}
+              adminFinalScore={adminFinalScore}
+              labelers={labelers}
+              scrollHelpers={scrollHelpers}
+            />
           )
         ) : null}
       </div>

@@ -5,8 +5,10 @@ import { theme } from "@/lib/theme";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import BottomNav from "../components/BottomNav";
+import { applyTypeFilter, isMissingColumnError, safeParseMs } from "./utils/challenges";
+import { ChallengeCard, MatchCard } from "./views/MyChallengeCardsView";
 
-type ChallengeRow = {
+export type ChallengeRow = {
   id: string;
   ladder_id: string;
   challenger_player_id: string;
@@ -15,14 +17,11 @@ type ChallengeRow = {
   expires_at: string;
   match_id?: string | null;
   created_at?: string;
-
-  match_type?: MatchType | null;
 };
 
-type MatchRow = {
+export type MatchRow = {
   id: string;
   ladder_id: string;
-  match_type?: MatchType | null;
 
   status: string;
 
@@ -38,95 +37,17 @@ type MatchRow = {
   created_at: string;
 };
 
-type PlayerRow = { id: string; user_id: string };
+type PlayerRow = { id: string; user_id: string; display_name?: string | null };
+type ProfileRoleRow = { role?: string | null };
+type ApiResponseJson = { error?: string } | null;
 type ProfileRow = { id: string; full_name: string | null };
 
-type LadderScope = "CLUB" | "DISTRICT" | "NATIONAL";
+export type LadderScope = "CLUB" | "DISTRICT" | "NATIONAL";
 type LadderRow = { id: string; scope: LadderScope };
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function safeParseMs(iso: string) {
-  const ms = Date.parse(iso);
-  return Number.isNaN(ms) ? null : ms;
-}
-
-function formatTimeRemaining(expiresAtIso: string) {
-  const end = safeParseMs(expiresAtIso);
-  if (end === null) return "-";
-
-  const ms = end - Date.now();
-  if (ms <= 0) return "Expired";
-
-  const totalMinutes = Math.floor(ms / (1000 * 60));
-  const days = Math.floor(totalMinutes / (60 * 24));
-  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
-  const minutes = totalMinutes % 60;
-
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
-}
-
-type MatchType = "RANKED";
 type Tab = "INCOMING" | "OUTGOING" | "MATCHES";
-
-function normalizeMatchType(_v: unknown): MatchType {
-  void _v;
-  return "RANKED";
-}
-
-function isMissingColumnError(msg: string | null | undefined, col: string) {
-  if (!msg) return false;
-  const m = msg.toLowerCase();
-  return m.includes(`column "${col.toLowerCase()}"`) && m.includes("does not exist");
-}
-
-function badge(_matchType: MatchType) {
-  void _matchType;
-  return (
-    <span
-      style={{
-        flex: "0 0 auto",
-        fontSize: 11,
-        fontWeight: 900,
-        padding: "4px 8px",
-        borderRadius: 999,
-        background: "rgba(46,125,50,.10)",
-        color: theme.maroon,
-        border: `1px solid ${theme.border}`,
-      }}
-      title="Ranked (affects ladder)"
-    >
-      Ranked
-    </span>
-  );
-}
-
-function scopeBadge(scope: LadderScope | "UNKNOWN") {
-  const label = scope === "UNKNOWN" ? "-" : scope;
-  return (
-    <span
-      style={{
-        flex: "0 0 auto",
-        fontSize: 11,
-        fontWeight: 900,
-        padding: "4px 8px",
-        borderRadius: 999,
-        background: "rgba(31,41,55,.06)",
-        color: theme.text,
-        border: `1px solid ${theme.border}`,
-      }}
-      title="Ladder scope"
-    >
-      {label}
-    </span>
-  );
-}
-
-function applyTypeFilter<T>(items: T[]) {
-  return items;
-}
 
 export default function MyChallengesPage() {
   const supabase = createClient();
@@ -166,7 +87,7 @@ export default function MyChallengesPage() {
     }
 
     const profRes = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    const role = ((profRes.data as any)?.role ?? "").toString().toUpperCase();
+    const role = String((profRes.data as ProfileRoleRow | null)?.role ?? "").toUpperCase();
     const superAdmin = role === "SUPER_ADMIN";
     const { data: mePlayer, error: meErr } = await supabase
       .from("players")
@@ -228,11 +149,6 @@ export default function MyChallengesPage() {
       }
     }
 
-    challengeRows = challengeRows.map((c) => ({
-      ...c,
-      match_type: normalizeMatchType(c.match_type),
-    }));
-
     // ---------- matches (with match_type fallback) ----------
     let matchRows: MatchRow[] = [];
     {
@@ -270,11 +186,6 @@ export default function MyChallengesPage() {
         return;
       }
     }
-
-    matchRows = matchRows.map((m) => ({
-      ...m,
-      match_type: normalizeMatchType(m.match_type),
-    }));
 
     setChallenges(challengeRows);
     setMatches(matchRows);
@@ -344,7 +255,7 @@ export default function MyChallengesPage() {
 
     const map = new Map<string, string>();
     for (const pl of playerRows) {
-      const display = (pl as any).display_name ?? "";
+      const display = pl.display_name ?? "";
       const name =
         (display ?? "").toString().trim()
           ? (display as string)
@@ -360,11 +271,6 @@ export default function MyChallengesPage() {
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // reset filter to ALL when switching tabs (so you see the total by default)
-  useEffect(() => {
-    setTypeFilter(null);
-  }, [tab]);
 
   // -------------------- Base derived lists (NOT type-filtered) --------------------
   const now = Date.now();
@@ -427,10 +333,10 @@ export default function MyChallengesPage() {
     });
 
     const text = await res.text();
-    let json: any = null;
+    let json: ApiResponseJson = null;
     if (text?.trim()) {
       try {
-        json = JSON.parse(text);
+        json = JSON.parse(text) as ApiResponseJson;
       } catch {}
     }
 
@@ -461,10 +367,10 @@ export default function MyChallengesPage() {
       });
 
       const text = await res.text();
-      let json: any = null;
+      let json: ApiResponseJson = null;
       if (text?.trim()) {
         try {
-          json = JSON.parse(text);
+          json = JSON.parse(text) as ApiResponseJson;
         } catch {}
       }
 
@@ -498,115 +404,6 @@ export default function MyChallengesPage() {
     };
   }
 
-  function renderChallengeCard(c: ChallengeRow, mode: "incoming" | "outgoing") {
-    const mt = normalizeMatchType(c.match_type);
-    const opp = opponentForChallenge(c, mode);
-
-    const canRespond = mode === "incoming";
-    const canCancel = mode === "outgoing";
-    const expiresIn = formatTimeRemaining(c.expires_at);
-    const scope = scopeForLadder(c.ladder_id);
-
-    const cancelDisabled = cancellingId === c.id;
-
-    return (
-      <div
-        key={c.id}
-        style={{
-          background: theme.surface,
-          border: `1px solid ${theme.border}`,
-          borderRadius: 16,
-          padding: 12,
-          opacity: cancelDisabled ? 0.75 : 1,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: "wrap" }}>
-              <div
-                style={{
-                  fontWeight: 900,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {mode === "incoming" ? "From: " : "To: "}
-                {opp.name}
-              </div>
-              {badge(mt)}
-              {scopeBadge(scope)}
-            </div>
-            <div style={{ marginTop: 4, color: theme.muted, fontSize: 12 }}>
-              Expires in: {expiresIn}
-            </div>
-          </div>
-
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontWeight: 900, color: theme.muted }}>PROPOSED</div>
-          </div>
-        </div>
-
-        {(canRespond || canCancel) && (
-          <div style={{ marginTop: 10, display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-            {canRespond && (
-              <>
-                <button
-                  onClick={() => respond(c.id, "ACCEPT")}
-                  style={{
-                    padding: "9px 10px",
-                    borderRadius: 12,
-                    border: "none",
-                    background: theme.maroon,
-                    color: "#fff",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  Accept
-                </button>
-
-                <button
-                  onClick={() => respond(c.id, "DECLINE")}
-                  style={{
-                    padding: "9px 10px",
-                    borderRadius: 12,
-                    border: `1px solid ${theme.border}`,
-                    background: "#fff",
-                    color: theme.text,
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  Decline
-                </button>
-              </>
-            )}
-
-            {canCancel && (
-              <button
-                onClick={() => cancelChallenge(c.id)}
-                disabled={cancelDisabled}
-                style={{
-                  padding: "9px 10px",
-                  borderRadius: 12,
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  color: theme.danger,
-                  fontWeight: 900,
-                  cursor: cancelDisabled ? "not-allowed" : "pointer",
-                }}
-                title="Cancel this outgoing challenge"
-              >
-                {cancelDisabled ? "Cancelling..." : "Cancel"}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   function opponentForMatch(m: MatchRow) {
     if (!myPlayerId) return { name: "Opponent", id: "" };
     const oppId =
@@ -626,94 +423,6 @@ export default function MyChallengesPage() {
 
     if (m.status === "FINAL") return "Final";
     return m.status;
-  }
-
-  function renderMatchCard(m: MatchRow) {
-    const mt = normalizeMatchType(m.match_type);
-    const opp = opponentForMatch(m);
-    const scope = scopeForLadder(m.ladder_id);
-
-    const aScore = m.challenger_score ?? 0;
-    const bScore = m.challenged_score ?? 0;
-
-    const label = matchActionLabel(m);
-
-    return (
-      <a
-        key={m.id}
-        href={`/match/${m.id}`}
-        style={{
-          textDecoration: "none",
-          color: theme.text,
-          background: theme.surface,
-          border: `1px solid ${theme.border}`,
-          borderRadius: 16,
-          padding: 12,
-          display: "block",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 10,
-            alignItems: "baseline",
-            flexWrap: "wrap",
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 900,
-              minWidth: 0,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            vs {opp.name}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {badge(mt)}
-            {scopeBadge(scope)}
-            <div style={{ fontSize: 12, color: theme.muted, fontWeight: 900 }}>{label}</div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            marginTop: 10,
-            display: "grid",
-            gridTemplateColumns: "1fr auto 1fr",
-            gap: 10,
-            alignItems: "center",
-          }}
-        >
-          <div style={{ fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {nameByPlayerId.get(m.challenger_player_id) ?? "Challenger"}
-          </div>
-
-          <div style={{ textAlign: "center", fontWeight: 900 }}>
-            {aScore} - {bScore}
-          </div>
-
-          <div
-            style={{
-              textAlign: "right",
-              fontWeight: 900,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {nameByPlayerId.get(m.challenged_player_id) ?? "Challenged"}
-          </div>
-        </div>
-
-        <div style={{ marginTop: 8, fontSize: 12, color: theme.maroon, fontWeight: 900 }}>
-          {"Open match ->"}
-        </div>
-      </a>
-    );
   }
 
   function SectionHeader(props: { title: string; count: number }) {
@@ -757,7 +466,18 @@ export default function MyChallengesPage() {
           >
             <SectionHeader title={sec.scope === "UNKNOWN" ? "Other" : sec.scope} count={sec.items.length} />
             <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
-              {sec.items.map((c) => renderChallengeCard(c, mode))}
+              {sec.items.map((c) => (
+                <ChallengeCard
+                  key={c.id}
+                  c={c}
+                  mode={mode}
+                  scope={scopeForLadder(c.ladder_id)}
+                  opponentName={opponentForChallenge(c, mode).name}
+                  cancellingId={cancellingId}
+                  respond={respond}
+                  cancelChallenge={cancelChallenge}
+                />
+              ))}
             </div>
           </div>
         ))}
@@ -797,7 +517,17 @@ export default function MyChallengesPage() {
           >
             <SectionHeader title={sec.scope === "UNKNOWN" ? "Other" : sec.scope} count={sec.items.length} />
             <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
-              {sec.items.map((m) => renderMatchCard(m))}
+              {sec.items.map((m) => (
+                <MatchCard
+                  key={m.id}
+                  m={m}
+                  scope={scopeForLadder(m.ladder_id)}
+                  opponentName={opponentForMatch(m).name}
+                  challengerName={nameByPlayerId.get(m.challenger_player_id) ?? "Challenger"}
+                  challengedName={nameByPlayerId.get(m.challenged_player_id) ?? "Challenged"}
+                  label={matchActionLabel(m)}
+                />
+              ))}
             </div>
           </div>
         ))}

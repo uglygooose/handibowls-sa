@@ -53,9 +53,7 @@ function cleanText(text) {
   out = out.replace(/\u00E2\u2020\u2019/g, " to ");
 
   // - / - (E2 80 93/94) -> hyphen
-  out = out.replace(/\u00E2\u20AC\u201C/g, "-"); // -
-  out = out.replace(/\u00E2\u20AC\u201D/g, "-"); // -
-  // â€" fragment that shows up in your errors
+  out = out.replace(/\u00E2\u20AC\u201C/g, "-");
   out = out.replace(/\u00E2\u20AC\u201D/g, "-");
 
   // " " / ' etc -> straight quotes/apostrophes

@@ -4,16 +4,37 @@
 import { theme } from "@/lib/theme";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  cleanTournamentName,
+  formatLabel,
+  genderLabel,
+  matchStatusLabel,
+  ruleLabel,
+  scopeLabel,
+  statusLabel,
+  type TournamentFormat,
+  type TournamentRule,
+  type TournamentScope,
+  type TournamentStatus,
+} from "@/lib/tournaments/labels";
+import {
+  bool,
+  hasValue,
+  isMatchBye as isByeMatch,
+  isMatchDone,
+  winnerTeamIdFromMatch as inferWinnerTeamId,
+} from "@/lib/tournaments/match";
+import {
+  finishPlacementLabel as libFinishPlacementLabel,
+  roundLabel as libRoundLabel,
+} from "@/lib/tournaments/bracket";
 import BottomNav from "../components/BottomNav";
+import TournamentCardView from "./views/TournamentCardView";
 
-type TournamentScope = "CLUB" | "DISTRICT" | "NATIONAL";
-type TournamentStatus = "ANNOUNCED" | "IN_PLAY" | "COMPLETED";
-type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
 type PlayerGender = "MALE" | "FEMALE";
 type TournamentGender = "MALE" | "FEMALE" | null;
-type TournamentRule = "SCRATCH" | "HANDICAP_START";
 
-type TournamentRow = {
+export type TournamentRow = {
   id: string;
   name: string;
   scope: TournamentScope;
@@ -28,7 +49,7 @@ type TournamentRow = {
   rule_type?: TournamentRule | null;
 };
 
-type MatchLite = {
+export type MatchLite = {
   id: string;
   tournament_id: string | null;
   round_no: number | null;
@@ -49,88 +70,38 @@ type MatchLite = {
   slot_b_source_match_id?: string | null;
 };
 
-function scopeLabel(scope: TournamentScope) {
-  if (scope === "CLUB") return "Club";
-  if (scope === "DISTRICT") return "District";
-  return "National";
-}
-
-function statusLabel(status: TournamentStatus) {
-  if (status === "ANNOUNCED") return "Upcoming";
-  if (status === "IN_PLAY") return "In-play";
-  return "Completed";
-}
-
-function formatLabel(fmt: TournamentFormat) {
-  if (fmt === "FOUR_BALL") return "4 Balls";
-  return fmt.charAt(0) + fmt.slice(1).toLowerCase();
-}
-
-function genderLabel(g: TournamentGender | undefined | null) {
-  if (g === "MALE") return "Men";
-  if (g === "FEMALE") return "Ladies";
-  return "Open";
-}
-
-function ruleLabel(rule: TournamentRule | null | undefined) {
-  if (rule === "SCRATCH") return "Scratch";
-  return "Handicap start";
-}
-
-function cleanTournamentName(name: string) {
-  const raw = (name ?? "").toString();
-  return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
-}
-
-function hasValue(v: any) {
-  return v != null && String(v) !== "";
-}
-
-function bool(v: any) {
-  return v === true;
-}
-
-function isByeMatch(m: MatchLite) {
-  const st = String(m?.status ?? "");
-  if (st === "BYE") return true;
-  if (String(m?.slot_b_source_type ?? "") === "BYE") return true;
-  return !m?.team_b_id && !m?.slot_b_source_type;
-}
-
-function isMatchDone(m: MatchLite) {
-  const st = String(m?.status ?? "");
-  const hasWinner = hasValue(m?.winner_team_id);
-  return st === "COMPLETED" || bool(m?.finalized_by_admin) || hasWinner;
-}
-
-function inferWinnerTeamId(m: MatchLite) {
-  if (hasValue(m?.winner_team_id)) return String(m.winner_team_id);
-  if (!isMatchDone(m)) return null;
-
-  if (isByeMatch(m)) return hasValue(m?.team_a_id) ? String(m.team_a_id) : null;
-
-  if (!hasValue(m?.team_a_id) || !hasValue(m?.team_b_id)) return null;
-  if (m?.score_a == null || m?.score_b == null) return null;
-  if (Number(m.score_a) === Number(m.score_b)) return null;
-
-  return Number(m.score_a) > Number(m.score_b) ? String(m.team_a_id) : String(m.team_b_id);
-}
-
-function matchStatusLabel(status: string) {
-  if (status === "SCHEDULED") return "Scheduled";
-  if (status === "IN_PLAY") return "In play";
-  if (status === "COMPLETED") return "Completed";
-  if (status === "OPEN") return "Open";
-  if (status === "FINAL") return "Final";
-  if (status === "BYE") return "BYE";
-  return status || "-";
-}
-
-function largestPowerOfTwoLE(n: number) {
-  let p = 1;
-  while (p * 2 <= n) p *= 2;
-  return p;
-}
+type ProfileRoleRow = { role?: string | null };
+type PlayerGenderRow = { gender?: PlayerGender | null };
+type ClubNameRow = { id: string; name: string | null };
+type TournamentEntryRow = { tournament_id?: string | null };
+type RawTeamRow = {
+  id?: string | number | null;
+  tournament_id?: string | number | null;
+  team_no?: number | string | null;
+  team_handicap?: number | string | null;
+};
+type RawTeamMemberRow = { team_id?: string | number | null; player_id?: string | number | null };
+type ProfileNameRow = { id?: string | null; full_name?: string | null };
+type RawMatchRow = {
+  id: string | number;
+  tournament_id?: string | number | null;
+  round_no?: number | string | null;
+  match_no?: number | string | null;
+  status?: string | null;
+  score_a?: number | string | null;
+  score_b?: number | string | null;
+  submitted_by_player_id?: string | number | null;
+  confirmed_by_a?: boolean | null;
+  confirmed_by_b?: boolean | null;
+  finalized_by_admin?: boolean | null;
+  winner_team_id?: string | number | null;
+  team_a_id?: string | number | null;
+  team_b_id?: string | number | null;
+  slot_a_source_type?: string | null;
+  slot_a_source_match_id?: string | number | null;
+  slot_b_source_type?: string | null;
+  slot_b_source_match_id?: string | number | null;
+};
 
 export default function TournamentsPage() {
   const supabase = createClient();
@@ -189,7 +160,7 @@ export default function TournamentsPage() {
     }
 
     const profRes = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    const role = ((profRes.data as any)?.role ?? "").toString().toUpperCase();
+    const role = ((profRes.data as ProfileRoleRow | null)?.role ?? "").toString().toUpperCase();
     const superAdmin = role === "SUPER_ADMIN";
     setIsSuperAdmin(superAdmin);
 
@@ -214,7 +185,7 @@ export default function TournamentsPage() {
 
     const myPlayerId = me.data?.id ? String(me.data.id) : "";
     if (myPlayerId) setPlayerId(myPlayerId);
-    const myGender = ((me.data as any)?.gender ?? "") as PlayerGender | "";
+    const myGender = ((me.data as PlayerGenderRow | null)?.gender ?? "") as PlayerGender | "";
     setPlayerGender(myGender);
 
     const res = await supabase
@@ -250,8 +221,8 @@ export default function TournamentsPage() {
       const clubRes = await supabase.from("clubs").select("id, name").in("id", clubIds);
       if (!clubRes.error) {
         const next: Record<string, string> = {};
-        for (const c of clubRes.data ?? []) {
-          next[String((c as any).id)] = String((c as any).name ?? "Club");
+        for (const c of ((clubRes.data ?? []) as ClubNameRow[])) {
+          next[String(c.id)] = String(c.name ?? "Club");
         }
         setClubNameById(next);
       }
@@ -294,8 +265,8 @@ export default function TournamentsPage() {
     }
 
     const enteredMap: Record<string, boolean> = {};
-    for (const r of ent.data ?? []) {
-      const tid = String((r as any).tournament_id ?? "");
+    for (const r of ((ent.data ?? []) as TournamentEntryRow[])) {
+      const tid = String(r.tournament_id ?? "");
       if (tid) enteredMap[tid] = true;
     }
     setEnteredByTournamentId(enteredMap);
@@ -318,22 +289,22 @@ export default function TournamentsPage() {
     const tByTid: Record<string, { id: string; team_no: number; team_handicap: number | null }[]> = {};
     const teamIds: string[] = [];
 
-    for (const r of teamRes.data ?? []) {
-      const tid = String((r as any).tournament_id ?? "");
-      const teamId = String((r as any).id ?? "");
+    for (const r of ((teamRes.data ?? []) as RawTeamRow[])) {
+      const tid = String(r.tournament_id ?? "");
+      const teamId = String(r.id ?? "");
       if (!tid || !teamId) continue;
 
       teamIds.push(teamId);
 
       const team = {
         id: teamId,
-        team_no: Number((r as any).team_no ?? 0),
+        team_no: Number(r.team_no ?? 0),
         team_handicap:
-          (r as any).team_handicap == null
+          r.team_handicap == null
             ? null
-            : typeof (r as any).team_handicap === "number"
-            ? (r as any).team_handicap
-            : Number((r as any).team_handicap),
+            : typeof r.team_handicap === "number"
+            ? r.team_handicap
+            : Number(r.team_handicap),
       };
 
       tByTid[tid] = tByTid[tid] ?? [];
@@ -364,9 +335,9 @@ export default function TournamentsPage() {
     const membersByTeam: Record<string, string[]> = {};
     const allPlayerIds: string[] = [];
 
-    for (const r of memRes.data ?? []) {
-      const teamId = String((r as any).team_id ?? "");
-      const pid = String((r as any).player_id ?? "");
+    for (const r of ((memRes.data ?? []) as RawTeamMemberRow[])) {
+      const teamId = String(r.team_id ?? "");
+      const pid = String(r.player_id ?? "");
       if (!teamId || !pid) continue;
 
       membersByTeam[teamId] = membersByTeam[teamId] ?? [];
@@ -398,8 +369,8 @@ export default function TournamentsPage() {
     if (userIds.length) {
       const profRes = await supabase.from("profiles").select("id, full_name").in("id", userIds);
       if (!profRes.error) {
-        for (const pr of profRes.data ?? []) {
-          nameByUser[String((pr as any).id)] = String((pr as any).full_name ?? "Unknown");
+        for (const pr of ((profRes.data ?? []) as ProfileNameRow[])) {
+          nameByUser[String(pr.id ?? "")] = String(pr.full_name ?? "Unknown");
         }
       }
     }
@@ -431,7 +402,7 @@ export default function TournamentsPage() {
         .in("tournament_id", idsForMatches);
 
       if (!mRes.error) {
-        const matchRows = (mRes.data ?? []).map((r: any) => ({
+        const matchRows = ((mRes.data ?? []) as RawMatchRow[]).map((r) => ({
           id: String(r.id),
           tournament_id: r.tournament_id == null ? null : String(r.tournament_id),
           round_no: r.round_no == null ? null : Number(r.round_no),
@@ -580,354 +551,18 @@ export default function TournamentsPage() {
     return tm?.team_no ? `Team ${tm.team_no}` : "Team";
   }
 
-  function roundLabelForTournament(t: TournamentRow, roundNo: number | null | undefined) {
-    const r = Number(roundNo ?? 0);
-    if (!r) return "Round -";
+  const roundLabelForTournament = (t: TournamentRow, roundNo: number | null | undefined) =>
+    libRoundLabel({
+      totalTeams: (teamsByTournamentId[t.id] ?? []).length,
+      roundNo: roundNo ?? null,
+    });
 
-    const totalTeams = (teamsByTournamentId[t.id] ?? []).length;
-    if (!totalTeams || totalTeams < 2) return `Round ${r}`;
+  const finishPlacementLabel = (t: TournamentRow, roundNo: number | null | undefined) =>
+    libFinishPlacementLabel({
+      totalTeams: (teamsByTournamentId[t.id] ?? []).length,
+      roundNo: roundNo ?? null,
+    });
 
-    const base = largestPowerOfTwoLE(totalTeams);
-    const hasPreRound = totalTeams > base;
-    if (hasPreRound && r === 1) return "Pre-Rd";
-
-    const mainRoundNo = hasPreRound ? r - 1 : r;
-    const playersLeft = Math.floor(base / Math.pow(2, mainRoundNo - 1));
-
-    if (playersLeft === 2) return "Final";
-    if (playersLeft === 4) return "Semis";
-    if (playersLeft === 8) return "Quarters";
-    if (playersLeft >= 16) return `RD ${mainRoundNo}`;
-
-    return `Round ${r}`;
-  }
-
-  function finishPlacementLabel(t: TournamentRow, roundNo: number | null | undefined) {
-    const r = Number(roundNo ?? 0);
-    if (!r) return null;
-
-    const totalTeams = (teamsByTournamentId[t.id] ?? []).length;
-    if (!totalTeams || totalTeams < 2) return null;
-
-    const base = largestPowerOfTwoLE(totalTeams);
-    const hasPreRound = totalTeams > base;
-    const mainRoundNo = hasPreRound ? r - 1 : r;
-    if (mainRoundNo <= 0) return null;
-
-    const playersLeft = Math.floor(base / Math.pow(2, mainRoundNo - 1));
-    if (!playersLeft) return null;
-
-    if (playersLeft === 2) return "Runner-up";
-    if (playersLeft === 4) return "Tied 3rd";
-
-    const start = playersLeft / 2 + 1;
-    const endPos = playersLeft;
-    return `Tied ${start}-${endPos}`;
-  }
-
-  function renderTournamentCard(t: TournamentRow) {
-    const entered = !!enteredByTournamentId[t.id];
-    const winnerName = (winnerNameByTournamentId[t.id] ?? "").trim();
-    const showWinner = t.status === "COMPLETED" && !!winnerName;
-
-    const teams = teamsByTournamentId[t.id] ?? [];
-    const myTeam = entered ? teams.find((tm) => (teamMembersByTeamId[tm.id] ?? []).includes(playerId)) ?? null : null;
-    const myTeamId = myTeam?.id ?? null;
-    const ms = matchesByTournamentId[t.id] ?? [];
-
-    const myMatches = myTeamId
-      ? ms.filter((m) => String(m.team_a_id ?? "") === myTeamId || String(m.team_b_id ?? "") === myTeamId)
-      : [];
-
-    const nextMatch = (() => {
-      if (t.status !== "IN_PLAY" || !myTeamId) return null;
-      const pending = myMatches.filter((m) => !isByeMatch(m) && !isMatchDone(m));
-      if (!pending.length) return null;
-      const sorted = pending.slice().sort(
-        (a, b) =>
-          Number(a.round_no ?? 0) - Number(b.round_no ?? 0) ||
-          Number(a.match_no ?? 0) - Number(b.match_no ?? 0) ||
-          String(a.id).localeCompare(String(b.id))
-      );
-      return sorted[0] ?? null;
-    })();
-
-    const actionNeeded = (() => {
-      if (t.status !== "IN_PLAY" || !nextMatch || !myTeamId || !playerId) return null;
-
-      // Captain = min player_id in team (matches tournament room logic)
-      const captainForTeam = (teamId: string | null) => {
-        if (!teamId) return null;
-        const ids = (teamMembersByTeamId[teamId] ?? []).slice().sort();
-        return ids[0] ?? null;
-      };
-      const capA = captainForTeam(nextMatch.team_a_id);
-      const capB = captainForTeam(nextMatch.team_b_id);
-      const iAmCaptainA = capA && capA === playerId;
-      const iAmCaptainB = capB && capB === playerId;
-
-      const mySide = iAmCaptainA ? "A" : iAmCaptainB ? "B" : null;
-      if (!mySide) return null;
-
-      const st = String(nextMatch.status ?? "");
-      if (st === "IN_PLAY" && !bool(nextMatch.finalized_by_admin)) {
-        return "Submit score";
-      }
-
-      const hasScores = nextMatch.score_a != null && nextMatch.score_b != null;
-      const hasSubmitter = hasValue(nextMatch.submitted_by_player_id);
-      if (!bool(nextMatch.finalized_by_admin) && hasScores && hasSubmitter && String(nextMatch.submitted_by_player_id) !== playerId) {
-        if (mySide === "A" && !bool(nextMatch.confirmed_by_a)) return "Confirm score";
-        if (mySide === "B" && !bool(nextMatch.confirmed_by_b)) return "Confirm score";
-      }
-
-      return null;
-    })();
-
-    const myFinish = (() => {
-      if (t.status !== "COMPLETED" || !myTeamId) return null;
-      const done = myMatches.filter((m) => isMatchDone(m));
-      if (!done.length) return null;
-      const sorted = done.slice().sort(
-        (a, b) =>
-          Number(b.round_no ?? 0) - Number(a.round_no ?? 0) ||
-          Number(b.match_no ?? 0) - Number(a.match_no ?? 0) ||
-          String(b.id).localeCompare(String(a.id))
-      );
-      const last = sorted[0];
-      const winnerId = last ? inferWinnerTeamId(last) : null;
-      if (winnerId && winnerId === myTeamId) return { label: "Champion", detail: null as string | null };
-      const round = roundLabelForTournament(t, last?.round_no ?? null);
-      const place = finishPlacementLabel(t, last?.round_no ?? null);
-      return { label: `Knocked out: ${round}`, detail: place ? `Finish: ${place}` : null };
-    })();
-
-    const primary = (() => {
-      if (t.status === "ANNOUNCED" && !entered && t.entries_open !== false) {
-        const elig = canEnterTournamentRow(t);
-        if (elig.ok) {
-          return { label: "Enter tournament", onClick: () => enterTournament(t.id), variant: "solid" as const };
-        }
-        return { label: "View tournament", onClick: () => (window.location.href = `/tournaments/${t.id}`), variant: "solid" as const };
-      }
-      if (t.status === "COMPLETED") {
-        return { label: "View results", onClick: () => (window.location.href = `/tournaments/${t.id}`), variant: "solid" as const };
-      }
-      if (t.status === "IN_PLAY") {
-        return {
-          label: entered ? "Open tournament" : "View bracket",
-          onClick: () => (window.location.href = `/tournaments/${t.id}`),
-          variant: "solid" as const,
-        };
-      }
-      return {
-        label: "View tournament",
-        onClick: () => (window.location.href = `/tournaments/${t.id}`),
-        variant: entered ? ("solid" as const) : ("outline" as const),
-      };
-    })();
-
-    return (
-      <div
-        key={t.id}
-        style={{
-          background: theme.surface,
-          border: `1px solid ${theme.border}`,
-          borderRadius: 16,
-          padding: 12,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
-          <div style={{ fontWeight: 900, fontSize: 15 }}>{cleanTournamentName(t.name)}</div>
-          <div
-            style={{
-              border: `1px solid ${theme.border}`,
-              borderRadius: 999,
-              padding: "2px 10px",
-              fontSize: 12,
-              fontWeight: 900,
-              color: theme.text,
-              background: theme.surface,
-              whiteSpace: "nowrap",
-            }}
-            title="Tournament format"
-          >
-            {formatLabel(t.format)}
-          </div>
-        </div>
-
-        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
-          <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
-            {scopeLabel(t.scope)}
-          </span>
-          <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
-            {genderLabel(t.gender ?? null)}
-          </span>
-          <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
-            {ruleLabel(t.rule_type ?? "HANDICAP_START")}
-          </span>
-          <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
-            {statusLabel(t.status)}
-          </span>
-          {entered ? (
-            <span
-              style={{
-                border: `1px solid ${theme.maroon}`,
-                borderRadius: 999,
-                padding: "2px 8px",
-                fontSize: 12,
-                fontWeight: 900,
-                color: theme.maroon,
-              }}
-              title="You have entered this tournament"
-            >
-              Entered
-            </span>
-          ) : null}
-          {t.scope === "CLUB" && t.club_id && clubNameById[t.club_id] ? (
-            <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
-              Host: {clubNameById[t.club_id]}
-            </span>
-          ) : null}
-        </div>
-
-        <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 13, color: theme.muted }}>
-          <div><span style={{ fontWeight: 800, color: theme.text }}>Type</span> {formatLabel(t.format)} knockout</div>
-          {t.status === "COMPLETED" ? (
-            <div><span style={{ fontWeight: 800, color: theme.text }}>Winner</span> {showWinner ? winnerName : "-"}</div>
-          ) : t.status === "IN_PLAY" ? (
-            <div><span style={{ fontWeight: 800, color: theme.text }}>Status</span> {entered ? "In draw" : "Spectator"}</div>
-          ) : (
-            <div><span style={{ fontWeight: 800, color: theme.text }}>Entries</span> {t.entries_open === false ? "Locked" : "Open"}</div>
-          )}
-          <div><span style={{ fontWeight: 800, color: theme.text }}>Starts</span> {t.starts_at ? new Date(t.starts_at).toLocaleString() : "TBC"}</div>
-          <div><span style={{ fontWeight: 800, color: theme.text }}>Ends</span> {t.ends_at ? new Date(t.ends_at).toLocaleString() : t.status === "COMPLETED" ? "-" : "TBC"}</div>
-          {t.status === "IN_PLAY" && entered ? (
-            <>
-              <div style={{ gridColumn: "1 / span 2" }}>
-                <span style={{ fontWeight: 800, color: theme.text }}>Next match</span>{" "}
-                {nextMatch
-                  ? `${roundLabelForTournament(t, nextMatch.round_no)} • vs ${teamDisplayName(
-                      t,
-                      String(nextMatch.team_a_id ?? "") === myTeamId ? nextMatch.team_b_id : nextMatch.team_a_id
-                    )} • ${matchStatusLabel(String(nextMatch.status ?? ""))}`
-                  : "-"}
-              </div>
-              <div style={{ gridColumn: "1 / span 2" }}>
-                <span style={{ fontWeight: 800, color: theme.text }}>Action</span> {actionNeeded ?? "None"}
-              </div>
-            </>
-          ) : null}
-          {t.status === "COMPLETED" && entered && myFinish ? (
-            <>
-              <div style={{ gridColumn: "1 / span 2" }}>
-                <span style={{ fontWeight: 800, color: theme.text }}>Your result</span> {myFinish.label}
-                {myFinish.detail ? <span style={{ color: theme.muted }}>{` • ${myFinish.detail}`}</span> : null}
-              </div>
-            </>
-          ) : null}
-        </div>
-
-        <div style={{ marginTop: 10 }}>
-          <button
-            type="button"
-            onClick={primary.onClick}
-            style={{
-              width: "100%",
-              border: primary.variant === "outline" ? `1px solid ${theme.border}` : "none",
-              background: primary.variant === "outline" ? "#fff" : theme.maroon,
-              color: primary.variant === "outline" ? theme.text : "#fff",
-              padding: "10px 12px",
-              borderRadius: 12,
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-            title={primary.label}
-          >
-            {primary.label}
-          </button>
-        </div>
-
-        {teamsByTournamentId[t.id]?.length ? (
-          <details style={{ marginTop: 10 }}>
-            <summary
-              style={{
-                cursor: "pointer",
-                fontWeight: 900,
-                color: theme.maroon,
-                userSelect: "none",
-              }}
-              title={t.format === "SINGLES" ? "View entries" : "View generated teams"}
-            >
-              {t.format === "SINGLES" ? "View Entries" : "View Teams"}
-            </summary>
-
-            {(() => {
-              const teams = teamsByTournamentId[t.id] ?? [];
-
-              const myTeam = teams.find((tm) => (teamMembersByTeamId[tm.id] ?? []).includes(playerId));
-              const otherTeams = teams.filter((tm) => tm.id !== myTeam?.id);
-
-              const ordered = myTeam ? [myTeam, ...otherTeams] : otherTeams;
-
-              return (
-                <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-                  {ordered.map((tm) => {
-                    const memberIds = teamMembersByTeamId[tm.id] ?? [];
-                    const memberNames = memberIds.map((pid) => nameByPlayerId[pid] ?? "Unknown");
-                    const isMine = myTeam?.id === tm.id;
-                    const isSingles = t.format === "SINGLES";
-
-                    return (
-                      <div
-                        key={tm.id}
-                        style={{
-                          border: `1px solid ${isMine ? theme.maroon : theme.border}`,
-                          borderRadius: 14,
-                          padding: 10,
-                          background: isMine ? "rgba(122,31,43,0.10)" : theme.surface,
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "baseline",
-                            gap: 10,
-                          }}
-                        >
-                          <div style={{ fontWeight: 900 }}>
-                            {isSingles ? (isMine ? "You" : "Entry") : isMine ? "Your Team" : `Team ${tm.team_no}`}
-                          </div>
-                          {!isSingles ? (
-                            <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>
-                              HCP {tm.team_handicap == null ? "-" : tm.team_handicap}
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div
-                          style={{
-                            marginTop: 6,
-                            fontSize: 13,
-                            color: theme.text,
-                            fontWeight: 800,
-                            lineHeight: 1.35,
-                          }}
-                        >
-                          {memberNames.length ? memberNames.join(" \u2022 ") : "Members not loaded"}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </details>
-        ) : null}
-      </div>
-    );
-  }
 
   function renderBucket(title: string, items: TournamentRow[]) {
     const upcoming = items.filter((r) => r.status === "ANNOUNCED");
@@ -970,7 +605,27 @@ export default function TournamentsPage() {
             !list.length ? (
               <div style={{ marginTop: 8, color: theme.muted, fontSize: 13 }}>None</div>
             ) : (
-              <div style={{ display: "grid", gap: 10, marginTop: 10 }}>{list.map(renderTournamentCard)}</div>
+              <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
+                {list.map((t) => (
+                  <TournamentCardView
+                    key={t.id}
+                    t={t}
+                    entered={!!enteredByTournamentId[t.id]}
+                    winnerName={(winnerNameByTournamentId[t.id] ?? "").trim()}
+                    teams={teamsByTournamentId[t.id] ?? []}
+                    teamMembersByTeamId={teamMembersByTeamId}
+                    nameByPlayerId={nameByPlayerId}
+                    matches={matchesByTournamentId[t.id] ?? []}
+                    clubName={t.club_id ? clubNameById[t.club_id] : undefined}
+                    playerId={playerId}
+                    teamDisplayName={teamDisplayName}
+                    roundLabelForTournament={roundLabelForTournament}
+                    finishPlacementLabel={finishPlacementLabel}
+                    canEnterTournamentRow={canEnterTournamentRow}
+                    enterTournament={enterTournament}
+                  />
+                ))}
+              </div>
             )
           ) : null}
         </div>

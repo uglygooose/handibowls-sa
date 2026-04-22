@@ -4,7 +4,29 @@
 import { theme } from "@/lib/theme";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  cleanTournamentName,
+  formatLabel,
+  genderLabel,
+  ruleLabel,
+  scopeLabel,
+  type TournamentFormat,
+  type TournamentRule,
+} from "@/lib/tournaments/labels";
+import {
+  hasValue,
+  isMatchBye as isByeMatch,
+  winnerTeamIdFromMatch as inferWinnerTeamId,
+} from "@/lib/tournaments/match";
 import BottomNav from "./components/BottomNav";
+import {
+  clubLogoFor,
+  fromLocalInputValue,
+  isNewsActive,
+  toLocalInputValue,
+} from "./home/utils/news";
+import EventsAndLeaderboardView from "./home/views/EventsAndLeaderboardView";
+import ClubNewsView from "./home/views/ClubNewsView";
 
 type ProfileRow = {
   id: string;
@@ -24,8 +46,6 @@ type PlayerRow = {
   gender?: "MALE" | "FEMALE" | null;
 };
 
-type LadderRow = { id: string };
-
 type LadderEntryRow = {
   player_id: string;
   points: number | null;
@@ -33,7 +53,7 @@ type LadderEntryRow = {
   shots_for: number | null;
 };
 
-type PlayerMini = {
+export type PlayerMini = {
   player_id: string;
   name: string;
   points: number;
@@ -41,12 +61,10 @@ type PlayerMini = {
   shots_for: number;
 };
 
-type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
 type TournamentGender = "MALE" | "FEMALE" | null;
-type GenderFilter = "ALL" | "MALE" | "FEMALE";
-type TournamentRule = "SCRATCH" | "HANDICAP_START";
+export type GenderFilter = "ALL" | "MALE" | "FEMALE";
 
-type TournamentMini = {
+export type TournamentMini = {
   id: string;
   name: string;
   starts_at: string | null;
@@ -58,7 +76,7 @@ type TournamentMini = {
   rule_type?: TournamentRule | null;
 };
 
-type ClubNewsRow = {
+export type ClubNewsRow = {
   id: string;
   club_id: string;
   title: string | null;
@@ -73,7 +91,7 @@ type ClubNewsRow = {
   created_at: string | null;
 };
 
-type RecentWinnerItem = {
+export type RecentWinnerItem = {
   tournament_id: string;
   tournament_name: string;
   tournament_format: TournamentFormat;
@@ -81,94 +99,46 @@ type RecentWinnerItem = {
   winner_name: string | null;
 };
 
-function scopeLabel(scope: "CLUB" | "DISTRICT" | "NATIONAL") {
-  if (scope === "CLUB") return "Club";
-  if (scope === "DISTRICT") return "District";
-  return "National";
-}
+type PlayerLookupRow = {
+  id: string;
+  user_id: string | null;
+  display_name?: string | null;
+  gender?: string | null;
+};
 
-function formatLabel(fmt: TournamentFormat) {
-  if (fmt === "FOUR_BALL") return "4 Balls";
-  return fmt.charAt(0) + fmt.slice(1).toLowerCase();
-}
+type ProfileIdRow = { id: string; full_name?: string | null };
 
-function genderLabel(g: TournamentGender | undefined | null) {
-  if (g === "MALE") return "Men";
-  if (g === "FEMALE") return "Ladies";
-  return "Open";
-}
+type ClubNameRow = { id: string; name: string | null };
 
-function ruleLabel(rule: TournamentRule | null | undefined) {
-  if (rule === "SCRATCH") return "Scratch";
-  return "Handicap start";
-}
+type RecentWinnerMatchRow = {
+  id: string;
+  tournament_id: string | null;
+  round_no: number | null;
+  match_no: number | null;
+  status: string | null;
+  finalized_by_admin: boolean | null;
+  winner_team_id: string | null;
+  team_a_id: string | null;
+  team_b_id: string | null;
+  score_a: number | null;
+  score_b: number | null;
+  slot_b_source_type: string | null;
+};
 
-function cleanTournamentName(name: string) {
-  const raw = (name ?? "").toString();
-  return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
-}
+type TeamMemberRow = { team_id?: string | null; player_id?: string | null };
 
-function clubLogoFor(name: string) {
-  const lower = (name ?? "").toLowerCase();
-  if (lower.includes("ridgepark")) return "/ridgepark-logo.png";
-  return "";
-}
+type PlayerNameRow = { id?: string | null; display_name?: string | null };
 
-function toLocalInputValue(iso: string | null | undefined) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (v: number) => String(v).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+type MePlayerRow = {
+  id: string;
+  user_id: string | null;
+  handicap?: number | null;
+  club_id?: string | null;
+  gender?: "MALE" | "FEMALE" | null;
+  display_name?: string | null;
+};
 
-function fromLocalInputValue(value: string) {
-  if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
-}
-
-function isNewsActive(n: ClubNewsRow | null, now: Date) {
-  if (!n || n.is_active === false) return false;
-  const startOk = n.starts_at ? new Date(n.starts_at) <= now : true;
-  const endOk = n.ends_at ? new Date(n.ends_at) >= now : true;
-  return startOk && endOk;
-}
-
-function hasValue(v: any) {
-  return v != null && String(v) !== "";
-}
-
-function bool(v: any) {
-  return v === true;
-}
-
-function isByeMatch(m: any) {
-  const st = String(m?.status ?? "");
-  if (st === "BYE") return true;
-  if (String(m?.slot_b_source_type ?? "") === "BYE") return true;
-  return !m?.team_b_id && !m?.slot_b_source_type;
-}
-
-function isMatchDone(m: any) {
-  const st = String(m?.status ?? "");
-  const hasWinner = hasValue(m?.winner_team_id);
-  return st === "COMPLETED" || bool(m?.finalized_by_admin) || hasWinner;
-}
-
-function inferWinnerTeamId(m: any) {
-  if (hasValue(m?.winner_team_id)) return String(m.winner_team_id);
-  if (!isMatchDone(m)) return null;
-
-  if (isByeMatch(m)) return hasValue(m?.team_a_id) ? String(m.team_a_id) : null;
-
-  if (!hasValue(m?.team_a_id) || !hasValue(m?.team_b_id)) return null;
-  if (m?.score_a == null || m?.score_b == null) return null;
-  if (Number(m.score_a) === Number(m.score_b)) return null;
-
-  return Number(m.score_a) > Number(m.score_b) ? String(m.team_a_id) : String(m.team_b_id);
-}
+type UserWithMeta = { user_metadata?: { full_name?: string | null; name?: string | null } | null } | null;
 
 export default function HomePage() {
   const supabase = createClient();
@@ -179,11 +149,11 @@ export default function HomePage() {
   const [clubName, setClubName] = useState<string>("");
   const [clubId, setClubId] = useState<string>("");
   const [baseClubId, setBaseClubId] = useState<string>("");
-  const [playerId, setPlayerId] = useState<string>("");
 
   const [handicap, setHandicap] = useState<number | null>(null);
   const [showHandicapInfo, setShowHandicapInfo] = useState(false);
   const [playerGender, setPlayerGender] = useState<"MALE" | "FEMALE" | "">("");
+  const [genderDefaulted, setGenderDefaulted] = useState(false);
 
   const [clubLeaderboard, setClubLeaderboard] = useState<PlayerMini[]>([]);
   const [clubLbNote, setClubLbNote] = useState<string | null>(null);
@@ -275,8 +245,8 @@ export default function HomePage() {
             }
 
             const playerById = new Map(filteredPlayers.map((p) => [p.id, p]));
-            const preview = (le.data ?? [])
-              .map((e: any) => {
+            const preview = entries
+              .map((e) => {
                 const pl = playerById.get(e.player_id);
                 if (!pl) return null;
                 const dn = (pl.display_name ?? "").trim();
@@ -306,7 +276,7 @@ export default function HomePage() {
       return;
     }
 
-    const userIds = (clubProfiles ?? []).map((p: any) => p.id);
+    const userIds = ((clubProfiles ?? []) as ProfileIdRow[]).map((p) => p.id);
     const { data: playersByUser, error: puErr } = userIds.length
       ? await supabase.from("players").select("id, user_id, display_name, gender").in("user_id", userIds)
       : { data: [], error: null };
@@ -326,9 +296,9 @@ export default function HomePage() {
       return;
     }
 
-    const allPlayers = new Map<string, { id: string; user_id: string | null; display_name?: string | null; gender?: string | null }>();
-    for (const p of (playersByUser ?? [])) allPlayers.set(String((p as any).id), p as any);
-    for (const p of (playersByClub ?? [])) allPlayers.set(String((p as any).id), p as any);
+    const allPlayers = new Map<string, PlayerLookupRow>();
+    for (const p of ((playersByUser ?? []) as PlayerLookupRow[])) allPlayers.set(String(p.id), p);
+    for (const p of ((playersByClub ?? []) as PlayerLookupRow[])) allPlayers.set(String(p.id), p);
 
     const profiles = (clubProfiles ?? []) as { id: string; full_name: string | null }[];
     const nameByUser = new Map(profiles.map((p) => [p.id, p.full_name ?? "Unknown"]));
@@ -403,8 +373,8 @@ export default function HomePage() {
     if (clubRes.error) return;
 
     const next: Record<string, string> = {};
-    for (const c of clubRes.data ?? []) {
-      next[String((c as any).id)] = String((c as any).name ?? "Club");
+    for (const c of ((clubRes.data ?? []) as ClubNameRow[])) {
+      next[String(c.id)] = String(c.name ?? "Club");
     }
     setClubNameById(next);
   }
@@ -451,9 +421,9 @@ export default function HomePage() {
       .select("id, tournament_id, round_no, match_no, status, finalized_by_admin, winner_team_id, team_a_id, team_b_id, score_a, score_b, slot_b_source_type")
       .in("tournament_id", ids);
 
-    const matches = (mRes.data ?? []) as any[];
+    const matches = (mRes.data ?? []) as RecentWinnerMatchRow[];
 
-    const matchesByTournamentId: Record<string, any[]> = {};
+    const matchesByTournamentId: Record<string, RecentWinnerMatchRow[]> = {};
     for (const m of matches) {
       const tid = String(m?.tournament_id ?? "");
       if (!tid) continue;
@@ -511,9 +481,9 @@ export default function HomePage() {
         .select("team_id, player_id")
         .in("team_id", winnerTeamIds);
 
-      for (const r of memRes.data ?? []) {
-        const tid = String((r as any)?.team_id ?? "");
-        const pid = String((r as any)?.player_id ?? "");
+      for (const r of ((memRes.data ?? []) as TeamMemberRow[])) {
+        const tid = String(r?.team_id ?? "");
+        const pid = String(r?.player_id ?? "");
         if (!tid || !pid) continue;
         membersByTeamId[tid] = membersByTeamId[tid] ?? [];
         membersByTeamId[tid].push(pid);
@@ -524,10 +494,10 @@ export default function HomePage() {
     const nameByPlayerId: Record<string, string> = {};
     if (allWinnerPlayerIds.length) {
       const pRes = await supabase.from("players").select("id, display_name").in("id", allWinnerPlayerIds);
-      for (const p of pRes.data ?? []) {
-        const id = String((p as any)?.id ?? "");
+      for (const p of ((pRes.data ?? []) as PlayerNameRow[])) {
+        const id = String(p?.id ?? "");
         if (!id) continue;
-        const dn = String((p as any)?.display_name ?? "").trim();
+        const dn = String(p?.display_name ?? "").trim();
         nameByPlayerId[id] = dn || "Unknown";
       }
     }
@@ -688,38 +658,25 @@ export default function HomePage() {
       window.location.href = "/login";
       return;
     }
-    const superByEmail = (user.email ?? "").toLowerCase() === "a.thomas.els@gmail.com";
     setUserEmail(user.email ?? "");
 
-    // ---- profile (defensive club columns) ----
-    let prof: any = null;
-
+    // ---- profile ----
     const profRes = await supabase
       .from("profiles")
       .select("id, full_name, club, club_name, club_id, is_admin, role")
       .eq("id", user.id)
       .single();
 
-    if (profRes.error) {
-      const fallback = await supabase
-        .from("profiles")
-        .select("id, full_name, club, club_name, club_id, is_admin, role")
-        .eq("id", user.id)
-        .single();
-
-      prof = fallback.data ?? null;
-    } else {
-      prof = profRes.data ?? null;
-    }
+    const prof = profRes.data ?? null;
 
     const profileName = (prof as ProfileRow | null)?.full_name ?? "";
     const role = ((prof as ProfileRow | null)?.role ?? "").toString().toUpperCase();
     const isAdminFlag = Boolean((prof as ProfileRow | null)?.is_admin);
-    const isSuperAdmin = role === "SUPER_ADMIN" || superByEmail;
+    const isSuperAdmin = role === "SUPER_ADMIN";
     setIsSuperAdmin(isSuperAdmin);
 
     // ---- player (defensive handicap + club_id columns) ----
-    let mePlayer: any = null;
+    let mePlayer: MePlayerRow | null = null;
 
     const pRes = await supabase
       .from("players")
@@ -734,36 +691,31 @@ export default function HomePage() {
         .eq("user_id", user.id)
         .single();
 
-      mePlayer = fallback.data ?? null;
+      mePlayer = (fallback.data ?? null) as MePlayerRow | null;
       setHandicap(null);
     } else {
-      mePlayer = pRes.data ?? null;
-      setHandicap(typeof (mePlayer as PlayerRow | null)?.handicap === "number" ? mePlayer.handicap : null);
+      mePlayer = (pRes.data ?? null) as MePlayerRow | null;
+      setHandicap(typeof mePlayer?.handicap === "number" ? mePlayer.handicap : null);
     }
 
-    if (!mePlayer) {
-      if (!isSuperAdmin) {
-        setLoading(false);
-        return;
-      }
-      setPlayerId("");
-    } else {
-      setPlayerId(String((mePlayer as PlayerRow).id));
+    if (!mePlayer && !isSuperAdmin) {
+      setLoading(false);
+      return;
     }
 
     // Resolve club name (prefer DB via players.club_id; only display fallbacks if name can't be resolved)
     let resolvedClub = (prof as ProfileRow | null)?.club ?? "";
     if (!resolvedClub) resolvedClub = (prof as ProfileRow | null)?.club_name ?? "";
 
-    const playerClubId = (mePlayer as PlayerRow | null)?.club_id ?? "";
+    const playerClubId = mePlayer?.club_id ?? "";
     const profileClubId = (prof as ProfileRow | null)?.club_id ?? "";
     const cid = playerClubId || profileClubId || "";
-    const g = ((mePlayer as PlayerRow | null)?.gender ?? "") as "MALE" | "FEMALE" | "";
+    const g = (mePlayer?.gender ?? "") as "MALE" | "FEMALE" | "";
     setPlayerGender(g);
 
-    const playerName = String((mePlayer as any)?.display_name ?? "");
-    const metaName =
-      String((user as any)?.user_metadata?.full_name ?? (user as any)?.user_metadata?.name ?? "");
+    const playerName = String(mePlayer?.display_name ?? "");
+    const userMeta = (user as UserWithMeta)?.user_metadata ?? null;
+    const metaName = String(userMeta?.full_name ?? userMeta?.name ?? "");
     const resolvedName = profileName || playerName || metaName || user.email || "";
     setFullName(resolvedName);
 
@@ -797,6 +749,15 @@ export default function HomePage() {
     loadClubLeaderboardPreview(clubId, clubLbGender);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId, clubLbGender]);
+
+  // Default the club-leaderboard gender filter to the user's own gender once,
+  // as soon as it is known. User selections afterwards stick.
+  useEffect(() => {
+    if (genderDefaulted) return;
+    if (!playerGender) return;
+    setClubLbGender(playerGender as GenderFilter);
+    setGenderDefaulted(true);
+  }, [playerGender, genderDefaulted]);
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -993,7 +954,7 @@ export default function HomePage() {
             <div style={{ fontWeight: 900, marginBottom: 6 }}>How handicaps work (Lawn Bowls)</div>
             <div style={{ fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
               A handicap helps make games fair between players of different ability. In many club formats, the player (or
-              team) with the lower handicap receives a head start " either by adding handicap shots to their score, or
+              team) with the lower handicap receives a head start — either by adding handicap shots to their score, or
               by applying the handicap difference at the start/end of the match (format depends on the competition
               rules).
               <br />
@@ -1106,326 +1067,53 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Upcoming Events */}
-        <div
-          style={{
-            marginTop: 14,
-            background: "#fff",
-            border: `1px solid ${theme.border}`,
-            borderRadius: 16,
-            padding: 14,
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-            <div style={{ fontWeight: 900, fontSize: 16 }}>Upcoming Events</div>
-            <a href="/tournaments" style={{ textDecoration: "none", color: theme.maroon, fontWeight: 900, fontSize: 13 }}>
-              View all
-            </a>
-          </div>
+        <EventsAndLeaderboardView
+          upcoming={upcoming}
+          upcomingNote={upcomingNote}
+          clubNameById={clubNameById}
+          clubId={clubId}
+          clubName={clubName}
+          clubLeaderboard={clubLeaderboard}
+          clubLbNote={clubLbNote}
+          clubLbGender={clubLbGender}
+          setClubLbGender={setClubLbGender}
+        />
 
-          <div style={{ marginTop: 10 }}>
-            {upcomingNote ? (
-              <div style={{ color: theme.muted, fontSize: 13 }}>{upcomingNote}</div>
-            ) : upcoming.length === 0 ? (
-              <div style={{ color: theme.muted, fontSize: 13 }}>Loading events...</div>
-            ) : (
-              <div style={{ display: "grid", gap: 8 }}>
-                {upcoming.map((t) => (
-                  <div
-                    key={t.id}
-                    style={{
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 14,
-                      padding: 10,
-                      background: "#fff",
-                    }}
-                  >
-                    <div style={{ fontWeight: 900 }}>{cleanTournamentName(t.name)}</div>
-                    <div style={{ marginTop: 4, fontSize: 12, color: theme.muted }}>
-                      {t.starts_at ? new Date(t.starts_at).toLocaleString() : "Start time TBC"}
-                    </div>
-                    {t.ends_at ? (
-                      <div style={{ marginTop: 4, fontSize: 12, color: theme.muted }}>
-                        Ends: {new Date(t.ends_at).toLocaleString()}
-                      </div>
-                    ) : null}
-                    <div style={{ marginTop: 6, fontSize: 12, color: theme.muted }}>
-                      {scopeLabel(t.scope)} * {genderLabel(t.gender ?? null)} * {formatLabel(t.format)} knockout
-                    </div>
-                    {t.scope === "CLUB" && t.club_id && clubNameById[t.club_id] ? (
-                      <div style={{ marginTop: 6, fontSize: 12, color: theme.muted }}>
-                        Host: {clubNameById[t.club_id]}
-                      </div>
-                    ) : null}
-                    <div style={{ marginTop: 6, fontSize: 12, color: theme.muted }}>
-                      Rule: {ruleLabel(t.rule_type ?? "HANDICAP_START")}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Club Leaderboard Preview */}
-        <div
-          style={{
-            marginTop: 14,
-            background: "#fff",
-            border: `1px solid ${theme.border}`,
-            borderRadius: 16,
-            padding: 14,
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-            <div>
-              <div style={{ fontWeight: 900, fontSize: 16 }}>Your Club Leaderboard</div>
-              <div style={{ color: theme.muted, fontSize: 13, marginTop: 4 }}>
-                {clubName ? clubName : "Club not set"}
-              </div>
-            </div>
-
-            <a
-              href="/club-ladder"
-              style={{ textDecoration: "none", color: theme.maroon, fontWeight: 900, fontSize: 13 }}
-            >
-              View full
-            </a>
-          </div>
-
-          <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => setClubLbGender("ALL")}
-              style={{
-                border: `1px solid ${theme.border}`,
-                background: clubLbGender === "ALL" ? theme.maroon : "#fff",
-                color: clubLbGender === "ALL" ? "#fff" : theme.text,
-                padding: "8px 10px",
-                borderRadius: 999,
-                fontWeight: 900,
-                fontSize: 12,
-                cursor: "pointer",
-              }}
-            >
-              All
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setClubLbGender("MALE")}
-              style={{
-                border: `1px solid ${theme.border}`,
-                background: clubLbGender === "MALE" ? theme.maroon : "#fff",
-                color: clubLbGender === "MALE" ? "#fff" : theme.text,
-                padding: "8px 10px",
-                borderRadius: 999,
-                fontWeight: 900,
-                fontSize: 12,
-                cursor: "pointer",
-              }}
-            >
-              Men
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setClubLbGender("FEMALE")}
-              style={{
-                border: `1px solid ${theme.border}`,
-                background: clubLbGender === "FEMALE" ? theme.maroon : "#fff",
-                color: clubLbGender === "FEMALE" ? "#fff" : theme.text,
-                padding: "8px 10px",
-                borderRadius: 999,
-                fontWeight: 900,
-                fontSize: 12,
-                cursor: "pointer",
-              }}
-            >
-              Ladies
-            </button>
-          </div>
-
-          <div style={{ marginTop: 10 }}>
-            {clubLbNote ? (
-              <div style={{ color: theme.muted, fontSize: 13 }}>{clubLbNote}</div>
-            ) : !clubId ? (
-              <div style={{ color: theme.muted, fontSize: 13 }}>Your club isn't linked yet.</div>
-            ) : clubLeaderboard.length === 0 ? (
-              <div style={{ color: theme.muted, fontSize: 13 }}>Loading club leaderboard...</div>
-            ) : (
-              <div style={{ display: "grid", gap: 8 }}>
-                {clubLeaderboard.map((r, idx) => (
-                  <div
-                    key={r.player_id}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "32px 1fr auto",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "10px 10px",
-                      borderRadius: 14,
-                      border: `1px solid ${theme.border}`,
-                      background: "#fff",
-                    }}
-                  >
-                    <div style={{ fontWeight: 900, color: theme.muted, textAlign: "center" }}>{idx + 1}</div>
-                    <div style={{ fontWeight: 900 }}>{r.name}</div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontWeight: 900 }}>{r.points} pts</div>
-                      <div style={{ fontSize: 12, color: theme.muted }}>
-                        SD {r.shot_diff} {"\u2022"} SF {r.shots_for}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-	        {/* Club News */}
-	        <div
-	          style={{
-	            marginTop: 14,
-	            background: "#fff",
-	            border: `1px solid ${theme.border}`,
-	            borderRadius: 16,
-	            padding: 14,
-	          }}
-	        >
-	          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-	            <div style={{ fontWeight: 900, fontSize: 16 }}>Club News</div>
-	            {isClubAdmin ? (
-	              <button
-	                type="button"
-	                onClick={() => setClubNewsEditOpen(true)}
-	                style={{
-	                  border: `1px solid ${theme.border}`,
-	                  background: "#fff",
-	                  color: theme.text,
-	                  padding: "6px 10px",
-	                  borderRadius: 999,
-	                  fontWeight: 900,
-	                  fontSize: 12,
-	                  cursor: "pointer",
-	                }}
-	              >
-	                {clubNews ? "Edit popup" : "Create popup"}
-	              </button>
-	            ) : (
-	              <span style={{ fontSize: 12, color: theme.muted }}>Read-only</span>
-	            )}
-	          </div>
-
-	          {/* Recent Winners (stopgap for read-only news) */}
-	          <div style={{ marginTop: 10 }}>
-	            <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>Recent tournament winners</div>
-	            {recentWinnersLoading ? (
-	              <div style={{ marginTop: 6, fontSize: 13, color: theme.muted }}>Loading results...</div>
-	            ) : recentWinnersNote ? (
-	              <div style={{ marginTop: 6, fontSize: 13, color: theme.muted }}>{recentWinnersNote}</div>
-	            ) : recentWinners.length ? (
-	              <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
-	                {recentWinners.map((w) => (
-	                  <div
-	                    key={`winner-${w.tournament_id}`}
-	                    style={{
-	                      border: `1px solid ${theme.border}`,
-	                      borderRadius: 14,
-	                      padding: 10,
-	                      background: "#fff",
-	                    }}
-	                  >
-	                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-	                      <div style={{ fontWeight: 900, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-	                        {w.tournament_name}
-	                      </div>
-	                      <a
-	                        href={`/tournaments/${w.tournament_id}`}
-	                        style={{ textDecoration: "none", color: theme.maroon, fontWeight: 900, fontSize: 12, whiteSpace: "nowrap" }}
-	                      >
-	                        View
-	                      </a>
-	                    </div>
-	                    <div style={{ marginTop: 6, fontSize: 13, color: theme.text, fontWeight: 900 }}>
-	                      Winner: {w.winner_name ?? "-"}
-	                    </div>
-	                    {w.ends_at ? (
-	                      <div style={{ marginTop: 4, fontSize: 12, color: theme.muted }}>
-	                        Ended: {new Date(w.ends_at).toLocaleString()}
-	                      </div>
-	                    ) : null}
-	                  </div>
-	                ))}
-	              </div>
-	            ) : (
-	              <div style={{ marginTop: 6, fontSize: 13, color: theme.muted }}>No recent results yet.</div>
-	            )}
-	          </div>
-
-	          <div style={{ marginTop: 12, borderTop: `1px solid ${theme.border}`, paddingTop: 12 }} />
-
-	          {clubNewsError ? (
-	            <div style={{ marginTop: 8, fontSize: 13, color: theme.danger }}>News error: {clubNewsError}</div>
-	          ) : clubNewsLoading ? (
-	            <div style={{ marginTop: 8, fontSize: 13, color: theme.muted }}>Loading news...</div>
-	          ) : newsHasContent ? (
-	            <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
-	              <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>Announcements</div>
-	              <div style={{ fontWeight: 900 }}>{clubNews?.title ?? "Club Update"}</div>
-	              {clubNews?.body ? (
-	                <div style={{ fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-	                  {clubNews.body.length > 160 ? `${clubNews.body.slice(0, 160)}...` : clubNews.body}
-	                </div>
-	              ) : null}
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  onClick={() => setClubNewsOpen(true)}
-                  style={{
-                    border: "none",
-                    background: theme.maroon,
-                    color: "#fff",
-                    padding: "8px 12px",
-                    borderRadius: 10,
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  {newsIsActiveNow ? "Open popup" : "Preview"}
-                </button>
-                {isClubAdmin ? (
-                  <button
-                    type="button"
-                    onClick={() => setClubNewsEditOpen(true)}
-                    style={{
-                      border: `1px solid ${theme.border}`,
-                      background: "#fff",
-                      color: theme.text,
-                      padding: "8px 12px",
-                      borderRadius: 10,
-                      fontWeight: 900,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Edit details
-                  </button>
-                ) : null}
-                {clubNews?.starts_at || clubNews?.ends_at ? (
-                  <div style={{ fontSize: 12, color: theme.muted, alignSelf: "center" }}>
-                    {clubNews.starts_at ? `Starts ${new Date(clubNews.starts_at).toLocaleString()}` : "Live now"}
-                    {clubNews.ends_at ? ` · Ends ${new Date(clubNews.ends_at).toLocaleString()}` : ""}
-                  </div>
-                ) : null}
-	              </div>
-	            </div>
-	          ) : (
-	            <div style={{ marginTop: 8, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-	              No announcements posted yet.
-	            </div>
-	          )}
-	        </div>
+        <ClubNewsView
+          isClubAdmin={isClubAdmin}
+          clubName={clubName}
+          clubNews={clubNews}
+          clubNewsLoading={clubNewsLoading}
+          clubNewsError={clubNewsError}
+          newsHasContent={newsHasContent}
+          newsIsActiveNow={newsIsActiveNow}
+          recentWinners={recentWinners}
+          recentWinnersLoading={recentWinnersLoading}
+          recentWinnersNote={recentWinnersNote}
+          clubNewsOpen={clubNewsOpen}
+          setClubNewsOpen={setClubNewsOpen}
+          clubNewsEditOpen={clubNewsEditOpen}
+          setClubNewsEditOpen={setClubNewsEditOpen}
+          clubNewsSaving={clubNewsSaving}
+          dismissNewsForNow={dismissNewsForNow}
+          saveClubNews={saveClubNews}
+          newsTitle={newsTitle}
+          setNewsTitle={setNewsTitle}
+          newsBody={newsBody}
+          setNewsBody={setNewsBody}
+          newsImageUrl={newsImageUrl}
+          setNewsImageUrl={setNewsImageUrl}
+          newsCtaText={newsCtaText}
+          setNewsCtaText={setNewsCtaText}
+          newsCtaUrl={newsCtaUrl}
+          setNewsCtaUrl={setNewsCtaUrl}
+          newsStartsAt={newsStartsAt}
+          setNewsStartsAt={setNewsStartsAt}
+          newsEndsAt={newsEndsAt}
+          setNewsEndsAt={setNewsEndsAt}
+          newsIsActive={newsIsActive}
+          setNewsIsActive={setNewsIsActive}
+        />
 
         {/* How it works */}
         <div
@@ -1448,318 +1136,7 @@ export default function HomePage() {
 
       <BottomNav />
 
-      {clubNewsOpen && clubNews ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.45)",
-            display: "grid",
-            placeItems: "center",
-            padding: 16,
-            zIndex: 50,
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: 520,
-              background: "#fff",
-              borderRadius: 18,
-              border: `1px solid ${theme.border}`,
-              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
-              padding: 16,
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
-              <div>
-                <div style={{ fontWeight: 900, fontSize: 18 }}>{clubNews.title ?? "Club Update"}</div>
-                <div style={{ fontSize: 12, color: theme.muted, marginTop: 4 }}>
-                  {clubName || "Your club"} news bulletin
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setClubNewsOpen(false)}
-                style={{
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  color: theme.text,
-                  padding: "6px 10px",
-                  borderRadius: 10,
-                  fontWeight: 900,
-                  cursor: "pointer",
-                }}
-              >
-                Close
-              </button>
-            </div>
 
-            {clubNews.image_url ? (
-              <div style={{ marginTop: 12 }}>
-                <img
-                  src={clubNews.image_url}
-                  alt="Club news"
-                  style={{ width: "100%", borderRadius: 14, border: `1px solid ${theme.border}` }}
-                />
-              </div>
-            ) : null}
-
-            {clubNews.body ? (
-              <div style={{ marginTop: 12, fontSize: 14, color: theme.text, lineHeight: 1.45, whiteSpace: "pre-wrap" }}>
-                {clubNews.body}
-              </div>
-            ) : null}
-
-            {(clubNews.cta_text || clubNews.cta_url) && clubNews.cta_url ? (
-              <a
-                href={clubNews.cta_url}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  marginTop: 12,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  textDecoration: "none",
-                  background: theme.maroon,
-                  color: "#fff",
-                  padding: "10px 14px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                }}
-              >
-                {clubNews.cta_text || "Learn more"}
-              </a>
-            ) : null}
-
-            <div style={{ marginTop: 14, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-              <button
-                type="button"
-                onClick={dismissNewsForNow}
-                style={{
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  color: theme.text,
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                  fontWeight: 900,
-                  cursor: "pointer",
-                }}
-              >
-                Don't show again
-              </button>
-              {isClubAdmin ? (
-                <button
-                  type="button"
-                  onClick={() => setClubNewsEditOpen(true)}
-                  style={{
-                    border: "none",
-                    background: theme.maroon,
-                    color: "#fff",
-                    padding: "8px 12px",
-                    borderRadius: 10,
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  Edit popup
-                </button>
-              ) : null}
-              {clubNews.starts_at || clubNews.ends_at ? (
-                <span style={{ fontSize: 12, color: theme.muted }}>
-                  {clubNews.starts_at ? `Starts ${new Date(clubNews.starts_at).toLocaleString()}` : "Live now"}
-                  {clubNews.ends_at ? ` · Ends ${new Date(clubNews.ends_at).toLocaleString()}` : ""}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {clubNewsEditOpen ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.45)",
-            display: "grid",
-            placeItems: "center",
-            padding: 16,
-            zIndex: 60,
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: 560,
-              background: "#fff",
-              borderRadius: 18,
-              border: `1px solid ${theme.border}`,
-              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
-              padding: 16,
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
-              <div>
-                <div style={{ fontWeight: 900, fontSize: 18 }}>Club news popup</div>
-                <div style={{ fontSize: 12, color: theme.muted, marginTop: 4 }}>
-                  Use this to share match dates, practice notes, and event reminders.
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setClubNewsEditOpen(false)}
-                style={{
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  color: theme.text,
-                  padding: "6px 10px",
-                  borderRadius: 10,
-                  fontWeight: 900,
-                  cursor: "pointer",
-                }}
-              >
-                Close
-              </button>
-            </div>
-
-            <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-              <input
-                value={newsTitle}
-                onChange={(e) => setNewsTitle(e.target.value)}
-                placeholder="Headline (eg. Club Singles start Saturday)"
-                style={{
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 12,
-                  padding: "10px 12px",
-                  fontWeight: 800,
-                }}
-              />
-              <textarea
-                value={newsBody}
-                onChange={(e) => setNewsBody(e.target.value)}
-                placeholder="Details, timing, dress code, costs, who to contact..."
-                rows={5}
-                style={{
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 12,
-                  padding: "10px 12px",
-                  resize: "vertical",
-                  fontFamily: "inherit",
-                }}
-              />
-              <input
-                value={newsImageUrl}
-                onChange={(e) => setNewsImageUrl(e.target.value)}
-                placeholder="Image URL (optional)"
-                style={{
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 12,
-                  padding: "10px 12px",
-                }}
-              />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <input
-                  value={newsCtaText}
-                  onChange={(e) => setNewsCtaText(e.target.value)}
-                  placeholder="Button text (optional)"
-                  style={{
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
-                    padding: "10px 12px",
-                  }}
-                />
-                <input
-                  value={newsCtaUrl}
-                  onChange={(e) => setNewsCtaUrl(e.target.value)}
-                  placeholder="Button link (optional)"
-                  style={{
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
-                    padding: "10px 12px",
-                  }}
-                />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div style={{ display: "grid", gap: 6 }}>
-                  <label style={{ fontSize: 12, color: theme.muted, fontWeight: 900 }}>Start time</label>
-                  <input
-                    type="datetime-local"
-                    value={newsStartsAt}
-                    onChange={(e) => setNewsStartsAt(e.target.value)}
-                    style={{
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
-                      padding: "10px 12px",
-                    }}
-                  />
-                </div>
-                <div style={{ display: "grid", gap: 6 }}>
-                  <label style={{ fontSize: 12, color: theme.muted, fontWeight: 900 }}>End time</label>
-                  <input
-                    type="datetime-local"
-                    value={newsEndsAt}
-                    onChange={(e) => setNewsEndsAt(e.target.value)}
-                    style={{
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
-                      padding: "10px 12px",
-                    }}
-                  />
-                </div>
-              </div>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900, fontSize: 12 }}>
-                <input
-                  type="checkbox"
-                  checked={newsIsActive}
-                  onChange={(e) => setNewsIsActive(e.target.checked)}
-                />
-                Active (show popup to members)
-              </label>
-              {clubNewsError ? <div style={{ color: theme.danger, fontSize: 12 }}>{clubNewsError}</div> : null}
-            </div>
-
-            <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={saveClubNews}
-                disabled={clubNewsSaving}
-                style={{
-                  border: "none",
-                  background: theme.maroon,
-                  color: "#fff",
-                  padding: "10px 14px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                  cursor: clubNewsSaving ? "not-allowed" : "pointer",
-                }}
-              >
-                {clubNewsSaving ? "Saving..." : "Save popup"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setClubNewsEditOpen(false)}
-                style={{
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  color: theme.text,
-                  padding: "10px 14px",
-                  borderRadius: 12,
-                  fontWeight: 900,
-                  cursor: "pointer",
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

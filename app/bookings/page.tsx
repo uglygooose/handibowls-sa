@@ -209,13 +209,13 @@ export default function BookingsPage() {
 
   const pageStyle: React.CSSProperties = {
     minHeight: "100vh",
-    background: theme.bg,
+    background: theme.background,
     color: theme.text,
     paddingBottom: 140,
   };
 
   const card: React.CSSProperties = {
-    background: theme.card,
+    background: theme.surface,
     border: `1px solid ${theme.border}`,
     borderRadius: 14,
     padding: 14,

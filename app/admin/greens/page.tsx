@@ -2,6 +2,7 @@
 
 import BottomNav from "../../components/BottomNav";
 import { createClient } from "@/lib/supabase/client";
+import { adminGate } from "@/lib/auth/adminGate";
 import { theme } from "@/lib/theme";
 import { useEffect, useMemo, useState } from "react";
 
@@ -12,13 +13,6 @@ type GreenRow = {
   lane_count: number;
   sort_order: number;
   is_active: boolean;
-};
-
-type ProfileRow = {
-  id: string;
-  club_id: string | null;
-  is_admin: boolean | null;
-  role: string | null;
 };
 
 type ClubRow = { id: string; name: string | null };
@@ -52,56 +46,55 @@ export default function AdminGreensPage() {
 
   const selectedClubName = useMemo(() => clubs.find((c) => c.id === selectedClubId)?.name ?? "", [clubs, selectedClubId]);
 
-  async function adminGate() {
+  async function runAdminGate() {
     setLoading(true);
     setError(null);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      window.location.href = "/login";
-      return;
-    }
-
-    const { data: prof, error: pErr } = await supabase
-      .from("profiles")
-      .select("id, club_id, is_admin, role")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    const profRow = (prof ?? null) as unknown as ProfileRow | null;
-
-    if (pErr || !profRow) {
-      setError("Profile not found.");
+    const gate = await adminGate(supabase);
+    if (!gate.ok) {
+      if (gate.reason === "NOT_AUTHENTICATED") {
+        window.location.href = "/login";
+        return;
+      }
+      if (gate.reason === "PROFILE_ERROR") {
+        setError(gate.message ?? "Profile not found.");
+      }
+      setIsAdmin(false);
+      setIsSuperAdmin(false);
+      setAdminClubId("");
       setLoading(false);
       return;
     }
 
-    const role = String(profRow.role ?? "").toUpperCase();
-    const superAdmin = role === "SUPER_ADMIN";
-    const admin = Boolean(profRow.is_admin) || superAdmin;
-    const clubId = String(profRow.club_id ?? "");
-
-    setIsSuperAdmin(superAdmin);
-    setIsAdmin(admin);
-    setAdminClubId(clubId);
-
-    if (!admin) {
-      setLoading(false);
-      return;
+    // For super admins, also read the user's own club_id to pre-select it in the picker.
+    let ownClubId = gate.adminClubId ?? "";
+    if (gate.isSuperAdmin) {
+      const userRes = await supabase.auth.getUser();
+      const uid = userRes.data.user?.id;
+      if (uid) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("club_id")
+          .eq("id", uid)
+          .maybeSingle();
+        const profRow = (prof ?? null) as { club_id: string | null } | null;
+        ownClubId = String(profRow?.club_id ?? "");
+      }
     }
 
-    if (superAdmin) {
+    setIsSuperAdmin(gate.isSuperAdmin);
+    setIsAdmin(true);
+    setAdminClubId(ownClubId);
+
+    if (gate.isSuperAdmin) {
       const { data: clubsData } = await supabase.from("clubs").select("id, name").order("name", { ascending: true });
       const clubRows = (clubsData ?? []) as unknown as ClubRow[];
       setClubs(clubRows.map((c) => ({ id: String(c.id), name: String(c.name ?? "") })));
-      const initial = selectedClubId || clubId || String((clubRows[0]?.id ?? ""));
+      const initial = selectedClubId || ownClubId || String((clubRows[0]?.id ?? ""));
       setSelectedClubId(initial);
     } else {
       setClubs([]);
-      setSelectedClubId(clubId);
+      setSelectedClubId(ownClubId);
     }
 
     setLoading(false);
@@ -209,7 +202,7 @@ export default function AdminGreensPage() {
   }
 
   useEffect(() => {
-    adminGate();
+    runAdminGate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -220,13 +213,13 @@ export default function AdminGreensPage() {
 
   const pageStyle: React.CSSProperties = {
     minHeight: "100vh",
-    background: theme.bg,
+    background: theme.background,
     color: theme.text,
     paddingBottom: 140,
   };
 
   const card: React.CSSProperties = {
-    background: theme.card,
+    background: theme.surface,
     border: `1px solid ${theme.border}`,
     borderRadius: 14,
     padding: 14,

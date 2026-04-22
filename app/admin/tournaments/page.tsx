@@ -3,15 +3,26 @@
 import { theme } from "@/lib/theme";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { adminGate } from "@/lib/auth/adminGate";
+import {
+  cleanTournamentName,
+  formatLabel,
+  genderLabel,
+  ruleLabel,
+  scopeLabel,
+  statusLabel,
+  type TournamentFormat,
+  type TournamentGender,
+  type TournamentRule,
+  type TournamentScope,
+  type TournamentStatus,
+} from "@/lib/tournaments/labels";
 import BottomNav from "../../components/BottomNav";
+import { toIsoOrNull } from "./utils/dates";
+import TournamentsListView from "./views/TournamentsListView";
+import CreateTournamentModal from "./views/CreateTournamentModal";
 
-type TournamentScope = "CLUB" | "DISTRICT" | "NATIONAL";
-type TournamentStatus = "ANNOUNCED" | "IN_PLAY" | "COMPLETED";
-type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
-type TournamentGender = "MALE" | "FEMALE";
-type TournamentRule = "SCRATCH" | "HANDICAP_START";
-
-type TournamentRow = {
+export type TournamentRow = {
   id: string;
   name: string;
   scope: TournamentScope;
@@ -28,39 +39,36 @@ type TournamentRow = {
   rule_type?: TournamentRule | null;
 };
 
-type AdminTab = "HOME" | "ISSUES" | "CREATE";
-function scopeLabel(scope: TournamentScope) {
-  if (scope === "CLUB") return "Club";
-  if (scope === "DISTRICT") return "District";
-  return "National";
-}
+export type AdminTab = "HOME" | "ISSUES";
 
-function statusLabel(status: TournamentStatus) {
-  if (status === "ANNOUNCED") return "Upcoming";
-  if (status === "IN_PLAY") return "In-play";
-  return "Past";
-}
+type ClubNameRow = { id: string | number; name: string | null };
+type TournamentIdRow = { tournament_id?: string | number | null };
+type RawTeamRow = {
+  id?: string | number | null;
+  tournament_id?: string | number | null;
+  team_no?: number | string | null;
+  team_handicap?: number | string | null;
+};
+type RawTeamMemberRow = { team_id?: string | number | null; player_id?: string | number | null };
+type PlayerNameRow = { id?: string | number | null; display_name?: string | null };
+type PlayerIdRow = { player_id?: string | number | null };
+type PlayerHandicapRow = { handicap?: number | string | null };
 
-function formatLabel(fmt: TournamentFormat) {
-  if (fmt === "FOUR_BALL") return "4 Balls";
-  return fmt.charAt(0) + fmt.slice(1).toLowerCase();
-}
-
-function cleanTournamentName(name: string) {
-  const raw = (name ?? "").toString();
-  return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
-}
-
-function genderLabel(g: TournamentGender | null | undefined) {
-  if (g === "MALE") return "Men";
-  if (g === "FEMALE") return "Ladies";
-  return "Open";
-}
-
-function ruleLabel(rule: TournamentRule | null | undefined) {
-  if (rule === "SCRATCH") return "Scratch (no handicap)";
-  return "Handicap start";
-}
+type NewTournamentPayload = {
+  name: string;
+  scope: TournamentScope;
+  format: TournamentFormat;
+  gender: TournamentGender;
+  rule_type: TournamentRule;
+  club_id: string | null;
+  status: TournamentStatus;
+  entries_open: boolean;
+  locked_at: string | null;
+  target_team_handicap: number;
+  announced_at: string;
+  starts_at: string | null;
+  ends_at: string | null;
+};
 
 export default function AdminTournamentsPage() {
   const supabase = createClient();
@@ -111,50 +119,29 @@ export default function AdminTournamentsPage() {
 
   const [sectionOpenByKey, setSectionOpenByKey] = useState<Record<string, boolean>>({});
 
-  const issuesCount = 0; // placeholder for next steps
+  const issuesCount = 0;
 
   function setBusy(tournamentId: string, v: boolean) {
     setBusyByTournamentId((m) => ({ ...m, [tournamentId]: v }));
   }
 
-  async function adminGate() {
+  async function runAdminGate() {
     setAccessDenied(false);
-
-    const userRes = await supabase.auth.getUser();
-    const user = userRes.data.user;
-
-    if (!user) {
-      window.location.href = "/login";
-      return { ok: false as const };
-    }
-
-    const profRes = await supabase
-      .from("profiles")
-      .select("role, is_admin, club_id")
-      .eq("id", user.id)
-      .single();
-
-    if (profRes.error) {
-      setError(`Could not verify admin access.\n${profRes.error.message}`);
+    const gate = await adminGate(supabase);
+    if (!gate.ok) {
+      if (gate.reason === "NOT_AUTHENTICATED") {
+        window.location.href = "/login";
+        return { ok: false as const };
+      }
+      if (gate.reason === "PROFILE_ERROR") {
+        setError(`Could not verify admin access.\n${gate.message ?? ""}`);
+      }
       setIsAdmin(false);
       setAccessDenied(true);
       return { ok: false as const };
     }
-
-    const role = String((profRes.data as any)?.role ?? "").toUpperCase();
-    const isSuper = role === "SUPER_ADMIN";
-    const isAdminFlag = Boolean((profRes.data as any)?.is_admin);
-    const clubId = (profRes.data as any)?.club_id ?? null;
-
-    setIsSuperAdmin(isSuper);
-    setAdminClubId(isSuper ? null : (clubId ? String(clubId) : null));
-
-    if (!isSuper && !isAdminFlag) {
-      setIsAdmin(false);
-      setAccessDenied(true);
-      return { ok: false as const };
-    }
-
+    setIsSuperAdmin(gate.isSuperAdmin);
+    setAdminClubId(gate.adminClubId);
     setIsAdmin(true);
     return { ok: true as const };
   }
@@ -163,7 +150,7 @@ export default function AdminTournamentsPage() {
     setLoading(true);
     setError(null);
 
-    const gate = await adminGate();
+    const gate = await runAdminGate();
     if (!gate.ok) {
       setRows([]);
       setEntryCountByTournamentId({});
@@ -178,7 +165,7 @@ export default function AdminTournamentsPage() {
     const clubQuery = supabase.from("clubs").select("id, name").order("name", { ascending: true });
     const clubRes = adminClubId ? await clubQuery.eq("id", adminClubId) : await clubQuery;
     if (!clubRes.error) {
-      const list = (clubRes.data ?? []).map((c: any) => ({
+      const list = ((clubRes.data ?? []) as ClubNameRow[]).map((c) => ({
         id: String(c.id),
         name: String(c.name ?? "Club"),
       }));
@@ -249,8 +236,8 @@ export default function AdminTournamentsPage() {
       setError((prev) => prev ?? `Could not load entry counts.\n${eRes.error?.message ?? ""}`.trim());
     } else {
       const counts: Record<string, number> = {};
-      for (const r of eRes.data ?? []) {
-        const tid = String((r as any).tournament_id ?? "");
+      for (const r of ((eRes.data ?? []) as TournamentIdRow[])) {
+        const tid = String(r.tournament_id ?? "");
         if (!tid) continue;
         counts[tid] = (counts[tid] ?? 0) + 1;
       }
@@ -264,8 +251,8 @@ export default function AdminTournamentsPage() {
       setMatchCountByTournamentId({});
     } else {
       const counts: Record<string, number> = {};
-      for (const r of mRes.data ?? []) {
-        const tid = String((r as any).tournament_id ?? "");
+      for (const r of ((mRes.data ?? []) as TournamentIdRow[])) {
+        const tid = String(r.tournament_id ?? "");
         if (!tid) continue;
         counts[tid] = (counts[tid] ?? 0) + 1;
       }
@@ -290,22 +277,22 @@ export default function AdminTournamentsPage() {
     const tByTid: Record<string, { id: string; team_no: number; team_handicap: number | null }[]> = {};
     const teamIds: string[] = [];
 
-    for (const r of teamRes.data ?? []) {
-      const tid = String((r as any).tournament_id ?? "");
-      const teamId = String((r as any).id ?? "");
+    for (const r of ((teamRes.data ?? []) as RawTeamRow[])) {
+      const tid = String(r.tournament_id ?? "");
+      const teamId = String(r.id ?? "");
       if (!tid || !teamId) continue;
 
       teamIds.push(teamId);
 
       const team = {
         id: teamId,
-        team_no: Number((r as any).team_no ?? 0),
+        team_no: Number(r.team_no ?? 0),
         team_handicap:
-          (r as any).team_handicap == null
+          r.team_handicap == null
             ? null
-            : typeof (r as any).team_handicap === "number"
-            ? (r as any).team_handicap
-            : Number((r as any).team_handicap),
+            : typeof r.team_handicap === "number"
+            ? r.team_handicap
+            : Number(r.team_handicap),
       };
 
       tByTid[tid] = tByTid[tid] ?? [];
@@ -333,9 +320,9 @@ export default function AdminTournamentsPage() {
     const membersByTeam: Record<string, string[]> = {};
     const allPlayerIds: string[] = [];
 
-    for (const r of memRes.data ?? []) {
-      const teamId = String((r as any).team_id ?? "");
-      const playerId = String((r as any).player_id ?? "");
+    for (const r of ((memRes.data ?? []) as RawTeamMemberRow[])) {
+      const teamId = String(r.team_id ?? "");
+      const playerId = String(r.player_id ?? "");
       if (!teamId || !playerId) continue;
 
       membersByTeam[teamId] = membersByTeam[teamId] ?? [];
@@ -352,7 +339,7 @@ export default function AdminTournamentsPage() {
       return;
     }
 
-    // ✅ FIX 1: Use players.display_name (supports guest players where user_id is null)
+    // Use players.display_name (supports guest players where user_id is null)
     const pRes = await supabase.from("players").select("id, display_name").in("id", uniquePlayerIds);
 
     if (pRes.error) {
@@ -362,8 +349,8 @@ export default function AdminTournamentsPage() {
     }
 
     const nameByPlayer: Record<string, string> = {};
-    for (const p of pRes.data ?? []) {
-      nameByPlayer[String((p as any).id)] = String((p as any).display_name ?? "Unknown");
+    for (const p of ((pRes.data ?? []) as PlayerNameRow[])) {
+      nameByPlayer[String(p.id ?? "")] = String(p.display_name ?? "Unknown");
     }
 
     setNameByPlayerId(nameByPlayer);
@@ -452,7 +439,7 @@ export default function AdminTournamentsPage() {
       return;
     }
 
-    const playerIds = Array.from(new Set((res.data ?? []).map((r: any) => String(r.player_id)).filter(Boolean)));
+    const playerIds = Array.from(new Set(((res.data ?? []) as PlayerIdRow[]).map((r) => String(r.player_id ?? "")).filter(Boolean)));
     if (playerIds.length === 0) {
       setError("No entrants yet.");
       setBusy(tournamentId, false);
@@ -467,11 +454,11 @@ export default function AdminTournamentsPage() {
       return;
     }
 
-    const hs = (pRes.data ?? [])
-      .map((p: any) =>
+    const hs = ((pRes.data ?? []) as PlayerHandicapRow[])
+      .map((p) =>
         typeof p.handicap === "number" ? Number(p.handicap) : p.handicap != null ? Number(p.handicap) : null
       )
-      .filter((v: any) => v !== null && !Number.isNaN(v)) as number[];
+      .filter((v): v is number => v !== null && !Number.isNaN(v));
 
     if (hs.length === 0) {
       setError("No handicaps available for entrants.");
@@ -480,7 +467,7 @@ export default function AdminTournamentsPage() {
     }
 
     const avg = hs.reduce((a, b) => a + b, 0) / hs.length;
-    // ✅ FIX 3: Doubles target = avg player handicap × 2
+    // Doubles target = avg player handicap × 2
     const suggested = Math.round(avg * 2 * 10) / 10; // 1 decimal
 
     setTargetInputByTournamentId((m) => ({ ...m, [tournamentId]: String(suggested) }));
@@ -506,7 +493,7 @@ export default function AdminTournamentsPage() {
     setBusy(tournamentId, true);
     setError(null);
 
-    // ✅ FIX 2: Singles uses knockout round 1 generator
+    // Singles uses knockout round 1 generator
     const t = rows.find((x) => x.id === tournamentId);
     const fn = t?.format === "SINGLES" ? "generate_round1_singles_matches" : "tournament_generate_knockout_matches";
 
@@ -520,14 +507,6 @@ export default function AdminTournamentsPage() {
 
     await load();
     setBusy(tournamentId, false);
-  }
-
-  function toIsoOrNull(dtLocal: string) {
-    const v = (dtLocal ?? "").trim();
-    if (!v) return null;
-    const d = new Date(v);
-    if (Number.isNaN(d.getTime())) return null;
-    return d.toISOString();
   }
 
   function closeCreateModal() {
@@ -567,7 +546,7 @@ export default function AdminTournamentsPage() {
 
     setCreateBusy(true);
 
-    const payload: any = {
+    const payload: NewTournamentPayload = {
       name,
       scope: createScope,
       format: createFormat,
@@ -653,9 +632,8 @@ export default function AdminTournamentsPage() {
 
         <button
           type="button"
-          className={pill(tab === "CREATE")}
+          className={pill(false)}
           onClick={() => {
-            setTab("CREATE");
             setError(null);
             setCreateOpen(true);
           }}
@@ -726,424 +704,6 @@ export default function AdminTournamentsPage() {
     );
   }
 
-  function renderTournamentCard(t: TournamentRow) {
-    const count = entryCountByTournamentId[t.id] ?? 0;
-    const matchCount = matchCountByTournamentId[t.id] ?? 0;
-    const busy = !!busyByTournamentId[t.id];
-
-    const entriesOpen = t.entries_open !== false; // treat null as open
-    const lockedLabel = entriesOpen ? "Open" : "Locked";
-
-    const hasTeams = (teamsByTournamentId[t.id]?.length ?? 0) > 0;
-    const hasMatches = matchCount > 0;
-
-    const canGenerateTeams = t.format === "DOUBLES" && !entriesOpen && !hasTeams;
-    const canGenerateMatches = !entriesOpen && hasTeams && !hasMatches;
-    const canStartTournament = t.status === "ANNOUNCED" && !entriesOpen && (t.format !== "DOUBLES" || hasTeams);
-
-    const nextStep = t.status === "COMPLETED" ? "View" : "Manage";
-
-    function goManage() {
-      window.location.href = `/admin/tournaments/${t.id}`;
-    }
-
-    function openPlayerView() {
-      window.location.href = `/tournaments/${t.id}`;
-    }
-
-    function runNextStep() {
-      goManage();
-    }
-
-    const statusPillBg = t.status === "IN_PLAY" ? "#ECFDF5" : t.status === "COMPLETED" ? "#F3F4F6" : "#EFF6FF";
-    const statusPillColor = t.status === "IN_PLAY" ? "#047857" : t.status === "COMPLETED" ? theme.muted : "#1D4ED8";
-
-    const cancelDisabled = busy || t.status !== "ANNOUNCED";
-    const cancelTitle =
-      t.status !== "ANNOUNCED" ? "Cancel is only available while tournament is Upcoming" : "Cancel tournament";
-
-    return (
-      <div
-        key={t.id}
-        style={{
-          background: "#fff",
-          border: `1px solid ${theme.border}`,
-          borderRadius: 16,
-          padding: 12,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
-          <div style={{ fontWeight: 900, fontSize: 15, minWidth: 0 }}>
-            <div
-              style={{
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-              title={cleanTournamentName(t.name)}
-            >
-              {cleanTournamentName(t.name)}
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <div
-              style={{
-                border: `1px solid ${theme.border}`,
-                borderRadius: 999,
-                padding: "2px 8px",
-                fontSize: 11,
-                fontWeight: 900,
-                color: theme.text,
-                background: "#fff",
-                whiteSpace: "nowrap",
-              }}
-              title="Tournament format"
-            >
-              {formatLabel(t.format)}
-            </div>
-
-            <div
-              style={{
-                border: `1px solid ${theme.border}`,
-                borderRadius: 999,
-                padding: "2px 8px",
-                fontSize: 11,
-                fontWeight: 900,
-                color: statusPillColor,
-                background: statusPillBg,
-                whiteSpace: "nowrap",
-              }}
-              title="Tournament status"
-            >
-              {statusLabel(t.status)}
-            </div>
-          </div>
-        </div>
-        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
-          <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
-            {scopeLabel(t.scope)}
-          </span>
-          <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
-            {genderLabel(t.gender ?? null)}
-          </span>
-          <span style={{ border: `1px solid ${theme.border}`, borderRadius: 999, padding: "2px 8px", fontSize: 12, fontWeight: 900 }}>
-            {statusLabel(t.status)}
-          </span>
-        </div>
-
-        <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 13 }}>
-          <div style={{ display: "grid", gap: 2 }}>
-            <div style={{ fontSize: 11, fontWeight: 900, color: theme.muted, letterSpacing: 0.3, textTransform: "uppercase" }}>
-              Entries
-            </div>
-            <div style={{ fontWeight: 900, color: theme.text }}>
-              {count} <span style={{ color: entriesOpen ? theme.maroon : theme.danger }}>• {lockedLabel}</span>
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gap: 2 }}>
-            <div style={{ fontSize: 11, fontWeight: 900, color: theme.muted, letterSpacing: 0.3, textTransform: "uppercase" }}>
-              Teams / Matches
-            </div>
-            <div style={{ fontWeight: 900, color: theme.text }}>
-              {hasTeams ? teamsByTournamentId[t.id].length : 0} • {matchCount}
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gap: 2 }}>
-            <div style={{ fontSize: 11, fontWeight: 900, color: theme.muted, letterSpacing: 0.3, textTransform: "uppercase" }}>
-              Starts
-            </div>
-            <div style={{ fontWeight: 900, color: theme.text }}>
-              {t.starts_at ? new Date(t.starts_at).toLocaleString() : "TBC"}
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gap: 2 }}>
-            <div style={{ fontSize: 11, fontWeight: 900, color: theme.muted, letterSpacing: 0.3, textTransform: "uppercase" }}>
-              Ends
-            </div>
-            <div style={{ fontWeight: 900, color: theme.text }}>
-              {t.ends_at ? new Date(t.ends_at).toLocaleString() : "TBC"}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={runNextStep}
-            style={{
-              width: "100%",
-              border: "none",
-              background: theme.maroon,
-              color: "#fff",
-              padding: "12px 12px",
-              borderRadius: 14,
-              fontWeight: 900,
-              cursor: busy ? "not-allowed" : "pointer",
-            }}
-            title="Open admin tournament page"
-          >
-            {busy ? "Working..." : nextStep}
-          </button>
-
-          <button
-            type="button"
-            disabled={busy}
-            onClick={openPlayerView}
-            style={{
-              width: "100%",
-              border: `1px solid ${theme.border}`,
-              background: "#fff",
-              color: theme.text,
-              padding: "10px 12px",
-              borderRadius: 14,
-              fontWeight: 900,
-              cursor: busy ? "not-allowed" : "pointer",
-            }}
-            title="Open player view"
-          >
-            Open player view →
-          </button>
-
-          {t.status === "ANNOUNCED" ? (
-            <button
-              type="button"
-              disabled={cancelDisabled}
-              onClick={() => cancelTournament(t)}
-              style={{
-                width: "100%",
-                border: `1px solid ${theme.border}`,
-                background: cancelDisabled ? "#F3F4F6" : "#fff",
-                color: cancelDisabled ? theme.muted : theme.danger,
-                padding: "10px 12px",
-                borderRadius: 12,
-                fontWeight: 900,
-                cursor: cancelDisabled ? "not-allowed" : "pointer",
-              }}
-              title={cancelTitle}
-            >
-              Cancel tournament
-            </button>
-          ) : null}
-
-          {teamsByTournamentId[t.id]?.length ? (
-            <div
-              style={{
-                marginTop: 10,
-                border: `1px solid ${theme.border}`,
-                borderRadius: 14,
-                background: "#fff",
-                overflow: "hidden",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setTeamsOpenByTournamentId((m) => ({ ...m, [t.id]: !m[t.id] }))}
-                style={{
-                  width: "100%",
-                  border: "none",
-                  background: "#F3F8F3",
-                  padding: "10px 12px",
-                  cursor: "pointer",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "baseline",
-                  gap: 10,
-                }}
-                title="Toggle teams"
-              >
-                <div style={{ fontWeight: 900, fontSize: 13 }}>Teams</div>
-                <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, whiteSpace: "nowrap" }}>
-                  {teamsByTournamentId[t.id].length} {teamsByTournamentId[t.id].length === 1 ? "team" : "teams"}{" "}
-                  <span style={{ marginLeft: 8 }}>{teamsOpenByTournamentId[t.id] ? "▾" : "▸"}</span>
-                </div>
-              </button>
-
-              {teamsOpenByTournamentId[t.id] ? (
-                <div style={{ padding: 10, display: "grid", gap: 8, borderTop: `1px solid ${theme.border}` }}>
-                  {teamsByTournamentId[t.id].map((tm) => {
-                    const memberIds = teamMembersByTeamId[tm.id] ?? [];
-                    const memberNames = memberIds.map((pid) => nameByPlayerId[pid] ?? "Unknown");
-
-                    return (
-                      <div
-                        key={tm.id}
-                        style={{
-                          border: `1px solid ${theme.border}`,
-                          borderRadius: 12,
-                          padding: 10,
-                          background: "#fff",
-                        }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-                          <div style={{ fontWeight: 900 }}>Team {tm.team_no}</div>
-                          <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>
-                            HCP {tm.team_handicap == null ? "-" : tm.team_handicap}
-                          </div>
-                        </div>
-
-                        <div style={{ marginTop: 6, fontSize: 13, color: theme.text, fontWeight: 800, lineHeight: 1.35 }}>
-                          {memberNames.length ? memberNames.join(" \u2022 ") : "Members not loaded"}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      </div>
-    );
-  }
-
-  function renderBucket(title: string, items: TournamentRow[]) {
-    const upcoming = items.filter((r) => r.status === "ANNOUNCED");
-    const inplay = items.filter((r) => r.status === "IN_PLAY");
-    const past = items.filter((r) => r.status === "COMPLETED");
-
-    const bucketOpen = bucketOpenByTitle[title] !== false;
-
-    function section(label: string, list: TournamentRow[]) {
-      const key = `${title}__${label}`;
-      const open = sectionOpenByKey[key] ?? (label === "In-play" ? true : false);
-
-      return (
-        <div style={{ marginTop: 10 }}>
-          <button
-            type="button"
-            onClick={() => setSectionOpenByKey((m) => ({ ...m, [key]: !open }))}
-            style={{
-              width: "100%",
-              border: `1px solid ${theme.border}`,
-              background: "#F3F8F3",
-              color: theme.text,
-              padding: "10px 12px",
-              borderRadius: 14,
-              fontWeight: 900,
-              cursor: "pointer",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "baseline",
-              gap: 10,
-            }}
-            title={`Toggle ${label}`}
-          >
-            <div>{label}</div>
-            <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, whiteSpace: "nowrap" }}>
-              {list.length} {list.length === 1 ? "tournament" : "tournaments"}{" "}
-              <span style={{ marginLeft: 8 }}>{open ? "▾" : "▸"}</span>
-            </div>
-          </button>
-
-          {open ? (
-            !list.length ? (
-              <div style={{ marginTop: 8, color: theme.muted, fontSize: 13 }}>None</div>
-            ) : (
-              <div style={{ display: "grid", gap: 10, marginTop: 10 }}>{list.map(renderTournamentCard)}</div>
-            )
-          ) : null}
-        </div>
-      );
-    }
-
-    return (
-      <div
-        style={{
-          marginTop: 14,
-          background: "#fff",
-          border: `1px solid ${theme.border}`,
-          borderRadius: 16,
-          overflow: "hidden",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setBucketOpenByTitle((m) => ({ ...m, [title]: !(m[title] !== false) }))}
-          style={{
-            width: "100%",
-            border: "none",
-            background: "#fff",
-            color: theme.text,
-            padding: "12px 14px",
-            fontWeight: 900,
-            cursor: "pointer",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "baseline",
-            gap: 10,
-          }}
-          title={`Toggle ${title}`}
-        >
-          <div style={{ fontSize: 16 }}>{title}</div>
-          <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted, whiteSpace: "nowrap" }}>
-            {items.length} {items.length === 1 ? "tournament" : "tournaments"}{" "}
-            <span style={{ marginLeft: 8 }}>{bucketOpen ? "▾" : "▸"}</span>
-          </div>
-        </button>
-
-        {bucketOpen ? (
-          <div style={{ padding: 14, borderTop: `1px solid ${theme.border}` }}>
-            {section("Upcoming", upcoming)}
-            {section("In-play", inplay)}
-            {section("Past", past)}
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  function renderHome() {
-    return (
-      <>
-        {renderBucket("Club Tournaments", byScope.club)}
-        {isSuperAdmin ? renderBucket("District Tournaments", byScope.district) : null}
-        {isSuperAdmin ? renderBucket("National Tournaments", byScope.national) : null}
-      </>
-    );
-  }
-
-  function renderIssues() {
-    return (
-      <div
-        style={{
-          marginTop: 14,
-          background: "#fff",
-          border: `1px solid ${theme.border}`,
-          borderRadius: 16,
-          padding: 14,
-        }}
-      >
-        <div style={{ fontWeight: 900, fontSize: 16 }}>Issues</div>
-        <div style={{ marginTop: 8, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-          Coming next: score disputes and admin review queues (Club / District / Tournament host).
-        </div>
-      </div>
-    );
-  }
-
-  function renderCreate() {
-    return (
-      <div
-        style={{
-          marginTop: 14,
-          background: "#fff",
-          border: `1px solid ${theme.border}`,
-          borderRadius: 16,
-          padding: 14,
-        }}
-      >
-        <div style={{ fontWeight: 900, fontSize: 16 }}>Create Tournament</div>
-        <div style={{ marginTop: 8, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-          Use the <b>Create</b> tab to open the popup and create a new tournament.
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{ background: theme.background, minHeight: "100vh", color: theme.text, paddingBottom: 92 }}>
@@ -1232,275 +792,52 @@ export default function AdminTournamentsPage() {
           >
             Loading admin tournaments...
           </div>
-        ) : tab === "HOME" ? (
-          renderHome()
-        ) : tab === "ISSUES" ? (
-          renderIssues()
         ) : (
-          renderCreate()
+          <TournamentsListView
+            tab={tab}
+            byScope={byScope}
+            entryCountByTournamentId={entryCountByTournamentId}
+            matchCountByTournamentId={matchCountByTournamentId}
+            teamsByTournamentId={teamsByTournamentId}
+            teamMembersByTeamId={teamMembersByTeamId}
+            nameByPlayerId={nameByPlayerId}
+            teamsOpenByTournamentId={teamsOpenByTournamentId}
+            setTeamsOpenByTournamentId={setTeamsOpenByTournamentId}
+            bucketOpenByTitle={bucketOpenByTitle}
+            setBucketOpenByTitle={setBucketOpenByTitle}
+            sectionOpenByKey={sectionOpenByKey}
+            setSectionOpenByKey={setSectionOpenByKey}
+            busyByTournamentId={busyByTournamentId}
+            isSuperAdmin={isSuperAdmin}
+            cancelTournament={cancelTournament}
+          />
         )}
       </div>
 
-      {createOpen ? (
-        <div
-          onClick={closeCreateModal}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            zIndex: 80,
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "center",
-            padding: 14,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "100%",
-              maxWidth: 560,
-              background: "#fff",
-              borderRadius: 18,
-              border: `1px solid ${theme.border}`,
-              overflow: "hidden",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-            }}
-          >
-            <div
-              style={{
-                padding: "12px 14px",
-                borderBottom: `1px solid ${theme.border}`,
-                background: "#F3F8F3",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <div style={{ fontWeight: 900, fontSize: 15 }}>Create tournament</div>
-
-              <button
-                type="button"
-                onClick={closeCreateModal}
-                disabled={createBusy}
-                style={{
-                  border: `1px solid ${theme.border}`,
-                  background: "#fff",
-                  color: theme.text,
-                  padding: "6px 10px",
-                  borderRadius: 999,
-                  fontWeight: 900,
-                  cursor: createBusy ? "not-allowed" : "pointer",
-                }}
-                title="Close"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div style={{ padding: 14, display: "grid", gap: 10 }}>
-              <div style={{ fontWeight: 900, fontSize: 13 }}>Tournament name</div>
-              <input
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
-                placeholder="e.g. Saturday Club Doubles"
-                disabled={createBusy}
-                style={{
-                  width: "100%",
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 12,
-                  padding: "10px 12px",
-                  fontWeight: 800,
-                  outline: "none",
-                }}
-              />
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <div style={{ fontWeight: 900, fontSize: 13, marginBottom: 6 }}>Scope</div>
-                  <select
-                    value={createScope}
-                    onChange={(e) => setCreateScope(e.target.value as TournamentScope)}
-                    disabled={createBusy}
-                    style={{
-                      width: "100%",
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
-                      padding: "10px 12px",
-                      fontWeight: 800,
-                      outline: "none",
-                      background: "#fff",
-                    }}
-                  >
-                    <option value="CLUB">Club</option>
-                    {isSuperAdmin ? <option value="DISTRICT">District</option> : null}
-                    {isSuperAdmin ? <option value="NATIONAL">National</option> : null}
-                  </select>
-                </div>
-
-                <div>
-                  <div style={{ fontWeight: 900, fontSize: 13, marginBottom: 6 }}>Format</div>
-                  <select
-                    value={createFormat}
-                    onChange={(e) => setCreateFormat(e.target.value as TournamentFormat)}
-                    disabled={createBusy}
-                    style={{
-                      width: "100%",
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
-                      padding: "10px 12px",
-                      fontWeight: 800,
-                      outline: "none",
-                      background: "#fff",
-                    }}
-                  >
-                    <option value="SINGLES">Singles</option>
-                    <option value="DOUBLES">Doubles</option>
-                    <option value="TRIPLES">Triples</option>
-                    <option value="FOUR_BALL">4 Balls</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <div style={{ fontWeight: 900, fontSize: 13, marginBottom: 6 }}>Gender</div>
-                  <select
-                    value={createGender}
-                    onChange={(e) => setCreateGender(e.target.value as TournamentGender)}
-                    disabled={createBusy}
-                    style={{
-                      width: "100%",
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
-                      padding: "10px 12px",
-                      fontWeight: 800,
-                      outline: "none",
-                      background: "#fff",
-                    }}
-                  >
-                    <option value="MALE">Male</option>
-                    <option value="FEMALE">Female</option>
-                  </select>
-                </div>
-
-                <div>
-                  <div style={{ fontWeight: 900, fontSize: 13, marginBottom: 6 }}>Host club</div>
-                  <select
-                    value={createClubId}
-                    onChange={(e) => setCreateClubId(e.target.value)}
-                    disabled={createBusy || createScope !== "CLUB"}
-                    style={{
-                      width: "100%",
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
-                      padding: "10px 12px",
-                      fontWeight: 800,
-                      outline: "none",
-                      background: "#fff",
-                    }}
-                  >
-                    {clubs.length ? (
-                      clubs.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="">No clubs found</option>
-                    )}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 900, fontSize: 13, marginBottom: 6 }}>Rule</div>
-                <select
-                  value={createRule}
-                  onChange={(e) => setCreateRule(e.target.value as TournamentRule)}
-                  disabled={createBusy}
-                  style={{
-                    width: "100%",
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 12,
-                    padding: "10px 12px",
-                    fontWeight: 800,
-                    outline: "none",
-                    background: "#fff",
-                  }}
-                >
-                  <option value="HANDICAP_START">{ruleLabel("HANDICAP_START")}</option>
-                  <option value="SCRATCH">{ruleLabel("SCRATCH")}</option>
-                </select>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <div style={{ fontWeight: 900, fontSize: 13, marginBottom: 6 }}>Starts at (optional)</div>
-                  <input
-                    type="datetime-local"
-                    value={createStartsAt}
-                    onChange={(e) => setCreateStartsAt(e.target.value)}
-                    disabled={createBusy}
-                    style={{
-                      width: "100%",
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
-                      padding: "10px 12px",
-                      fontWeight: 800,
-                      outline: "none",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <div style={{ fontWeight: 900, fontSize: 13, marginBottom: 6 }}>Ends at (optional)</div>
-                  <input
-                    type="datetime-local"
-                    value={createEndsAt}
-                    onChange={(e) => setCreateEndsAt(e.target.value)}
-                    disabled={createBusy}
-                    style={{
-                      width: "100%",
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
-                      padding: "10px 12px",
-                      fontWeight: 800,
-                      outline: "none",
-                    }}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={createTournament}
-                disabled={createBusy}
-                style={{
-                  width: "100%",
-                  border: "none",
-                  background: theme.maroon,
-                  color: "#fff",
-                  padding: "12px 12px",
-                  borderRadius: 14,
-                  fontWeight: 900,
-                  cursor: createBusy ? "not-allowed" : "pointer",
-                  marginTop: 2,
-                }}
-                title="Create tournament"
-              >
-                {createBusy ? "Creating..." : "Create tournament"}
-              </button>
-
-              <div style={{ fontSize: 12, color: theme.muted, lineHeight: 1.35 }}>
-                After creating, you'll be taken to the admin tournament page to lock entries, generate teams, and create
-                fixtures.
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <CreateTournamentModal
+        open={createOpen}
+        busy={createBusy}
+        onClose={closeCreateModal}
+        onSubmit={createTournament}
+        name={createName}
+        setName={setCreateName}
+        scope={createScope}
+        setScope={setCreateScope}
+        format={createFormat}
+        setFormat={setCreateFormat}
+        gender={createGender}
+        setGender={setCreateGender}
+        rule={createRule}
+        setRule={setCreateRule}
+        clubId={createClubId}
+        setClubId={setCreateClubId}
+        startsAt={createStartsAt}
+        setStartsAt={setCreateStartsAt}
+        endsAt={createEndsAt}
+        setEndsAt={setCreateEndsAt}
+        clubs={clubs}
+        isSuperAdmin={isSuperAdmin}
+      />
 
       <BottomNav />
     </div>
