@@ -13,14 +13,19 @@ export function HandiBowlsWordmark({
 }: Props) {
   const fill = variant === "light" ? "var(--color-ink)" : "var(--color-ink-inverse)";
   const accent = "var(--color-primary-500)";
+  // Explicit width = height * viewBox aspect. Without this, some layout
+  // contexts (flex ancestors, truncating parents) render the SVG at its
+  // intrinsic viewBox width (360), causing the wordmark to be clipped.
+  const width = Math.round((height * 360) / 64);
 
   return (
     <svg
       aria-label="HandiBowls"
       role="img"
       viewBox="0 0 360 64"
+      width={width}
       height={height}
-      className={cn("select-none", className)}
+      className={cn("block shrink-0 select-none", className)}
     >
       <text
         x="0"

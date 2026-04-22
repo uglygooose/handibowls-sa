@@ -84,18 +84,19 @@ export function AdminSidebar({
       />
 
       <div className="relative z-10 flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border px-3">
-        {collapsed ? (
-          <HandiBowlsMark size={32} />
-        ) : (
-          <HandiBowlsWordmark variant="dark" height={28} />
-        )}
+        <div className="flex min-w-0 flex-1 items-center">
+          {collapsed ? (
+            <HandiBowlsMark size={32} />
+          ) : (
+            <HandiBowlsWordmark variant="dark" height={26} />
+          )}
+        </div>
         <button
           type="button"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           onClick={() => setCollapsed((c) => !c)}
           className={cn(
-            "ml-auto inline-flex h-8 w-8 items-center justify-center rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-            collapsed && "ml-0",
+            "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
           )}
         >
           <ChevronLeft

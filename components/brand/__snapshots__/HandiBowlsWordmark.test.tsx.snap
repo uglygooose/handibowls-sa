@@ -3,10 +3,11 @@
 exports[`HandiBowlsWordmark > matches snapshot 1`] = `
 <svg
   aria-label="HandiBowls"
-  class="select-none"
+  class="block shrink-0 select-none"
   height="48"
   role="img"
   viewBox="0 0 360 64"
+  width="270"
 >
   <text
     fill="var(--color-ink)"
