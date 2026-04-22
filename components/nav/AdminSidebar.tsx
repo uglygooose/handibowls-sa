@@ -7,10 +7,14 @@ import type { LucideIcon } from "lucide-react";
 import {
   ChevronLeft,
   LayoutDashboard,
-  Trophy,
   Users,
-  CalendarDays,
-  Settings,
+  MapPin,
+  Trophy,
+  ClipboardList,
+  MessageSquare,
+  Building2,
+  Map,
+  UsersRound,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -23,25 +27,37 @@ export type AdminSidebarItem = {
   icon: LucideIcon;
 };
 
-export const DEFAULT_ADMIN_ITEMS: AdminSidebarItem[] = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/tournaments", label: "Tournaments", icon: Trophy },
-  { href: "/admin/members", label: "Members", icon: Users },
-  { href: "/admin/bookings", label: "Bookings", icon: CalendarDays },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+// Keep item arrays co-located here so lucide component references never cross
+// the RSC boundary. Layout files pass a `variant` string instead of items.
+const CLUB_ADMIN_ITEMS: AdminSidebarItem[] = [
+  { href: "/manage/overview", label: "Overview", icon: LayoutDashboard },
+  { href: "/manage/members", label: "Members", icon: Users },
+  { href: "/manage/greens", label: "Greens", icon: MapPin },
+  { href: "/manage/tournaments", label: "Tournaments", icon: Trophy },
+  { href: "/manage/t20", label: "T20", icon: ClipboardList },
+  { href: "/manage/messages", label: "Messages", icon: MessageSquare },
+];
+
+const PLATFORM_ITEMS: AdminSidebarItem[] = [
+  { href: "/platform/clubs", label: "Clubs", icon: Building2 },
+  { href: "/platform/districts", label: "Districts", icon: Map },
+  { href: "/platform/tournaments", label: "Tournaments", icon: Trophy },
+  { href: "/platform/rubrics", label: "Rubrics", icon: ClipboardList },
+  { href: "/platform/users", label: "Users", icon: UsersRound },
 ];
 
 type Props = {
-  items?: AdminSidebarItem[];
+  variant: "club" | "platform";
   className?: string;
   defaultCollapsed?: boolean;
 };
 
 export function AdminSidebar({
-  items = DEFAULT_ADMIN_ITEMS,
+  variant,
   className,
   defaultCollapsed = false,
 }: Props) {
+  const items = variant === "platform" ? PLATFORM_ITEMS : CLUB_ADMIN_ITEMS;
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
@@ -80,8 +96,7 @@ export function AdminSidebar({
         <ul className="flex flex-col gap-0.5 px-2">
           {items.map((item) => {
             const isActive =
-              pathname === item.href ||
-              (item.href !== "/admin" && pathname.startsWith(item.href + "/"));
+              pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
             return (
               <li key={item.href}>

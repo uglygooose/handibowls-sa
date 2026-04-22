@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { Home, Play, CalendarPlus, Trophy, User } from "lucide-react";
+import { Home, CalendarPlus, Trophy, User } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -13,23 +13,22 @@ export type PlayerNavItem = {
   icon: LucideIcon;
 };
 
-export const DEFAULT_PLAYER_ITEMS: PlayerNavItem[] = [
-  { href: "/play/home", label: "Home", icon: Home },
-  { href: "/play/play", label: "Play", icon: Play },
-  { href: "/play/book", label: "Book", icon: CalendarPlus },
-  { href: "/play/tournaments", label: "Tourneys", icon: Trophy },
-  { href: "/play/me", label: "Me", icon: User },
+// Kept co-located with the client component so lucide component references
+// never cross the RSC serialization boundary. Keep href prefixes in sync with
+// proxy.ts' PLAYER_PREFIXES.
+const PLAYER_NAV_ITEMS: PlayerNavItem[] = [
+  { href: "/play", label: "Play", icon: Home },
+  { href: "/book", label: "Book", icon: CalendarPlus },
+  { href: "/tournaments", label: "Tourneys", icon: Trophy },
+  { href: "/me", label: "Me", icon: User },
 ];
 
 type Props = {
-  items?: PlayerNavItem[];
   className?: string;
 };
 
-export function PlayerBottomNav({
-  items = DEFAULT_PLAYER_ITEMS,
-  className,
-}: Props) {
+export function PlayerBottomNav({ className }: Props) {
+  const items = PLAYER_NAV_ITEMS;
   const pathname = usePathname();
 
   return (
@@ -42,7 +41,7 @@ export function PlayerBottomNav({
         className,
       )}
     >
-      <ul className="grid h-full grid-cols-5">
+      <ul className="grid h-full grid-cols-4">
         {items.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
