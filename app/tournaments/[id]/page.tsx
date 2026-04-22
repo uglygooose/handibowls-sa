@@ -48,8 +48,9 @@ import {
   sideForCaptain as sideForCaptainFn,
   winnerNameFromMatches as winnerNameFromMatchesFn,
 } from "./utils/matchHelpers";
+import SummaryView from "./views/SummaryView";
 
-type MatchRow = {
+export type MatchRow = {
   id: string;
   tournament_id: string | null;
   team_a_id: string | null;
@@ -80,7 +81,7 @@ type MatchRow = {
   winner_team_id: string | null;
 };
 
-type TournamentRow = {
+export type TournamentRow = {
   id: string;
   name: string;
   scope: TournamentScope;
@@ -91,6 +92,24 @@ type TournamentRow = {
   entries_open?: boolean | null;
   gender?: TournamentGender | null;
   rule_type?: TournamentRule | null;
+};
+
+export type TeamRow = {
+  id: string;
+  team_no: number;
+  team_handicap: number | null;
+};
+
+export type Labelers = {
+  teamLabel: (teamId: string | null) => string;
+  teamDisplayName: (teamId: string | null) => string;
+  teamMembersLine: (teamId: string | null) => string;
+  slotLabel: (m: MatchRow, side: "A" | "B") => string;
+  slotMembersLine: (m: MatchRow, side: "A" | "B") => string;
+  winnerLabelForMatch: (matchId: string | null | undefined) => string;
+  roundLabel: (roundNo: number | null | undefined) => string;
+  singlesHandicapLine: (m: MatchRow) => string | null;
+  isHandicapTournament: () => boolean;
 };
 
 type ProfileRoleRow = { role?: string | null };
@@ -145,7 +164,7 @@ export default function TournamentRoomPage() {
 
   const [tournament, setTournament] = useState<TournamentRow | null>(null);
 
-  const [teams, setTeams] = useState<{ id: string; team_no: number; team_handicap: number | null }[]>([]);
+  const [teams, setTeams] = useState<TeamRow[]>([]);
   const [teamMembersByTeamId, setTeamMembersByTeamId] = useState<Record<string, string[]>>({});
   const [nameByPlayerId, setNameByPlayerId] = useState<Record<string, string>>({});
   const [handicapByPlayerId, setHandicapByPlayerId] = useState<Record<string, number | null>>({});
@@ -511,7 +530,7 @@ export default function TournamentRoomPage() {
   const isViewerMode = !myTeam || !hasPendingMatch;
 
   const teamById = useMemo(() => {
-    const m: Record<string, { id: string; team_no: number; team_handicap: number | null }> = {};
+    const m: Record<string, TeamRow> = {};
     for (const t of teams) m[t.id] = t;
     return m;
   }, [teams]);
@@ -604,6 +623,18 @@ export default function TournamentRoomPage() {
     }
     return m;
   }, [teams, teamMembersByTeamId]);
+
+  const labelers: Labelers = {
+    teamLabel,
+    teamDisplayName,
+    teamMembersLine,
+    slotLabel,
+    slotMembersLine,
+    winnerLabelForMatch,
+    roundLabel,
+    singlesHandicapLine,
+    isHandicapTournament,
+  };
 
   const matchesByRound = useMemo(() => {
     const map: Record<number, MatchRow[]> = {};
@@ -1143,135 +1174,16 @@ export default function TournamentRoomPage() {
         )}
 
         {/* NEXT MATCH / SUMMARY */}
-        {!isViewerMode ? (
-          <div
-            style={{
-              marginTop: 14,
-              background: "#fff",
-              border: `1px solid ${theme.border}`,
-              borderRadius: 16,
-              padding: 14,
-            }}
-          >
-            <div style={{ fontWeight: 900, fontSize: 16 }}>Your next match</div>
-            <div style={{ marginTop: 6, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-              Knockout bracket - winners advance.
-            </div>
-
-
-
-            <div style={{ marginTop: 10 }}>
-              {!nextMatch ? (
-                <div style={{ color: theme.muted, fontSize: 13 }}>
-                  {myTeam ? "No upcoming match found yet." : "Join the tournament to see your next match."}
-                </div>
-              ) : (
-                (() => {
-                  const isBye = isMatchBye(nextMatch);
-                  const scoreLine =
-                    nextMatch.score_a == null || nextMatch.score_b == null ? "-" : `${nextMatch.score_a} - ${nextMatch.score_b}`;
-
-                  return (
-                    <div style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 12, background: "#fff" }}>
-                      <div style={{ fontWeight: 900, fontSize: 15 }}>
-                        {isBye
-                          ? `${slotLabel(nextMatch, "A")} - Auto-advance (BYE)`
-                          : `${slotLabel(nextMatch, "A")} vs ${slotLabel(nextMatch, "B")}`}
-                      </div>
-                      {tournament?.format !== "SINGLES" && !isBye ? (
-                        <div style={{ marginTop: 4, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
-                          {slotMembersLine(nextMatch, "A")} * {slotMembersLine(nextMatch, "B")}
-                        </div>
-                      ) : null}
-                      {tournament?.format === "SINGLES" && !isBye && isHandicapTournament() ? (
-                        <div style={{ marginTop: 4, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
-                          {singlesHandicapLine(nextMatch)}
-                        </div>
-                      ) : null}
-                      <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <div
-                          style={{
-                            border: `1px solid ${theme.border}`,
-                            borderRadius: 999,
-                            padding: "4px 10px",
-                            fontSize: 12,
-                            fontWeight: 900,
-                            background: "#fff",
-                            color: theme.text,
-                          }}
-                        >
-                          {roundLabel(nextMatch.round_no)}
-                        </div>
-                        <div
-                          style={{
-                            border: `1px solid ${theme.border}`,
-                            borderRadius: 999,
-                            padding: "4px 10px",
-                            fontSize: 12,
-                            fontWeight: 900,
-                            background: "#fff",
-                            color: theme.text,
-                          }}
-                        >
-                          Score: {scoreLine}
-                        </div>
-                        <div
-                          style={{
-                            border: `1px solid ${theme.border}`,
-                            borderRadius: 999,
-                            padding: "4px 10px",
-                            fontSize: 12,
-                            fontWeight: 900,
-                            background: "#fff",
-                            color: theme.text,
-                          }}
-                        >
-                          {matchStatusLabel(nextMatch.status)}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()
-              )}
-            </div>
-          </div>
-        ) : (
-          <div
-            style={{
-              marginTop: 14,
-              background: "#fff",
-              border: `1px solid ${theme.border}`,
-              borderRadius: 16,
-              padding: 14,
-            }}
-          >
-            <div style={{ fontWeight: 900, fontSize: 16 }}>Tournament summary</div>
-            <div style={{ marginTop: 6, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-              {myTeam ? "You are viewing as a past participant." : "You are viewing as a spectator."}
-            </div>
-
-              <div style={{ marginTop: 10, display: "grid", gap: 6, fontSize: 13, color: theme.muted }}>
-                <div><span style={{ fontWeight: 800, color: theme.text }}>Type</span> {formatLabel(tournament?.format ?? "SINGLES")} knockout</div>
-                <div><span style={{ fontWeight: 800, color: theme.text }}>Rule</span> {tournament ? ruleLabel(tournament.rule_type ?? "HANDICAP_START") : "-"}</div>
-                <div><span style={{ fontWeight: 800, color: theme.text }}>Status</span> {effectiveStatus ? statusLabel(effectiveStatus) : "-"}</div>
-                <div><span style={{ fontWeight: 800, color: theme.text }}>Starts</span> {tournament?.starts_at ? new Date(tournament.starts_at).toLocaleString() : "TBC"}</div>
-                <div><span style={{ fontWeight: 800, color: theme.text }}>Ends</span> {tournament?.ends_at ? new Date(tournament.ends_at).toLocaleString() : "TBC"}</div>
-              </div>
-
-              {winnerName && effectiveStatus === "COMPLETED" ? (
-                <div style={{ marginTop: 10, fontSize: 13 }}>
-                  <span style={{ fontWeight: 900 }}>Winner:</span> {winnerName}
-                </div>
-              ) : null}
-
-            {finish ? (
-              <div style={{ marginTop: 8, fontSize: 13 }}>
-                <div style={{ fontWeight: 900 }}>{finish.label}</div>
-                {finish.detail ? <div style={{ color: theme.muted }}>{finish.detail}</div> : null}
-              </div>
-            ) : null}
-          </div>
-        )}
+        <SummaryView
+          tournament={tournament}
+          myTeam={myTeam}
+          nextMatch={nextMatch}
+          isViewerMode={isViewerMode}
+          effectiveStatus={effectiveStatus}
+          winnerName={winnerName}
+          finish={finish}
+          labelers={labelers}
+        />
 
         {/* BRACKET VIEW */}
         <div
