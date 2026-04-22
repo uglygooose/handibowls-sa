@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { homeFor, type UserRole } from "@/lib/auth/role";
+import { roleFromAccessToken } from "@/lib/auth/jwt";
 
 export type AuthFormState = {
   ok?: boolean;
@@ -42,11 +43,9 @@ export async function signInAction(
   });
   if (error) return { error: error.message };
 
-  const rawRole = (data.user?.app_metadata as Record<string, unknown> | undefined)?.role;
-  const role: UserRole =
-    rawRole === "super_admin" || rawRole === "club_admin" || rawRole === "player"
-      ? rawRole
-      : "player";
+  // Role lives in the JWT's app_metadata claim (injected by the hook), not in
+  // auth.users.raw_app_meta_data. See lib/auth/jwt.ts.
+  const role: UserRole = roleFromAccessToken(data.session?.access_token) ?? "player";
 
   redirect(next || homeFor(role));
 }

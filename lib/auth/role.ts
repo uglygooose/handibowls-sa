@@ -32,18 +32,33 @@ export type AuthContext = {
   email: string | null;
 };
 
-// Extract role + club_ids from JWT app_metadata. The JWT hook (migration 009)
-// populates these claims on every token issue.
-function readClaims(appMetadata: Record<string, unknown> | undefined): {
+// Extract role + club_ids from a decoded JWT payload. The JWT hook
+// (migration 009) injects these into app_metadata at token-issuance time.
+// Note: we read from the JWT because Supabase's REST /user endpoint only
+// returns raw_app_meta_data, which never contains hook-derived claims.
+function readClaimsFromJwt(accessToken: string | null | undefined): {
   role: UserRole | null;
   clubIds: string[];
 } {
-  const rawRole = appMetadata?.role;
+  if (!accessToken) return { role: null, clubIds: [] };
+  const parts = accessToken.split(".");
+  if (parts.length !== 3) return { role: null, clubIds: [] };
+
+  let payload: { app_metadata?: { role?: unknown; club_ids?: unknown } } | null;
+  try {
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    payload = JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
+  } catch {
+    return { role: null, clubIds: [] };
+  }
+
+  const rawRole = payload?.app_metadata?.role;
   const role =
     rawRole === "super_admin" || rawRole === "club_admin" || rawRole === "player"
       ? rawRole
       : null;
-  const rawClubIds = appMetadata?.club_ids;
+  const rawClubIds = payload?.app_metadata?.club_ids;
   const clubIds = Array.isArray(rawClubIds)
     ? rawClubIds.filter((x): x is string => typeof x === "string")
     : [];
@@ -54,19 +69,23 @@ function readClaims(appMetadata: Record<string, unknown> | undefined): {
 // `null` when unauthenticated. Never throws — callers decide what to do.
 export async function getAuthContext(): Promise<AuthContext | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
+  // getUser() validates the JWT signature server-side. getSession() afterwards
+  // is a cheap local read of the already-validated token.
+  const { data: userData, error } = await supabase.auth.getUser();
+  if (error || !userData.user) return null;
 
-  const { role, clubIds } = readClaims(
-    data.user.app_metadata as Record<string, unknown> | undefined,
-  );
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const { role, clubIds } = readClaimsFromJwt(session?.access_token);
+
   // Fall back to player if the JWT hook hasn't fired yet (e.g. seed users
   // before first login). Middleware will still enforce gating.
   return {
-    userId: data.user.id,
+    userId: userData.user.id,
     role: role ?? "player",
     clubIds,
-    email: data.user.email ?? null,
+    email: userData.user.email ?? null,
   };
 }
 

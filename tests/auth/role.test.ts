@@ -20,12 +20,29 @@ type MockUser = {
 
 let mockUser: MockUser = null;
 
+// Build a Supabase-style JWT whose app_metadata carries the claims the hook
+// would inject. We don't sign it (tests don't verify signatures) — only the
+// payload shape matters for roleFromClaims.
+function mockAccessToken(appMetadata: Record<string, unknown>): string {
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ app_metadata: appMetadata })).toString("base64url");
+  return `${header}.${payload}.sig`;
+}
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: {
       getUser: async () => ({
         data: { user: mockUser },
         error: mockUser ? null : new Error("no user"),
+      }),
+      getSession: async () => ({
+        data: {
+          session: mockUser
+            ? { access_token: mockAccessToken(mockUser.app_metadata) }
+            : null,
+        },
+        error: null,
       }),
     },
   }),

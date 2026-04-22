@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import type { Database } from "@/types/database.types";
 import { decideRedirect, type UserRole } from "@/lib/auth/routing";
+import { roleFromAccessToken } from "@/lib/auth/jwt";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -32,18 +33,19 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  // Refresh the session cookie. Also the only way to read current user.
+  // getUser() refreshes + validates the session cookie; getSession() afterwards
+  // is a cheap read of the validated token. Role lives in the JWT's
+  // app_metadata claim (hook-injected) — not in user.app_metadata which only
+  // mirrors raw_app_meta_data. See lib/auth/jwt.ts.
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
   let role: UserRole | null = null;
   if (user) {
-    const rawRole = (user.app_metadata as Record<string, unknown> | undefined)?.role;
-    role =
-      rawRole === "super_admin" || rawRole === "club_admin" || rawRole === "player"
-        ? rawRole
-        : "player";
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    role = roleFromAccessToken(session?.access_token);
   }
 
   const target = decideRedirect(pathname, role ? { role } : null);
