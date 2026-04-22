@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { theme } from "@/lib/theme";
+import { adminGate } from "@/lib/auth/adminGate";
 import { deriveTournamentCompletion } from "@/lib/tournaments/deriveTournamentCompletion";
 import {
   cleanTournamentName,
@@ -203,47 +204,28 @@ export default function AdminTournamentDetailPage() {
     window.location.href = `/tournaments/${tournamentId}`;
   }
 
-  async function adminGate() {
+  async function runAdminGate(): Promise<
+    | { ok: true; isSuperAdmin: boolean; adminClubId: string | null }
+    | { ok: false; isSuperAdmin: false; adminClubId: null }
+  > {
     setAccessDenied(false);
-
-    const userRes = await supabase.auth.getUser();
-    const user = userRes.data.user;
-
-    if (!user) {
-      window.location.href = "/login";
-      return { ok: false as const, isSuperAdmin: false, adminClubId: null as string | null };
-    }
-
-    const profRes = await supabase
-      .from("profiles")
-      .select("role, is_admin, club_id")
-      .eq("id", user.id)
-      .single();
-
-    if (profRes.error) {
-      setError(`Could not verify admin access.\n${profRes.error.message}`);
+    const gate = await adminGate(supabase);
+    if (!gate.ok) {
+      if (gate.reason === "NOT_AUTHENTICATED") {
+        window.location.href = "/login";
+        return { ok: false, isSuperAdmin: false, adminClubId: null };
+      }
+      if (gate.reason === "PROFILE_ERROR") {
+        setError(`Could not verify admin access.\n${gate.message ?? ""}`);
+      }
       setIsAdmin(false);
       setAccessDenied(true);
-      return { ok: false as const, isSuperAdmin: false, adminClubId: null as string | null };
+      return { ok: false, isSuperAdmin: false, adminClubId: null };
     }
-
-    const role = String((profRes.data as any)?.role ?? "").toUpperCase();
-    const isSuper = role === "SUPER_ADMIN";
-    const isAdminFlag = Boolean((profRes.data as any)?.is_admin);
-    const clubId = (profRes.data as any)?.club_id ?? null;
-
-    const adminClub = isSuper ? null : (clubId ? String(clubId) : null);
-    setIsSuperAdmin(isSuper);
-    setAdminClubId(adminClub);
-
-    if (!isSuper && !isAdminFlag) {
-      setIsAdmin(false);
-      setAccessDenied(true);
-      return { ok: false as const, isSuperAdmin: isSuper, adminClubId: adminClub };
-    }
-
+    setIsSuperAdmin(gate.isSuperAdmin);
+    setAdminClubId(gate.adminClubId);
     setIsAdmin(true);
-    return { ok: true as const, isSuperAdmin: isSuper, adminClubId: adminClub };
+    return { ok: true, isSuperAdmin: gate.isSuperAdmin, adminClubId: gate.adminClubId };
   }
 
   async function load(opts?: { preserveScroll?: boolean }) {
@@ -267,7 +249,7 @@ export default function AdminTournamentDetailPage() {
       return;
     }
 
-    const gate = await adminGate();
+    const gate = await runAdminGate();
     if (!gate.ok) {
       setTournament(null);
       setEntryCount(0);
