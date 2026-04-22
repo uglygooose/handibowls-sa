@@ -38,6 +38,35 @@ type TournamentRow = {
 
 type AdminTab = "HOME" | "ISSUES";
 
+type ClubNameRow = { id: string | number; name: string | null };
+type TournamentIdRow = { tournament_id?: string | number | null };
+type RawTeamRow = {
+  id?: string | number | null;
+  tournament_id?: string | number | null;
+  team_no?: number | string | null;
+  team_handicap?: number | string | null;
+};
+type RawTeamMemberRow = { team_id?: string | number | null; player_id?: string | number | null };
+type PlayerNameRow = { id?: string | number | null; display_name?: string | null };
+type PlayerIdRow = { player_id?: string | number | null };
+type PlayerHandicapRow = { handicap?: number | string | null };
+
+type NewTournamentPayload = {
+  name: string;
+  scope: TournamentScope;
+  format: TournamentFormat;
+  gender: TournamentGender;
+  rule_type: TournamentRule;
+  club_id: string | null;
+  status: TournamentStatus;
+  entries_open: boolean;
+  locked_at: string | null;
+  target_team_handicap: number;
+  announced_at: string;
+  starts_at: string | null;
+  ends_at: string | null;
+};
+
 export default function AdminTournamentsPage() {
   const supabase = createClient();
 
@@ -133,7 +162,7 @@ export default function AdminTournamentsPage() {
     const clubQuery = supabase.from("clubs").select("id, name").order("name", { ascending: true });
     const clubRes = adminClubId ? await clubQuery.eq("id", adminClubId) : await clubQuery;
     if (!clubRes.error) {
-      const list = (clubRes.data ?? []).map((c: any) => ({
+      const list = ((clubRes.data ?? []) as ClubNameRow[]).map((c) => ({
         id: String(c.id),
         name: String(c.name ?? "Club"),
       }));
@@ -204,8 +233,8 @@ export default function AdminTournamentsPage() {
       setError((prev) => prev ?? `Could not load entry counts.\n${eRes.error?.message ?? ""}`.trim());
     } else {
       const counts: Record<string, number> = {};
-      for (const r of eRes.data ?? []) {
-        const tid = String((r as any).tournament_id ?? "");
+      for (const r of ((eRes.data ?? []) as TournamentIdRow[])) {
+        const tid = String(r.tournament_id ?? "");
         if (!tid) continue;
         counts[tid] = (counts[tid] ?? 0) + 1;
       }
@@ -219,8 +248,8 @@ export default function AdminTournamentsPage() {
       setMatchCountByTournamentId({});
     } else {
       const counts: Record<string, number> = {};
-      for (const r of mRes.data ?? []) {
-        const tid = String((r as any).tournament_id ?? "");
+      for (const r of ((mRes.data ?? []) as TournamentIdRow[])) {
+        const tid = String(r.tournament_id ?? "");
         if (!tid) continue;
         counts[tid] = (counts[tid] ?? 0) + 1;
       }
@@ -245,22 +274,22 @@ export default function AdminTournamentsPage() {
     const tByTid: Record<string, { id: string; team_no: number; team_handicap: number | null }[]> = {};
     const teamIds: string[] = [];
 
-    for (const r of teamRes.data ?? []) {
-      const tid = String((r as any).tournament_id ?? "");
-      const teamId = String((r as any).id ?? "");
+    for (const r of ((teamRes.data ?? []) as RawTeamRow[])) {
+      const tid = String(r.tournament_id ?? "");
+      const teamId = String(r.id ?? "");
       if (!tid || !teamId) continue;
 
       teamIds.push(teamId);
 
       const team = {
         id: teamId,
-        team_no: Number((r as any).team_no ?? 0),
+        team_no: Number(r.team_no ?? 0),
         team_handicap:
-          (r as any).team_handicap == null
+          r.team_handicap == null
             ? null
-            : typeof (r as any).team_handicap === "number"
-            ? (r as any).team_handicap
-            : Number((r as any).team_handicap),
+            : typeof r.team_handicap === "number"
+            ? r.team_handicap
+            : Number(r.team_handicap),
       };
 
       tByTid[tid] = tByTid[tid] ?? [];
@@ -288,9 +317,9 @@ export default function AdminTournamentsPage() {
     const membersByTeam: Record<string, string[]> = {};
     const allPlayerIds: string[] = [];
 
-    for (const r of memRes.data ?? []) {
-      const teamId = String((r as any).team_id ?? "");
-      const playerId = String((r as any).player_id ?? "");
+    for (const r of ((memRes.data ?? []) as RawTeamMemberRow[])) {
+      const teamId = String(r.team_id ?? "");
+      const playerId = String(r.player_id ?? "");
       if (!teamId || !playerId) continue;
 
       membersByTeam[teamId] = membersByTeam[teamId] ?? [];
@@ -317,8 +346,8 @@ export default function AdminTournamentsPage() {
     }
 
     const nameByPlayer: Record<string, string> = {};
-    for (const p of pRes.data ?? []) {
-      nameByPlayer[String((p as any).id)] = String((p as any).display_name ?? "Unknown");
+    for (const p of ((pRes.data ?? []) as PlayerNameRow[])) {
+      nameByPlayer[String(p.id ?? "")] = String(p.display_name ?? "Unknown");
     }
 
     setNameByPlayerId(nameByPlayer);
@@ -407,7 +436,7 @@ export default function AdminTournamentsPage() {
       return;
     }
 
-    const playerIds = Array.from(new Set((res.data ?? []).map((r: any) => String(r.player_id)).filter(Boolean)));
+    const playerIds = Array.from(new Set(((res.data ?? []) as PlayerIdRow[]).map((r) => String(r.player_id ?? "")).filter(Boolean)));
     if (playerIds.length === 0) {
       setError("No entrants yet.");
       setBusy(tournamentId, false);
@@ -422,11 +451,11 @@ export default function AdminTournamentsPage() {
       return;
     }
 
-    const hs = (pRes.data ?? [])
-      .map((p: any) =>
+    const hs = ((pRes.data ?? []) as PlayerHandicapRow[])
+      .map((p) =>
         typeof p.handicap === "number" ? Number(p.handicap) : p.handicap != null ? Number(p.handicap) : null
       )
-      .filter((v: any) => v !== null && !Number.isNaN(v)) as number[];
+      .filter((v): v is number => v !== null && !Number.isNaN(v));
 
     if (hs.length === 0) {
       setError("No handicaps available for entrants.");
@@ -522,7 +551,7 @@ export default function AdminTournamentsPage() {
 
     setCreateBusy(true);
 
-    const payload: any = {
+    const payload: NewTournamentPayload = {
       name,
       scope: createScope,
       format: createFormat,
