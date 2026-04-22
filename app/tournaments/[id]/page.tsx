@@ -84,11 +84,49 @@ type TournamentRow = {
   gender?: TournamentGender | null;
   rule_type?: TournamentRule | null;
 };
+
+type ProfileRoleRow = { role?: string | null };
+
+type RawTeamRow = {
+  id: string | number;
+  team_no?: number | string | null;
+  team_handicap?: number | string | null;
+};
+
+type RawTeamMemberRow = { team_id?: string | number | null; player_id?: string | number | null };
+type RawMyMembershipRow = { team_id?: string | number | null };
+
+type RawMatchRow = {
+  id: string | number;
+  tournament_id?: string | number | null;
+  team_a_id?: string | number | null;
+  team_b_id?: string | number | null;
+  slot_a_source_type?: string | null;
+  slot_a_source_match_id?: string | number | null;
+  slot_b_source_type?: string | null;
+  slot_b_source_match_id?: string | number | null;
+  round_no?: number | string | null;
+  match_no?: number | string | null;
+  status?: string | null;
+  score_a?: number | string | null;
+  score_b?: number | string | null;
+  submitted_by_player_id?: string | number | null;
+  submitted_at?: string | null;
+  confirmed_by_a?: boolean | null;
+  confirmed_by_b?: boolean | null;
+  finalized_by_admin?: boolean | null;
+  finalized_at?: string | null;
+  admin_final_by?: string | number | null;
+  admin_final_at?: string | null;
+  winner_team_id?: string | number | null;
+};
+
+type ParamsWithId = { id?: string | string[] | null };
 export default function TournamentRoomPage() {
   const supabase = createClient();
   const params = useParams();
 
-  const rawId = (params as any)?.id;
+  const rawId = (params as ParamsWithId | null)?.id;
   const tournamentId = Array.isArray(rawId) ? rawId[0] : rawId;
 
   const [loading, setLoading] = useState(true);
@@ -153,7 +191,7 @@ export default function TournamentRoomPage() {
     }
 
     const profRes = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    const role = ((profRes.data as any)?.role ?? "").toString().toUpperCase();
+    const role = ((profRes.data as ProfileRoleRow | null)?.role ?? "").toString().toUpperCase();
     const superAdmin = role === "SUPER_ADMIN";
 
     // Resolve my player_id
@@ -199,9 +237,9 @@ export default function TournamentRoomPage() {
     }
 
     // Normalize entries_open so null behaves as OPEN for any strict UI checks
-    const tRaw = tRes.data as any;
+    const tRaw = tRes.data as TournamentRow;
     const normalizedTournament: TournamentRow = {
-      ...(tRaw as TournamentRow),
+      ...tRaw,
       entries_open: tRaw.entries_open === false ? false : true,
     };
 
@@ -226,7 +264,7 @@ export default function TournamentRoomPage() {
       return;
     }
 
-    const teamRows = (teamRes.data ?? []).map((r: any) => ({
+    const teamRows = ((teamRes.data ?? []) as RawTeamRow[]).map((r) => ({
       id: String(r.id),
       team_no: Number(r.team_no ?? 0),
       team_handicap:
@@ -252,9 +290,9 @@ export default function TournamentRoomPage() {
         const membersByTeam: Record<string, string[]> = {};
         const allPlayerIds: string[] = [];
 
-        for (const r of memRes.data ?? []) {
-          const teamId = String((r as any).team_id ?? "");
-          const pid = String((r as any).player_id ?? "");
+        for (const r of ((memRes.data ?? []) as RawTeamMemberRow[])) {
+          const teamId = String(r.team_id ?? "");
+          const pid = String(r.player_id ?? "");
           if (!teamId || !pid) continue;
 
           membersByTeam[teamId] = membersByTeam[teamId] ?? [];
@@ -272,7 +310,7 @@ export default function TournamentRoomPage() {
 
             if (!myMemRes.error) {
               const extraTeamIds = Array.from(
-                new Set((myMemRes.data ?? []).map((r: any) => String(r.team_id ?? "")).filter(Boolean))
+                new Set(((myMemRes.data ?? []) as RawMyMembershipRow[]).map((r) => String(r.team_id ?? "")).filter(Boolean))
               );
 
               if (extraTeamIds.length) {
@@ -283,7 +321,7 @@ export default function TournamentRoomPage() {
                   .in("id", extraTeamIds);
 
                 if (!extraTeamsRes.error) {
-                  const extras = (extraTeamsRes.data ?? []).map((r: any) => ({
+                  const extras = ((extraTeamsRes.data ?? []) as RawTeamRow[]).map((r) => ({
                     id: String(r.id),
                     team_no: Number(r.team_no ?? 0),
                     team_handicap:
@@ -349,7 +387,7 @@ export default function TournamentRoomPage() {
       setMatches([]);
       setOpenRounds({});
     } else {
-      const ms = (mRes.data ?? []).map((r: any) => ({
+      const ms = ((mRes.data ?? []) as RawMatchRow[]).map((r) => ({
         id: String(r.id),
         tournament_id: r.tournament_id == null ? null : String(r.tournament_id),
         team_a_id: r.team_a_id == null ? null : String(r.team_a_id),
@@ -446,7 +484,7 @@ export default function TournamentRoomPage() {
     list.sort(
       (a, b) =>
         Number(a.round_no ?? 0) - Number(b.round_no ?? 0) ||
-        Number((a as any).match_no ?? 0) - Number((b as any).match_no ?? 0) ||
+        Number(a.match_no ?? 0) - Number(b.match_no ?? 0) ||
         String(a.id).localeCompare(String(b.id))
     );
     return list[0] ?? null;
@@ -496,7 +534,7 @@ export default function TournamentRoomPage() {
     const sorted = done.slice().sort(
       (a, b) =>
         Number(b.round_no ?? 0) - Number(a.round_no ?? 0) ||
-        Number((b as any).match_no ?? 0) - Number((a as any).match_no ?? 0)
+        Number(b.match_no ?? 0) - Number(a.match_no ?? 0)
     );
     const last = sorted[0];
     const winnerId = last ? winnerTeamIdFromMatch(last) : null;
@@ -683,8 +721,9 @@ export default function TournamentRoomPage() {
 
       await load();
       setBusy(false);
-    } catch (e: any) {
-      setError(e?.message ?? "Network error.");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Network error.";
+      setError(message);
       setBusy(false);
     }
   }
@@ -710,8 +749,9 @@ export default function TournamentRoomPage() {
 
       await load();
       setBusy(false);
-    } catch (e: any) {
-      setError(e?.message ?? "Network error.");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Network error.";
+      setError(message);
       setBusy(false);
     }
   }
