@@ -4,14 +4,34 @@
 import { theme } from "@/lib/theme";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  cleanTournamentName,
+  formatLabel,
+  genderLabel,
+  matchStatusLabel,
+  ruleLabel,
+  scopeLabel,
+  statusLabel,
+  type TournamentFormat,
+  type TournamentRule,
+  type TournamentScope,
+  type TournamentStatus,
+} from "@/lib/tournaments/labels";
+import {
+  bool,
+  hasValue,
+  isMatchBye as isByeMatch,
+  isMatchDone,
+  winnerTeamIdFromMatch as inferWinnerTeamId,
+} from "@/lib/tournaments/match";
+import {
+  finishPlacementLabel as libFinishPlacementLabel,
+  roundLabel as libRoundLabel,
+} from "@/lib/tournaments/bracket";
 import BottomNav from "../components/BottomNav";
 
-type TournamentScope = "CLUB" | "DISTRICT" | "NATIONAL";
-type TournamentStatus = "ANNOUNCED" | "IN_PLAY" | "COMPLETED";
-type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
 type PlayerGender = "MALE" | "FEMALE";
 type TournamentGender = "MALE" | "FEMALE" | null;
-type TournamentRule = "SCRATCH" | "HANDICAP_START";
 
 type TournamentRow = {
   id: string;
@@ -48,89 +68,6 @@ type MatchLite = {
   slot_a_source_match_id?: string | null;
   slot_b_source_match_id?: string | null;
 };
-
-function scopeLabel(scope: TournamentScope) {
-  if (scope === "CLUB") return "Club";
-  if (scope === "DISTRICT") return "District";
-  return "National";
-}
-
-function statusLabel(status: TournamentStatus) {
-  if (status === "ANNOUNCED") return "Upcoming";
-  if (status === "IN_PLAY") return "In-play";
-  return "Completed";
-}
-
-function formatLabel(fmt: TournamentFormat) {
-  if (fmt === "FOUR_BALL") return "4 Balls";
-  return fmt.charAt(0) + fmt.slice(1).toLowerCase();
-}
-
-function genderLabel(g: TournamentGender | undefined | null) {
-  if (g === "MALE") return "Men";
-  if (g === "FEMALE") return "Ladies";
-  return "Open";
-}
-
-function ruleLabel(rule: TournamentRule | null | undefined) {
-  if (rule === "SCRATCH") return "Scratch";
-  return "Handicap start";
-}
-
-function cleanTournamentName(name: string) {
-  const raw = (name ?? "").toString();
-  return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
-}
-
-function hasValue(v: any) {
-  return v != null && String(v) !== "";
-}
-
-function bool(v: any) {
-  return v === true;
-}
-
-function isByeMatch(m: MatchLite) {
-  const st = String(m?.status ?? "");
-  if (st === "BYE") return true;
-  if (String(m?.slot_b_source_type ?? "") === "BYE") return true;
-  return !m?.team_b_id && !m?.slot_b_source_type;
-}
-
-function isMatchDone(m: MatchLite) {
-  const st = String(m?.status ?? "");
-  const hasWinner = hasValue(m?.winner_team_id);
-  return st === "COMPLETED" || bool(m?.finalized_by_admin) || hasWinner;
-}
-
-function inferWinnerTeamId(m: MatchLite) {
-  if (hasValue(m?.winner_team_id)) return String(m.winner_team_id);
-  if (!isMatchDone(m)) return null;
-
-  if (isByeMatch(m)) return hasValue(m?.team_a_id) ? String(m.team_a_id) : null;
-
-  if (!hasValue(m?.team_a_id) || !hasValue(m?.team_b_id)) return null;
-  if (m?.score_a == null || m?.score_b == null) return null;
-  if (Number(m.score_a) === Number(m.score_b)) return null;
-
-  return Number(m.score_a) > Number(m.score_b) ? String(m.team_a_id) : String(m.team_b_id);
-}
-
-function matchStatusLabel(status: string) {
-  if (status === "SCHEDULED") return "Scheduled";
-  if (status === "IN_PLAY") return "In play";
-  if (status === "COMPLETED") return "Completed";
-  if (status === "OPEN") return "Open";
-  if (status === "FINAL") return "Final";
-  if (status === "BYE") return "BYE";
-  return status || "-";
-}
-
-function largestPowerOfTwoLE(n: number) {
-  let p = 1;
-  while (p * 2 <= n) p *= 2;
-  return p;
-}
 
 export default function TournamentsPage() {
   const supabase = createClient();
@@ -580,50 +517,17 @@ export default function TournamentsPage() {
     return tm?.team_no ? `Team ${tm.team_no}` : "Team";
   }
 
-  function roundLabelForTournament(t: TournamentRow, roundNo: number | null | undefined) {
-    const r = Number(roundNo ?? 0);
-    if (!r) return "Round -";
+  const roundLabelForTournament = (t: TournamentRow, roundNo: number | null | undefined) =>
+    libRoundLabel({
+      totalTeams: (teamsByTournamentId[t.id] ?? []).length,
+      roundNo: roundNo ?? null,
+    });
 
-    const totalTeams = (teamsByTournamentId[t.id] ?? []).length;
-    if (!totalTeams || totalTeams < 2) return `Round ${r}`;
-
-    const base = largestPowerOfTwoLE(totalTeams);
-    const hasPreRound = totalTeams > base;
-    if (hasPreRound && r === 1) return "Pre-Rd";
-
-    const mainRoundNo = hasPreRound ? r - 1 : r;
-    const playersLeft = Math.floor(base / Math.pow(2, mainRoundNo - 1));
-
-    if (playersLeft === 2) return "Final";
-    if (playersLeft === 4) return "Semis";
-    if (playersLeft === 8) return "Quarters";
-    if (playersLeft >= 16) return `RD ${mainRoundNo}`;
-
-    return `Round ${r}`;
-  }
-
-  function finishPlacementLabel(t: TournamentRow, roundNo: number | null | undefined) {
-    const r = Number(roundNo ?? 0);
-    if (!r) return null;
-
-    const totalTeams = (teamsByTournamentId[t.id] ?? []).length;
-    if (!totalTeams || totalTeams < 2) return null;
-
-    const base = largestPowerOfTwoLE(totalTeams);
-    const hasPreRound = totalTeams > base;
-    const mainRoundNo = hasPreRound ? r - 1 : r;
-    if (mainRoundNo <= 0) return null;
-
-    const playersLeft = Math.floor(base / Math.pow(2, mainRoundNo - 1));
-    if (!playersLeft) return null;
-
-    if (playersLeft === 2) return "Runner-up";
-    if (playersLeft === 4) return "Tied 3rd";
-
-    const start = playersLeft / 2 + 1;
-    const endPos = playersLeft;
-    return `Tied ${start}-${endPos}`;
-  }
+  const finishPlacementLabel = (t: TournamentRow, roundNo: number | null | undefined) =>
+    libFinishPlacementLabel({
+      totalTeams: (teamsByTournamentId[t.id] ?? []).length,
+      roundNo: roundNo ?? null,
+    });
 
   function renderTournamentCard(t: TournamentRow) {
     const entered = !!enteredByTournamentId[t.id];
