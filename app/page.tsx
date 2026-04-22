@@ -91,6 +91,47 @@ type RecentWinnerItem = {
   winner_name: string | null;
 };
 
+type PlayerLookupRow = {
+  id: string;
+  user_id: string | null;
+  display_name?: string | null;
+  gender?: string | null;
+};
+
+type ProfileIdRow = { id: string; full_name?: string | null };
+
+type ClubNameRow = { id: string; name: string | null };
+
+type RecentWinnerMatchRow = {
+  id: string;
+  tournament_id: string | null;
+  round_no: number | null;
+  match_no: number | null;
+  status: string | null;
+  finalized_by_admin: boolean | null;
+  winner_team_id: string | null;
+  team_a_id: string | null;
+  team_b_id: string | null;
+  score_a: number | null;
+  score_b: number | null;
+  slot_b_source_type: string | null;
+};
+
+type TeamMemberRow = { team_id?: string | null; player_id?: string | null };
+
+type PlayerNameRow = { id?: string | null; display_name?: string | null };
+
+type MePlayerRow = {
+  id: string;
+  user_id: string | null;
+  handicap?: number | null;
+  club_id?: string | null;
+  gender?: "MALE" | "FEMALE" | null;
+  display_name?: string | null;
+};
+
+type UserWithMeta = { user_metadata?: { full_name?: string | null; name?: string | null } | null } | null;
+
 function clubLogoFor(name: string) {
   const lower = (name ?? "").toLowerCase();
   if (lower.includes("ridgepark")) return "/ridgepark-logo.png";
@@ -224,8 +265,8 @@ export default function HomePage() {
             }
 
             const playerById = new Map(filteredPlayers.map((p) => [p.id, p]));
-            const preview = (le.data ?? [])
-              .map((e: any) => {
+            const preview = entries
+              .map((e) => {
                 const pl = playerById.get(e.player_id);
                 if (!pl) return null;
                 const dn = (pl.display_name ?? "").trim();
@@ -255,7 +296,7 @@ export default function HomePage() {
       return;
     }
 
-    const userIds = (clubProfiles ?? []).map((p: any) => p.id);
+    const userIds = ((clubProfiles ?? []) as ProfileIdRow[]).map((p) => p.id);
     const { data: playersByUser, error: puErr } = userIds.length
       ? await supabase.from("players").select("id, user_id, display_name, gender").in("user_id", userIds)
       : { data: [], error: null };
@@ -275,9 +316,9 @@ export default function HomePage() {
       return;
     }
 
-    const allPlayers = new Map<string, { id: string; user_id: string | null; display_name?: string | null; gender?: string | null }>();
-    for (const p of (playersByUser ?? [])) allPlayers.set(String((p as any).id), p as any);
-    for (const p of (playersByClub ?? [])) allPlayers.set(String((p as any).id), p as any);
+    const allPlayers = new Map<string, PlayerLookupRow>();
+    for (const p of ((playersByUser ?? []) as PlayerLookupRow[])) allPlayers.set(String(p.id), p);
+    for (const p of ((playersByClub ?? []) as PlayerLookupRow[])) allPlayers.set(String(p.id), p);
 
     const profiles = (clubProfiles ?? []) as { id: string; full_name: string | null }[];
     const nameByUser = new Map(profiles.map((p) => [p.id, p.full_name ?? "Unknown"]));
@@ -352,8 +393,8 @@ export default function HomePage() {
     if (clubRes.error) return;
 
     const next: Record<string, string> = {};
-    for (const c of clubRes.data ?? []) {
-      next[String((c as any).id)] = String((c as any).name ?? "Club");
+    for (const c of ((clubRes.data ?? []) as ClubNameRow[])) {
+      next[String(c.id)] = String(c.name ?? "Club");
     }
     setClubNameById(next);
   }
@@ -400,9 +441,9 @@ export default function HomePage() {
       .select("id, tournament_id, round_no, match_no, status, finalized_by_admin, winner_team_id, team_a_id, team_b_id, score_a, score_b, slot_b_source_type")
       .in("tournament_id", ids);
 
-    const matches = (mRes.data ?? []) as any[];
+    const matches = (mRes.data ?? []) as RecentWinnerMatchRow[];
 
-    const matchesByTournamentId: Record<string, any[]> = {};
+    const matchesByTournamentId: Record<string, RecentWinnerMatchRow[]> = {};
     for (const m of matches) {
       const tid = String(m?.tournament_id ?? "");
       if (!tid) continue;
@@ -460,9 +501,9 @@ export default function HomePage() {
         .select("team_id, player_id")
         .in("team_id", winnerTeamIds);
 
-      for (const r of memRes.data ?? []) {
-        const tid = String((r as any)?.team_id ?? "");
-        const pid = String((r as any)?.player_id ?? "");
+      for (const r of ((memRes.data ?? []) as TeamMemberRow[])) {
+        const tid = String(r?.team_id ?? "");
+        const pid = String(r?.player_id ?? "");
         if (!tid || !pid) continue;
         membersByTeamId[tid] = membersByTeamId[tid] ?? [];
         membersByTeamId[tid].push(pid);
@@ -473,10 +514,10 @@ export default function HomePage() {
     const nameByPlayerId: Record<string, string> = {};
     if (allWinnerPlayerIds.length) {
       const pRes = await supabase.from("players").select("id, display_name").in("id", allWinnerPlayerIds);
-      for (const p of pRes.data ?? []) {
-        const id = String((p as any)?.id ?? "");
+      for (const p of ((pRes.data ?? []) as PlayerNameRow[])) {
+        const id = String(p?.id ?? "");
         if (!id) continue;
-        const dn = String((p as any)?.display_name ?? "").trim();
+        const dn = String(p?.display_name ?? "").trim();
         nameByPlayerId[id] = dn || "Unknown";
       }
     }
@@ -655,7 +696,7 @@ export default function HomePage() {
     setIsSuperAdmin(isSuperAdmin);
 
     // ---- player (defensive handicap + club_id columns) ----
-    let mePlayer: any = null;
+    let mePlayer: MePlayerRow | null = null;
 
     const pRes = await supabase
       .from("players")
@@ -670,11 +711,11 @@ export default function HomePage() {
         .eq("user_id", user.id)
         .single();
 
-      mePlayer = fallback.data ?? null;
+      mePlayer = (fallback.data ?? null) as MePlayerRow | null;
       setHandicap(null);
     } else {
-      mePlayer = pRes.data ?? null;
-      setHandicap(typeof (mePlayer as PlayerRow | null)?.handicap === "number" ? mePlayer.handicap : null);
+      mePlayer = (pRes.data ?? null) as MePlayerRow | null;
+      setHandicap(typeof mePlayer?.handicap === "number" ? mePlayer.handicap : null);
     }
 
     if (!mePlayer && !isSuperAdmin) {
@@ -686,15 +727,15 @@ export default function HomePage() {
     let resolvedClub = (prof as ProfileRow | null)?.club ?? "";
     if (!resolvedClub) resolvedClub = (prof as ProfileRow | null)?.club_name ?? "";
 
-    const playerClubId = (mePlayer as PlayerRow | null)?.club_id ?? "";
+    const playerClubId = mePlayer?.club_id ?? "";
     const profileClubId = (prof as ProfileRow | null)?.club_id ?? "";
     const cid = playerClubId || profileClubId || "";
-    const g = ((mePlayer as PlayerRow | null)?.gender ?? "") as "MALE" | "FEMALE" | "";
+    const g = (mePlayer?.gender ?? "") as "MALE" | "FEMALE" | "";
     setPlayerGender(g);
 
-    const playerName = String((mePlayer as any)?.display_name ?? "");
-    const metaName =
-      String((user as any)?.user_metadata?.full_name ?? (user as any)?.user_metadata?.name ?? "");
+    const playerName = String(mePlayer?.display_name ?? "");
+    const userMeta = (user as UserWithMeta)?.user_metadata ?? null;
+    const metaName = String(userMeta?.full_name ?? userMeta?.name ?? "");
     const resolvedName = profileName || playerName || metaName || user.email || "";
     setFullName(resolvedName);
 
