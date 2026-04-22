@@ -69,6 +69,39 @@ type MatchLite = {
   slot_b_source_match_id?: string | null;
 };
 
+type ProfileRoleRow = { role?: string | null };
+type PlayerGenderRow = { gender?: PlayerGender | null };
+type ClubNameRow = { id: string; name: string | null };
+type TournamentEntryRow = { tournament_id?: string | null };
+type RawTeamRow = {
+  id?: string | number | null;
+  tournament_id?: string | number | null;
+  team_no?: number | string | null;
+  team_handicap?: number | string | null;
+};
+type RawTeamMemberRow = { team_id?: string | number | null; player_id?: string | number | null };
+type ProfileNameRow = { id?: string | null; full_name?: string | null };
+type RawMatchRow = {
+  id: string | number;
+  tournament_id?: string | number | null;
+  round_no?: number | string | null;
+  match_no?: number | string | null;
+  status?: string | null;
+  score_a?: number | string | null;
+  score_b?: number | string | null;
+  submitted_by_player_id?: string | number | null;
+  confirmed_by_a?: boolean | null;
+  confirmed_by_b?: boolean | null;
+  finalized_by_admin?: boolean | null;
+  winner_team_id?: string | number | null;
+  team_a_id?: string | number | null;
+  team_b_id?: string | number | null;
+  slot_a_source_type?: string | null;
+  slot_a_source_match_id?: string | number | null;
+  slot_b_source_type?: string | null;
+  slot_b_source_match_id?: string | number | null;
+};
+
 export default function TournamentsPage() {
   const supabase = createClient();
 
@@ -126,7 +159,7 @@ export default function TournamentsPage() {
     }
 
     const profRes = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    const role = ((profRes.data as any)?.role ?? "").toString().toUpperCase();
+    const role = ((profRes.data as ProfileRoleRow | null)?.role ?? "").toString().toUpperCase();
     const superAdmin = role === "SUPER_ADMIN";
     setIsSuperAdmin(superAdmin);
 
@@ -151,7 +184,7 @@ export default function TournamentsPage() {
 
     const myPlayerId = me.data?.id ? String(me.data.id) : "";
     if (myPlayerId) setPlayerId(myPlayerId);
-    const myGender = ((me.data as any)?.gender ?? "") as PlayerGender | "";
+    const myGender = ((me.data as PlayerGenderRow | null)?.gender ?? "") as PlayerGender | "";
     setPlayerGender(myGender);
 
     const res = await supabase
@@ -187,8 +220,8 @@ export default function TournamentsPage() {
       const clubRes = await supabase.from("clubs").select("id, name").in("id", clubIds);
       if (!clubRes.error) {
         const next: Record<string, string> = {};
-        for (const c of clubRes.data ?? []) {
-          next[String((c as any).id)] = String((c as any).name ?? "Club");
+        for (const c of ((clubRes.data ?? []) as ClubNameRow[])) {
+          next[String(c.id)] = String(c.name ?? "Club");
         }
         setClubNameById(next);
       }
@@ -231,8 +264,8 @@ export default function TournamentsPage() {
     }
 
     const enteredMap: Record<string, boolean> = {};
-    for (const r of ent.data ?? []) {
-      const tid = String((r as any).tournament_id ?? "");
+    for (const r of ((ent.data ?? []) as TournamentEntryRow[])) {
+      const tid = String(r.tournament_id ?? "");
       if (tid) enteredMap[tid] = true;
     }
     setEnteredByTournamentId(enteredMap);
@@ -255,22 +288,22 @@ export default function TournamentsPage() {
     const tByTid: Record<string, { id: string; team_no: number; team_handicap: number | null }[]> = {};
     const teamIds: string[] = [];
 
-    for (const r of teamRes.data ?? []) {
-      const tid = String((r as any).tournament_id ?? "");
-      const teamId = String((r as any).id ?? "");
+    for (const r of ((teamRes.data ?? []) as RawTeamRow[])) {
+      const tid = String(r.tournament_id ?? "");
+      const teamId = String(r.id ?? "");
       if (!tid || !teamId) continue;
 
       teamIds.push(teamId);
 
       const team = {
         id: teamId,
-        team_no: Number((r as any).team_no ?? 0),
+        team_no: Number(r.team_no ?? 0),
         team_handicap:
-          (r as any).team_handicap == null
+          r.team_handicap == null
             ? null
-            : typeof (r as any).team_handicap === "number"
-            ? (r as any).team_handicap
-            : Number((r as any).team_handicap),
+            : typeof r.team_handicap === "number"
+            ? r.team_handicap
+            : Number(r.team_handicap),
       };
 
       tByTid[tid] = tByTid[tid] ?? [];
@@ -301,9 +334,9 @@ export default function TournamentsPage() {
     const membersByTeam: Record<string, string[]> = {};
     const allPlayerIds: string[] = [];
 
-    for (const r of memRes.data ?? []) {
-      const teamId = String((r as any).team_id ?? "");
-      const pid = String((r as any).player_id ?? "");
+    for (const r of ((memRes.data ?? []) as RawTeamMemberRow[])) {
+      const teamId = String(r.team_id ?? "");
+      const pid = String(r.player_id ?? "");
       if (!teamId || !pid) continue;
 
       membersByTeam[teamId] = membersByTeam[teamId] ?? [];
@@ -335,8 +368,8 @@ export default function TournamentsPage() {
     if (userIds.length) {
       const profRes = await supabase.from("profiles").select("id, full_name").in("id", userIds);
       if (!profRes.error) {
-        for (const pr of profRes.data ?? []) {
-          nameByUser[String((pr as any).id)] = String((pr as any).full_name ?? "Unknown");
+        for (const pr of ((profRes.data ?? []) as ProfileNameRow[])) {
+          nameByUser[String(pr.id ?? "")] = String(pr.full_name ?? "Unknown");
         }
       }
     }
@@ -368,7 +401,7 @@ export default function TournamentsPage() {
         .in("tournament_id", idsForMatches);
 
       if (!mRes.error) {
-        const matchRows = (mRes.data ?? []).map((r: any) => ({
+        const matchRows = ((mRes.data ?? []) as RawMatchRow[]).map((r) => ({
           id: String(r.id),
           tournament_id: r.tournament_id == null ? null : String(r.tournament_id),
           round_no: r.round_no == null ? null : Number(r.round_no),
