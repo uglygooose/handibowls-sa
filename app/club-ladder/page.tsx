@@ -28,6 +28,10 @@ type LadderEntry = {
 };
 
 type PlayerRow = { id: string; handicap: number; user_id: string | null; display_name?: string | null; gender?: string | null };
+type MePlayerLadderRow = { id: string; gender?: PlayerGender | null };
+type ProfileIdRow = { id: string };
+type PlayerIdRow = { id: string };
+type ClubIdRow = { id: string };
 type ProfileMiniRow = {
   id: string;
   full_name: string | null;
@@ -299,10 +303,11 @@ export default function ClubLadderPage() {
       setMyGender("");
     }
 
-    const mePlayerId = mePlayer ? String((mePlayer as any).id) : null;
+    const mePlayerRow = (mePlayer ?? null) as MePlayerLadderRow | null;
+    const mePlayerId = mePlayerRow ? String(mePlayerRow.id) : null;
     setMyPlayerId(mePlayerId);
-    setMyGender(((mePlayer as any)?.gender ?? "") as PlayerGender);
-    const resolvedGender = ((mePlayer as any)?.gender ?? "") as PlayerGender;
+    setMyGender((mePlayerRow?.gender ?? "") as PlayerGender);
+    const resolvedGender = (mePlayerRow?.gender ?? "") as PlayerGender;
     const hasGender = resolvedGender === "MALE" || resolvedGender === "FEMALE";
     if (!filtersFromStorageRef.current) {
       setScope("CLUB");
@@ -366,7 +371,7 @@ export default function ClubLadderPage() {
           return;
         }
 
-        const userIds = (clubProfiles ?? []).map((x: any) => x.id);
+        const userIds = ((clubProfiles ?? []) as ProfileIdRow[]).map((x) => x.id);
         const { data: clubPlayersByUser, error: clpErr } = userIds.length
           ? await supabase.from("players").select("id").in("user_id", userIds)
           : { data: [], error: null };
@@ -388,7 +393,7 @@ export default function ClubLadderPage() {
           return;
         }
 
-        const ids = new Set<string>([...(clubPlayersByUser ?? []).map((x: any) => x.id), ...(clubPlayersByClub ?? []).map((x: any) => x.id)]);
+        const ids = new Set<string>([...((clubPlayersByUser ?? []) as PlayerIdRow[]).map((x) => x.id), ...((clubPlayersByClub ?? []) as PlayerIdRow[]).map((x) => x.id)]);
         allowedPlayerIds = Array.from(ids);
       }
     } else if (scope === "DISTRICT") {
@@ -406,7 +411,7 @@ export default function ClubLadderPage() {
           return;
         }
 
-        const userIds = (distProfiles ?? []).map((x: any) => x.id);
+        const userIds = ((distProfiles ?? []) as ProfileIdRow[]).map((x) => x.id);
         const { data: distPlayersByUser, error: dplErr } = userIds.length
           ? await supabase.from("players").select("id").in("user_id", userIds)
           : { data: [], error: null };
@@ -428,7 +433,7 @@ export default function ClubLadderPage() {
           return;
         }
 
-        const clubIds = (districtClubs ?? []).map((x: any) => x.id);
+        const clubIds = ((districtClubs ?? []) as ClubIdRow[]).map((x) => x.id);
         const { data: distPlayersByClub, error: dpcErr } = clubIds.length
           ? await supabase.from("players").select("id").in("club_id", clubIds)
           : { data: [], error: null };
@@ -439,7 +444,7 @@ export default function ClubLadderPage() {
           return;
         }
 
-        const ids = new Set<string>([...(distPlayersByUser ?? []).map((x: any) => x.id), ...(distPlayersByClub ?? []).map((x: any) => x.id)]);
+        const ids = new Set<string>([...((distPlayersByUser ?? []) as PlayerIdRow[]).map((x) => x.id), ...((distPlayersByClub ?? []) as PlayerIdRow[]).map((x) => x.id)]);
         allowedPlayerIds = Array.from(ids);
       }
     } else {
@@ -594,7 +599,7 @@ export default function ClubLadderPage() {
     const merged: LadderRow[] = ladderEntries.map((en) => {
       const pl = playerById.get(en.player_id);
       const pr = pl?.user_id ? profileById.get(pl.user_id) : null;
-      const dn = (pl as any)?.display_name ?? "";
+      const dn = pl?.display_name ?? "";
       const name = (dn ?? "").trim() ? (dn as string) : pr?.full_name ?? "Unknown";
 
       return {
@@ -620,7 +625,7 @@ export default function ClubLadderPage() {
       genderFilter === "ALL"
         ? merged
         : merged.filter((r) => {
-            const p = playerById.get(r.player_id) as any;
+            const p = playerById.get(r.player_id);
             return (p?.gender ?? "") === genderFilter;
           });
 
@@ -689,7 +694,7 @@ export default function ClubLadderPage() {
 	          return;
 	        }
 
-	        const patched = (q2.data ?? []).map((m: any) => ({ ...m, match_type: "RANKED" as MatchType }));
+	        const patched = ((q2.data ?? []) as Omit<MatchRow, "match_type">[]).map((m) => ({ ...m, match_type: "RANKED" as MatchType }));
 	        setPendingMatches(patched as MatchRow[]);
 	      } else {
 	        setError(`pending matches: ${q1.error.message}`);
@@ -738,7 +743,7 @@ export default function ClubLadderPage() {
 	          return;
 	        }
 
-	        const patched = (q2.data ?? []).map((m: any) => ({ ...m, match_type: "RANKED" as MatchType }));
+	        const patched = ((q2.data ?? []) as Omit<MatchRow, "match_type">[]).map((m) => ({ ...m, match_type: "RANKED" as MatchType }));
 	        setRecentMatches(patched as MatchRow[]);
 	      } else {
 	        setError(`matches: ${q1.error.message}`);
@@ -845,17 +850,18 @@ export default function ClubLadderPage() {
 	          gender_filter: genderFilter,
 	        }),
 	      });
-    } catch (e: any) {
-      setError(`Network error calling API: ${e?.message ?? String(e)}`);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(`Network error calling API: ${message}`);
       return;
     }
 
     const text = await res.text();
-    let json: any = null;
+    let json: { error?: string; ok?: boolean } | null = null;
 
     if (text && text.trim().length > 0) {
       try {
-        json = JSON.parse(text);
+        json = JSON.parse(text) as { error?: string; ok?: boolean };
       } catch {}
     }
 
@@ -938,7 +944,7 @@ export default function ClubLadderPage() {
               style={{
                 overflowX: "auto",
                 overflowY: "hidden",
-                WebkitOverflowScrolling: "touch" as any,
+                WebkitOverflowScrolling: "touch",
               }}
             >
               <div style={statsGridBase}>
