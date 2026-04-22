@@ -103,11 +103,54 @@ type MatchRow = {
 
 type ViewTab = "CONTROL" | "ROUNDS" | "AUDIT";
 
+type TournamentScopeClubRow = { club_id?: string | null; scope?: string | null };
+type ParamsWithId = { id?: string | string[] | null };
+type RawQuickTournamentRow = {
+  id: string | number;
+  name?: string | null;
+  scope?: string | null;
+  status?: string | null;
+  gender?: string | null;
+};
+type RawTeamRow = {
+  id?: string | number | null;
+  team_no?: number | string | null;
+  team_handicap?: number | string | null;
+};
+type RawTeamMemberRow = { team_id?: string | number | null; player_id?: string | number | null };
+type PlayerDetailRow = { id?: string | number | null; display_name?: string | null; handicap?: number | string | null };
+type PlayerIdFKRow = { player_id?: string | number | null };
+type PlayerHandicapRow = { handicap?: number | string | null };
+type RawMatchRow = {
+  id: string | number;
+  tournament_id?: string | number | null;
+  team_a_id?: string | number | null;
+  team_b_id?: string | number | null;
+  slot_a_source_type?: string | null;
+  slot_a_source_match_id?: string | number | null;
+  slot_b_source_type?: string | null;
+  slot_b_source_match_id?: string | number | null;
+  round_no?: number | string | null;
+  match_no?: number | string | null;
+  status?: string | null;
+  score_a?: number | string | null;
+  score_b?: number | string | null;
+  submitted_by_player_id?: string | number | null;
+  submitted_at?: string | null;
+  confirmed_by_a?: boolean | null;
+  confirmed_by_b?: boolean | null;
+  finalized_by_admin?: boolean | null;
+  finalized_at?: string | null;
+  admin_final_by?: string | number | null;
+  admin_final_at?: string | null;
+  winner_team_id?: string | number | null;
+};
+
 export default function AdminTournamentDetailPage() {
   const supabase = createClient();
   const params = useParams();
 
-  const rawId = (params as any)?.id;
+  const rawId = (params as ParamsWithId | null)?.id;
   const tournamentId = Array.isArray(rawId) ? rawId[0] : rawId;
 
   const [loading, setLoading] = useState(true);
@@ -287,8 +330,9 @@ export default function AdminTournamentDetailPage() {
 
     const tRow = tRes.data as TournamentRow;
     if (!gate.isSuperAdmin) {
-      const cid = String((tRes.data as any)?.club_id ?? "");
-      if (!gate.adminClubId || !cid || cid !== gate.adminClubId || String((tRes.data as any)?.scope ?? "") !== "CLUB") {
+      const tScopeRow = tRes.data as TournamentScopeClubRow | null;
+      const cid = String(tScopeRow?.club_id ?? "");
+      if (!gate.adminClubId || !cid || cid !== gate.adminClubId || String(tScopeRow?.scope ?? "") !== "CLUB") {
         setError("You do not have access to this tournament.");
         setTournament(null);
         setAccessDenied(true);
@@ -311,7 +355,7 @@ export default function AdminTournamentDetailPage() {
     const quickRes = gate.adminClubId ? await quickQuery.eq("club_id", gate.adminClubId) : await quickQuery;
 
     if (!quickRes.error) {
-      const list = (quickRes.data ?? []).map((r: any) => ({
+      const list = ((quickRes.data ?? []) as RawQuickTournamentRow[]).map((r) => ({
         id: String(r.id),
         name: String(r.name ?? "Tournament"),
         scope: String(r.scope ?? "CLUB") as TournamentScope,
@@ -337,8 +381,8 @@ export default function AdminTournamentDetailPage() {
       setNameByPlayerId({});
       setHandicapByPlayerId({});
     } else {
-      const teamRows = (teamRes.data ?? []).map((r: any) => ({
-        id: String(r.id),
+      const teamRows = ((teamRes.data ?? []) as RawTeamRow[]).map((r) => ({
+        id: String(r.id ?? ""),
         team_no: Number(r.team_no ?? 0),
         team_handicap: r.team_handicap == null ? null : typeof r.team_handicap === "number" ? r.team_handicap : Number(r.team_handicap),
       })) as TeamRow[];
@@ -361,9 +405,9 @@ export default function AdminTournamentDetailPage() {
           const membersByTeam: Record<string, string[]> = {};
           const allPlayerIds: string[] = [];
 
-          for (const r of memRes.data ?? []) {
-            const teamId = String((r as any).team_id ?? "");
-            const pid = String((r as any).player_id ?? "");
+          for (const r of ((memRes.data ?? []) as RawTeamMemberRow[])) {
+            const teamId = String(r.team_id ?? "");
+            const pid = String(r.player_id ?? "");
             if (!teamId || !pid) continue;
 
             membersByTeam[teamId] = membersByTeam[teamId] ?? [];
@@ -387,11 +431,11 @@ export default function AdminTournamentDetailPage() {
               const nameByPlayer: Record<string, string> = {};
               const handicapByPlayer: Record<string, number | null> = {};
 
-              for (const p of pRes.data ?? []) {
-                const pid = String((p as any).id);
-                nameByPlayer[pid] = String((p as any).display_name ?? "Unknown");
+              for (const p of ((pRes.data ?? []) as PlayerDetailRow[])) {
+                const pid = String(p.id ?? "");
+                nameByPlayer[pid] = String(p.display_name ?? "Unknown");
 
-                const h = (p as any).handicap;
+                const h = p.handicap;
                 if (h == null || h === "") handicapByPlayer[pid] = null;
                 else {
                   const hn = typeof h === "number" ? h : Number(h);
@@ -420,7 +464,7 @@ export default function AdminTournamentDetailPage() {
     if (mRes.error) {
       setMatches([]);
     } else {
-      const ms = (mRes.data ?? []).map((r: any) => ({
+      const ms = ((mRes.data ?? []) as RawMatchRow[]).map((r) => ({
         id: String(r.id),
         tournament_id: r.tournament_id == null ? null : String(r.tournament_id),
         team_a_id: r.team_a_id == null ? null : String(r.team_a_id),
@@ -798,7 +842,7 @@ export default function AdminTournamentDetailPage() {
       return;
     }
 
-    const playerIds = Array.from(new Set((res.data ?? []).map((r: any) => String(r.player_id)).filter(Boolean)));
+    const playerIds = Array.from(new Set(((res.data ?? []) as PlayerIdFKRow[]).map((r) => String(r.player_id ?? "")).filter(Boolean)));
 
     if (playerIds.length === 0) {
       setError("No entrants yet.");
@@ -814,9 +858,9 @@ export default function AdminTournamentDetailPage() {
       return;
     }
 
-    const hs = (pRes.data ?? [])
-      .map((p: any) => (typeof p.handicap === "number" ? Number(p.handicap) : p.handicap != null ? Number(p.handicap) : null))
-      .filter((v: any) => v !== null && !Number.isNaN(v)) as number[];
+    const hs = ((pRes.data ?? []) as PlayerHandicapRow[])
+      .map((p) => (typeof p.handicap === "number" ? Number(p.handicap) : p.handicap != null ? Number(p.handicap) : null))
+      .filter((v): v is number => v !== null && !Number.isNaN(v));
 
     if (hs.length === 0) {
       setError("No handicaps available for entrants.");
@@ -947,8 +991,8 @@ export default function AdminTournamentDetailPage() {
         setBusy(false);
         return;
       }
-    } catch (e: any) {
-      setError(e?.message ?? "Network error.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error.");
       setBusy(false);
       return;
     }
@@ -1040,8 +1084,8 @@ export default function AdminTournamentDetailPage() {
 
       await load({ preserveScroll: true });
       setBusy(false);
-    } catch (e: any) {
-      setError(e?.message ?? "Network error.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error.");
       setBusy(false);
       restoreScroll();
     }
@@ -1148,8 +1192,8 @@ export default function AdminTournamentDetailPage() {
         restoreScroll();
         return;
       }
-    } catch (e: any) {
-      setError(e?.message ?? "Network error.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error.");
       setBusy(false);
       restoreScroll();
       return;
@@ -1185,8 +1229,8 @@ export default function AdminTournamentDetailPage() {
 
       await load({ preserveScroll: true });
       setBusy(false);
-    } catch (e: any) {
-      setError(e?.message ?? "Network error.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error.");
       setBusy(false);
       restoreScroll();
     }
@@ -1246,8 +1290,8 @@ export default function AdminTournamentDetailPage() {
         <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
           <div style={{ fontWeight: 900, fontSize: 16 }}>Tournament control</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <StatusPill label={t ? statusLabel(t.status) : "—"} tone={tourTone as any} />
-            <StatusPill label={entriesOpen ? "Entries open" : "Entries locked"} tone={entriesTone as any} />
+            <StatusPill label={t ? statusLabel(t.status) : "—"} tone={tourTone} />
+            <StatusPill label={entriesOpen ? "Entries open" : "Entries locked"} tone={entriesTone} />
           </div>
         </div>
 
@@ -1445,8 +1489,8 @@ export default function AdminTournamentDetailPage() {
           setBusy(false);
           return;
         }
-      } catch (e: any) {
-        setError(e?.message ?? "Network error.");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Network error.");
         setBusy(false);
         return;
       }
@@ -1950,8 +1994,8 @@ export default function AdminTournamentDetailPage() {
             setBusy(false);
             return;
           }
-        } catch (e: any) {
-          setError(e?.message ?? "Network error.");
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Network error.");
           setBusy(false);
           return;
         }
@@ -1996,8 +2040,8 @@ export default function AdminTournamentDetailPage() {
             setBusy(false);
             return;
           }
-        } catch (e: any) {
-          setError(e?.message ?? "Network error.");
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Network error.");
           setBusy(false);
           return;
         }
