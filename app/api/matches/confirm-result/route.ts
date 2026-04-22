@@ -4,7 +4,22 @@ import { revalidatePath } from "next/cache";
 
 type MatchType = "RANKED" | "FRIENDLY";
 
-function normalizeMatchType(v: any): MatchType {
+type ConfirmResultBody = { match_id?: unknown };
+type MatchRow = {
+  id: string;
+  ladder_id: string | null;
+  match_type?: string | null;
+  status?: string | null;
+  challenger_player_id: string;
+  challenged_player_id: string;
+  challenger_score?: number | null;
+  challenged_score?: number | null;
+  submitted_by_player_id?: string | null;
+  submitted_at?: string | null;
+};
+type LadderEntryPositionRow = { player_id?: string | null; position?: number | null };
+
+function normalizeMatchType(v: unknown): MatchType {
   const t = String(v ?? "RANKED").toUpperCase();
   return t === "FRIENDLY" ? "FRIENDLY" : "RANKED";
 }
@@ -28,14 +43,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    let body: any = null;
+    let body: ConfirmResultBody | null = null;
     try {
-      body = await req.json();
+      body = (await req.json()) as ConfirmResultBody;
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const match_id = body?.match_id as string | undefined;
+    const match_id = typeof body?.match_id === "string" ? body.match_id : undefined;
     if (!match_id) return NextResponse.json({ error: "Missing match_id" }, { status: 400 });
 
     // Current player
@@ -53,7 +68,7 @@ export async function POST(req: Request) {
     }
 
     // Load match (try with match_type; fallback if column missing)
-    let match: any = null;
+    let match: MatchRow | null = null;
 
     {
       const q1 = await supabase
@@ -65,7 +80,7 @@ export async function POST(req: Request) {
         .single();
 
       if (!q1.error && q1.data) {
-        match = q1.data;
+        match = q1.data as MatchRow;
       } else if (q1.error && isMissingColumnError(q1.error.message, "match_type")) {
         const q2 = await supabase
           .from("matches")
@@ -78,7 +93,7 @@ export async function POST(req: Request) {
         if (q2.error || !q2.data) {
           return NextResponse.json({ error: "Match not found" }, { status: 404 });
         }
-        match = q2.data;
+        match = q2.data as MatchRow;
       } else {
         return NextResponse.json(
           { error: q1.error?.message ?? "Match not found" },
@@ -86,6 +101,8 @@ export async function POST(req: Request) {
         );
       }
     }
+
+    if (!match) return NextResponse.json({ error: "Match not found" }, { status: 404 });
 
     // If already final, do nothing (prevents double-confirm / double-swap)
     if (match.status === "FINAL") {
@@ -109,15 +126,16 @@ export async function POST(req: Request) {
     }
 
     // Must be participant
+    const mePlayerId = String((mePlayer as { id: string }).id);
     const isParticipant =
-      mePlayer.id === match.challenger_player_id || mePlayer.id === match.challenged_player_id;
+      mePlayerId === match.challenger_player_id || mePlayerId === match.challenged_player_id;
 
     if (!isParticipant) {
       return NextResponse.json({ error: "Only participants may confirm" }, { status: 403 });
     }
 
     // Must NOT be the submitter
-    if (match.submitted_by_player_id === mePlayer.id) {
+    if (match.submitted_by_player_id === mePlayerId) {
       return NextResponse.json(
         { error: "Opponent must confirm (submitter cannot confirm)" },
         { status: 400 }
@@ -173,8 +191,9 @@ export async function POST(req: Request) {
           reason: "draw",
           stats_recalced,
         });
-      } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 400 });
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        return NextResponse.json({ error: message }, { status: 400 });
       }
     }
 
@@ -206,7 +225,7 @@ export async function POST(req: Request) {
         .maybeSingle();
 
       if (exErr) throw new Error(`ensureEntry check: ${exErr.message}`);
-      if (existing?.id) return;
+      if ((existing as { id?: string } | null)?.id) return;
 
       const { data: maxRow, error: maxErr } = await supabase
         .from("ladder_entries")
@@ -218,7 +237,7 @@ export async function POST(req: Request) {
 
       if (maxErr) throw new Error(`ensureEntry max position: ${maxErr.message}`);
 
-      const nextPos = (maxRow?.position ?? 0) + 1;
+      const nextPos = ((maxRow as { position?: number } | null)?.position ?? 0) + 1;
 
       const { error: insErr } = await supabase.from("ladder_entries").insert({
         ladder_id: match.ladder_id,
@@ -232,8 +251,9 @@ export async function POST(req: Request) {
     try {
       await ensureEntry(winnerPlayerId);
       await ensureEntry(loserPlayerId);
-    } catch (e: any) {
-      return NextResponse.json({ error: e.message }, { status: 400 });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return NextResponse.json({ error: message }, { status: 400 });
     }
     // -----------------------------------------------------------------------
 
@@ -262,13 +282,15 @@ export async function POST(req: Request) {
           },
           { status: 200 }
         );
-      } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 400 });
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        return NextResponse.json({ error: message }, { status: 400 });
       }
     }
 
-    const winnerEntry = entries.find((x: any) => x.player_id === winnerPlayerId);
-    const loserEntry = entries.find((x: any) => x.player_id === loserPlayerId);
+    const entryRows = entries as LadderEntryPositionRow[];
+    const winnerEntry = entryRows.find((x) => x.player_id === winnerPlayerId);
+    const loserEntry = entryRows.find((x) => x.player_id === loserPlayerId);
 
     if (!winnerEntry || !loserEntry) {
       try {
@@ -286,13 +308,14 @@ export async function POST(req: Request) {
           },
           { status: 200 }
         );
-      } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 400 });
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        return NextResponse.json({ error: message }, { status: 400 });
       }
     }
 
     // Only move if winner was ranked below loser (higher number = lower rank)
-    if (winnerEntry.position <= loserEntry.position) {
+    if ((winnerEntry.position ?? 0) <= (loserEntry.position ?? 0)) {
       try {
         const { stats_recalced } = await recalc();
 
@@ -305,8 +328,9 @@ export async function POST(req: Request) {
           reason: "winner already ranked above loser",
           stats_recalced,
         });
-      } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 400 });
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        return NextResponse.json({ error: message }, { status: 400 });
       }
     }
 
@@ -337,7 +361,8 @@ export async function POST(req: Request) {
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 400 });
     }
-  } catch (err: any) {
-    return NextResponse.json({ error: `Server error: ${err.message}` }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Server error: ${message}` }, { status: 500 });
   }
 }
