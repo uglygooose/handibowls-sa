@@ -139,9 +139,6 @@ function winnerTeamIdFromMatch(m: MatchRow) {
   return Number(m.score_a) > Number(m.score_b) ? String(m.team_a_id) : String(m.team_b_id);
 }
 
-type DrawerMode = "SCORE" | "ADMIN_FINAL";
-type DrawerDraft = { a: string; b: string };
-
 export default function AdminTournamentDetailPage() {
   const supabase = createClient();
   const params = useParams();
@@ -202,11 +199,6 @@ export default function AdminTournamentDetailPage() {
   const [auditEditOpenByMatchId, setAuditEditOpenByMatchId] = useState<Record<string, boolean>>({});
   const treeRoundRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
-  // Bottom drawer (keeps list stable; stops scroll-jump) — still supported
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerMatchId, setDrawerMatchId] = useState<string | null>(null);
-  const [drawerMode, setDrawerMode] = useState<DrawerMode>("SCORE");
-  const [drawerDraft, setDrawerDraft] = useState<DrawerDraft>({ a: "", b: "" });
   const scrollYBeforeAction = useRef<number>(0);
 
   const matchNoById = useMemo(() => {
@@ -236,29 +228,11 @@ export default function AdminTournamentDetailPage() {
     scrollYBeforeAction.current = typeof window !== "undefined" ? window.scrollY : 0;
   }
 
-  // ✅ KEY FIX: if we never remembered scroll, do NOT “restore” to 0 (that causes the snap-to-top).
+  // if we never remembered scroll, do NOT "restore" to 0 (that causes the snap-to-top).
   function restoreScroll() {
     const y = scrollYBeforeAction.current || 0;
     if (!y) return;
     requestAnimationFrame(() => window.scrollTo(0, y));
-  }
-
-  function closeDrawer() {
-    setDrawerOpen(false);
-    setDrawerMatchId(null);
-  }
-
-  function openDrawerForMatch(matchId: string, mode: DrawerMode) {
-    const m = matches.find((x) => x.id === matchId);
-    if (!m) return;
-
-    setDrawerMatchId(matchId);
-    setDrawerMode(mode);
-    setDrawerDraft({
-      a: m.score_a == null ? "" : String(m.score_a),
-      b: m.score_b == null ? "" : String(m.score_b),
-    });
-    setDrawerOpen(true);
   }
 
   function goBack() {
@@ -1122,7 +1096,7 @@ function singlesHandicapLine(m: MatchRow) {
   async function adminFinalScore(matchId: string) {
     if (!matchId) return;
 
-    const draft = scoreDraftByMatchId[matchId] ?? drawerDraft;
+    const draft = scoreDraftByMatchId[matchId] ?? { a: "", b: "" };
 
     const scoreA = Number((draft?.a ?? "").trim());
     const scoreB = Number((draft?.b ?? "").trim());
@@ -1158,7 +1132,6 @@ function singlesHandicapLine(m: MatchRow) {
         return;
       }
 
-      closeDrawer();
       await load({ preserveScroll: true });
       setBusy(false);
     } catch (e: any) {

@@ -28,7 +28,7 @@ type TournamentRow = {
   rule_type?: TournamentRule | null;
 };
 
-type AdminTab = "HOME" | "ISSUES" | "CREATE";
+type AdminTab = "HOME" | "ISSUES";
 function scopeLabel(scope: TournamentScope) {
   if (scope === "CLUB") return "Club";
   if (scope === "DISTRICT") return "District";
@@ -111,7 +111,7 @@ export default function AdminTournamentsPage() {
 
   const [sectionOpenByKey, setSectionOpenByKey] = useState<Record<string, boolean>>({});
 
-  const issuesCount = 0; // placeholder for next steps
+  const issuesCount = 0;
 
   function setBusy(tournamentId: string, v: boolean) {
     setBusyByTournamentId((m) => ({ ...m, [tournamentId]: v }));
@@ -352,7 +352,7 @@ export default function AdminTournamentsPage() {
       return;
     }
 
-    // ✅ FIX 1: Use players.display_name (supports guest players where user_id is null)
+    // Use players.display_name (supports guest players where user_id is null)
     const pRes = await supabase.from("players").select("id, display_name").in("id", uniquePlayerIds);
 
     if (pRes.error) {
@@ -480,7 +480,7 @@ export default function AdminTournamentsPage() {
     }
 
     const avg = hs.reduce((a, b) => a + b, 0) / hs.length;
-    // ✅ FIX 3: Doubles target = avg player handicap × 2
+    // Doubles target = avg player handicap × 2
     const suggested = Math.round(avg * 2 * 10) / 10; // 1 decimal
 
     setTargetInputByTournamentId((m) => ({ ...m, [tournamentId]: String(suggested) }));
@@ -506,7 +506,7 @@ export default function AdminTournamentsPage() {
     setBusy(tournamentId, true);
     setError(null);
 
-    // ✅ FIX 2: Singles uses knockout round 1 generator
+    // Singles uses knockout round 1 generator
     const t = rows.find((x) => x.id === tournamentId);
     const fn = t?.format === "SINGLES" ? "generate_round1_singles_matches" : "tournament_generate_knockout_matches";
 
@@ -653,9 +653,8 @@ export default function AdminTournamentsPage() {
 
         <button
           type="button"
-          className={pill(tab === "CREATE")}
+          className={pill(false)}
           onClick={() => {
-            setTab("CREATE");
             setError(null);
             setCreateOpen(true);
           }}
@@ -1126,25 +1125,6 @@ export default function AdminTournamentsPage() {
     );
   }
 
-  function renderCreate() {
-    return (
-      <div
-        style={{
-          marginTop: 14,
-          background: "#fff",
-          border: `1px solid ${theme.border}`,
-          borderRadius: 16,
-          padding: 14,
-        }}
-      >
-        <div style={{ fontWeight: 900, fontSize: 16 }}>Create Tournament</div>
-        <div style={{ marginTop: 8, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-          Use the <b>Create</b> tab to open the popup and create a new tournament.
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div style={{ background: theme.background, minHeight: "100vh", color: theme.text, paddingBottom: 92 }}>
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 14px 18px" }}>
@@ -1232,12 +1212,10 @@ export default function AdminTournamentsPage() {
           >
             Loading admin tournaments...
           </div>
-        ) : tab === "HOME" ? (
-          renderHome()
         ) : tab === "ISSUES" ? (
           renderIssues()
         ) : (
-          renderCreate()
+          renderHome()
         )}
       </div>
 

@@ -241,7 +241,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `ladder swap: ${swapErr.message}` }, { status: 400 });
     }
 
-    // ✅ Recalc stats + set positions after swap
+    // Recalc stats + set positions after swap
     try {
       const { stats_recalced } = await recalc();
       return NextResponse.json({

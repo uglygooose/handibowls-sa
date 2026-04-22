@@ -15,14 +15,11 @@ type ChallengeRow = {
   expires_at: string;
   match_id?: string | null;
   created_at?: string;
-
-  match_type?: MatchType | null;
 };
 
 type MatchRow = {
   id: string;
   ladder_id: string;
-  match_type?: MatchType | null;
 
   status: string;
 
@@ -68,39 +65,12 @@ function formatTimeRemaining(expiresAtIso: string) {
   return `${minutes}m`;
 }
 
-type MatchType = "RANKED";
 type Tab = "INCOMING" | "OUTGOING" | "MATCHES";
-
-function normalizeMatchType(_v: unknown): MatchType {
-  void _v;
-  return "RANKED";
-}
 
 function isMissingColumnError(msg: string | null | undefined, col: string) {
   if (!msg) return false;
   const m = msg.toLowerCase();
   return m.includes(`column "${col.toLowerCase()}"`) && m.includes("does not exist");
-}
-
-function badge(_matchType: MatchType) {
-  void _matchType;
-  return (
-    <span
-      style={{
-        flex: "0 0 auto",
-        fontSize: 11,
-        fontWeight: 900,
-        padding: "4px 8px",
-        borderRadius: 999,
-        background: "rgba(46,125,50,.10)",
-        color: theme.maroon,
-        border: `1px solid ${theme.border}`,
-      }}
-      title="Ranked (affects ladder)"
-    >
-      Ranked
-    </span>
-  );
 }
 
 function scopeBadge(scope: LadderScope | "UNKNOWN") {
@@ -228,11 +198,6 @@ export default function MyChallengesPage() {
       }
     }
 
-    challengeRows = challengeRows.map((c) => ({
-      ...c,
-      match_type: normalizeMatchType(c.match_type),
-    }));
-
     // ---------- matches (with match_type fallback) ----------
     let matchRows: MatchRow[] = [];
     {
@@ -270,11 +235,6 @@ export default function MyChallengesPage() {
         return;
       }
     }
-
-    matchRows = matchRows.map((m) => ({
-      ...m,
-      match_type: normalizeMatchType(m.match_type),
-    }));
 
     setChallenges(challengeRows);
     setMatches(matchRows);
@@ -494,7 +454,6 @@ export default function MyChallengesPage() {
   }
 
   function renderChallengeCard(c: ChallengeRow, mode: "incoming" | "outgoing") {
-    const mt = normalizeMatchType(c.match_type);
     const opp = opponentForChallenge(c, mode);
 
     const canRespond = mode === "incoming";
@@ -529,7 +488,6 @@ export default function MyChallengesPage() {
                 {mode === "incoming" ? "From: " : "To: "}
                 {opp.name}
               </div>
-              {badge(mt)}
               {scopeBadge(scope)}
             </div>
             <div style={{ marginTop: 4, color: theme.muted, fontSize: 12 }}>
@@ -624,7 +582,6 @@ export default function MyChallengesPage() {
   }
 
   function renderMatchCard(m: MatchRow) {
-    const mt = normalizeMatchType(m.match_type);
     const opp = opponentForMatch(m);
     const scope = scopeForLadder(m.ladder_id);
 
@@ -668,7 +625,6 @@ export default function MyChallengesPage() {
             vs {opp.name}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {badge(mt)}
             {scopeBadge(scope)}
             <div style={{ fontSize: 12, color: theme.muted, fontWeight: 900 }}>{label}</div>
           </div>

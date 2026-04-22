@@ -184,7 +184,7 @@ export async function POST(req: Request) {
       try {
         const { stats_recalced } = await recalc();
 
-        // ✅ revalidate after FINAL is committed (and after recalc if ranked)
+        // revalidate after FINAL is committed (and after recalc if ranked)
         revalidateAfterFinal();
 
         return NextResponse.json({
@@ -201,7 +201,7 @@ export async function POST(req: Request) {
 
     // If not ranked, do not swap and do not recalc ladder
     if (!isRanked) {
-      // ✅ still revalidate because match moved to FINAL (affects My Challenges + recent results UI)
+      // still revalidate because match moved to FINAL (affects My Challenges + recent results UI)
       revalidateAfterFinal();
 
       return NextResponse.json({
@@ -341,7 +341,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `ladder swap: ${swapErr.message}` }, { status: 400 });
     }
 
-    // ✅ Recalc ladder stats + positions after swap (fills SF/SA/SD/PTS)
+    // Recalc ladder stats + positions after swap (fills SF/SA/SD/PTS)
     try {
       const { stats_recalced } = await recalc();
 

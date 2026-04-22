@@ -105,7 +105,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ Prevent overwriting someone else's submitted result
+    // Prevent overwriting someone else's submitted result
     if (
       match.status === "RESULT_SUBMITTED" &&
       match.submitted_by_player_id &&

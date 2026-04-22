@@ -9,7 +9,7 @@ import BottomNav from "../../components/BottomNav";
 
 type MatchRow = {
   id: string;
-  ladder_id: string; // ✅ added (needed to recalc leaderboard)
+  ladder_id: string; // needed to recalc leaderboard
   match_type?: string | null;
 
   status: string;
@@ -87,7 +87,7 @@ export default function MatchPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminFinalising, setAdminFinalising] = useState(false);
 
-  // ✅ Recalc leaderboard AFTER a match becomes FINAL
+  // Recalc leaderboard AFTER a match becomes FINAL
   async function recalcLadderForMatch(m: MatchRow | null) {
     if (!m) return;
     if (!isUuid(m.ladder_id)) return;
@@ -256,7 +256,7 @@ export default function MatchPage() {
 
     setNameByPlayerId(map);
 
-    // ✅ If this match is already FINAL, make sure ladder stats exist
+    // If this match is already FINAL, make sure ladder stats exist
     await recalcLadderForMatch(mRow);
 
     setLoading(false);

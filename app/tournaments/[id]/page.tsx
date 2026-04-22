@@ -1,7 +1,7 @@
 // app/tournaments/[id]/page.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { theme } from "@/lib/theme";
@@ -144,7 +144,6 @@ export default function TournamentRoomPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const [playerId, setPlayerId] = useState<string>("");
 
@@ -226,7 +225,6 @@ export default function TournamentRoomPage() {
     const profRes = await supabase.from("profiles").select("role").eq("id", user.id).single();
     const role = ((profRes.data as any)?.role ?? "").toString().toUpperCase();
     const superAdmin = role === "SUPER_ADMIN";
-    setIsSuperAdmin(superAdmin);
 
     // Resolve my player_id
     const me = await supabase.from("players").select("id, gender").eq("user_id", user.id).single();
@@ -270,7 +268,7 @@ export default function TournamentRoomPage() {
       return;
     }
 
-    // ✅ Normalize entries_open so null behaves as OPEN for any strict UI checks
+    // Normalize entries_open so null behaves as OPEN for any strict UI checks
     const tRaw = tRes.data as any;
     const normalizedTournament: TournamentRow = {
       ...(tRaw as TournamentRow),

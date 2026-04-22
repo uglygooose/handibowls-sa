@@ -24,8 +24,6 @@ type PlayerRow = {
   gender?: "MALE" | "FEMALE" | null;
 };
 
-type LadderRow = { id: string };
-
 type LadderEntryRow = {
   player_id: string;
   points: number | null;
@@ -688,34 +686,21 @@ export default function HomePage() {
       window.location.href = "/login";
       return;
     }
-    const superByEmail = (user.email ?? "").toLowerCase() === "a.thomas.els@gmail.com";
     setUserEmail(user.email ?? "");
 
-    // ---- profile (defensive club columns) ----
-    let prof: any = null;
-
+    // ---- profile ----
     const profRes = await supabase
       .from("profiles")
       .select("id, full_name, club, club_name, club_id, is_admin, role")
       .eq("id", user.id)
       .single();
 
-    if (profRes.error) {
-      const fallback = await supabase
-        .from("profiles")
-        .select("id, full_name, club, club_name, club_id, is_admin, role")
-        .eq("id", user.id)
-        .single();
-
-      prof = fallback.data ?? null;
-    } else {
-      prof = profRes.data ?? null;
-    }
+    const prof = profRes.data ?? null;
 
     const profileName = (prof as ProfileRow | null)?.full_name ?? "";
     const role = ((prof as ProfileRow | null)?.role ?? "").toString().toUpperCase();
     const isAdminFlag = Boolean((prof as ProfileRow | null)?.is_admin);
-    const isSuperAdmin = role === "SUPER_ADMIN" || superByEmail;
+    const isSuperAdmin = role === "SUPER_ADMIN";
     setIsSuperAdmin(isSuperAdmin);
 
     // ---- player (defensive handicap + club_id columns) ----
@@ -993,7 +978,7 @@ export default function HomePage() {
             <div style={{ fontWeight: 900, marginBottom: 6 }}>How handicaps work (Lawn Bowls)</div>
             <div style={{ fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
               A handicap helps make games fair between players of different ability. In many club formats, the player (or
-              team) with the lower handicap receives a head start " either by adding handicap shots to their score, or
+              team) with the lower handicap receives a head start — either by adding handicap shots to their score, or
               by applying the handicap difference at the start/end of the match (format depends on the competition
               rules).
               <br />
@@ -1284,101 +1269,101 @@ export default function HomePage() {
           </div>
         </div>
 
-	        {/* Club News */}
-	        <div
-	          style={{
-	            marginTop: 14,
-	            background: "#fff",
-	            border: `1px solid ${theme.border}`,
-	            borderRadius: 16,
-	            padding: 14,
-	          }}
-	        >
-	          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-	            <div style={{ fontWeight: 900, fontSize: 16 }}>Club News</div>
-	            {isClubAdmin ? (
-	              <button
-	                type="button"
-	                onClick={() => setClubNewsEditOpen(true)}
-	                style={{
-	                  border: `1px solid ${theme.border}`,
-	                  background: "#fff",
-	                  color: theme.text,
-	                  padding: "6px 10px",
-	                  borderRadius: 999,
-	                  fontWeight: 900,
-	                  fontSize: 12,
-	                  cursor: "pointer",
-	                }}
-	              >
-	                {clubNews ? "Edit popup" : "Create popup"}
-	              </button>
-	            ) : (
-	              <span style={{ fontSize: 12, color: theme.muted }}>Read-only</span>
-	            )}
-	          </div>
+                {/* Club News */}
+                <div
+                  style={{
+                    marginTop: 14,
+                    background: "#fff",
+                    border: `1px solid ${theme.border}`,
+                    borderRadius: 16,
+                    padding: 14,
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                    <div style={{ fontWeight: 900, fontSize: 16 }}>Club News</div>
+                    {isClubAdmin ? (
+                      <button
+                        type="button"
+                        onClick={() => setClubNewsEditOpen(true)}
+                        style={{
+                          border: `1px solid ${theme.border}`,
+                          background: "#fff",
+                          color: theme.text,
+                          padding: "6px 10px",
+                          borderRadius: 999,
+                          fontWeight: 900,
+                          fontSize: 12,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {clubNews ? "Edit popup" : "Create popup"}
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: 12, color: theme.muted }}>Read-only</span>
+                    )}
+                  </div>
 
-	          {/* Recent Winners (stopgap for read-only news) */}
-	          <div style={{ marginTop: 10 }}>
-	            <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>Recent tournament winners</div>
-	            {recentWinnersLoading ? (
-	              <div style={{ marginTop: 6, fontSize: 13, color: theme.muted }}>Loading results...</div>
-	            ) : recentWinnersNote ? (
-	              <div style={{ marginTop: 6, fontSize: 13, color: theme.muted }}>{recentWinnersNote}</div>
-	            ) : recentWinners.length ? (
-	              <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
-	                {recentWinners.map((w) => (
-	                  <div
-	                    key={`winner-${w.tournament_id}`}
-	                    style={{
-	                      border: `1px solid ${theme.border}`,
-	                      borderRadius: 14,
-	                      padding: 10,
-	                      background: "#fff",
-	                    }}
-	                  >
-	                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-	                      <div style={{ fontWeight: 900, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-	                        {w.tournament_name}
-	                      </div>
-	                      <a
-	                        href={`/tournaments/${w.tournament_id}`}
-	                        style={{ textDecoration: "none", color: theme.maroon, fontWeight: 900, fontSize: 12, whiteSpace: "nowrap" }}
-	                      >
-	                        View
-	                      </a>
-	                    </div>
-	                    <div style={{ marginTop: 6, fontSize: 13, color: theme.text, fontWeight: 900 }}>
-	                      Winner: {w.winner_name ?? "-"}
-	                    </div>
-	                    {w.ends_at ? (
-	                      <div style={{ marginTop: 4, fontSize: 12, color: theme.muted }}>
-	                        Ended: {new Date(w.ends_at).toLocaleString()}
-	                      </div>
-	                    ) : null}
-	                  </div>
-	                ))}
-	              </div>
-	            ) : (
-	              <div style={{ marginTop: 6, fontSize: 13, color: theme.muted }}>No recent results yet.</div>
-	            )}
-	          </div>
+                  {/* Recent Winners (stopgap for read-only news) */}
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>Recent tournament winners</div>
+                    {recentWinnersLoading ? (
+                      <div style={{ marginTop: 6, fontSize: 13, color: theme.muted }}>Loading results...</div>
+                    ) : recentWinnersNote ? (
+                      <div style={{ marginTop: 6, fontSize: 13, color: theme.muted }}>{recentWinnersNote}</div>
+                    ) : recentWinners.length ? (
+                      <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
+                        {recentWinners.map((w) => (
+                          <div
+                            key={`winner-${w.tournament_id}`}
+                            style={{
+                              border: `1px solid ${theme.border}`,
+                              borderRadius: 14,
+                              padding: 10,
+                              background: "#fff",
+                            }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
+                              <div style={{ fontWeight: 900, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {w.tournament_name}
+                              </div>
+                              <a
+                                href={`/tournaments/${w.tournament_id}`}
+                                style={{ textDecoration: "none", color: theme.maroon, fontWeight: 900, fontSize: 12, whiteSpace: "nowrap" }}
+                              >
+                                View
+                              </a>
+                            </div>
+                            <div style={{ marginTop: 6, fontSize: 13, color: theme.text, fontWeight: 900 }}>
+                              Winner: {w.winner_name ?? "-"}
+                            </div>
+                            {w.ends_at ? (
+                              <div style={{ marginTop: 4, fontSize: 12, color: theme.muted }}>
+                                Ended: {new Date(w.ends_at).toLocaleString()}
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: 6, fontSize: 13, color: theme.muted }}>No recent results yet.</div>
+                    )}
+                  </div>
 
-	          <div style={{ marginTop: 12, borderTop: `1px solid ${theme.border}`, paddingTop: 12 }} />
+                  <div style={{ marginTop: 12, borderTop: `1px solid ${theme.border}`, paddingTop: 12 }} />
 
-	          {clubNewsError ? (
-	            <div style={{ marginTop: 8, fontSize: 13, color: theme.danger }}>News error: {clubNewsError}</div>
-	          ) : clubNewsLoading ? (
-	            <div style={{ marginTop: 8, fontSize: 13, color: theme.muted }}>Loading news...</div>
-	          ) : newsHasContent ? (
-	            <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
-	              <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>Announcements</div>
-	              <div style={{ fontWeight: 900 }}>{clubNews?.title ?? "Club Update"}</div>
-	              {clubNews?.body ? (
-	                <div style={{ fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-	                  {clubNews.body.length > 160 ? `${clubNews.body.slice(0, 160)}...` : clubNews.body}
-	                </div>
-	              ) : null}
+                  {clubNewsError ? (
+                    <div style={{ marginTop: 8, fontSize: 13, color: theme.danger }}>News error: {clubNewsError}</div>
+                  ) : clubNewsLoading ? (
+                    <div style={{ marginTop: 8, fontSize: 13, color: theme.muted }}>Loading news...</div>
+                  ) : newsHasContent ? (
+                    <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 900, color: theme.muted }}>Announcements</div>
+                      <div style={{ fontWeight: 900 }}>{clubNews?.title ?? "Club Update"}</div>
+                      {clubNews?.body ? (
+                        <div style={{ fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
+                          {clubNews.body.length > 160 ? `${clubNews.body.slice(0, 160)}...` : clubNews.body}
+                        </div>
+                      ) : null}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button
                   type="button"
@@ -1418,14 +1403,14 @@ export default function HomePage() {
                     {clubNews.ends_at ? ` · Ends ${new Date(clubNews.ends_at).toLocaleString()}` : ""}
                   </div>
                 ) : null}
-	              </div>
-	            </div>
-	          ) : (
-	            <div style={{ marginTop: 8, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
-	              No announcements posted yet.
-	            </div>
-	          )}
-	        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 8, fontSize: 13, color: theme.muted, lineHeight: 1.35 }}>
+                      No announcements posted yet.
+                    </div>
+                  )}
+                </div>
 
         {/* How it works */}
         <div

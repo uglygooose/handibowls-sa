@@ -91,8 +91,11 @@ export async function completeTournamentIfDone(opts: { supabase: any; tournament
         }
       }
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    console.warn("[completeTournamentIfDone] cleanup of stray rounds failed", {
+      tournamentId,
+      error: e instanceof Error ? e.message : String(e),
+    });
   }
 
   // Ignore any stray rounds beyond the last "full" round when deriving completion state.
@@ -123,8 +126,12 @@ export async function completeTournamentIfDone(opts: { supabase: any; tournament
       try {
         await opts.supabase.from("matches").update({ winner_team_id: winnerId }).eq("id", String((m as any).id));
         (m as any).winner_team_id = winnerId;
-      } catch {
-        // ignore
+      } catch (e) {
+        console.warn("[completeTournamentIfDone] winner backfill failed", {
+          tournamentId,
+          matchId: String((m as any)?.id ?? ""),
+          error: e instanceof Error ? e.message : String(e),
+        });
       }
     }
   }
