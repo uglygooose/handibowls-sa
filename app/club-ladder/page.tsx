@@ -2,10 +2,13 @@
 
 
 import { theme } from "@/lib/theme";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 import BottomNav from "../components/BottomNav";
+import { isMissingColumnError } from "./utils/ladder";
+import LadderContentView from "./views/LadderContentView";
+import LadderActivityView from "./views/LadderActivityView";
 
 type MatchType = "RANKED";
 type PlayerGender = "MALE" | "FEMALE" | "";
@@ -46,7 +49,7 @@ type ClubMiniRow = {
   district_id: string | null;
 };
 
-type LadderRow = {
+export type LadderRow = {
   // DB position kept for reference only; UI uses computed index
   position: number;
   handicap: number;
@@ -65,7 +68,7 @@ type LadderRow = {
   points: number;
 };
 
-type MatchRow = {
+export type MatchRow = {
   id: string;
   ladder_id: string;
   status: string;
@@ -90,42 +93,6 @@ type LadderMetaRow = {
 type Scope = "CLUB" | "DISTRICT" | "NATIONAL";
 type GenderFilter = "ALL" | "MALE" | "FEMALE";
 type LadderFormat = "ALL" | "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
-function safeDateLabel(iso: string) {
-  const ms = Date.parse(iso);
-  if (Number.isNaN(ms)) return "";
-  const d = new Date(ms);
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function isMissingColumnError(errMsg: string | undefined, columnName: string) {
-  if (!errMsg) return false;
-  const m = errMsg.toLowerCase();
-  return m.includes(`column "${columnName.toLowerCase()}"`) && m.includes("does not exist");
-}
-
-function matchTypeBadge() {
-  return (
-    <span
-      style={{
-        fontSize: 11,
-        fontWeight: 900,
-        padding: "4px 8px",
-        borderRadius: 999,
-        border: `1px solid ${theme.border}`,
-        background: "rgba(46,125,50,.10)",
-        color: theme.maroon,
-        whiteSpace: "nowrap",
-      }}
-    >
-      Ranked
-    </span>
-  );
-}
 
 export default function ClubLadderPage() {
   const supabase = createClient();
@@ -167,45 +134,7 @@ export default function ClubLadderPage() {
   const activeLadderId =
     scope === "CLUB" ? clubLadderId : scope === "DISTRICT" ? districtLadderId : nationalLadderId;
 
-  // --- Horizontal scroll sync: header scrollbar controls row stats scroll ---
-  const headerStatsScrollRef = useRef<HTMLDivElement | null>(null);
-  const rowStatsRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const filtersFromStorageRef = useRef(false);
-  const listScrollRef = useRef<HTMLDivElement | null>(null);
-  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  function syncStatsScroll(left: number) {
-    const map = rowStatsRefs.current;
-    for (const k of Object.keys(map)) {
-      const el = map[k];
-      if (el && el.scrollLeft !== left) el.scrollLeft = left;
-    }
-  }
-
-  function onHeaderStatsScroll() {
-    const left = headerStatsScrollRef.current?.scrollLeft ?? 0;
-    syncStatsScroll(left);
-  }
-
-  // When rows change, keep rows aligned to header scroll position
-  useEffect(() => {
-    const left = headerStatsScrollRef.current?.scrollLeft ?? 0;
-    syncStatsScroll(left);
-  }, [rows]);
-
-  // Eligibility:
-  // - Ranked: must be within +/-2 (computed positions)
-  function isEligible(targetPlayerId: string, posById: Map<string, number>) {
-    if (!myPlayerId) return false;
-    if (targetPlayerId === myPlayerId) return false;
-
-    // Ranked
-    const myPos = posById.get(myPlayerId);
-    const targetPos = posById.get(targetPlayerId);
-    if (!myPos || !targetPos) return false;
-
-    return Math.abs(targetPos - myPos) <= 2;
-  }
 
   async function loadAllClubs() {
     const res = await supabase.from("clubs").select("id, name, district_id").order("name");
@@ -819,16 +748,6 @@ export default function ClubLadderPage() {
     } catch {}
   }, [isSuperAdmin, superClubId]);
 
-  useEffect(() => {
-    if (!listScrollRef.current || !myPlayerId || !rows.length) return;
-    const row = rowRefs.current[myPlayerId];
-    if (!row) return;
-
-    const container = listScrollRef.current;
-    const targetTop = row.offsetTop - container.clientHeight / 2 + row.clientHeight / 2;
-    container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
-	  }, [rows, myPlayerId, scope, genderFilter]);
-
   async function createChallenge(challenged_player_id: string) {
     setNotice(null);
     setError(null);
@@ -876,402 +795,6 @@ export default function ClubLadderPage() {
 	    setNotice(json?.ok ? "Challenge created (Ranked) - expires in 3 days." : "Challenge created (Ranked).");
 	  }
 
-  // --- Stats helpers (display-only) ---
-  const statsCols = "3ch 1ch  2ch 2ch 2ch 2ch  1ch  3.2ch 3.2ch 3.2ch";
-  const statsGridBase: React.CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: statsCols,
-    columnGap: "0.55ch",
-    alignItems: "center",
-    fontVariantNumeric: "tabular-nums",
-    whiteSpace: "nowrap",
-    justifyContent: "start",
-  };
-
-  function valOrDash(v: number | null | undefined, showDash: boolean) {
-    if (showDash) return "-";
-    if (v == null) return "0";
-    return String(v);
-  }
-
-  const posById = useMemo(() => new Map(rows.map((row, i) => [row.player_id, i + 1])), [rows]);
-
-  // Eligibility uses the currently selected leaderboard (rows already reflect genderFilter).
-
-  const ladderContent = useMemo(() => {
-    if (loading) return <p style={{ color: theme.muted }}>Loading ladder...</p>;
-    if (error) return <p style={{ color: theme.danger, whiteSpace: "pre-wrap" }}>Error: {error}</p>;
-    if (!rows.length) return <p style={{ color: theme.muted }}>No ladder entries found.</p>;
-
-	    const showDash = false;
-
-    return (
-      <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 8 }}>
-        <div
-          ref={listScrollRef}
-          style={{
-            maxHeight: 560,
-            overflowY: "auto",
-            paddingBottom: 2,
-          }}
-        >
-          {/* Table header */}
-          <div
-            style={{
-              position: "sticky",
-              top: 0,
-              zIndex: 5,
-              background: theme.surface,
-              boxShadow: "0 2px 0 rgba(0,0,0,0.02)",
-
-              display: "grid",
-              gridTemplateColumns: "44px minmax(0, 1fr) 72px minmax(0, 1fr)",
-              gap: 10,
-              padding: "10px 10px",
-              borderBottom: `1px solid ${theme.border}`,
-              color: theme.muted,
-              fontSize: 12,
-              fontWeight: 900,
-              alignItems: "center",
-            }}
-          >
-            <div>#</div>
-            <div>Player</div>
-            <div />
-            <div
-              ref={headerStatsScrollRef}
-              onScroll={onHeaderStatsScroll}
-              style={{
-                overflowX: "auto",
-                overflowY: "hidden",
-                WebkitOverflowScrolling: "touch",
-              }}
-            >
-              <div style={statsGridBase}>
-                <div>PTS</div>
-                <div style={{ textAlign: "center" }}>*</div>
-                <div>P</div>
-                <div>W</div>
-                <div>D</div>
-                <div>L</div>
-                <div style={{ textAlign: "center" }}>*</div>
-                <div>SD</div>
-                <div>SF</div>
-                <div>SA</div>
-              </div>
-            </div>
-          </div>
-
-        <div style={{ display: "grid", gap: 6, padding: "8px 8px 6px" }}>
-          {rows.map((r) => {
-	            const eligible = isEligible(r.player_id, posById);
-	            const isMe = myPlayerId === r.player_id;
-	            const targetGender = genderByPlayerId[r.player_id] ?? "";
-	            const canChallengeGender = !!myGender && !!targetGender && myGender === targetGender;
-	            const showPlay = !isMe && canChallengeGender && eligible;
-	            const pos = posById.get(r.player_id) ?? null;
-
-	            const buttonTitle = eligible
-	              ? "Create a ranked challenge (+/-2 positions)"
-	              : "Ranked challenges must be within +/-2 positions";
-	            const finalTitle = !canChallengeGender
-	              ? "You can only challenge players of the same gender."
-	              : buttonTitle;
-
-            return (
-              <div
-                key={r.player_id}
-                ref={(el) => {
-                  if (el) rowRefs.current[r.player_id] = el;
-                  else delete rowRefs.current[r.player_id];
-                }}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "44px minmax(0, 1fr) 72px minmax(0, 1fr)",
-                  gap: 10,
-                  alignItems: "center",
-                  padding: "12px 12px",
-                  borderRadius: 14,
-                  border: `1px solid ${isMe ? theme.maroon : theme.border}`,
-                  background: isMe ? "rgba(122,31,43,0.08)" : "#fff",
-                }}
-              >
-                  {/* Position */}
-                  <div
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 12,
-                      background: isMe ? "rgba(122,31,43,0.16)" : "rgba(46,125,50,.10)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: theme.maroon,
-                      fontWeight: 900,
-                    }}
-	                  >
-	                    {pos ?? "-"}
-	                  </div>
-
-                  {/* Player */}
-                  <div style={{ minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontWeight: 900,
-                        fontSize: 18,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {r.full_name} {isMe ? "(You)" : ""}
-                    </div>
-                    <div style={{ marginTop: 2, fontSize: 12, color: theme.muted, fontWeight: 800 }}>
-                      Handicap {Number(r.handicap).toFixed(1)}
-                    </div>
-                  </div>
-
-                  {/* Action */}
-	                  <div style={{ display: "flex", justifyContent: "flex-start" }}>
-	                    {showPlay ? (
-	                      <button
-	                        disabled={!eligible}
-	                        onClick={() => eligible && createChallenge(r.player_id)}
-                        style={{
-                          border: eligible ? "none" : `1px solid ${theme.border}`,
-                          background: eligible ? theme.maroon : "transparent",
-                          color: eligible ? "#fff" : theme.muted,
-                          padding: "6px 10px",
-                          borderRadius: 999,
-                          fontWeight: 900,
-                          fontSize: 13,
-                          cursor: eligible ? "pointer" : "not-allowed",
-                          opacity: eligible ? 1 : 0.55,
-                          minWidth: 54,
-                        }}
-                        title={finalTitle}
-                      >
-	                        Play
-	                      </button>
-	                    ) : (
-	                      <div style={{ width: 54 }} />
-	                    )}
-	                  </div>
-
-                  {/* Stats (scroll controlled by header only) */}
-                  <div
-                    ref={(el) => {
-                      if (el) rowStatsRefs.current[r.player_id] = el;
-                      else delete rowStatsRefs.current[r.player_id];
-                    }}
-                    style={{
-                      overflowX: "hidden",
-                      overflowY: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        ...statsGridBase,
-                        fontSize: 13,
-                        fontWeight: 900,
-                        color: theme.muted,
-                      }}
-                    >
-                      <div style={{ color: theme.text, textAlign: "right" }}>{valOrDash(r.points, showDash)}</div>
-                      <div style={{ textAlign: "center" }}>*</div>
-
-                      <div style={{ textAlign: "right" }}>{valOrDash(r.played, showDash)}</div>
-                      <div style={{ textAlign: "right" }}>{valOrDash(r.won, showDash)}</div>
-                      <div style={{ textAlign: "right" }}>{valOrDash(r.drawn, showDash)}</div>
-                      <div style={{ textAlign: "right" }}>{valOrDash(r.lost, showDash)}</div>
-
-                      <div style={{ textAlign: "center" }}>*</div>
-
-                      <div style={{ textAlign: "right" }}>{valOrDash(r.shot_diff, showDash)}</div>
-                      <div style={{ textAlign: "right" }}>{valOrDash(r.shots_for, showDash)}</div>
-                      <div style={{ textAlign: "right" }}>{valOrDash(r.shots_against, showDash)}</div>
-                    </div>
-                  </div>
-              </div>
-            );
-          })}
-        </div>
-        </div>
-
-	      </div>
-	    );
-	  }, [loading, error, rows, posById, myPosition, myPlayerId, genderFilter, myGender, genderByPlayerId]);
-
-  const pendingSection = useMemo(() => {
-    if (loading) return null;
-
-    return (
-      <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 12 }}>
-	        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-	          <div style={{ fontWeight: 900 }}>Your Pending Matches</div>
-	          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-	            {matchTypeBadge()}
-	            <div style={{ color: theme.muted, fontSize: 12 }}>OPEN / RESULT_SUBMITTED</div>
-	          </div>
-	        </div>
-
-        {!pendingMatches.length ? (
-          <div style={{ marginTop: 6, color: theme.muted, fontSize: 13 }}>No pending matches.</div>
-        ) : (
-          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
-            {pendingMatches.map((m) => {
-              const aName = nameByPlayerId.get(m.challenger_player_id) ?? "Challenger";
-              const bName = nameByPlayerId.get(m.challenged_player_id) ?? "Challenged";
-
-              const aScore = m.challenger_score ?? 0;
-              const bScore = m.challenged_score ?? 0;
-
-              const label = m.status === "OPEN" ? "Open (enter score)" : "Result submitted (confirm if you didn't submit)";
-	              return (
-                <a
-                  key={m.id}
-                  href={`/match/${m.id}`}
-                  style={{
-                    textDecoration: "none",
-                    color: theme.text,
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 14,
-                    padding: 10,
-                    display: "block",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-	                    <div style={{ color: theme.muted, fontSize: 12 }}>{safeDateLabel(m.created_at)}</div>
-	                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-	                      {matchTypeBadge()}
-	                      <div style={{ color: theme.muted, fontSize: 12 }}>{label}</div>
-	                    </div>
-	                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 8,
-                      display: "grid",
-                      gridTemplateColumns: "1fr auto 1fr",
-                      gap: 10,
-                      alignItems: "center",
-                    }}
-                  >
-                    <div style={{ fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {aName}
-                    </div>
-                    <div style={{ textAlign: "center", fontWeight: 900 }}>
-                      {aScore} - {bScore}
-                    </div>
-                    <div
-                      style={{
-                        fontWeight: 900,
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {bName}
-                    </div>
-                  </div>
-
-                  <div style={{ marginTop: 6, fontSize: 12, color: theme.maroon, fontWeight: 900 }}>
-                    {`Open match \u2192`}
-                  </div>
-                </a>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-	  }, [loading, pendingMatches, nameByPlayerId]);
-
-  const recentResults = useMemo(() => {
-    if (loading) return null;
-
-    return (
-      <div style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 12 }}>
-	        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-	          <div style={{ fontWeight: 900 }}>Recent Results</div>
-	          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-	            {matchTypeBadge()}
-	            <div style={{ color: theme.muted, fontSize: 12 }}>Last 10 FINAL</div>
-	          </div>
-	        </div>
-
-        {!recentMatches.length ? (
-          <div style={{ marginTop: 6, color: theme.muted, fontSize: 13 }}>No finalised matches yet.</div>
-        ) : (
-          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
-            {recentMatches.map((m) => {
-              const aName = nameByPlayerId.get(m.challenger_player_id) ?? "Challenger";
-              const bName = nameByPlayerId.get(m.challenged_player_id) ?? "Challenged";
-
-              const aScore = m.challenger_score ?? 0;
-              const bScore = m.challenged_score ?? 0;
-
-              const aWon = aScore > bScore;
-              const bWon = bScore > aScore;
-
-	              return (
-                <div key={m.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 14, padding: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-	                    <div style={{ color: theme.muted, fontSize: 12 }}>{safeDateLabel(m.created_at)}</div>
-	                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-	                      {matchTypeBadge()}
-	                      <div style={{ color: theme.muted, fontSize: 12 }}>Match: {m.id.slice(0, 8)}...</div>
-	                    </div>
-	                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 8,
-                      display: "grid",
-                      gridTemplateColumns: "1fr auto 1fr",
-                      gap: 10,
-                      alignItems: "center",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontWeight: 900,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        color: aWon ? theme.maroon : theme.text,
-                      }}
-                    >
-                      {aName}
-                    </div>
-                    <div style={{ textAlign: "center", fontWeight: 900 }}>
-                      {aScore} - {bScore}
-                      <div style={{ marginTop: 2, fontSize: 12, color: theme.muted }}>
-                        {aWon ? "Challenger won" : bWon ? "Challenged won" : "Draw"}
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        fontWeight: 900,
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        color: bWon ? theme.maroon : theme.text,
-                      }}
-                    >
-                      {bName}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-	  }, [loading, recentMatches, nameByPlayerId]);
 
   return (
     <div style={{ background: theme.background, minHeight: "100vh", color: theme.text }}>
@@ -1439,9 +962,27 @@ export default function ClubLadderPage() {
           </div>
         )}
 
-        <div style={{ marginTop: 12 }}>{ladderContent}</div>
-        <div style={{ marginTop: 12 }}>{pendingSection}</div>
-        <div style={{ marginTop: 12 }}>{recentResults}</div>
+        <div style={{ marginTop: 12 }}>
+          <LadderContentView
+            loading={loading}
+            error={error}
+            rows={rows}
+            myPlayerId={myPlayerId}
+            myGender={myGender}
+            genderByPlayerId={genderByPlayerId}
+            scope={scope}
+            genderFilter={genderFilter}
+            createChallenge={createChallenge}
+          />
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <LadderActivityView
+            loading={loading}
+            pendingMatches={pendingMatches}
+            recentMatches={recentMatches}
+            nameByPlayerId={nameByPlayerId}
+          />
+        </div>
       </div>
 
       <BottomNav />
