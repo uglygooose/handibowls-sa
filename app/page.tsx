@@ -19,6 +19,12 @@ import {
   winnerTeamIdFromMatch as inferWinnerTeamId,
 } from "@/lib/tournaments/match";
 import BottomNav from "./components/BottomNav";
+import {
+  clubLogoFor,
+  fromLocalInputValue,
+  isNewsActive,
+  toLocalInputValue,
+} from "./home/utils/news";
 
 type ProfileRow = {
   id: string;
@@ -131,34 +137,6 @@ type MePlayerRow = {
 };
 
 type UserWithMeta = { user_metadata?: { full_name?: string | null; name?: string | null } | null } | null;
-
-function clubLogoFor(name: string) {
-  const lower = (name ?? "").toLowerCase();
-  if (lower.includes("ridgepark")) return "/ridgepark-logo.png";
-  return "";
-}
-
-function toLocalInputValue(iso: string | null | undefined) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (v: number) => String(v).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function fromLocalInputValue(value: string) {
-  if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
-}
-
-function isNewsActive(n: ClubNewsRow | null, now: Date) {
-  if (!n || n.is_active === false) return false;
-  const startOk = n.starts_at ? new Date(n.starts_at) <= now : true;
-  const endOk = n.ends_at ? new Date(n.ends_at) >= now : true;
-  return startOk && endOk;
-}
 
 export default function HomePage() {
   const supabase = createClient();
