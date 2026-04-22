@@ -35,7 +35,9 @@ type MatchRow = {
   created_at: string;
 };
 
-type PlayerRow = { id: string; user_id: string };
+type PlayerRow = { id: string; user_id: string; display_name?: string | null };
+type ProfileRoleRow = { role?: string | null };
+type ApiResponseJson = { error?: string } | null;
 type ProfileRow = { id: string; full_name: string | null };
 
 type LadderScope = "CLUB" | "DISTRICT" | "NATIONAL";
@@ -136,7 +138,7 @@ export default function MyChallengesPage() {
     }
 
     const profRes = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    const role = ((profRes.data as any)?.role ?? "").toString().toUpperCase();
+    const role = String((profRes.data as ProfileRoleRow | null)?.role ?? "").toUpperCase();
     const superAdmin = role === "SUPER_ADMIN";
     const { data: mePlayer, error: meErr } = await supabase
       .from("players")
@@ -304,7 +306,7 @@ export default function MyChallengesPage() {
 
     const map = new Map<string, string>();
     for (const pl of playerRows) {
-      const display = (pl as any).display_name ?? "";
+      const display = pl.display_name ?? "";
       const name =
         (display ?? "").toString().trim()
           ? (display as string)
@@ -382,10 +384,10 @@ export default function MyChallengesPage() {
     });
 
     const text = await res.text();
-    let json: any = null;
+    let json: ApiResponseJson = null;
     if (text?.trim()) {
       try {
-        json = JSON.parse(text);
+        json = JSON.parse(text) as ApiResponseJson;
       } catch {}
     }
 
@@ -416,10 +418,10 @@ export default function MyChallengesPage() {
       });
 
       const text = await res.text();
-      let json: any = null;
+      let json: ApiResponseJson = null;
       if (text?.trim()) {
         try {
-          json = JSON.parse(text);
+          json = JSON.parse(text) as ApiResponseJson;
         } catch {}
       }
 
