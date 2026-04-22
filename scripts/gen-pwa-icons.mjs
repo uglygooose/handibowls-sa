@@ -3,7 +3,7 @@
 // — good enough to satisfy the manifest + Lighthouse maskable checks.
 // Replace with final branded artwork before launch.
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";

@@ -1,16 +1,14 @@
 import type { NextConfig } from "next";
-import withSerwistInit from "@serwist/next";
 
-const withSerwist = withSerwistInit({
-  swSrc: "app/sw.ts",
-  swDest: "public/sw.js",
-  // Runtime caching is intentionally disabled in Phase 3. Phase 8 flips
-  // strategies (StaleWhileRevalidate for shell, NetworkFirst for data).
-  disable: process.env.NODE_ENV === "development",
-});
+// Phase 3: service-worker source + manifest + icons live in the repo as
+// scaffolding, but we do not wrap the config with @serwist/next yet because
+// Next 16's Turbopack-first build doesn't accept serwist's webpack plugin
+// until @serwist/turbopack lands. Phase 8 re-introduces the wrapper.
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Empty turbopack block silences the "webpack config with no turbopack
+  // config" warning once Phase 8 adds build-time integrations.
+  turbopack: {},
 };
 
-export default withSerwist(nextConfig);
+export default nextConfig;
