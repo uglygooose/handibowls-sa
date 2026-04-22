@@ -1131,27 +1131,28 @@ export default function AdminTournamentDetailPage() {
     setBusy(true);
     setError(null);
 
-    for (const m of eligible) {
-      try {
-        const res = await fetch("/api/tournaments/matches/admin-final", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ match_id: m.id, score_a: m.score_a, score_b: m.score_b }),
-        });
+    try {
+      const res = await fetch("/api/tournaments/matches/admin-final/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tournament_id: tournamentId,
+          matches: eligible.map((m) => ({ match_id: m.id, score_a: m.score_a, score_b: m.score_b })),
+        }),
+      });
 
-        const json = await res.json().catch(() => null);
-        if (!res.ok) {
-          setError(json?.error ?? `Could not complete match ${m.match_no ?? ""}.`);
-          setBusy(false);
-          restoreScroll();
-          return;
-        }
-      } catch (e: any) {
-        setError(e?.message ?? "Network error.");
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(json?.error ?? "Could not complete matches.");
         setBusy(false);
         restoreScroll();
         return;
       }
+    } catch (e: any) {
+      setError(e?.message ?? "Network error.");
+      setBusy(false);
+      restoreScroll();
+      return;
     }
 
     await load({ preserveScroll: true });
@@ -1389,8 +1390,10 @@ export default function AdminTournamentDetailPage() {
       if (!tournamentId || typeof tournamentId !== "string") return;
       if (!canEdit) return;
 
+      // Local validation for friendlier error messages — the RPC also
+      // re-validates server-side, but catching duplicates here lets us
+      // surface the same copy the old loop used.
       const used = new Set<string>();
-
       for (const m of round1) {
         const d = fixturesDraftByMatchId[m.id] ?? { a: "", b: "" };
         const a = (d.a ?? "").trim();
@@ -1418,41 +1421,34 @@ export default function AdminTournamentDetailPage() {
         }
       }
 
-      setBusy(true);
-      setError(null);
-
-      for (const m of round1) {
+      const fixtures = round1.map((m) => {
         const d = fixturesDraftByMatchId[m.id] ?? { a: "", b: "" };
         const a = (d.a ?? "").trim();
         const b = (d.b ?? "").trim();
+        return { match_id: m.id, team_a_id: a, team_b_id: b ? b : null };
+      });
 
-        const status = b ? "SCHEDULED" : "BYE";
+      const roundNo = firstRound;
 
-        const up = await supabase
-          .from("matches")
-          .update({
-            team_a_id: a,
-            team_b_id: b || null,
-            status,
-            score_a: null,
-            score_b: null,
-            confirmed_by_a: false,
-            confirmed_by_b: false,
-            finalized_by_admin: false,
-            finalized_at: null,
-            admin_final_by: null,
-            admin_final_at: null,
-            submitted_by_player_id: null,
-            submitted_at: null,
-            winner_team_id: null,
-          })
-          .eq("id", m.id);
+      setBusy(true);
+      setError(null);
 
-        if (up.error) {
-          setError(`Could not update match ${m.match_no ?? ""}.\n${up.error.message}`.trim());
+      try {
+        const res = await fetch("/api/tournaments/matches/save-fixtures/batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tournament_id: tournamentId, round_no: roundNo, fixtures }),
+        });
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          setError(json?.error ?? "Could not save fixtures.");
           setBusy(false);
           return;
         }
+      } catch (e: any) {
+        setError(e?.message ?? "Network error.");
+        setBusy(false);
+        return;
       }
 
       setFixturesEditOpen(false);
@@ -1912,30 +1908,52 @@ export default function AdminTournamentDetailPage() {
       }
 
       async function saveOnly() {
-        setBusy(true);
-        setError(null);
+        if (!tournamentId || typeof tournamentId !== "string") return;
 
+        // Local pre-validation so the old error copy is preserved.
+        const entries: { match_id: string; score_a: number | null; score_b: number | null }[] = [];
         for (const m of editable) {
           const d = bulkDraftByMatchId[m.id] ?? { a: "", b: "" };
           const aRaw = (d.a ?? "").trim();
           const bRaw = (d.b ?? "").trim();
-          if (!aRaw || !bRaw) continue; // allow partial saves
+          if (!aRaw || !bRaw) {
+            // Partial saves allowed: skip rows without a full pair.
+            continue;
+          }
 
           const a = Number(aRaw);
           const b = Number(bRaw);
-
           if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) {
             setError("Bulk scoring: scores must be whole numbers >= 0.");
-            setBusy(false);
             return;
           }
+          entries.push({ match_id: m.id, score_a: a, score_b: b });
+        }
 
-          const up = await supabase.from("matches").update({ score_a: a, score_b: b }).eq("id", m.id);
-          if (up.error) {
-            setError(`Could not save score for match ${m.match_no ?? ""}.\n${up.error.message}`.trim());
+        if (!entries.length) {
+          // Nothing to save — early-out without touching busy state.
+          return;
+        }
+
+        setBusy(true);
+        setError(null);
+
+        try {
+          const res = await fetch("/api/tournaments/matches/bulk-save-scores/batch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tournament_id: tournamentId, matches: entries }),
+          });
+          const json = await res.json().catch(() => null);
+          if (!res.ok) {
+            setError(json?.error ?? "Could not save scores.");
             setBusy(false);
             return;
           }
+        } catch (e: any) {
+          setError(e?.message ?? "Network error.");
+          setBusy(false);
+          return;
         }
 
         await load({ preserveScroll: true });
@@ -1943,12 +1961,12 @@ export default function AdminTournamentDetailPage() {
       }
 
       async function finaliseAll() {
+        if (!tournamentId || typeof tournamentId !== "string") return;
+
         const ok = window.confirm(`Finalise all entered scores for ${roundLabel(r)}?\n\nThis will complete each match and set the winner.`);
         if (!ok) return;
 
-        setBusy(true);
-        setError(null);
-
+        const entries: { match_id: string; score_a: number; score_b: number }[] = [];
         for (const m of editable) {
           const d = bulkDraftByMatchId[m.id] ?? { a: "", b: "" };
           const a = Number((d.a ?? "").trim());
@@ -1956,28 +1974,32 @@ export default function AdminTournamentDetailPage() {
 
           if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) {
             setError("Bulk finalise: every match must have valid whole-number scores (>= 0).");
+            return;
+          }
+          entries.push({ match_id: m.id, score_a: a, score_b: b });
+        }
+
+        if (!entries.length) return;
+
+        setBusy(true);
+        setError(null);
+
+        try {
+          const res = await fetch("/api/tournaments/matches/admin-final/batch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tournament_id: tournamentId, matches: entries }),
+          });
+          const json = await res.json().catch(() => null);
+          if (!res.ok) {
+            setError(json?.error ?? "Could not finalise matches.");
             setBusy(false);
             return;
           }
-
-          try {
-            const res = await fetch("/api/tournaments/matches/admin-final", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ match_id: m.id, score_a: a, score_b: b }),
-            });
-
-            const json = await res.json().catch(() => null);
-            if (!res.ok) {
-              setError(json?.error ?? `Could not admin-final match ${m.match_no ?? ""}.`);
-              setBusy(false);
-              return;
-            }
-          } catch (e: any) {
-            setError(e?.message ?? "Network error.");
-            setBusy(false);
-            return;
-          }
+        } catch (e: any) {
+          setError(e?.message ?? "Network error.");
+          setBusy(false);
+          return;
         }
 
         setBulkOpen(false);
