@@ -1,12 +1,259 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-/* Phase 0 stub. Phase 1 replaces this file with the HandiBowls design-system
-   tokens (Henselite-aesthetic speckle palette, 9 theme presets, Tailwind v4
-   @theme blocks, fonts). Intentionally minimal until then. */
+/* HandiBowls design system — Henselite-aesthetic speckle palette.
+   Light mode only (v1, per plan Q12). Nine theme presets via html[data-theme].
+   Base surface/ink + functional colours live in :root (theme-invariant).
+   Preset blocks override only --primary-*, --speckle-*, --on-primary. */
 
-html,
-body {
-  background: #fafaf7;
-  color: #0a0a0a;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+@theme inline {
+  /* Fonts (values injected by next/font loaders in app/layout.tsx) */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-barlow-condensed), "Barlow Condensed", "Oswald",
+    sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-heading: var(--font-display);
+
+  /* Breakpoints — mobile-first per plan */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
+  /* HandiBowls surface & ink tokens */
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-inverse: var(--surface-inverse);
+  --color-bone: var(--bone);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-ink-inverse: var(--ink-inverse);
+
+  /* Theme-driven primary scale */
+  --color-primary-100: var(--primary-100);
+  --color-primary-500: var(--primary-500);
+  --color-primary-600: var(--primary-600);
+  --color-on-primary: var(--on-primary);
+
+  /* Speckle */
+  --color-speckle-a: var(--speckle-a);
+  --color-speckle-b: var(--speckle-b);
+
+  /* Functional */
+  --color-success-500: var(--success-500);
+  --color-warning-500: var(--warning-500);
+  --color-danger-500: var(--danger-500);
+  --color-info-500: var(--info-500);
+
+  /* shadcn semantic tokens — mapped to HandiBowls tokens */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* =========================================================================
+   Base (theme-invariant) + default "core-black" preset.
+   html without data-theme falls back here (platform/auth pages).
+   ========================================================================= */
+:root,
+html[data-theme="core-black"] {
+  /* Surfaces & ink (same across all 9 presets — light chrome for legibility) */
+  --surface: #fafaf7;
+  --surface-muted: #f1f0ec;
+  --surface-inverse: #0a0a0a;
+  --bone: #ffffff;
+  --ink: #0a0a0a;
+  --ink-muted: #4a4a4a;
+  --ink-subtle: #7a7a7a;
+  --ink-inverse: #fafaf7;
+
+  /* Functional (same across all presets) */
+  --success-500: #16a34a;
+  --warning-500: #f59e0b;
+  --danger-500: #dc2626;
+  --info-500: #2563eb;
+
+  /* Core Black preset — platform default */
+  --primary-100: #e6e6e6;
+  --primary-500: #0a0a0a;
+  --primary-600: #000000;
+  --on-primary: #ffffff;
+  --speckle-a: #d7261e;
+  --speckle-b: #fafaf7;
+
+  /* Shared chrome */
+  --radius: 0.625rem;
+  --border: #e5e5e2;
+  --input: #e5e5e2;
+  --ring: var(--primary-500);
+
+  /* shadcn semantic mappings */
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--bone);
+  --card-foreground: var(--ink);
+  --popover: var(--bone);
+  --popover-foreground: var(--ink);
+  --primary: var(--primary-500);
+  --primary-foreground: var(--on-primary);
+  --secondary: var(--surface-muted);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-muted);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--primary-100);
+  --accent-foreground: var(--primary-600);
+  --destructive: var(--danger-500);
+  --destructive-foreground: #ffffff;
+
+  --chart-1: var(--primary-500);
+  --chart-2: var(--speckle-a);
+  --chart-3: var(--info-500);
+  --chart-4: var(--success-500);
+  --chart-5: var(--warning-500);
+
+  --sidebar: var(--surface-inverse);
+  --sidebar-foreground: var(--ink-inverse);
+  --sidebar-primary: var(--primary-500);
+  --sidebar-primary-foreground: var(--on-primary);
+  --sidebar-accent: #1a1a1a;
+  --sidebar-accent-foreground: var(--ink-inverse);
+  --sidebar-border: #1a1a1a;
+  --sidebar-ring: var(--primary-500);
+}
+
+/* =========================================================================
+   Nine bowl-theme presets. Each overrides only primary + speckle + on-primary.
+   Surface/ink/functional stay as base.
+   ========================================================================= */
+
+html[data-theme="atomic-red"] {
+  --primary-100: #fce4e2;
+  --primary-500: #d7261e;
+  --primary-600: #b01a14;
+  --on-primary: #ffffff;
+  --speckle-a: #000000;
+  --speckle-b: #fafaf7;
+}
+
+html[data-theme="ocean-blue"] {
+  --primary-100: #dce5fa;
+  --primary-500: #1e4dd8;
+  --primary-600: #173db0;
+  --on-primary: #ffffff;
+  --speckle-a: #3fb8af;
+  --speckle-b: #fafaf7;
+}
+
+html[data-theme="sunburst"] {
+  --primary-100: #fff4cc;
+  --primary-500: #f5b700;
+  --primary-600: #c08f00;
+  --on-primary: #0a0a0a;
+  --speckle-a: #0a0a0a;
+  --speckle-b: #0e7c7b;
+}
+
+html[data-theme="midnight"] {
+  --primary-100: #d7dceb;
+  --primary-500: #0e1b3d;
+  --primary-600: #050d22;
+  --on-primary: #ffffff;
+  --speckle-a: #d7261e;
+  --speckle-b: #f5b700;
+}
+
+html[data-theme="ruby"] {
+  --primary-100: #f7d6e3;
+  --primary-500: #c2185b;
+  --primary-600: #981145;
+  --on-primary: #ffffff;
+  --speckle-a: #0a0a0a;
+  --speckle-b: #fafaf7;
+}
+
+html[data-theme="ocean-green"] {
+  --primary-100: #cde7e6;
+  --primary-500: #0e7c7b;
+  --primary-600: #0a5a59;
+  --on-primary: #ffffff;
+  --speckle-a: #3fb8af;
+  --speckle-b: #0a0a0a;
+}
+
+html[data-theme="grape"] {
+  --primary-100: #e5d1ef;
+  --primary-500: #6a1b9a;
+  --primary-600: #501476;
+  --on-primary: #ffffff;
+  --speckle-a: #ec407a;
+  --speckle-b: #fafaf7;
+}
+
+html[data-theme="white-speckle"] {
+  --primary-100: #ededed;
+  --primary-500: #f4f4f4;
+  --primary-600: #d9d9d6;
+  --on-primary: #0a0a0a;
+  --speckle-a: #d7261e;
+  --speckle-b: #1e4dd8;
+}
+
+/* =========================================================================
+   Base layer — typography defaults and utility bridges.
+   ========================================================================= */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-tight;
+  }
 }

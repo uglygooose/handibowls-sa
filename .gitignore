@@ -43,3 +43,4 @@ next-env.d.ts
 
 # supabase CLI scratch (produced by `supabase gen types` and friends)
 /supabase/.temp/
+.claude/
