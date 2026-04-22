@@ -3,23 +3,66 @@ import { NextResponse } from "next/server";
 import { createAuthedServerClient } from "@/lib/supabase/server";
 import { completeTournamentIfDone } from "@/lib/tournaments/completeTournamentIfDone";
 
-function asInt(v: any) {
+type ProfileAdminRow = { role?: string | null; is_admin?: boolean | null; club_id?: string | null };
+type TournamentRow = {
+  id?: string | null;
+  status?: string | null;
+  scope?: string | null;
+  club_id?: string | null;
+};
+type MatchRow = {
+  id: string;
+  round_no: number | null;
+  match_no?: number | null;
+  status?: string | null;
+  team_a_id?: string | null;
+  team_b_id?: string | null;
+  winner_team_id?: string | null;
+  finalized_by_admin?: boolean | null;
+};
+type TeamRow = { id: string; team_no: number };
+type AdvanceRoundBody = { tournament_id?: unknown; round_no?: unknown };
+type InsertMatch = {
+  tournament_id: string;
+  round_no: number;
+  match_no: number;
+  team_a_id: string | null;
+  team_b_id: string | null;
+  slot_a_source_type: "TEAM" | "WINNER_OF_MATCH" | null;
+  slot_a_source_match_id: string | null;
+  slot_b_source_type: "TEAM" | "WINNER_OF_MATCH" | null;
+  slot_b_source_match_id: string | null;
+  status: "SCHEDULED" | "OPEN";
+  score_a: null;
+  score_b: null;
+  submitted_by_player_id: null;
+  submitted_at: null;
+  confirmed_by_a: false;
+  confirmed_by_b: false;
+  finalized_by_admin: false;
+  finalized_at: null;
+  admin_final_by: null;
+  admin_final_at: null;
+  winner_team_id: null;
+};
+
+function asInt(v: unknown) {
   const n = typeof v === "number" ? v : Number(v);
   if (!Number.isFinite(n)) return null;
   if (!Number.isInteger(n)) return null;
   return n;
 }
 
-function bool(v: any) {
+function bool(v: unknown) {
   return v === true;
 }
 
-function isMatchBye(m: any) {
+function isMatchBye(m: MatchRow) {
   const st = String(m?.status ?? "");
   return st === "BYE" || !m?.team_b_id;
 }
 
-function isMatchDone(m: any) {
+function isMatchDone(m: MatchRow) {
   const st = String(m?.status ?? "");
   const hasWinner = m?.winner_team_id != null && String(m.winner_team_id) !== "";
   return st === "COMPLETED" || bool(m?.finalized_by_admin) || hasWinner;
@@ -61,24 +104,26 @@ export async function POST(req: Request) {
       );
     }
 
-    const role = String((prof as any)?.role ?? "").toUpperCase();
+    const profRow = (prof ?? null) as ProfileAdminRow | null;
+    const role = String(profRow?.role ?? "").toUpperCase();
     const isSuperAdmin = role === "SUPER_ADMIN";
-    const isAdminFlag = Boolean((prof as any)?.is_admin);
-    const adminClubId = (prof as any)?.club_id ? String((prof as any).club_id) : "";
+    const isAdminFlag = Boolean(profRow?.is_admin);
+    const adminClubId = profRow?.club_id ? String(profRow.club_id) : "";
 
     if (!isSuperAdmin && !isAdminFlag) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
     // 3) Body
-    let body: any = null;
+    let body: AdvanceRoundBody | null = null;
     try {
-      body = await req.json();
+      body = (await req.json()) as AdvanceRoundBody;
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const tournament_id: string | undefined = body?.tournament_id;
+    const tournament_id: string | undefined =
+      typeof body?.tournament_id === "string" ? body.tournament_id : undefined;
     const round_no = asInt(body?.round_no);
 
     if (!tournament_id) return NextResponse.json({ error: "Missing tournament_id" }, { status: 400 });
@@ -93,17 +138,18 @@ export async function POST(req: Request) {
       .eq("id", tournament_id)
       .single();
 
-    if (tErr || !t?.id) {
+    const tRow = (t ?? null) as TournamentRow | null;
+    if (tErr || !tRow?.id) {
       return NextResponse.json({ error: tErr?.message ?? "Tournament not found" }, { status: 404 });
     }
     if (!isSuperAdmin) {
-      const tClub = String((t as any)?.club_id ?? "");
-      const tScope = String((t as any)?.scope ?? "");
+      const tClub = String(tRow.club_id ?? "");
+      const tScope = String(tRow.scope ?? "");
       if (!adminClubId || tScope !== "CLUB" || tClub !== adminClubId) {
         return NextResponse.json({ error: "Club admin access denied" }, { status: 403 });
       }
     }
-    if (String(t.status) === "COMPLETED") {
+    if (String(tRow.status) === "COMPLETED") {
       return NextResponse.json({ error: "Tournament is completed" }, { status: 400 });
     }
 
@@ -131,12 +177,12 @@ export async function POST(req: Request) {
 
     if (mErr) return NextResponse.json({ error: `Could not load matches: ${mErr.message}` }, { status: 400 });
 
-    const roundMatches = ms ?? [];
+    const roundMatches = (ms ?? []) as MatchRow[];
     if (!roundMatches.length) {
       return NextResponse.json({ error: `No matches found in round ${round_no}` }, { status: 400 });
     }
 
-    const notDone = roundMatches.filter((m: any) => !isMatchDone(m) && !isMatchBye(m));
+    const notDone = roundMatches.filter((m: MatchRow) => !isMatchDone(m) && !isMatchBye(m));
     if (notDone.length) {
       return NextResponse.json({ error: `Round ${round_no} has incomplete matches` }, { status: 400 });
     }
@@ -152,7 +198,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Could not load teams: ${teamErr.message}` }, { status: 400 });
     }
 
-    const teamRows = (teams ?? []).map((t: any) => ({
+    const teamRows: TeamRow[] = ((teams ?? []) as Array<{ id: unknown; team_no: unknown }>).map((t) => ({
       id: String(t.id),
       team_no: typeof t.team_no === "number" ? t.team_no : Number(t.team_no ?? 0),
     }));
@@ -165,7 +211,7 @@ export async function POST(req: Request) {
     const playInMatchesExpected = totalTeams - p;
     const isPlayInRound = round_no === 1 && playInMatchesExpected > 0 && roundMatches.length === playInMatchesExpected;
 
-    const inserts: any[] = [];
+    const inserts: InsertMatch[] = [];
     let matchNo = 1;
 
     if (isPlayInRound) {
@@ -256,7 +302,7 @@ export async function POST(req: Request) {
       }
     } else {
       // Winners only (ordered by match_no)
-      const entries = roundMatches.map((m: any) => {
+      const entries = roundMatches.map((m: MatchRow) => {
         const winnerId = m?.winner_team_id
           ? String(m.winner_team_id)
           : isMatchBye(m) && m.team_a_id
@@ -338,7 +384,8 @@ export async function POST(req: Request) {
       matches: created ?? [],
       created_at: nowIso,
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: `Server error: ${err?.message ?? String(err)}` }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Server error: ${message}` }, { status: 500 });
   }
 }
