@@ -40,6 +40,14 @@ import {
   teamMembersLine as libTeamMembersLine,
   winnerLabelForMatch as libWinnerLabelForMatch,
 } from "@/lib/tournaments/teams";
+import {
+  canConfirmScore as canConfirmScoreFn,
+  canSubmitScore as canSubmitScoreFn,
+  isCaptainOfTeam as isCaptainOfTeamFn,
+  myFinishSummary as myFinishSummaryFn,
+  sideForCaptain as sideForCaptainFn,
+  winnerNameFromMatches as winnerNameFromMatchesFn,
+} from "./utils/matchHelpers";
 
 type MatchRow = {
   id: string;
@@ -511,40 +519,16 @@ export default function TournamentRoomPage() {
   const finishPlacementLabel = (roundNo: number | null | undefined) =>
     libFinishPlacementLabel({ totalTeams: teams.length, roundNo });
 
-  function winnerNameFromMatches() {
-    if (!matchesForUi.length) return null;
-    const maxRound =
-      (maxPlayableRound ?? null) ||
-      Math.max(...matchesForUi.map((m) => Number(m.round_no ?? 0)).filter((r) => r > 0));
-    if (!maxRound) return null;
-    const finals = matchesForUi.filter((m) => Number(m.round_no ?? 0) === maxRound && !isMatchBye(m));
-    const finalMatch = finals.find((m) => winnerTeamIdFromMatch(m)) ?? finals[0];
-    if (!finalMatch) return null;
+  const winnerNameFromMatches = () =>
+    winnerNameFromMatchesFn({ matchesForUi, maxPlayableRound, slotLabel });
 
-    const winnerId = winnerTeamIdFromMatch(finalMatch);
-    if (!winnerId) return null;
-
-    return slotLabel(finalMatch, finalMatch.team_a_id && String(finalMatch.team_a_id) === winnerId ? "A" : "B");
-  }
-
-  function myFinishSummary() {
-    if (!myTeam) return null;
-    const done = myMatches.filter((m) => isMatchDone(m));
-    if (!done.length) return null;
-    const sorted = done.slice().sort(
-      (a, b) =>
-        Number(b.round_no ?? 0) - Number(a.round_no ?? 0) ||
-        Number(b.match_no ?? 0) - Number(a.match_no ?? 0)
-    );
-    const last = sorted[0];
-    const winnerId = last ? winnerTeamIdFromMatch(last) : null;
-    if (winnerId && winnerId === myTeam.id) {
-      return { label: "Champion", detail: null as string | null };
-    }
-    const round = roundLabel(last?.round_no ?? null);
-    const place = finishPlacementLabel(last?.round_no ?? null);
-    return { label: `Knocked out: ${round}`, detail: place ? `Finish: ${place}` : null };
-  }
+  const myFinishSummary = () =>
+    myFinishSummaryFn({
+      myTeamId: myTeam?.id ?? null,
+      myMatches,
+      roundLabel,
+      finishPlacementLabel,
+    });
 
 
   const isHandicapTournament = () => tournament?.rule_type !== "SCRATCH";
@@ -651,40 +635,11 @@ export default function TournamentRoomPage() {
     setOpenRounds((prev) => ({ ...prev, [round]: !prev[round] }));
   }
 
-  function isCaptainOfTeam(teamId: string | null) {
-    if (!teamId || !playerId) return false;
-    return captainByTeamId[teamId] === playerId;
-  }
-
-  function sideForCaptain(match: MatchRow) {
-    const isA = isCaptainOfTeam(match.team_a_id);
-    const isB = isCaptainOfTeam(match.team_b_id);
-    if (isA) return "A";
-    if (isB) return "B";
-    return null;
-  }
-
-  function canSubmitScore(match: MatchRow) {
-    if (String(match.status ?? "") !== "IN_PLAY") return false;
-    if (bool(match.finalized_by_admin)) return false;
-    return sideForCaptain(match) != null;
-  }
-
-  function canConfirmScore(match: MatchRow) {
-    if (bool(match.finalized_by_admin)) return false;
-    if (match.score_a == null || match.score_b == null) return false;
-    if (!match.submitted_by_player_id) return false;
-
-    const mySide = sideForCaptain(match);
-    if (!mySide) return false;
-
-    // Submitting captain auto-confirmed their own side; only the other side should confirm.
-    if (match.submitted_by_player_id === playerId) return false;
-
-    if (mySide === "A") return !bool(match.confirmed_by_a);
-    if (mySide === "B") return !bool(match.confirmed_by_b);
-    return false;
-  }
+  const captainCtx = { playerId, captainByTeamId };
+  const isCaptainOfTeam = (teamId: string | null) => isCaptainOfTeamFn(teamId, captainCtx);
+  const sideForCaptain = (match: MatchRow) => sideForCaptainFn(match, captainCtx);
+  const canSubmitScore = (match: MatchRow) => canSubmitScoreFn(match, captainCtx);
+  const canConfirmScore = (match: MatchRow) => canConfirmScoreFn(match, captainCtx);
 
   async function submitScore(matchId: string) {
     if (!matchId) return;
