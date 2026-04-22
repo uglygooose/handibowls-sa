@@ -3,13 +3,20 @@
 import { theme } from "@/lib/theme";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  cleanTournamentName,
+  formatLabel,
+  genderLabel,
+  ruleLabel,
+  scopeLabel,
+  statusLabel,
+  type TournamentFormat,
+  type TournamentGender,
+  type TournamentRule,
+  type TournamentScope,
+  type TournamentStatus,
+} from "@/lib/tournaments/labels";
 import BottomNav from "../../components/BottomNav";
-
-type TournamentScope = "CLUB" | "DISTRICT" | "NATIONAL";
-type TournamentStatus = "ANNOUNCED" | "IN_PLAY" | "COMPLETED";
-type TournamentFormat = "SINGLES" | "DOUBLES" | "TRIPLES" | "FOUR_BALL";
-type TournamentGender = "MALE" | "FEMALE";
-type TournamentRule = "SCRATCH" | "HANDICAP_START";
 
 type TournamentRow = {
   id: string;
@@ -29,38 +36,6 @@ type TournamentRow = {
 };
 
 type AdminTab = "HOME" | "ISSUES";
-function scopeLabel(scope: TournamentScope) {
-  if (scope === "CLUB") return "Club";
-  if (scope === "DISTRICT") return "District";
-  return "National";
-}
-
-function statusLabel(status: TournamentStatus) {
-  if (status === "ANNOUNCED") return "Upcoming";
-  if (status === "IN_PLAY") return "In-play";
-  return "Past";
-}
-
-function formatLabel(fmt: TournamentFormat) {
-  if (fmt === "FOUR_BALL") return "4 Balls";
-  return fmt.charAt(0) + fmt.slice(1).toLowerCase();
-}
-
-function cleanTournamentName(name: string) {
-  const raw = (name ?? "").toString();
-  return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
-}
-
-function genderLabel(g: TournamentGender | null | undefined) {
-  if (g === "MALE") return "Men";
-  if (g === "FEMALE") return "Ladies";
-  return "Open";
-}
-
-function ruleLabel(rule: TournamentRule | null | undefined) {
-  if (rule === "SCRATCH") return "Scratch (no handicap)";
-  return "Handicap start";
-}
 
 export default function AdminTournamentsPage() {
   const supabase = createClient();
