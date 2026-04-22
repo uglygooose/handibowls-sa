@@ -1,6 +1,19 @@
 import { NextResponse } from "next/server";
 import { createAuthedServerClient } from "@/lib/supabase/server";
 
+type SubmitResultBody = {
+  match_id?: unknown;
+  challenger_score?: unknown;
+  challenged_score?: unknown;
+};
+type MatchRow = {
+  id: string;
+  status?: string | null;
+  challenger_player_id: string;
+  challenged_player_id: string;
+  submitted_by_player_id?: string | null;
+};
+
 export async function POST(req: Request) {
   try {
     // 1) Auth
@@ -10,14 +23,15 @@ export async function POST(req: Request) {
     }
 
     // 2) Parse JSON
-    let body: any = null;
+    let body: SubmitResultBody | null = null;
     try {
-      body = await req.json();
+      body = (await req.json()) as SubmitResultBody;
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const match_id: string | undefined = body?.match_id;
+    const match_id: string | undefined =
+      typeof body?.match_id === "string" ? body.match_id : undefined;
 
     // Parse scores into guaranteed numbers (or NaN)
     const challenger_score_num = Number(body?.challenger_score);
@@ -65,17 +79,19 @@ export async function POST(req: Request) {
       .eq("id", match_id)
       .single();
 
-    if (mErr || !match) {
+    const matchRow = (match ?? null) as MatchRow | null;
+    if (mErr || !matchRow) {
       return NextResponse.json({ error: "Match not found" }, { status: 404 });
     }
 
-    if (match.status === "FINAL") {
+    if (matchRow.status === "FINAL") {
       return NextResponse.json({ error: "Match already finalised" }, { status: 400 });
     }
 
     // 5) Permission: only participants may submit
+    const mePlayerId = String((mePlayer as { id: string }).id);
     const isParticipant =
-      mePlayer.id === match.challenger_player_id || mePlayer.id === match.challenged_player_id;
+      mePlayerId === matchRow.challenger_player_id || mePlayerId === matchRow.challenged_player_id;
 
     if (!isParticipant) {
       return NextResponse.json(
@@ -86,9 +102,9 @@ export async function POST(req: Request) {
 
     // Prevent overwriting someone else's submitted result
     if (
-      match.status === "RESULT_SUBMITTED" &&
-      match.submitted_by_player_id &&
-      match.submitted_by_player_id !== mePlayer.id
+      matchRow.status === "RESULT_SUBMITTED" &&
+      matchRow.submitted_by_player_id &&
+      matchRow.submitted_by_player_id !== mePlayerId
     ) {
       return NextResponse.json(
         { error: "Opponent already submitted. You must confirm (or admin must finalise)." },
@@ -102,7 +118,7 @@ export async function POST(req: Request) {
       .update({
         challenger_score: challenger_score_num,
         challenged_score: challenged_score_num,
-        submitted_by_player_id: mePlayer.id,
+        submitted_by_player_id: mePlayerId,
         submitted_at: new Date().toISOString(),
         status: "RESULT_SUBMITTED",
       })
@@ -115,7 +131,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, match: updated });
-  } catch (err: any) {
-    return NextResponse.json({ error: `Server error: ${err.message}` }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Server error: ${message}` }, { status: 500 });
   }
 }
