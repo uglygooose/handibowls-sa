@@ -361,11 +361,6 @@ export default function MyChallengesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // reset filter to ALL when switching tabs (so you see the total by default)
-  useEffect(() => {
-    setTypeFilter(null);
-  }, [tab]);
-
   // -------------------- Base derived lists (NOT type-filtered) --------------------
   const now = Date.now();
 

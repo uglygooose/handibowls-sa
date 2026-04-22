@@ -1,15 +1,5 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
-
-type CookieOptions = Partial<{
-  path: string;
-  domain: string;
-  maxAge: number;
-  expires: Date;
-  httpOnly: boolean;
-  secure: boolean;
-  sameSite: "strict" | "lax" | "none";
-}>;
 
 export async function createAuthedServerClient() {
   const cookieStore = await cookies();
@@ -19,14 +9,18 @@ export async function createAuthedServerClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+        getAll() {
+          return cookieStore.getAll();
         },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.delete({ name, ...options });
+        setAll(cookiesToSet) {
+          for (const { name, value, options } of cookiesToSet) {
+            try {
+              cookieStore.set(name, value, options as CookieOptions);
+            } catch {
+              // In server components we may be called in a read-only context.
+              // Swallow intentionally — middleware will refresh the session.
+            }
+          }
         },
       },
     }

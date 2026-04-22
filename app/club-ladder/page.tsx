@@ -306,7 +306,6 @@ export default function ClubLadderPage() {
     const hasGender = resolvedGender === "MALE" || resolvedGender === "FEMALE";
     if (!filtersFromStorageRef.current) {
       setScope("CLUB");
-      setViewType("RANKED");
       setFormatFilter("SINGLES");
       if (hasGender) setGenderFilter(resolvedGender as GenderFilter);
     }
