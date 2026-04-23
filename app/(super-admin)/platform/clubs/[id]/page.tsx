@@ -9,12 +9,8 @@ import { requireRole } from "@/lib/auth/role";
 
 import { AdminsTab } from "./_components/AdminsTab";
 import { AuditTab } from "./_components/AuditTab";
-import {
-  ClubTabs,
-  isClubTab,
-  TabPanel,
-  type ClubTab,
-} from "./_components/ClubTabs";
+import { ClubTabs, TabPanel } from "./_components/ClubTabs";
+import { isClubTab, type ClubTab } from "./_components/club-tabs-types";
 import { GreensTab } from "./_components/GreensTab";
 import { MembersTab } from "./_components/MembersTab";
 import { OverviewTab } from "./_components/OverviewTab";

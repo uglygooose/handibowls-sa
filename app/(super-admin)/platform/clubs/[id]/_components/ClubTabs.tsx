@@ -6,31 +6,11 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-export const CLUB_TABS = [
-  "overview",
-  "admins",
-  "greens",
-  "members",
-  "tournaments",
-  "theme",
-  "audit",
-] as const;
-
-export type ClubTab = (typeof CLUB_TABS)[number];
-
-export function isClubTab(v: string | null | undefined): v is ClubTab {
-  return !!v && (CLUB_TABS as readonly string[]).includes(v);
-}
-
-const LABELS: Record<ClubTab, string> = {
-  overview: "Overview",
-  admins: "Admins",
-  greens: "Greens",
-  members: "Members",
-  tournaments: "Tournaments",
-  theme: "Theme",
-  audit: "Audit",
-};
+import {
+  CLUB_TABS,
+  CLUB_TAB_LABELS,
+  type ClubTab,
+} from "./club-tabs-types";
 
 // ?tab= URL-driven tabstrip. Each tab is a plain <Link>, so tab state survives
 // reloads, shares cleanly, and doesn't require client routing logic beyond
@@ -64,7 +44,7 @@ export function ClubTabs({ active }: { active: ClubTab }) {
                     : "border-transparent text-ink-muted hover:text-foreground",
                 )}
               >
-                {LABELS[tab]}
+                {CLUB_TAB_LABELS[tab]}
               </Link>
             </li>
           );
@@ -85,7 +65,7 @@ export function TabPanel({
 }) {
   if (tab !== active) return null;
   return (
-    <div role="tabpanel" aria-label={LABELS[tab]} className="px-6 py-6">
+    <div role="tabpanel" aria-label={CLUB_TAB_LABELS[tab]} className="px-6 py-6">
       {children}
     </div>
   );
