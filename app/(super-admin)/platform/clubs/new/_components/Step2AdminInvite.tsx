@@ -12,10 +12,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-import type { WizardFormValues } from "../_schema";
+import type { WizardFormInput, WizardFormValues } from "../_schema";
 
 export function Step2AdminInvite() {
-  const form = useFormContext<WizardFormValues>();
+  const form = useFormContext<WizardFormInput, unknown, WizardFormValues>();
 
   return (
     <div data-testid="step-2-admin-invite" className="flex flex-col gap-4">

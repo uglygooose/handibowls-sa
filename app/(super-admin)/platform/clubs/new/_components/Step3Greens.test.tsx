@@ -2,11 +2,15 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it } from "vitest";
 
-import { WIZARD_DEFAULTS, type WizardFormValues } from "../_schema";
+import {
+  WIZARD_DEFAULTS,
+  type WizardFormInput,
+  type WizardFormValues,
+} from "../_schema";
 import { Step3Greens } from "./Step3Greens";
 
-function Harness({ initial }: { initial?: Partial<WizardFormValues> }) {
-  const form = useForm<WizardFormValues>({
+function Harness({ initial }: { initial?: Partial<WizardFormInput> }) {
+  const form = useForm<WizardFormInput, unknown, WizardFormValues>({
     defaultValues: { ...WIZARD_DEFAULTS, ...initial },
     mode: "onChange",
   });

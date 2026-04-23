@@ -11,7 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-import { playerSchema, type PlayerInput, type WizardFormValues } from "../_schema";
+import {
+  playerSchema,
+  type PlayerInput,
+  type WizardFormInput,
+  type WizardFormValues,
+} from "../_schema";
 
 const MAX_PLAYERS = 50;
 
@@ -47,7 +52,7 @@ function parseCsv(text: string): CsvRow[] {
 }
 
 export function Step4Players() {
-  const form = useFormContext<WizardFormValues>();
+  const form = useFormContext<WizardFormInput, unknown, WizardFormValues>();
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "players.players",

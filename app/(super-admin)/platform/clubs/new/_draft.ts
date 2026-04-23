@@ -6,23 +6,23 @@
 // pinned open for weeks can otherwise hold a stale draft indefinitely.
 // Expired drafts are silently discarded on read.
 
-import type { WizardFormValues } from "./_schema";
+import type { WizardFormInput } from "./_schema";
 
 export const WIZARD_DRAFT_KEY = "handibowls:new-club-wizard-draft";
 
 const DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 type StoredDraft = {
-  values: WizardFormValues;
+  values: WizardFormInput;
   expiresAt: number;
 };
 
-export function readDraft(): WizardFormValues | null {
+export function readDraft(): WizardFormInput | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.sessionStorage.getItem(WIZARD_DRAFT_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredDraft | WizardFormValues;
+    const parsed = JSON.parse(raw) as StoredDraft | WizardFormInput;
     if (
       typeof parsed === "object" &&
       parsed !== null &&
@@ -36,13 +36,13 @@ export function readDraft(): WizardFormValues | null {
       return parsed.values;
     }
     // Legacy payloads (pre-TTL) — accept once, then rewrite on next save.
-    return parsed as WizardFormValues;
+    return parsed as WizardFormInput;
   } catch {
     return null;
   }
 }
 
-export function writeDraft(values: WizardFormValues): void {
+export function writeDraft(values: WizardFormInput): void {
   if (typeof window === "undefined") return;
   try {
     const payload: StoredDraft = {

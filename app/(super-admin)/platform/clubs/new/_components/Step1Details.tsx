@@ -30,7 +30,7 @@ import { PRESET_BY_ID } from "@/lib/brand/presets";
 import { cn } from "@/lib/utils";
 
 import type { DistrictRow } from "../../_data";
-import { slugify, type WizardFormValues } from "../_schema";
+import { slugify, type WizardFormInput, type WizardFormValues } from "../_schema";
 
 type Props = {
   districts: DistrictRow[];
@@ -42,7 +42,7 @@ const LOGO_MAX_BYTES = 2 * 1024 * 1024;
 const LOGO_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
 
 export function Step1Details({ districts, logoFile, onLogoChange }: Props) {
-  const form = useFormContext<WizardFormValues>();
+  const form = useFormContext<WizardFormInput, unknown, WizardFormValues>();
   const [slugTouched, setSlugTouched] = useState<boolean>(() =>
     Boolean(form.getValues("details.slug")),
   );

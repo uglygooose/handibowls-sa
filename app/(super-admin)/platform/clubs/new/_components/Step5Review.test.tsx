@@ -3,7 +3,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
 
 import type { DistrictRow } from "../../_data";
-import { type WizardFormValues } from "../_schema";
+import { type WizardFormInput, type WizardFormValues } from "../_schema";
 import { Step5Review } from "./Step5Review";
 
 const DISTRICTS: DistrictRow[] = [
@@ -42,7 +42,9 @@ type HarnessProps = {
 };
 
 function Harness({ onJumpTo = vi.fn(), publishError = null }: HarnessProps) {
-  const form = useForm<WizardFormValues>({ defaultValues: FILLED });
+  const form = useForm<WizardFormInput, unknown, WizardFormValues>({
+    defaultValues: FILLED,
+  });
   return (
     <FormProvider {...form}>
       <Step5Review

@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { PRESET_BY_ID } from "@/lib/brand/presets";
 
 import type { DistrictRow } from "../../_data";
-import { isThemePreset, type WizardFormValues } from "../_schema";
+import {
+  isThemePreset,
+  type WizardFormInput,
+  type WizardFormValues,
+} from "../_schema";
 
 type Props = {
   districts: DistrictRow[];
@@ -70,7 +74,7 @@ function field(label: string, value: string | number | null | undefined) {
 }
 
 export function Step5Review({ districts, logoFile, publishError, onJumpTo }: Props) {
-  const form = useFormContext<WizardFormValues>();
+  const form = useFormContext<WizardFormInput, unknown, WizardFormValues>();
   const values = form.getValues();
 
   const district = districts.find((d) => d.id === values.details.district_id);
@@ -132,15 +136,24 @@ export function Step5Review({ districts, logoFile, publishError, onJumpTo }: Pro
 
       <SummaryCard step={3} title="Greens & rinks" onJumpTo={onJumpTo}>
         <ul className="flex flex-col gap-1">
-          {values.greens.greens.map((g, i) => (
-            <li key={i} className="flex gap-3">
-              <span className="font-mono text-xs text-ink-muted">#{i + 1}</span>
-              <span className="flex-1">{g.name || <em>(unnamed)</em>}</span>
-              <span className="tabular-nums text-ink-muted">
-                {g.rink_count} rink{g.rink_count === 1 ? "" : "s"}
-              </span>
-            </li>
-          ))}
+          {values.greens.greens.map((g, i) => {
+            // rink_count comes from `z.coerce.number()` whose Input type is
+            // `unknown`. At runtime it's always the number the user typed (or
+            // a string mid-edit). Narrow for render without a cast.
+            const rinks =
+              typeof g.rink_count === "number"
+                ? g.rink_count
+                : Number(g.rink_count);
+            return (
+              <li key={i} className="flex gap-3">
+                <span className="font-mono text-xs text-ink-muted">#{i + 1}</span>
+                <span className="flex-1">{g.name || <em>(unnamed)</em>}</span>
+                <span className="tabular-nums text-ink-muted">
+                  {rinks} rink{rinks === 1 ? "" : "s"}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </SummaryCard>
 

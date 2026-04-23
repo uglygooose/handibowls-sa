@@ -95,8 +95,13 @@ export const wizardSchema = z.object({
 });
 
 export type WizardFormValues = z.infer<typeof wizardSchema>;
+// `@hookform/resolvers@^5` correctly types the resolver as
+// `Resolver<z.input<T>, Context, z.output<T>>`. Form state is the Input type
+// (pre-coercion, pre-default-fill); validated data from handleSubmit /
+// explicit `wizardSchema.parse()` is the Output type.
+export type WizardFormInput = z.input<typeof wizardSchema>;
 
-export const WIZARD_DEFAULTS: WizardFormValues = {
+export const WIZARD_DEFAULTS: WizardFormInput = {
   details: {
     name: "",
     short_name: "",

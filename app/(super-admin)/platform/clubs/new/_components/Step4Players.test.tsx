@@ -2,10 +2,14 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it } from "vitest";
 
-import { WIZARD_DEFAULTS, type WizardFormValues } from "../_schema";
+import {
+  WIZARD_DEFAULTS,
+  type WizardFormInput,
+  type WizardFormValues,
+} from "../_schema";
 import { Step4Players } from "./Step4Players";
 
-function Harness({ initial }: { initial?: Partial<WizardFormValues> }) {
+function Harness({ initial }: { initial?: Partial<WizardFormInput> }) {
   const merged = {
     ...WIZARD_DEFAULTS,
     ...initial,
@@ -14,7 +18,7 @@ function Harness({ initial }: { initial?: Partial<WizardFormValues> }) {
       ...(initial?.adminInvite ?? {}),
     },
   };
-  const form = useForm<WizardFormValues>({
+  const form = useForm<WizardFormInput, unknown, WizardFormValues>({
     defaultValues: merged,
     mode: "onChange",
   });

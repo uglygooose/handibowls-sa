@@ -13,12 +13,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-import type { WizardFormValues } from "../_schema";
+import type { WizardFormInput, WizardFormValues } from "../_schema";
 
 const MAX_GREENS = 10;
 
 export function Step3Greens() {
-  const form = useFormContext<WizardFormValues>();
+  const form = useFormContext<WizardFormInput, unknown, WizardFormValues>();
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "greens.greens",
@@ -88,9 +88,10 @@ export function Step3Greens() {
                         )
                       }
                       value={
-                        rinkField.value === undefined || rinkField.value === null
-                          ? ""
-                          : rinkField.value
+                        typeof rinkField.value === "number" ||
+                        typeof rinkField.value === "string"
+                          ? rinkField.value
+                          : ""
                       }
                     />
                   </FormControl>

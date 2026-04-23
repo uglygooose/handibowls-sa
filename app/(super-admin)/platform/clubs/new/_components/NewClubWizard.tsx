@@ -33,6 +33,7 @@ import {
   STEP_TRIGGERS,
   WIZARD_DEFAULTS,
   wizardSchema,
+  type WizardFormInput,
   type WizardFormValues,
 } from "../_schema";
 import { Step1Details } from "./Step1Details";
@@ -59,7 +60,10 @@ export function NewClubWizard({ districts }: Props) {
   const searchParams = useSearchParams();
   const urlStep = clampStep(searchParams.get("step"));
 
-  const form = useForm<WizardFormValues>({
+  // Three generics: TFieldValues = Input (pre-coerce/default), TContext, and
+  // TTransformedValues = Output (what handleSubmit / explicit parse yields).
+  // Resolver v5 correctly types these as distinct; see _schema.ts.
+  const form = useForm<WizardFormInput, unknown, WizardFormValues>({
     resolver: zodResolver(wizardSchema),
     defaultValues: WIZARD_DEFAULTS,
     mode: "onChange",
@@ -85,7 +89,7 @@ export function NewClubWizard({ districts }: Props) {
   const [draftState, setDraftState] = useState<
     "pending" | "prompt" | "none" | "resumed"
   >("pending");
-  const [draftSnapshot, setDraftSnapshot] = useState<WizardFormValues | null>(
+  const [draftSnapshot, setDraftSnapshot] = useState<WizardFormInput | null>(
     null,
   );
   const debounceRef = useRef<number | null>(null);
@@ -122,7 +126,7 @@ export function NewClubWizard({ districts }: Props) {
         window.clearTimeout(debounceRef.current);
       }
       debounceRef.current = window.setTimeout(() => {
-        writeDraft(values as WizardFormValues);
+        writeDraft(values as WizardFormInput);
       }, 500);
     });
     return () => {
@@ -189,7 +193,16 @@ export function NewClubWizard({ districts }: Props) {
       toast.error("Fix the highlighted fields to continue.");
       return;
     }
-    const values = form.getValues();
+    // `form.getValues()` returns the Input type (pre-coerce). Parse once via
+    // the schema to get Output-typed data (rink_count: number, required
+    // strings). `safeParse` is defensive — `trigger()` just ran, so this
+    // should always succeed.
+    const parsed = wizardSchema.safeParse(form.getValues());
+    if (!parsed.success) {
+      toast.error("Fix the highlighted fields to continue.");
+      return;
+    }
+    const values = parsed.data;
     if (!isThemePreset(values.details.theme_preset)) {
       setPublishError("Pick a theme preset on Step 1 before publishing.");
       return;

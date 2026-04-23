@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DistrictRow } from "../../_data";
 import { WIZARD_DRAFT_KEY } from "../_draft";
-import { WIZARD_DEFAULTS, type WizardFormValues } from "../_schema";
+import { WIZARD_DEFAULTS, type WizardFormInput } from "../_schema";
 
 const push = vi.fn();
 const replace = vi.fn();
@@ -39,7 +39,7 @@ const DISTRICTS: DistrictRow[] = [
   { id: "11111111-1111-4111-8111-111111111111", name: "Gauteng North" },
 ];
 
-const DRAFT: WizardFormValues = {
+const DRAFT: WizardFormInput = {
   ...WIZARD_DEFAULTS,
   details: {
     ...WIZARD_DEFAULTS.details,
