@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PRESET_BY_ID } from "@/lib/brand/presets";
 import { cn } from "@/lib/utils";
 
 import type { DistrictRow } from "../../_data";
@@ -350,7 +351,7 @@ export function Step1Details({ districts, logoFile, onLogoChange }: Props) {
                         >
                           <BowlChip preset={preset} size={40} selected={isSelected} />
                           <span className="text-xs font-medium leading-tight">
-                            {preset.replace(/-/g, " ")}
+                            {PRESET_BY_ID[preset].label}
                           </span>
                           {isSelected && (
                             <Badge variant="outline" className="text-[10px]">
