@@ -11,6 +11,7 @@
     "test": "vitest run --fileParallelism=false --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",
     "test:integration": "vitest run -c vitest.rls.config.ts --passWithNoTests",
+    "test:e2e": "playwright test",
     "types:gen": "npx supabase gen types typescript --project-id crahegkboinnhffabkxc > types/database.types.ts",
     "types:gen:local": "npx supabase gen types typescript --local > types/database.types.ts",
     "clean:mojibake": "node scripts/ascii-clean.mjs",
@@ -45,6 +46,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",

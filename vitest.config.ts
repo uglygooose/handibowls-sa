@@ -16,7 +16,7 @@ export default defineConfig({
       "app/**/*.test.{ts,tsx}",
       "tests/**/*.test.{ts,tsx}",
     ],
-    exclude: ["tests/rls/**", "tests/rpc/**"],
+    exclude: ["tests/rls/**", "tests/rpc/**", "e2e/**"],
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
     globals: true,
