@@ -34,6 +34,7 @@
 
 1. Ground rules & context
 2. Research baseline (visual + BSA + T20)
+   - 2.3.1 T20 v2 rubric (district/national pathway variant)
 3. Phase 0 — Fresh project setup & pre-rebuild teardown
 4. Phase 1 — HandiBowls design system (Henselite-aesthetic, splatter/speckle)
 5. Phase 2 — Database schema & RLS (fresh Supabase)
@@ -159,6 +160,30 @@ Derived from the user-supplied Henselite product image and `henselite.com` produ
 7. **Assessor.** BSA-accredited coach, **Level 2 preferred**. Level 1 may assist but not sign off.
 8. **Second marker.** Best practice, not strictly required.
 9. **Reassessment.** Annual or on progression (district/national pathway).
+
+### 2.3.1 — T20 v2 rubric (district/national pathway variant)
+
+**Status.** Authored alongside v1-final in Phase 10; **not activated by default**. Activation per-club by super-admin after BSA Level 2 coach validation.
+
+**Rationale.** v1-final tracks the official BSA T20. v2 adds finer granularity so the same digital system can differentiate elite district/provincial players without changing the physical test. v2 is a HandiBowls-authored variant — it is not "BSA T20". Positioning: standardised national digital assessment system with automated grading and player history tracking, built on top of the BSA rubric.
+
+**Additions over v1:**
+
+1. **A-zone precision split.** The A-grade (Front-Centre) zone splits into:
+   - `A+` — bowl touches the jack or finishes inside an inner radius.
+   - `A` — bowl finishes within the standard A-zone radius.
+2. **Optional distance-bucket capture.** After the zone tap, the assessor records proximity-to-jack in three buckets:
+   - `<10cm`
+   - `10–30cm`
+   - `30cm+`
+   Nullable on v1 assessments; required on v2 assessments.
+3. **UX rule — depth after the tap.** Primary interaction stays "tap where it finished". Distance bucket is a secondary sheet after wedge tap on A+/A (or any zone in "full distance capture" mode). Two taps per v2 delivery; under 3 seconds.
+4. **Grading re-calibration gated by coach sign-off.** v2 grade bands must be re-weighted by a named BSA Level 2 coach at activation time. Capture coach name + accreditation number on the rubric row. v1's 50/65/80 bands do not carry across unchanged. Do not guess weighting at build time.
+
+**Not in v2:**
+- Exact millimetre measurement. This is not a measuring app.
+- Retroactive re-grading of v1 assessments. Historical assessments remain immutably linked to v1.
+- Automatic rollout. Each club opts into v2 explicitly.
 
 ### 2.4 Competitor feature baseline
 
@@ -742,6 +767,8 @@ grep -riE "henselite|choice of champions" app components   # zero hits
 
 **Steps.**
 
+0. **Migration `016_t20_distance_bucket.sql`** — adds nullable `distance_bucket text` column to `t20_deliveries`, CHECK-constrained to `('<10cm','10-30cm','30cm+')` or null. Backwards-compatible with v1. Regenerate types.
+
 1. **Rubric v1-final JSON (seeded migration 013):**
    ```json
    {
@@ -799,7 +826,17 @@ grep -riE "henselite|choice of champions" app components   # zero hits
 
 5. **Platform `/platform/rubrics`** — super-admin uploads new rubric versions (validated JSON); activates one at a time; historical assessments immutably linked to their version.
 
-6. **Tests.**
+6. **T20 v2 rubric authoring (seeded, not activated).**
+   - Seed `t20_rubric_versions` with `version = 'v2-draft-2026'`, `is_active = false`, rubric JSON implementing the A+/A split with placeholder weights flagged `pending_coach_signoff: true`.
+   - `/platform/rubrics` gains an "Activate" action:
+     a. Super-admin only.
+     b. Requires BSA Level 2 coach accreditation number + coach name at activation.
+     c. Stores both on the rubric version row before flipping `is_active`.
+     d. Writes an audit row.
+   - v2 capture UI extends `<CompassPicker />` with a secondary distance-bucket sheet, shown only when the active rubric version's JSON includes `distanceBucket: { required: true }`.
+   - `<CompassPicker />` API stays stable; distance sheet is a config-toggled child component.
+
+7. **Tests.**
    - Unit: scoring calculator per section model (`line_outcome`, `zones_8`, `on_length`).
    - Unit: grading mapper edge cases (79% Silver, 80% Gold, 49% Fail).
    - Integration: capture a full assessment → stored rows → correct grade.
@@ -810,6 +847,10 @@ grep -riE "henselite|choice of champions" app components   # zero hits
 - Grade calculated correctly against the locked rubric.
 - PDF export matches the physical sheet layout (portrait, zones legend, compass diagram).
 - Historical assessments retain their rubric version.
+- v2 rubric seeded, not activated. Activation flow requires coach accreditation capture.
+- `distance_bucket` column present, nullable, CHECK-constrained.
+- v1 assessments unchanged and still gradeable.
+- Positioning copy uses "standardised national digital assessment system" language, not "simplified scoring tool".
 
 **Stop & report.** Capture flow screenshots + sample PDF + unit test coverage on scoring. Await approval.
 
