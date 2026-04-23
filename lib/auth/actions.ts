@@ -89,6 +89,8 @@ export async function signInWithMagicLinkAction(
   return { ok: true };
 }
 
+export type InviteLookupReason = "missing" | "not-found" | "used" | "expired";
+
 export type InviteLookup =
   | {
       ok: true;
@@ -96,25 +98,29 @@ export type InviteLookup =
       role: UserRole;
       clubId: string;
       clubName: string;
+      clubThemePreset: string | null;
     }
-  | { ok: false; error: string };
+  | { ok: false; error: string; reason: InviteLookupReason };
 
 // Server-side invite lookup. Uses service-role to read the invite row (anon
-// RLS doesn't allow reading invites). Returns only safe fields.
+// RLS doesn't allow reading invites). Returns only safe fields + a machine
+// reason so the UI can pick the right illustration.
 export async function lookupInvite(token: string): Promise<InviteLookup> {
-  if (!token) return { ok: false, error: "Missing invite token." };
+  if (!token) return { ok: false, error: "Missing invite token.", reason: "missing" };
 
   const admin = createServiceClient();
   const { data, error } = await admin
     .from("invites")
-    .select("email, role, club_id, status, expires_at, clubs(name)")
+    .select("email, role, club_id, status, expires_at, clubs(name, theme_preset)")
     .eq("token", token)
     .maybeSingle();
 
-  if (error || !data) return { ok: false, error: "Invite not found." };
-  if (data.status !== "pending") return { ok: false, error: "Invite has already been used or revoked." };
+  if (error || !data) return { ok: false, error: "Invite not found.", reason: "not-found" };
+  if (data.status !== "pending") {
+    return { ok: false, error: "Invite has already been used or revoked.", reason: "used" };
+  }
   if (new Date(data.expires_at).getTime() < Date.now()) {
-    return { ok: false, error: "Invite has expired." };
+    return { ok: false, error: "Invite has expired.", reason: "expired" };
   }
   return {
     ok: true,
@@ -122,6 +128,7 @@ export async function lookupInvite(token: string): Promise<InviteLookup> {
     role: data.role,
     clubId: data.club_id,
     clubName: data.clubs?.name ?? "Your club",
+    clubThemePreset: (data.clubs?.theme_preset as string | null) ?? null,
   };
 }
 
