@@ -1388,6 +1388,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_club_with_dependencies: {
+        Args: {
+          p_admin_email: string
+          p_city: string
+          p_contact_email: string
+          p_contact_phone: string
+          p_district_id: string
+          p_greens: Json
+          p_logo_path: string
+          p_name: string
+          p_player_emails: string[]
+          p_short_name: string
+          p_slug: string
+          p_theme_preset: Database["public"]["Enums"]["club_theme_preset"]
+        }
+        Returns: string
+      }
       current_club_ids: { Args: never; Returns: string[] }
       current_role: {
         Args: never
