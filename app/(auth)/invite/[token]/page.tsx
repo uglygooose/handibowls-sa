@@ -73,11 +73,11 @@ const REASON_COPY: Record<
   },
 };
 
-function InviteBackground() {
+function InviteBackground({ preset }: { preset: ThemePreset }) {
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       <div className="absolute -top-20 -right-20 opacity-40">
-        <SplatterAccent preset="atomic-red" variant={0} size={460} rotate={-10} />
+        <SplatterAccent preset={preset} variant={0} size={460} rotate={-10} />
       </div>
       <div className="absolute -bottom-16 -left-10 opacity-35">
         <SplatterAccent preset="sunburst" variant={2} size={360} rotate={14} />
@@ -102,7 +102,7 @@ export default async function InvitePage({
 
     return (
       <div data-theme="core-black" className="relative min-h-dvh bg-surface">
-        <InviteBackground />
+        <InviteBackground preset="core-black" />
         <div className="relative z-[1] mx-auto flex min-h-dvh max-w-[720px] flex-col px-5 py-8 md:px-12 md:py-8">
           <header className="mb-10 flex items-center justify-between md:mb-12">
             <AuthWordmark />
@@ -148,7 +148,7 @@ export default async function InvitePage({
 
   return (
     <div data-theme={preset} className="relative min-h-dvh bg-surface">
-      <InviteBackground />
+      <InviteBackground preset={preset} />
       <div className="relative z-[1] mx-auto flex min-h-dvh max-w-[720px] flex-col px-5 py-8 md:px-12 md:py-8">
         <header className="mb-10 flex items-center justify-between md:mb-12">
           <AuthWordmark tag={`Invite · ${invite.clubName}`} />
