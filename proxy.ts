@@ -33,20 +33,17 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  // getUser() refreshes + validates the session cookie; getSession() afterwards
-  // is a cheap read of the validated token. Role lives in the JWT's
-  // app_metadata claim (hook-injected) — not in user.app_metadata which only
-  // mirrors raw_app_meta_data. See lib/auth/jwt.ts.
+  // Routing-hint only: read the session from the cookie and decode the role
+  // claim locally. Authoritative authorization happens downstream —
+  // `requireRole` in RSC layouts calls `getUser()` (serialized per page
+  // render), and RLS policies gate every data read. Calling `getUser()` here
+  // caused AuthRetryableFetchError storms under Next.js RSC prefetch bursts
+  // (10+ concurrent /auth/v1/user hits overwhelm the local GoTrue). See
+  // Phase 4c.5 notes.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  let role: UserRole | null = null;
-  if (user) {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    role = roleFromAccessToken(session?.access_token);
-  }
+    data: { session },
+  } = await supabase.auth.getSession();
+  const role: UserRole | null = roleFromAccessToken(session?.access_token);
 
   const target = decideRedirect(pathname, role ? { role } : null);
   if (target === null) return response;
