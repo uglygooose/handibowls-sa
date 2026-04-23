@@ -2,11 +2,20 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 
 import { createClub } from "../../_actions";
@@ -17,6 +26,7 @@ import {
   isDevBannerEnabled,
   type DevInviteBannerPayload,
 } from "../_dev-banner";
+import { clearDraft, readDraft, writeDraft } from "../_draft";
 import {
   isThemePreset,
   STEP_COUNT,
@@ -66,6 +76,20 @@ export function NewClubWizard({ districts }: Props) {
   // design (binary-file draft restore is not worth the complexity).
   const [logoFile, setLogoFile] = useState<File | null>(null);
 
+  // Draft dialog is rendered gated on this enum so Playwright / tests can
+  // deterministically assert which branch fired on mount.
+  //   "pending"  — still deciding (blocks auto-write)
+  //   "prompt"   — draft found, show Resume/Discard
+  //   "none"     — no draft, wizard live
+  //   "resumed"  — user picked Resume; form was reset with draft
+  const [draftState, setDraftState] = useState<
+    "pending" | "prompt" | "none" | "resumed"
+  >("pending");
+  const [draftSnapshot, setDraftSnapshot] = useState<WizardFormValues | null>(
+    null,
+  );
+  const debounceRef = useRef<number | null>(null);
+
   const currentStep = Math.min(urlStep, furthestStep);
 
   // If the URL asks for a step the user hasn't reached, silently rewrite it.
@@ -74,6 +98,41 @@ export function NewClubWizard({ districts }: Props) {
       router.replace(`?step=${furthestStep}`);
     }
   }, [urlStep, furthestStep, router]);
+
+  // Mount: check sessionStorage for a saved draft. If present, pause the
+  // wizard behind the Resume/Discard dialog; draft auto-write stays off
+  // until the user resolves it to avoid overwriting their draft with the
+  // default empty form.
+  useEffect(() => {
+    const snapshot = readDraft();
+    if (snapshot) {
+      setDraftSnapshot(snapshot);
+      setDraftState("prompt");
+    } else {
+      setDraftState("none");
+    }
+  }, []);
+
+  // Watch every form change; debounce 500ms then persist. Only active once
+  // the user has resolved the draft prompt (or there was no draft).
+  useEffect(() => {
+    if (draftState !== "none" && draftState !== "resumed") return;
+    const subscription = form.watch((values) => {
+      if (debounceRef.current !== null) {
+        window.clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = window.setTimeout(() => {
+        writeDraft(values as WizardFormValues);
+      }, 500);
+    });
+    return () => {
+      subscription.unsubscribe();
+      if (debounceRef.current !== null) {
+        window.clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+    };
+  }, [draftState, form]);
 
   const goToStep = useCallback(
     (step: number) => {
@@ -106,10 +165,21 @@ export function NewClubWizard({ districts }: Props) {
   );
 
   const handleSaveDraft = useCallback(() => {
-    // Draft persistence wiring lands in a later commit (sessionStorage key
-    // `handibowls:new-club-wizard-draft`). Stub preserves the UI surface so
-    // Playwright can exercise it end-to-end.
-    toast.info("Draft saving lands with the sessionStorage commit.");
+    writeDraft(form.getValues());
+    toast.success("Draft saved. It will survive tab navigation until you publish.");
+  }, [form]);
+
+  const handleResumeDraft = useCallback(() => {
+    if (!draftSnapshot) return;
+    form.reset(draftSnapshot);
+    setDraftState("resumed");
+    setDraftSnapshot(null);
+  }, [draftSnapshot, form]);
+
+  const handleDiscardDraft = useCallback(() => {
+    clearDraft();
+    setDraftState("none");
+    setDraftSnapshot(null);
   }, []);
 
   const handleSubmit = useCallback(async () => {
@@ -184,6 +254,7 @@ export function NewClubWizard({ districts }: Props) {
         }
       }
 
+      clearDraft();
       router.push(`/platform/clubs/${result.data.club_id}`);
     } catch (err) {
       setPublishError(
@@ -229,6 +300,7 @@ export function NewClubWizard({ districts }: Props) {
       <form
         data-testid="new-club-wizard"
         data-current-step={currentStep}
+        data-draft-state={draftState}
         onSubmit={(e) => e.preventDefault()}
         className="flex flex-col gap-6"
       >
@@ -250,6 +322,34 @@ export function NewClubWizard({ districts }: Props) {
           onSubmit={handleSubmit}
         />
       </form>
+      <Dialog open={draftState === "prompt"}>
+        <DialogContent data-testid="wizard-draft-dialog">
+          <DialogHeader>
+            <DialogTitle>Unfinished club draft</DialogTitle>
+            <DialogDescription>
+              We found a wizard draft from this tab session. Resume where you
+              left off, or discard it to start fresh.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDiscardDraft}
+              data-testid="wizard-draft-discard"
+            >
+              Discard
+            </Button>
+            <Button
+              type="button"
+              onClick={handleResumeDraft}
+              data-testid="wizard-draft-resume"
+            >
+              Resume draft
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </FormProvider>
   );
 }
