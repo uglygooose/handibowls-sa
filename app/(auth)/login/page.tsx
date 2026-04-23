@@ -1,6 +1,21 @@
 import Link from "next/link";
 
+import type { ThemePreset } from "@/components/brand/ThemeApplier";
+
+import { AuthAside } from "../_components/AuthAside";
+import { AuthWordmark } from "../_components/AuthWordmark";
 import { LoginForm } from "./login-form";
+
+export const metadata = {
+  title: "Sign in · HandiBowls",
+};
+
+const BOWL_ROTATION: ThemePreset[] = [
+  "ruby",
+  "ocean-green",
+  "grape",
+  "sunburst",
+];
 
 export default async function LoginPage({
   searchParams,
@@ -8,26 +23,51 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string; sent?: string }>;
 }) {
   const { next, sent } = await searchParams;
+  // Rotate the aside bowl by day-of-year so the preview feels alive without
+  // breaking SSR hydration.
+  const now = new Date();
+  const dayOfYear = Math.floor(
+    (Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) -
+      Date.UTC(now.getUTCFullYear(), 0, 0)) /
+      (1000 * 60 * 60 * 24),
+  );
+  const asidePreset = BOWL_ROTATION[dayOfYear % BOWL_ROTATION.length];
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
-          Sign in
-        </h1>
-        <p className="text-sm text-ink-muted">
-          Welcome back. Enter your email and password to continue.
+    <div
+      data-theme="atomic-red"
+      className="grid min-h-dvh bg-surface md:grid-cols-[1.1fr_1fr]"
+    >
+      <AuthAside bowlPreset={asidePreset} splatterPreset={asidePreset} splatterVariant={1}>
+        <span className="block font-mono text-[10px] font-bold tracking-[0.16em] uppercase text-primary-500">
+          From the green
+        </span>
+        <p className="mt-2.5 mb-4 font-display text-[22px] font-extrabold italic leading-[1.1] tracking-[-0.01em] uppercase">
+          The shot always comes back to the hand that drew it.
+          <em className="mt-2 block font-sans text-[15px] font-bold italic normal-case tracking-normal text-primary-500">
+            — old skip&apos;s proverb
+          </em>
         </p>
-      </div>
+      </AuthAside>
 
-      <LoginForm next={next ?? ""} initialMagicLinkSent={sent === "1"} />
+      <main className="mx-auto flex w-full max-w-[640px] flex-col px-5 py-8 md:px-12 md:py-8">
+        <header className="mb-10 flex items-center justify-between md:mb-12">
+          <AuthWordmark />
+          <Link
+            href="/"
+            className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-muted hover:text-ink"
+          >
+            ← Back
+          </Link>
+        </header>
 
-      <p className="text-center text-sm text-ink-muted">
-        Don&apos;t have an account?{" "}
-        <Link href="/signup" className="font-medium text-primary-500 hover:underline">
-          Create one
-        </Link>
-      </p>
+        <LoginForm next={next ?? ""} initialMagicLinkSent={sent === "1"} />
+
+        <footer className="mt-auto flex justify-between py-4 font-mono text-[11px] tracking-[0.1em] uppercase text-ink-subtle">
+          <span>Secure · RLS on</span>
+          <span>© 2026 HandiBowls</span>
+        </footer>
+      </main>
     </div>
   );
 }

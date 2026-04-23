@@ -1,26 +1,28 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   signInAction,
   signInWithMagicLinkAction,
   type AuthFormState,
 } from "@/lib/auth/actions";
 
+import { AuthCard } from "../_components/AuthCard";
+import { Checkbox } from "../_components/Checkbox";
+import { Field, PasswordField } from "../_components/Field";
+import { FormBanner } from "../_components/FormBanner";
+import { SubmitButton } from "../_components/SubmitButton";
+
 const initial: AuthFormState = {};
 
-export function LoginForm({
-  next,
-  initialMagicLinkSent,
-}: {
+type Props = {
   next: string;
   initialMagicLinkSent: boolean;
-}) {
+};
+
+export function LoginForm({ next, initialMagicLinkSent }: Props) {
   const [mode, setMode] = useState<"password" | "magic">("password");
   const [pwState, pwAction] = useActionState(signInAction, initial);
   const [mlState, mlAction] = useActionState(
@@ -29,106 +31,103 @@ export function LoginForm({
   );
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2" role="tablist" aria-label="Sign-in method">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "password"}
-          onClick={() => setMode("password")}
-          className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-            mode === "password"
-              ? "border-primary-500 bg-primary-500 text-[color:var(--color-on-primary)]"
-              : "border-border bg-surface text-ink-muted hover:text-ink"
-          }`}
-        >
-          Password
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "magic"}
-          onClick={() => setMode("magic")}
-          className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-            mode === "magic"
-              ? "border-primary-500 bg-primary-500 text-[color:var(--color-on-primary)]"
-              : "border-border bg-surface text-ink-muted hover:text-ink"
-          }`}
-        >
-          Magic link
-        </button>
-      </div>
-
+    <AuthCard
+      kicker="01 · Sign in"
+      title={
+        <>
+          Welcome back{" "}
+          <em className="not-italic italic text-primary-500">skip.</em>
+        </>
+      }
+      sub="Enter your email and password, or send yourself a one-time magic link."
+      foot={
+        <>
+          New to HandiBowls?{" "}
+          <Link
+            href="/signup"
+            className="font-semibold text-ink underline underline-offset-[3px] hover:text-primary-500"
+          >
+            Create an account
+          </Link>
+        </>
+      }
+    >
       {mode === "password" ? (
-        <form action={pwAction} className="space-y-4">
+        <form action={pwAction} className="flex flex-col gap-[18px]" noValidate>
           <input type="hidden" name="next" value={next} />
-          <Field label="Email" name="email" type="email" autoComplete="email" required />
+          {pwState.error && (
+            <FormBanner kind="error">{pwState.error}</FormBanner>
+          )}
           <Field
+            label="Email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="you@club.co.za"
+          />
+          <PasswordField
             label="Password"
             name="password"
-            type="password"
             autoComplete="current-password"
             required
+            placeholder="••••••••"
           />
-          {pwState.error && <ErrorMessage>{pwState.error}</ErrorMessage>}
-          <SubmitButton>Sign in</SubmitButton>
+          <div className="-mt-1 flex items-center justify-between text-[13px]">
+            <Checkbox name="remember" defaultChecked>
+              Remember me on this device
+            </Checkbox>
+            <button
+              type="button"
+              onClick={() => setMode("magic")}
+              className="font-medium text-ink underline-offset-[3px] hover:text-primary-500 hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
+          <SubmitButton pendingLabel="Signing in…">Sign in</SubmitButton>
+          <div className="my-1 flex items-center gap-3 before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
+            <span className="font-mono text-[10px] font-bold tracking-[0.16em] uppercase text-ink-subtle">
+              or
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMode("magic")}
+            className="inline-flex h-11 items-center justify-center rounded-[10px] border-2 border-ink bg-transparent px-4 text-sm font-semibold text-ink transition-colors hover:bg-ink hover:text-ink-inverse"
+          >
+            Use a magic link instead
+          </button>
         </form>
       ) : (
-        <form action={mlAction} className="space-y-4">
-          <Field label="Email" name="email" type="email" autoComplete="email" required />
-          {mlState.error && <ErrorMessage>{mlState.error}</ErrorMessage>}
-          {mlState.ok && (
-            <p className="rounded-md bg-surface-muted p-3 text-sm text-ink">
-              Check your email for a sign-in link.
-            </p>
+        <form action={mlAction} className="flex flex-col gap-[18px]" noValidate>
+          {mlState.error && (
+            <FormBanner kind="error">{mlState.error}</FormBanner>
           )}
-          <SubmitButton>Send magic link</SubmitButton>
+          {mlState.ok && (
+            <FormBanner kind="success">
+              Check your email for a sign-in link.
+            </FormBanner>
+          )}
+          <Field
+            label="Email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="you@club.co.za"
+            hint="We'll send a one-time link. No password needed."
+          />
+          <SubmitButton pendingLabel="Sending…">Send magic link</SubmitButton>
+          <button
+            type="button"
+            onClick={() => setMode("password")}
+            className="mt-2 text-center text-[13px] text-ink-muted hover:text-ink"
+          >
+            ← Back to password
+          </button>
         </form>
       )}
-    </div>
-  );
-}
-
-function Field({
-  label,
-  name,
-  type,
-  autoComplete,
-  required,
-}: {
-  label: string;
-  name: string;
-  type: string;
-  autoComplete?: string;
-  required?: boolean;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={name}>{label}</Label>
-      <Input
-        id={name}
-        name={name}
-        type={type}
-        autoComplete={autoComplete}
-        required={required}
-      />
-    </div>
-  );
-}
-
-function ErrorMessage({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="rounded-md bg-danger-500/10 p-3 text-sm text-danger-500">
-      {children}
-    </p>
-  );
-}
-
-function SubmitButton({ children }: { children: React.ReactNode }) {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" size="lg" className="w-full" disabled={pending}>
-      {pending ? "Please wait…" : children}
-    </Button>
+    </AuthCard>
   );
 }
