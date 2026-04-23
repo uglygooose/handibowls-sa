@@ -108,4 +108,21 @@ describe("NewClubWizard", () => {
       expect(input.value).toBe("Saved Draft Club");
     });
   });
+
+  it("silently discards an expired draft on mount", async () => {
+    const expired = {
+      values: DRAFT,
+      expiresAt: Date.now() - 1,
+    };
+    window.sessionStorage.setItem(WIZARD_DRAFT_KEY, JSON.stringify(expired));
+    render(<NewClubWizard districts={DISTRICTS} />);
+    await waitFor(() => {
+      expect(screen.getByTestId("new-club-wizard")).toHaveAttribute(
+        "data-current-step",
+        "1",
+      );
+    });
+    expect(screen.queryByTestId("wizard-draft-dialog")).toBeNull();
+    expect(window.sessionStorage.getItem(WIZARD_DRAFT_KEY)).toBeNull();
+  });
 });
