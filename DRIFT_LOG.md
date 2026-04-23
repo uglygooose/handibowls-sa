@@ -51,7 +51,7 @@ Single source of truth for every piece of drift between Claude Design output / r
 
 ### Phase 11 — Comms
 
-*(empty)*
+- [ ] **Dev-only invite banner on new-club detail page.** Phase 4c surfaces the generated admin-invite URL via a sessionStorage-backed banner on `/platform/clubs/[id]` when `NODE_ENV !== 'production' && NEXT_PUBLIC_APP_ENV !== 'production'`. Dismissible, 60-min TTL. Replace with a proper Resend email flow (invite email with branded template + click-through) in Phase 11. Delete the banner component + sessionStorage key once Resend is wired. Discovered: Phase 4c, 2026-04-23.
 
 ### Phase 13 — Technical polish
 

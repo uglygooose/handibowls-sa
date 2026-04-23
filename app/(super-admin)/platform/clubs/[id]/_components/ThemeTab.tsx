@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { BowlChip } from "@/components/brand/BowlChip";
-import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
-import { THEME_PRESETS, type ThemePreset } from "@/components/brand/ThemeApplier";
+import { ThemePreview } from "@/components/brand/ThemePreview";
+import { THEME_PRESETS, type ThemePreset } from "@/components/brand/theme-presets";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,8 +38,6 @@ export function ThemeTab({ clubId, clubName, current }: Props) {
   const [preview, setPreview] = useState<ThemePreset>(current);
   const [pendingChoice, setPendingChoice] = useState<ThemePreset | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  const previewSwatch = PRESET_BY_ID[preview];
 
   function handlePick(preset: ThemePreset) {
     setPreview(preset);
@@ -123,21 +121,7 @@ export function ThemeTab({ clubId, clubName, current }: Props) {
           <CardTitle>Live preview</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <div
-            className="relative isolate flex h-40 items-end overflow-hidden rounded-xl p-4 ring-1 ring-foreground/10"
-            style={{ backgroundColor: previewSwatch.base, color: previewSwatch.on }}
-            data-testid="theme-preview-swatch"
-            data-preset={preview}
-          >
-            <SpeckleLayer seed={`preview-${preview}`} density="med" opacity={0.18} />
-            <div className="relative z-10 flex items-center gap-3">
-              <BowlChip preset={preview} size={40} />
-              <div className="flex flex-col leading-tight">
-                <span className="font-display text-base font-bold">{clubName}</span>
-                <span className="text-xs opacity-80">{previewSwatch.label}</span>
-              </div>
-            </div>
-          </div>
+          <ThemePreview preset={preview} label={clubName} />
           <p className="text-xs text-ink-muted">
             Preview only — click a preset, then confirm to apply the change
             to this club&apos;s live theme for every member.
