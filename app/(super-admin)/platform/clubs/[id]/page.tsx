@@ -7,13 +7,25 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { requireRole } from "@/lib/auth/role";
 
+import { AdminsTab } from "./_components/AdminsTab";
+import { AuditTab } from "./_components/AuditTab";
 import {
   ClubTabs,
   isClubTab,
   TabPanel,
   type ClubTab,
 } from "./_components/ClubTabs";
-import { getClubDetail } from "./_data";
+import { GreensTab } from "./_components/GreensTab";
+import { MembersTab } from "./_components/MembersTab";
+import { OverviewTab } from "./_components/OverviewTab";
+import { TournamentsTab } from "./_components/TournamentsTab";
+import {
+  getClubAdmins,
+  getClubDetail,
+  getClubGreens,
+  getClubMembers,
+  getClubTournaments,
+} from "./_data";
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 
@@ -32,6 +44,20 @@ export default async function ClubDetailPage({
 
   const club = await getClubDetail(id);
   if (!club) notFound();
+
+  const [admins, greens, members, tournaments] = await Promise.all([
+    getClubAdmins(id),
+    getClubGreens(id),
+    getClubMembers(id),
+    getClubTournaments(id),
+  ]);
+
+  const counts = {
+    admins: admins.length,
+    greens: greens.length,
+    members: members.length,
+    tournaments: tournaments.length,
+  };
 
   return (
     <div className="flex flex-col">
@@ -67,25 +93,25 @@ export default async function ClubDetailPage({
       />
       <ClubTabs active={active} />
       <TabPanel tab="overview" active={active}>
-        <div className="text-sm text-ink-muted">Overview — populated in the next commit.</div>
+        <OverviewTab club={club} counts={counts} />
       </TabPanel>
       <TabPanel tab="admins" active={active}>
-        <div className="text-sm text-ink-muted">Admins — populated in the next commit.</div>
+        <AdminsTab admins={admins} />
       </TabPanel>
       <TabPanel tab="greens" active={active}>
-        <div className="text-sm text-ink-muted">Greens — populated in the next commit.</div>
+        <GreensTab greens={greens} />
       </TabPanel>
       <TabPanel tab="members" active={active}>
-        <div className="text-sm text-ink-muted">Members — populated in the next commit.</div>
+        <MembersTab members={members} />
       </TabPanel>
       <TabPanel tab="tournaments" active={active}>
-        <div className="text-sm text-ink-muted">Tournaments — populated in the next commit.</div>
+        <TournamentsTab tournaments={tournaments} />
       </TabPanel>
       <TabPanel tab="theme" active={active}>
-        <div className="text-sm text-ink-muted">Theme — populated in a later commit.</div>
+        <div className="text-sm text-ink-muted">Theme — populated in the next commit.</div>
       </TabPanel>
       <TabPanel tab="audit" active={active}>
-        <div className="text-sm text-ink-muted">Audit — populated in the next commit.</div>
+        <AuditTab />
       </TabPanel>
     </div>
   );
