@@ -1,7 +1,21 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import type { ThemePreset } from "@/components/brand/ThemeApplier";
+import type { ThemePreset } from "@/components/brand/theme-presets";
+
+export type DistrictRow = { id: string; name: string };
+
+// Full district dropdown — there are ~20 BSA districts seeded in migration 003.
+// Ordered by name so the wizard's select behaves predictably.
+export async function listDistricts(): Promise<DistrictRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("districts")
+    .select("id, name")
+    .order("name", { ascending: true });
+  if (error) throw new Error(`listDistricts: ${error.message}`);
+  return data ?? [];
+}
 
 export type ClubRow = {
   id: string;
