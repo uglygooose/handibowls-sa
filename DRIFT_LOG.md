@@ -12,6 +12,12 @@ Single source of truth for every piece of drift between Claude Design output / r
 
 ---
 
+## Phase 4c.6 — blocking (must close before 4d)
+
+- [ ] **`@hookform/resolvers@3.10.0` incompatible with Zod 4.** `zodResolver` checks `Array.isArray(error?.errors)` but Zod 4 renamed `ZodError.errors` → `ZodError.issues`. Every `form.trigger()` call throws and every form submit rejects silently; the bug was masked in 4c by the auth-timing redirect. Fix: bump to `@hookform/resolvers@^5` (or latest Zod 4-compatible major), rerun all form-bearing suites (signup, login, invite accept, all 5 wizard steps), verify E2Es green. Discovered: Phase 4c.5 diagnosis. Owning phase: 4c.6.
+
+---
+
 ## Phase 12.5 — Design fidelity polish (primary target)
 
 ### Landing surface — `app/page.tsx` + `app/(marketing)/_sections/`
@@ -62,7 +68,7 @@ Single source of truth for every piece of drift between Claude Design output / r
 - [ ] **TanStack Table + Virtual + React Compiler lint warnings.** `react-hooks/incompatible-library` warnings on `useReactTable()` and `useVirtualizer()` — libraries return functions the compiler can't memoise. Upstream TanStack issue; warnings are not errors and unsuppressable without disabling the rule. Revisit when TanStack ships a compiler-friendly API or an ESLint-rule escape hatch. Files: `app/(super-admin)/platform/clubs/_components/ClubsTable.tsx`, `app/(super-admin)/platform/clubs/[id]/_components/MembersTab.tsx`. Discovered: Phase 4b, 2026-04-23.
 - [ ] **Playwright prod server slow on Windows.** `next start` on Windows cold-serves `/login` POST in 30-40s and RSC prefetches in 10-15s each on first access, which forced 300s test timeout / 60s expect.toBeVisible in `e2e/theme-flip.spec.ts`. Warm requests are <1s. Likely Next 16 + Windows fetch DNS + Supabase auth round-trip layering. Revisit when either Next ships faster cold starts on Windows, or CI moves to Linux. File: `playwright.config.ts`. Discovered: Phase 4b, 2026-04-23.
 - [ ] **`"use client"` constant-taint sweep.** Any `"use client"` module exporting a plain const or type consumed by a server component silently resolves to empty/placeholder in prod builds. Two known occurrences found and fixed in 4b: `components/brand/ThemeApplier.tsx` (split `THEME_PRESETS` into `theme-presets.ts`) and `app/(super-admin)/platform/clubs/[id]/_components/ClubTabs.tsx` (split type/guard into `club-tabs-types.ts`). Pattern likely exists elsewhere. Phase 13 task: grep every `"use client"` module for non-component exports, audit consumers, split pure modules where needed. Discovered: Phase 4b, 2026-04-23.
-- [ ] **`proxy.ts` `getSession()` deprecated.** Supabase SSR v0.8 prefers `getUser()` (verifies JWT against the auth server). `getSession()` only reads cookies. Non-blocking — still works — but replace at Phase 13 polish. File: `lib/supabase/proxy.ts`. Discovered: Phase 4b, 2026-04-23.
+- [x] ~~**`proxy.ts` `getSession()` deprecated.** Supabase SSR v0.8 prefers `getUser()` (verifies JWT against the auth server). `getSession()` only reads cookies. Non-blocking — still works — but replace at Phase 13 polish. File: `lib/supabase/proxy.ts`. Discovered: Phase 4b, 2026-04-23.~~ **Superseded by Phase 4c.5** — `proxy.ts` intentionally uses `getSession()` + local JWT decode for routing decisions to avoid a concurrent-`getUser()` race under Next.js RSC prefetch. Authoritative auth checks (`requireRole`, RLS, server actions) continue to call `getUser()`. Superseded: 4c.5 (`d19c09d`), 2026-04-23.
 
 ### Cross-cutting
 
