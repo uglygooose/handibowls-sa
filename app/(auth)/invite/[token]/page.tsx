@@ -20,7 +20,7 @@ function asPreset(value: string | null | undefined): ThemePreset {
   if (value && (THEME_PRESETS as readonly string[]).includes(value)) {
     return value as ThemePreset;
   }
-  return "atomic-red";
+  return "core-black";
 }
 
 const REASON_COPY: Record<
@@ -101,7 +101,7 @@ export default async function InvitePage({
       copy.icon === "danger" ? "bg-danger-500" : "bg-warning-500";
 
     return (
-      <div data-theme="atomic-red" className="relative min-h-dvh bg-surface">
+      <div data-theme="core-black" className="relative min-h-dvh bg-surface">
         <InviteBackground />
         <div className="relative z-[1] mx-auto flex min-h-dvh max-w-[720px] flex-col px-5 py-8 md:px-12 md:py-8">
           <header className="mb-10 flex items-center justify-between md:mb-12">

@@ -98,7 +98,7 @@ export type InviteLookup =
       role: UserRole;
       clubId: string;
       clubName: string;
-      clubThemePreset: string | null;
+      clubThemePreset: string;
     }
   | { ok: false; error: string; reason: InviteLookupReason };
 
@@ -128,7 +128,9 @@ export async function lookupInvite(token: string): Promise<InviteLookup> {
     role: data.role,
     clubId: data.club_id,
     clubName: data.clubs?.name ?? "Your club",
-    clubThemePreset: (data.clubs?.theme_preset as string | null) ?? null,
+    // core-black is the universal fallback when a club has no theme preset
+    // (also the platform/super-admin default).
+    clubThemePreset: (data.clubs?.theme_preset as string | null) ?? "core-black",
   };
 }
 
