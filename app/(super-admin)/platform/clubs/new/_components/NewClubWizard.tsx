@@ -51,6 +51,10 @@ export function NewClubWizard({ districts }: Props) {
   // past a gate renders a partial review and confuses users (directive 4).
   const [furthestStep, setFurthestStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Logo file is held in component state — not in form values, not in
+  // sessionStorage. Survives step navigation but dies on page refresh by
+  // design (binary-file draft restore is not worth the complexity).
+  const [logoFile, setLogoFile] = useState<File | null>(null);
 
   const currentStep = Math.min(urlStep, furthestStep);
 
@@ -117,7 +121,13 @@ export function NewClubWizard({ districts }: Props) {
   const currentContent = useMemo(() => {
     switch (currentStep) {
       case 1:
-        return <Step1Details districts={districts} />;
+        return (
+          <Step1Details
+            districts={districts}
+            logoFile={logoFile}
+            onLogoChange={setLogoFile}
+          />
+        );
       case 2:
         return <Step2AdminInvite />;
       case 3:
@@ -129,7 +139,7 @@ export function NewClubWizard({ districts }: Props) {
       default:
         return null;
     }
-  }, [currentStep, districts]);
+  }, [currentStep, districts, logoFile]);
 
   return (
     <FormProvider {...form}>

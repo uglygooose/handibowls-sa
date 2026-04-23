@@ -1,6 +1,13 @@
 import { z } from "zod";
 
-import { THEME_PRESETS } from "@/components/brand/theme-presets";
+import { THEME_PRESETS, type ThemePreset } from "@/components/brand/theme-presets";
+
+export function isThemePreset(value: unknown): value is ThemePreset {
+  return (
+    typeof value === "string" &&
+    (THEME_PRESETS as readonly string[]).includes(value)
+  );
+}
 
 // Wizard-shape Zod schema. Each top-level key gates one wizard step; on
 // "Next" we only re-validate the current step's subtree via form.trigger.
@@ -25,7 +32,18 @@ export const detailsSchema = z.object({
   contact_email: emailField.or(z.literal("")).optional().default(""),
   contact_phone: z.string().trim().max(40).optional().default(""),
   logo_path: z.string().trim().max(255).optional().default(""),
-  theme_preset: z.enum(THEME_PRESETS, { message: "Pick a theme preset" }),
+  // Union of the 9 presets and "" so the wizard can start unselected (no
+  // forced default). The superRefine below rejects "" at validation time;
+  // at publish the union is narrowed via isThemePreset().
+  theme_preset: z.union([z.enum(THEME_PRESETS), z.literal("")]),
+}).superRefine((data, ctx) => {
+  if (data.theme_preset === "") {
+    ctx.addIssue({
+      code: "custom",
+      path: ["theme_preset"],
+      message: "Pick a theme preset",
+    });
+  }
 });
 
 export type DetailsInput = z.infer<typeof detailsSchema>;
@@ -88,7 +106,7 @@ export const WIZARD_DEFAULTS: WizardFormValues = {
     contact_email: "",
     contact_phone: "",
     logo_path: "",
-    theme_preset: "ocean-blue",
+    theme_preset: "",
   },
   adminInvite: { admin_email: "" },
   greens: { greens: [{ name: "", rink_count: 6 }] },
