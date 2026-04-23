@@ -47,6 +47,7 @@
 13. Phase 10 — T20 assessment module (production rubric)
 14. Phase 11 — Player communication (email only)
 15. Phase 12 — Cross-cutting (stats, history, calendar, optional handicap)
+15b. Phase 12.5 — Design fidelity audit & polish
 16. Phase 13 — Final polish, QA, go-live
 17. Master delete list (old Handibowls)
 18. Master keep & rename list (primitives to salvage)
@@ -883,6 +884,29 @@ grep -riE "henselite|choice of champions" app components   # zero hits
 - Handicap disabled by default and only affects tournaments with `handicap_rule = handicap_start`.
 
 **Stop & report.** Stats render time + calendar validator output. Await approval.
+
+---
+
+## 15b. Phase 12.5 — Design fidelity audit & polish
+
+**Goal.** Walk every Claude Design brief output vs the shipped surface. Close every open `DRIFT_LOG.md` item scoped to this phase. Bring shipped surfaces back to full Claude Design fidelity before Phase 13's technical polish pass.
+
+**Precondition.** Phases 0–12 complete. `DRIFT_LOG.md` maintained throughout.
+
+**Inputs.** All Claude Design brief outputs (Design System, Landing + Auth, Admin + Tournament, Player + Scorecard, T20 compass) and their reference screenshots.
+
+**Steps.**
+1. Fidelity diff: for each Claude Design surface, Playwright-screenshot current state at reference breakpoints. Compare against reference. Log any new drift not already in `DRIFT_LOG.md`.
+2. Close every Phase 12.5 item in dependency order (design-system first, then surfaces).
+3. Each fix is its own commit, referencing the `DRIFT_LOG.md` line it closes.
+4. No scope creep — only items already logged. New drift gets logged first, then fixed.
+
+**Verification.**
+- Phase 12.5 subsection of `DRIFT_LOG.md` has zero open items.
+- Visual diff vs Claude Design reference within tolerance on every surface.
+- `npx tsc --noEmit && npm run lint && npm test && npm run build` all green.
+
+**Stop & report.** Drift log before/after counts, side-by-side screenshots per surface, commit list.
 
 ---
 
