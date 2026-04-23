@@ -7,9 +7,18 @@ import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
 
+import { createClub } from "../../_actions";
 import type { DistrictRow } from "../../_data";
 import {
+  DEV_INVITE_BANNER_KEY,
+  DEV_INVITE_TTL_MS,
+  isDevBannerEnabled,
+  type DevInviteBannerPayload,
+} from "../_dev-banner";
+import {
+  isThemePreset,
   STEP_COUNT,
   STEP_TRIGGERS,
   WIZARD_DEFAULTS,
@@ -51,6 +60,7 @@ export function NewClubWizard({ districts }: Props) {
   // past a gate renders a partial review and confuses users (directive 4).
   const [furthestStep, setFurthestStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
   // Logo file is held in component state — not in form values, not in
   // sessionStorage. Survives step navigation but dies on page refresh by
   // design (binary-file draft restore is not worth the complexity).
@@ -103,20 +113,86 @@ export function NewClubWizard({ districts }: Props) {
   }, []);
 
   const handleSubmit = useCallback(async () => {
+    setPublishError(null);
     const ok = await form.trigger();
     if (!ok) {
       toast.error("Fix the highlighted fields to continue.");
       return;
     }
+    const values = form.getValues();
+    if (!isThemePreset(values.details.theme_preset)) {
+      setPublishError("Pick a theme preset on Step 1 before publishing.");
+      return;
+    }
     setIsSubmitting(true);
     try {
-      // Publish wiring lands with the review/publish commit. Guardrailing
-      // the button here so a stub click doesn't look broken.
-      toast.info("Publish lands with the review-and-publish commit.");
+      let logoPath = "";
+      if (logoFile) {
+        const supabase = createBrowserClient();
+        const ext = logoFile.name.split(".").pop() ?? "bin";
+        const path = `pending/${crypto.randomUUID()}/logo.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("club-logos")
+          .upload(path, logoFile, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: logoFile.type || undefined,
+          });
+        if (uploadError) {
+          setPublishError(`Logo upload failed: ${uploadError.message}`);
+          return;
+        }
+        logoPath = path;
+      }
+
+      const result = await createClub({
+        name: values.details.name,
+        short_name: values.details.short_name || null,
+        slug: values.details.slug,
+        district_id: values.details.district_id,
+        city: values.details.city,
+        contact_email: values.details.contact_email || null,
+        contact_phone: values.details.contact_phone || null,
+        logo_path: logoPath || null,
+        theme_preset: values.details.theme_preset,
+        admin_email: values.adminInvite.admin_email,
+        greens: values.greens.greens,
+        player_emails: values.players.players.map((p) => p.email),
+      });
+
+      if (!result.ok) {
+        setPublishError(result.error);
+        return;
+      }
+
+      // Dev-only: stash the admin invite token so the freshly-loaded club
+      // detail page can render a copy-link banner. Gated on both env flags
+      // so production never sees this path. See _dev-banner.ts.
+      if (isDevBannerEnabled() && result.data.admin_invite_token) {
+        try {
+          const payload: DevInviteBannerPayload = {
+            clubId: result.data.club_id,
+            inviteToken: result.data.admin_invite_token,
+            expiresAt: Date.now() + DEV_INVITE_TTL_MS,
+          };
+          window.sessionStorage.setItem(
+            DEV_INVITE_BANNER_KEY,
+            JSON.stringify(payload),
+          );
+        } catch {
+          // Non-fatal — banner is dev-only and best-effort.
+        }
+      }
+
+      router.push(`/platform/clubs/${result.data.club_id}`);
+    } catch (err) {
+      setPublishError(
+        err instanceof Error ? err.message : "Unexpected error while publishing.",
+      );
     } finally {
       setIsSubmitting(false);
     }
-  }, [form]);
+  }, [form, logoFile, router]);
 
   const currentContent = useMemo(() => {
     switch (currentStep) {
@@ -135,11 +211,18 @@ export function NewClubWizard({ districts }: Props) {
       case 4:
         return <Step4Players />;
       case 5:
-        return <Step5Review districts={districts} />;
+        return (
+          <Step5Review
+            districts={districts}
+            logoFile={logoFile}
+            publishError={publishError}
+            onJumpTo={handleJump}
+          />
+        );
       default:
         return null;
     }
-  }, [currentStep, districts, logoFile]);
+  }, [currentStep, districts, handleJump, logoFile, publishError]);
 
   return (
     <FormProvider {...form}>
