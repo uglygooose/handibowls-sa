@@ -24,7 +24,7 @@
 | Q8 | Handicap = **per-tournament toggle** by the admin creating the tournament. | Phase 6/7 expose `handicap_rule` at creation. |
 | Q9 | **Triples is a first-class format.** | Phase 6 ships Singles/Pairs/Triples/Fours/Mixed Pairs. |
 | Q10 | Supabase region **`af-south-1` preferred**, `eu-west-1` acceptable fallback. | Phase 0 picks region. |
-| Q11 | Answer truncated ("I"). **Assumed: impersonation deferred behind a flag.** | Re-confirm before Phase 4 exit. |
+| Q11 | **Impersonation deferred to v2 entirely.** No flag, no gated surface. | Decision confirmed 2026-04-23; feature-flag env var removed. |
 | Q12 | **Dark mode deferred** to v2. | Phase 1 ships light only. |
 | Q13 | **BowlsLink interop out of scope.** | No CSV/API integration. |
 
@@ -194,7 +194,6 @@ Distilled from BowlR, BowlsLink, rollUp, Clubhub:
    NEXT_PUBLIC_APP_NAME=HandiBowls
    RESEND_API_KEY=
    RESEND_FROM_EMAIL=no-reply@handibowls.co.za
-   NEXT_PUBLIC_ALLOW_IMPERSONATE=false
    ```
 
 4. **Teardown** (per §17). Delete **every** `app/` route except `app/layout.tsx`, `app/globals.css`, `app/favicon.ico` (these will be rewritten in Phase 1). Delete all old pages/components/API routes. **Preserve** `lib/tournaments/` primitives (§18). Delete old `supabase/migrations/` and old `types/database.types.ts`.
@@ -436,9 +435,7 @@ pnpm typecheck && pnpm test
 
 7. **PWA scaffolding.** `public/manifest.webmanifest` (name "HandiBowls"; `display: standalone`; `start_url: "/play"`; `theme_color: #0A0A0A`; `background_color: #FAFAF7`; maskable icons). Register Serwist with runtime caching off (enabled in Phase 8).
 
-8. **Impersonation** behind `NEXT_PUBLIC_ALLOW_IMPERSONATE=false` (Q11; flagged as residual).
-
-9. **Tests.** Vitest: `requireRole` redirects in every role/path combination. Playwright smoke: three seed users land on correct homes; wrong-prefix redirects.
+8. **Tests.** Vitest: `requireRole` redirects in every role/path combination. Playwright smoke: three seed users land on correct homes; wrong-prefix redirects.
 
 **Verification.**
 ```bash
@@ -482,7 +479,7 @@ pnpm dev
 
 4. **Page `/platform/districts`** — read-only (districts are fixed BSA data).
 
-5. **Page `/platform/users`** — global user search; impersonation button gated by `NEXT_PUBLIC_ALLOW_IMPERSONATE`.
+5. **Page `/platform/users`** — global user search (name / email / club). Read-only link-through to `/platform/users/[id]`. No impersonation surface (Q11 deferred to v2).
 
 6. **Server actions** (`_actions.ts`):
    - `createClub`, `updateClubTheme`, `assignClubAdmin`, `createInvite` (writes `invites` row + calls Resend — Phase 11 finalises; dev shows invite link in console + dev banner).
@@ -502,7 +499,7 @@ grep -riE "henselite|choice of champions" app components   # zero hits
 - Greens/rinks CRUD works.
 - No Henselite branding surfaced.
 
-**Stop & report.** Demo-club config after wizard, theme-swap screenshots, grep result. **Confirm Q11 (impersonation) before exit.** Await approval.
+**Stop & report.** Demo-club config after wizard, theme-swap screenshots, grep result. Await approval.
 
 ---
 
@@ -1004,10 +1001,6 @@ Everything else rebuilt fresh.
 ---
 
 ## 20. Residual open questions
-
-**Q11 — Impersonation.** User answer truncated ("I"). Default: **deferred, behind `NEXT_PUBLIC_ALLOW_IMPERSONATE=false`**. **Confirm before Phase 4 exit.** Options:
-- (a) Ship now, flag-gated, super-admin only, with audit trail.
-- (b) Defer to v2 entirely.
 
 **Q10 — Region.** If `af-south-1` is unavailable at project creation, confirm `eu-west-1` is acceptable.
 
