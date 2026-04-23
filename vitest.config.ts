@@ -13,6 +13,7 @@ export default defineConfig({
     include: [
       "lib/**/*.test.ts",
       "components/**/*.test.{ts,tsx}",
+      "app/**/*.test.{ts,tsx}",
       "tests/**/*.test.{ts,tsx}",
     ],
     exclude: ["tests/rls/**", "tests/rpc/**"],
