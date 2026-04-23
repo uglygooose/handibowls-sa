@@ -18,6 +18,7 @@ import {
 import { GreensTab } from "./_components/GreensTab";
 import { MembersTab } from "./_components/MembersTab";
 import { OverviewTab } from "./_components/OverviewTab";
+import { ThemeTab } from "./_components/ThemeTab";
 import { TournamentsTab } from "./_components/TournamentsTab";
 import {
   getClubAdmins,
@@ -108,7 +109,7 @@ export default async function ClubDetailPage({
         <TournamentsTab tournaments={tournaments} />
       </TabPanel>
       <TabPanel tab="theme" active={active}>
-        <div className="text-sm text-ink-muted">Theme — populated in the next commit.</div>
+        <ThemeTab clubId={club.id} clubName={club.name} current={club.theme_preset} />
       </TabPanel>
       <TabPanel tab="audit" active={active}>
         <AuditTab />
