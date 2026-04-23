@@ -11,6 +11,7 @@ import { AdminsTab } from "./_components/AdminsTab";
 import { AuditTab } from "./_components/AuditTab";
 import { ClubTabs, TabPanel } from "./_components/ClubTabs";
 import { isClubTab, type ClubTab } from "./_components/club-tabs-types";
+import { DevInviteBanner } from "./_components/DevInviteBanner";
 import { GreensTab } from "./_components/GreensTab";
 import { MembersTab } from "./_components/MembersTab";
 import { OverviewTab } from "./_components/OverviewTab";
@@ -88,6 +89,7 @@ export default async function ClubDetailPage({
           </Button>
         }
       />
+      <DevInviteBanner clubId={club.id} />
       <ClubTabs active={active} />
       <TabPanel tab="overview" active={active}>
         <OverviewTab club={club} counts={counts} />
