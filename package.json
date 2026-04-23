@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --fileParallelism=false --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",
     "types:gen": "npx supabase gen types typescript --project-id crahegkboinnhffabkxc > types/database.types.ts",
     "types:gen:local": "npx supabase gen types typescript --local > types/database.types.ts",

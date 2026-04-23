@@ -40,8 +40,11 @@ npm run dev         # next dev
 npm run build       # next build
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
-npm run test        # vitest run
+npm run test        # vitest run (single-threaded; see note)
 ```
+
+`npm run test` runs vitest with `--fileParallelism=false` to sidestep a reproducible vitest 4.x worker-pool-startup timeout on Windows + Node 24. CI (Ubuntu) is unaffected. `npm run test:watch` keeps default concurrency for faster feedback loops.
+
 
 ## Visual identity
 
