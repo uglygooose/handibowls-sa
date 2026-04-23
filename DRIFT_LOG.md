@@ -58,6 +58,7 @@ Single source of truth for every piece of drift between Claude Design output / r
 - [ ] **Vitest Windows worker-pool flake.** `npm test` pinned to `--fileParallelism=false` via Phase 4 prep Commit C. Upstream vitest 4.1.4 + Windows issue. Revisit when vitest ships a fix. File: `package.json`. Discovered: Phase 4 prep, 2026-04-23.
 - [ ] **RLS test club teardown.** `tests/rls/helpers.ts` seeds `test-%` clubs without cleanup. Phase 4 prep did a one-time manual wipe. Add `afterAll` teardown. Discovered: Phase 4 prep, 2026-04-23.
 - [ ] **Supabase local Storage healthcheck flake.** `npx supabase start` requires `--ignore-health-check` on Windows WSL2 due to slow service boot. Services are actually healthy; CLI window is too short. Revisit when Supabase CLI ships longer healthcheck windows or when the rebuild is cross-platform. Discovered: Phase 4 prep, 2026-04-23.
+- [ ] **vitest.rls.config.ts covers non-RLS tests.** Config now runs both tests/rls/andtests/rpc/. File name mildly misleading. Rename to vitest.integration.config.ts at Phase 13 polish (trivial rename + package.json script update). Discovered: Phase 4a, 2026-04-23.
 
 ### Cross-cutting
 
