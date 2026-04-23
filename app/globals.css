@@ -163,10 +163,14 @@ html[data-theme="core-black"] {
 
 /* =========================================================================
    Nine bowl-theme presets. Each overrides only primary + speckle + on-primary.
-   Surface/ink/functional stay as base.
+   Surface/ink/functional stay as base. Selectors match both the root html
+   node (set server-side by resolveActiveTheme) AND any descendant with
+   data-theme — so public pages can scope an override without needing to
+   reach document.documentElement.
    ========================================================================= */
 
-html[data-theme="atomic-red"] {
+html[data-theme="atomic-red"],
+[data-theme="atomic-red"] {
   --primary-100: #fce4e2;
   --primary-500: #d7261e;
   --primary-600: #b01a14;
@@ -175,7 +179,8 @@ html[data-theme="atomic-red"] {
   --speckle-b: #fafaf7;
 }
 
-html[data-theme="ocean-blue"] {
+html[data-theme="ocean-blue"],
+[data-theme="ocean-blue"] {
   --primary-100: #dce5fa;
   --primary-500: #1e4dd8;
   --primary-600: #173db0;
@@ -184,7 +189,8 @@ html[data-theme="ocean-blue"] {
   --speckle-b: #fafaf7;
 }
 
-html[data-theme="sunburst"] {
+html[data-theme="sunburst"],
+[data-theme="sunburst"] {
   --primary-100: #fff4cc;
   --primary-500: #f5b700;
   --primary-600: #c08f00;
@@ -193,7 +199,8 @@ html[data-theme="sunburst"] {
   --speckle-b: #0e7c7b;
 }
 
-html[data-theme="midnight"] {
+html[data-theme="midnight"],
+[data-theme="midnight"] {
   --primary-100: #d7dceb;
   --primary-500: #0e1b3d;
   --primary-600: #050d22;
@@ -202,7 +209,8 @@ html[data-theme="midnight"] {
   --speckle-b: #f5b700;
 }
 
-html[data-theme="ruby"] {
+html[data-theme="ruby"],
+[data-theme="ruby"] {
   --primary-100: #f7d6e3;
   --primary-500: #c2185b;
   --primary-600: #981145;
@@ -211,7 +219,8 @@ html[data-theme="ruby"] {
   --speckle-b: #fafaf7;
 }
 
-html[data-theme="ocean-green"] {
+html[data-theme="ocean-green"],
+[data-theme="ocean-green"] {
   --primary-100: #cde7e6;
   --primary-500: #0e7c7b;
   --primary-600: #0a5a59;
@@ -220,7 +229,8 @@ html[data-theme="ocean-green"] {
   --speckle-b: #0a0a0a;
 }
 
-html[data-theme="grape"] {
+html[data-theme="grape"],
+[data-theme="grape"] {
   --primary-100: #e5d1ef;
   --primary-500: #6a1b9a;
   --primary-600: #501476;
@@ -229,7 +239,8 @@ html[data-theme="grape"] {
   --speckle-b: #fafaf7;
 }
 
-html[data-theme="white-speckle"] {
+html[data-theme="white-speckle"],
+[data-theme="white-speckle"] {
   --primary-100: #ededed;
   --primary-500: #f4f4f4;
   --primary-600: #d9d9d6;
@@ -255,5 +266,66 @@ html[data-theme="white-speckle"] {
   h2,
   h3 {
     @apply font-display tracking-tight;
+  }
+}
+
+/* =========================================================================
+   Public-surface animations. Used by the landing hero (bowls drift) and
+   the marquee strip. Scoped to opt-in classnames so they don't leak into
+   admin/player shells.
+   ========================================================================= */
+@keyframes hb-slow-roll {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate(-18px, -10px) rotate(-8deg);
+  }
+}
+@keyframes hb-slow-roll-rev {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate(14px, 8px) rotate(6deg);
+  }
+}
+@keyframes hb-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+@keyframes hb-bowl-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+.hb-roll {
+  animation: hb-slow-roll 16s ease-in-out infinite alternate;
+}
+.hb-roll-rev {
+  animation: hb-slow-roll-rev 10s ease-in-out infinite alternate-reverse;
+}
+.hb-marquee {
+  animation: hb-marquee 40s linear infinite;
+}
+.hb-bowl-bounce {
+  animation: hb-bowl-bounce 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hb-roll,
+  .hb-roll-rev,
+  .hb-marquee,
+  .hb-bowl-bounce {
+    animation: none;
   }
 }
