@@ -1,0 +1,89 @@
+import "server-only";
+
+import { createClient } from "@/lib/supabase/server";
+import type { ThemePreset } from "@/components/brand/ThemeApplier";
+
+export type ClubRow = {
+  id: string;
+  name: string;
+  short_name: string | null;
+  slug: string;
+  city: string;
+  active: boolean;
+  theme_preset: ThemePreset;
+  district_id: string;
+  district_name: string | null;
+  admin_display: string | null;
+  admin_email: string | null;
+  members_count: number;
+  greens_count: number;
+};
+
+export type ListClubsResult = {
+  rows: ClubRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+// Server-side paginated list of clubs with the joins we need for the platform
+// clubs table. RLS (clubs_super_admin_all) gates access to super-admins.
+export async function listClubs({
+  page,
+  pageSize,
+}: {
+  page: number;
+  pageSize: number;
+}): Promise<ListClubsResult> {
+  const supabase = await createClient();
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, count, error } = await supabase
+    .from("clubs")
+    .select(
+      `
+      id, name, short_name, slug, city, active, theme_preset, district_id,
+      districts(name),
+      club_admin_assignments(profiles!profile_id(first_name, last_name, display_name, email)),
+      club_memberships(count),
+      greens(count)
+      `,
+      { count: "exact" },
+    )
+    .order("name", { ascending: true })
+    .range(from, to);
+
+  if (error) throw new Error(`listClubs: ${error.message}`);
+
+  const rows: ClubRow[] = (data ?? []).map((c) => {
+    const firstAdmin = c.club_admin_assignments?.[0]?.profiles ?? null;
+    const adminDisplay = firstAdmin
+      ? [firstAdmin.first_name, firstAdmin.last_name].filter(Boolean).join(" ").trim() ||
+        firstAdmin.display_name ||
+        null
+      : null;
+    return {
+      id: c.id,
+      name: c.name,
+      short_name: c.short_name,
+      slug: c.slug,
+      city: c.city,
+      active: c.active,
+      theme_preset: c.theme_preset as ThemePreset,
+      district_id: c.district_id,
+      district_name: c.districts?.name ?? null,
+      admin_display: adminDisplay,
+      admin_email: firstAdmin?.email ?? null,
+      members_count: c.club_memberships?.[0]?.count ?? 0,
+      greens_count: c.greens?.[0]?.count ?? 0,
+    };
+  });
+
+  return {
+    rows,
+    total: count ?? rows.length,
+    page,
+    pageSize,
+  };
+}
