@@ -75,4 +75,4 @@ Single source of truth for every piece of drift between Claude Design output / r
 - [x] ~~**Q11 impersonation flag removal.**~~ Closed: Phase 4 prep Commit A (`cb77dbb`), 2026-04-23.
 - [x] ~~**Invite preset fallback → `core-black`.**~~ Closed: Phase 4 prep Commit B (`03c6fb0`), 2026-04-23.
 - [x] ~~**`InviteBackground` decorative splatter themed-by-club.**~~ Closed: Phase 4 prep Commit D (`7f8f975`), 2026-04-23.
-- [x] ~~**T20 v2 rubric additions — A+ split, distance buckets, coach-validated grading, positioning copy.**~~ Scope added to Phase 10 via plan amendment. Closed: plan amendment <SHA>, 2026-04-23.
+- [x] ~~**T20 v2 rubric additions — A+ split, distance buckets, coach-validated grading, positioning copy.**~~ Scope added to Phase 10 via plan amendment. Closed: plan amendment `319e205`, 2026-04-23.
