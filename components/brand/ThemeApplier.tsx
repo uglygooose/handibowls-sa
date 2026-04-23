@@ -2,19 +2,9 @@
 
 import { useEffect } from "react";
 
-export const THEME_PRESETS = [
-  "atomic-red",
-  "ocean-blue",
-  "sunburst",
-  "midnight",
-  "ruby",
-  "ocean-green",
-  "grape",
-  "white-speckle",
-  "core-black",
-] as const;
+import type { ThemePreset } from "./theme-presets";
 
-export type ThemePreset = (typeof THEME_PRESETS)[number];
+export { THEME_PRESETS, type ThemePreset } from "./theme-presets";
 
 type Props = {
   theme: ThemePreset;

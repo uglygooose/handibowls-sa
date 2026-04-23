@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { THEME_PRESETS } from "@/components/brand/ThemeApplier";
+import { THEME_PRESETS } from "@/components/brand/theme-presets";
 
 // Mirrors the club_theme_preset Postgres enum. Kept in sync with the 9-preset
 // set declared in components/brand/ThemeApplier.tsx and migration 001.

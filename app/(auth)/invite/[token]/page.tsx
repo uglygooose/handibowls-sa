@@ -3,8 +3,7 @@ import Link from "next/link";
 
 import { BowlChip } from "@/components/brand/BowlChip";
 import { SplatterAccent } from "@/components/brand/SplatterAccent";
-import type { ThemePreset } from "@/components/brand/ThemeApplier";
-import { THEME_PRESETS } from "@/components/brand/ThemeApplier";
+import { THEME_PRESETS, type ThemePreset } from "@/components/brand/theme-presets";
 import { Button } from "@/components/ui/button";
 import { lookupInvite, type InviteLookupReason } from "@/lib/auth/actions";
 
