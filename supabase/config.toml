@@ -107,9 +107,8 @@ port = 54324
 # sender_name = "Admin"
 
 [storage]
-# Disabled locally — Phase 2 is schema-only; storage isn't exercised yet.
-# Re-enable for Phase 4 club logo uploads.
-enabled = false
+# Enabled in Phase 4 for the club-logos bucket (super-admin wizard step 1).
+enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
