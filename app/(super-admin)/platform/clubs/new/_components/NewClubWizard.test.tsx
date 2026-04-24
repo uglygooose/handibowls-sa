@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DistrictRow } from "../../_data";
-import { WIZARD_DRAFT_KEY } from "../_draft";
+import { WIZARD_DRAFT_KEY, writeDraft } from "../_draft";
 import { WIZARD_DEFAULTS, type WizardFormInput } from "../_schema";
 
 const push = vi.fn();
@@ -71,7 +71,7 @@ describe("NewClubWizard", () => {
   });
 
   it("shows the Resume/Discard dialog when a draft exists", async () => {
-    window.sessionStorage.setItem(WIZARD_DRAFT_KEY, JSON.stringify(DRAFT));
+    writeDraft(DRAFT);
     render(<NewClubWizard districts={DISTRICTS} />);
     await waitFor(() => {
       expect(screen.getByTestId("wizard-draft-dialog")).toBeInTheDocument();
@@ -79,7 +79,7 @@ describe("NewClubWizard", () => {
   });
 
   it("Discard removes the draft from storage and exits the dialog", async () => {
-    window.sessionStorage.setItem(WIZARD_DRAFT_KEY, JSON.stringify(DRAFT));
+    writeDraft(DRAFT);
     render(<NewClubWizard districts={DISTRICTS} />);
 
     await waitFor(() =>
@@ -95,7 +95,7 @@ describe("NewClubWizard", () => {
   });
 
   it("Resume hydrates the form with the stored draft values", async () => {
-    window.sessionStorage.setItem(WIZARD_DRAFT_KEY, JSON.stringify(DRAFT));
+    writeDraft(DRAFT);
     render(<NewClubWizard districts={DISTRICTS} />);
     await waitFor(() =>
       expect(screen.getByTestId("wizard-draft-dialog")).toBeInTheDocument(),

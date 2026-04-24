@@ -22,21 +22,21 @@ export function readDraft(): WizardFormInput | null {
   try {
     const raw = window.sessionStorage.getItem(WIZARD_DRAFT_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredDraft | WizardFormInput;
+    const parsed = JSON.parse(raw) as StoredDraft;
     if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "expiresAt" in parsed &&
-      "values" in parsed
+      typeof parsed !== "object" ||
+      parsed === null ||
+      !("expiresAt" in parsed) ||
+      !("values" in parsed)
     ) {
-      if (parsed.expiresAt < Date.now()) {
-        window.sessionStorage.removeItem(WIZARD_DRAFT_KEY);
-        return null;
-      }
-      return parsed.values;
+      window.sessionStorage.removeItem(WIZARD_DRAFT_KEY);
+      return null;
     }
-    // Legacy payloads (pre-TTL) — accept once, then rewrite on next save.
-    return parsed as WizardFormInput;
+    if (parsed.expiresAt < Date.now()) {
+      window.sessionStorage.removeItem(WIZARD_DRAFT_KEY);
+      return null;
+    }
+    return parsed.values;
   } catch {
     return null;
   }

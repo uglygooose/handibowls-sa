@@ -11,10 +11,13 @@ export type DevInviteBannerPayload = {
   expiresAt: number;
 };
 
-// Gate: must not be production, must not be a Vercel preview deploy running
-// in production mode. Caller-safe (returns false in both cases).
+// Gate: production deploys MUST set NEXT_PUBLIC_APP_ENV=production. Belt-and-
+// braces — if either knob says prod, the banner is off. Playwright's prod-
+// build E2E server sets NEXT_PUBLIC_APP_ENV=test in .env.test so the banner
+// path can be exercised end-to-end (without this opt-in the NODE_ENV=production
+// baked into the client bundle by `next build` would silently disable it).
 export function isDevBannerEnabled(): boolean {
-  if (process.env.NODE_ENV === "production") return false;
   if (process.env.NEXT_PUBLIC_APP_ENV === "production") return false;
-  return true;
+  if (process.env.NEXT_PUBLIC_APP_ENV === "test") return true;
+  return process.env.NODE_ENV !== "production";
 }
