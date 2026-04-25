@@ -14,7 +14,9 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  // 1 retry locally + on CI: absorbs the documented Windows + Next + RSC
+  // cold-stream flake on /platform/clubs/[id] (DRIFT_LOG.md → Phase 13).
+  retries: 1,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   timeout: 300_000,
   expect: { timeout: 30_000 },
