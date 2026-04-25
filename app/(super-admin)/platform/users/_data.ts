@@ -62,10 +62,16 @@ function display(p: {
 
 // Embed shape used by listUsers + select() — kept close to the schema so the
 // PostgREST embed string and the row mapper stay in sync.
+//
+// `club_admin_assignments` has two FKs back to `profiles`
+// (`profile_id_fkey` for the admin and `assigned_by_fkey` for the assigner),
+// so the reverse embed must name the constraint or PostgREST errors with
+// "more than one relationship was found". `club_memberships` has a single FK
+// (`profile_id_fkey`) and resolves unambiguously.
 const PROFILE_SELECT = `
   id, first_name, last_name, display_name, email, role, profile_completed, created_at,
   club_memberships(club_id, clubs(id, name)),
-  club_admin_assignments(club_id, clubs(id, name))
+  club_admin_assignments!club_admin_assignments_profile_id_fkey(club_id, clubs(id, name))
 `;
 
 type EmbeddedProfile = {
@@ -207,7 +213,9 @@ export async function getUserDetail(id: string): Promise<UserDetail | null> {
       id, first_name, last_name, display_name, email, phone, role,
       profile_completed, created_at, updated_at,
       club_memberships(club_id, status, is_primary, joined_at, clubs(id, name)),
-      club_admin_assignments(club_id, assigned_at, clubs(id, name))
+      club_admin_assignments!club_admin_assignments_profile_id_fkey(
+        club_id, assigned_at, clubs(id, name)
+      )
       `,
     )
     .eq("id", id)
