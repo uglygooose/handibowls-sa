@@ -59,7 +59,7 @@ Single source of truth for every piece of drift between Claude Design output / r
 
 ### Phase 6 — Tournament engine
 
-- [ ] **lib/tournaments primitives use uppercase enum vocab.** `labels.ts` and `handicap.ts` reference `SINGLES`/`SCRATCH`/`HANDICAP_START` but Phase 2 schema enums are lowercase (`singles`/`scratch`/`handicap_start`). Tests pass in isolation; modules can't be wired to current DB rows without case-mapping. 6b adapters must address — either case-map at adapter boundary or normalise primitives to lowercase. Recommend case-map at adapter (contained, doesn't rewrite tested logic). Owning phase: 6b. Discovered: Phase 6a, 2026-04-29.
+- [x] ~~**lib/tournaments primitives use uppercase enum vocab.** `labels.ts` and `handicap.ts` reference `SINGLES`/`SCRATCH`/`HANDICAP_START` but Phase 2 schema enums are lowercase (`singles`/`scratch`/`handicap_start`). Tests pass in isolation; modules can't be wired to current DB rows without case-mapping. 6b adapters must address — either case-map at adapter boundary or normalise primitives to lowercase. Recommend case-map at adapter (contained, doesn't rewrite tested logic). Owning phase: 6b. Discovered: Phase 6a, 2026-04-29.~~ Closed: 6b (`7caa5c4`), 2026-04-29. `lib/tournaments/adapters.ts` ships `dbStatusToPrimitive` / `dbFormatToPrimitive` / `dbHandicapRuleToPrimitive` (lowercase → uppercase) plus the reverse `primitiveStatusToDb` for inserts. Both directions covered by tests with explicit round-trip assertions. Primitives stay uppercase as recommended.
 
 ### Phase 7 — Admin tournament UI
 
