@@ -1468,6 +1468,10 @@ export type Database = {
       }
       match_tournament_id: { Args: { p_match: string }; Returns: string }
       message_club_id: { Args: { p_message: string }; Returns: string }
+      set_primary_membership: {
+        Args: { p_membership_id: string }
+        Returns: undefined
+      }
       team_tournament_id: { Args: { p_team: string }; Returns: string }
       tournament_host_club: { Args: { p_tournament: string }; Returns: string }
     }
