@@ -1,8 +1,16 @@
-import { describe, expect, it } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
-import { ClubsTable } from "./ClubsTable";
 import type { ClubRow } from "../_data";
+import { ClubsTable } from "./ClubsTable";
+
+// next/navigation's useRouter is now invoked from the redesigned table to
+// drive row-click navigation. Mock it so jsdom-backed tests don't reach
+// out to the real Next runtime.
+const pushMock = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock, replace: vi.fn(), refresh: vi.fn() }),
+}));
 
 function makeRow(overrides: Partial<ClubRow>): ClubRow {
   return {
@@ -51,6 +59,7 @@ const rows: ClubRow[] = [
 ];
 
 function renderTable() {
+  pushMock.mockClear();
   return render(
     <ClubsTable
       rows={rows}
@@ -63,52 +72,75 @@ function renderTable() {
 }
 
 describe("ClubsTable", () => {
-  it("renders every row's name as a link to the detail page", () => {
+  it("renders every row with a click-through to the detail page", () => {
     renderTable();
-    const acmeLink = screen.getByRole("link", { name: "Acme Bowls" });
-    expect(acmeLink).toHaveAttribute(
-      "href",
+    // Names are rendered inline (no anchor wrapper) per the redesigned
+    // tabular layout — the whole row is clickable via router.push.
+    const acmeName = screen.getByTestId("club-row-22222222-2222-2222-2222-222222222222");
+    expect(acmeName).toHaveTextContent("Acme Bowls");
+    expect(
+      screen.getByTestId("club-row-11111111-1111-1111-1111-111111111111"),
+    ).toHaveTextContent("Zephyr Club");
+    expect(
+      screen.getByTestId("club-row-33333333-3333-3333-3333-333333333333"),
+    ).toHaveTextContent("Marina Greens");
+
+    const acmeRow = screen.getByTestId("row-22222222-2222-2222-2222-222222222222");
+    fireEvent.click(acmeRow);
+    expect(pushMock).toHaveBeenCalledWith(
       "/platform/clubs/22222222-2222-2222-2222-222222222222",
     );
-    expect(screen.getByRole("link", { name: "Zephyr Club" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Marina Greens" })).toBeInTheDocument();
   });
 
-  it("filters rows by the global filter input", () => {
+  it("filters rows by the search input", () => {
     renderTable();
-    const input = screen.getByLabelText("Filter clubs");
+    const input = screen.getByLabelText("Search clubs");
     fireEvent.change(input, { target: { value: "Acme" } });
-    expect(screen.queryByRole("link", { name: "Zephyr Club" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Marina Greens" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Acme Bowls" })).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("club-row-11111111-1111-1111-1111-111111111111"),
+    ).toBeNull();
+    expect(
+      screen.queryByTestId("club-row-33333333-3333-3333-3333-333333333333"),
+    ).toBeNull();
+    expect(
+      screen.getByTestId("club-row-22222222-2222-2222-2222-222222222222"),
+    ).toBeInTheDocument();
   });
 
-  it("reverses name order when the Name sort header is clicked", () => {
+  it("reverses name order when the Club sort header is clicked", () => {
     renderTable();
-    const initialLinks = screen
-      .getAllByRole("link")
-      .map((el) => el.textContent?.trim())
-      .filter(Boolean);
-    expect(initialLinks[0]).toBe("Acme Bowls");
+    const initialNames = screen
+      .getAllByTestId(/^club-row-/)
+      .map((el) => el.textContent?.trim());
+    expect(initialNames[0]).toBe("Acme Bowls");
 
-    const nameButton = screen.getByRole("button", { name: /name/i });
-    fireEvent.click(nameButton);
-    const reversedLinks = screen
-      .getAllByRole("link")
-      .map((el) => el.textContent?.trim())
-      .filter(Boolean);
-    expect(reversedLinks[0]).toBe("Zephyr Club");
+    // Header is now a plain th (sort-on-click) rather than a nested
+    // button. Click the th element directly.
+    const nameHeader = screen.getByRole("columnheader", { name: /club/i });
+    fireEvent.click(nameHeader);
+    const reversedNames = screen
+      .getAllByTestId(/^club-row-/)
+      .map((el) => el.textContent?.trim());
+    expect(reversedNames[0]).toBe("Zephyr Club");
   });
 
-  it("shows an Archived badge for inactive clubs", () => {
+  it("shows an Inactive status pill for inactive clubs", () => {
     renderTable();
-    expect(screen.getByText("Archived")).toBeInTheDocument();
+    // Status column now uses the StatusPill primitive — "Inactive" replaces
+    // the prior "Archived" Badge label.
+    expect(screen.getByText("Inactive")).toBeInTheDocument();
+    // Two of three rows are active.
+    expect(screen.getAllByText("Active")).toHaveLength(2);
   });
 
-  it("renders the theme preset label next to the chip", () => {
+  it("renders BowlChips for each row's theme preset (no text label per design)", () => {
     renderTable();
-    expect(screen.getByText("ocean-blue")).toBeInTheDocument();
-    expect(screen.getByText("midnight")).toBeInTheDocument();
-    expect(screen.getAllByText("atomic-red").length).toBeGreaterThan(0);
+    // The Theme column shows a BowlChip only — the text label was dropped
+    // in the redesign because the chip is the recognition cue. Verify all
+    // three rows render their chips by aria-label (BowlChip uses the
+    // preset's pretty label).
+    expect(screen.getByLabelText("Atomic Red")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ocean Blue")).toBeInTheDocument();
+    expect(screen.getByLabelText("Midnight")).toBeInTheDocument();
   });
 });
