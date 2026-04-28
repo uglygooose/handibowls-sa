@@ -1,6 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
+import { Fragment } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -12,63 +13,69 @@ type Props = {
   onJump: (step: number) => void;
 };
 
-// Five-step progress bar. Clicking an already-reached step jumps back —
-// forward jumps are disallowed (the user has to pass each gate). The
-// currently-active step gets accented; completed steps get a checkmark.
+// Wizard step indicator per the Claude Design treatment:
+//   - circular numbered steps (36px) — active fills primary-500 with a
+//     4px ring; done fills ink with a check icon; pending stays bone
+//     with a border
+//   - 10px mono uppercase label sits below each circle
+//   - a 2px connecting line between circles fills ink as it's crossed
+//   - already-reached circles remain clickable so the user can step
+//     back; forward jumps are disallowed (preserves the gate semantics)
 export function WizardProgress({ currentStep, furthestStep, onJump }: Props) {
   return (
     <ol
       aria-label="Wizard progress"
       data-testid="wizard-progress"
-      className="flex flex-wrap items-center gap-x-2 gap-y-3 text-sm"
+      className="my-6 flex items-start gap-0"
     >
       {STEP_KEYS.map((key, i) => {
         const step = i + 1;
         const isActive = step === currentStep;
         const isComplete = step < furthestStep;
         const isReachable = step <= furthestStep;
+        const isLast = i === STEP_KEYS.length - 1;
         return (
-          <li key={key} className="flex items-center gap-2">
-            <button
-              type="button"
-              data-testid={`wizard-step-${step}`}
-              data-active={isActive || undefined}
-              data-complete={isComplete || undefined}
-              disabled={!isReachable}
-              onClick={() => onJump(step)}
-              className={cn(
-                "flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px] tracking-[0.08em] uppercase transition-colors",
-                "disabled:cursor-not-allowed disabled:opacity-50",
-                isActive && "border-foreground bg-foreground text-background",
-                !isActive && isComplete && "border-border bg-muted",
-                !isActive && !isComplete && "border-border",
-              )}
-            >
-              <span
+          <Fragment key={key}>
+            <li className="flex flex-col items-center gap-2">
+              <button
+                type="button"
+                data-testid={`wizard-step-${step}`}
+                data-active={isActive || undefined}
+                data-complete={isComplete || undefined}
+                disabled={!isReachable}
+                onClick={() => onJump(step)}
                 className={cn(
-                  "inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold",
-                  isActive
-                    ? "bg-background text-foreground"
-                    : isComplete
-                      ? "bg-foreground text-background"
-                      : "bg-muted text-foreground",
+                  "inline-flex size-9 items-center justify-center rounded-full",
+                  "border-2 font-display text-sm font-extrabold transition-all",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
+                  isActive &&
+                    "border-primary-500 bg-primary-500 text-on-primary shadow-[0_0_0_4px_rgba(215,38,30,0.15)]",
+                  !isActive && isComplete && "border-ink bg-ink text-ink-inverse",
+                  !isActive && !isComplete && "border-border bg-bone text-ink-subtle",
                 )}
-                aria-hidden="true"
               >
-                {isComplete ? <Check className="h-3 w-3" /> : step}
+                {isComplete ? <Check className="size-3.5" aria-hidden="true" /> : step}
+              </button>
+              <span
+                className={cn(
+                  "font-mono text-[10px] font-bold uppercase tracking-[0.12em]",
+                  isActive ? "text-ink" : "text-ink-subtle",
+                )}
+              >
+                {STEP_LABELS[key]}
               </span>
-              {STEP_LABELS[key]}
-            </button>
-            {step < 5 && (
+            </li>
+            {!isLast && (
               <span
                 aria-hidden="true"
                 className={cn(
-                  "hidden h-px w-6 sm:block",
-                  step < furthestStep ? "bg-foreground" : "bg-border",
+                  "mx-2 h-0.5 flex-1 self-start",
+                  isComplete ? "bg-ink" : "bg-border",
                 )}
+                style={{ marginTop: 17 }}
               />
             )}
-          </li>
+          </Fragment>
         );
       })}
     </ol>
