@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       booking_windows: {
@@ -1329,6 +1304,7 @@ export type Database = {
           max_entries: number | null
           name: string
           scope: Database["public"]["Enums"]["tournament_scope"]
+          seeding_method: Database["public"]["Enums"]["seeding_method"]
           shots_up_target: number | null
           starts_at: string | null
           status: Database["public"]["Enums"]["tournament_status"]
@@ -1350,6 +1326,7 @@ export type Database = {
           max_entries?: number | null
           name: string
           scope?: Database["public"]["Enums"]["tournament_scope"]
+          seeding_method?: Database["public"]["Enums"]["seeding_method"]
           shots_up_target?: number | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["tournament_status"]
@@ -1371,6 +1348,7 @@ export type Database = {
           max_entries?: number | null
           name?: string
           scope?: Database["public"]["Enums"]["tournament_scope"]
+          seeding_method?: Database["public"]["Enums"]["seeding_method"]
           shots_up_target?: number | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["tournament_status"]
@@ -1506,6 +1484,7 @@ export type Database = {
       message_recipient_status: "unread" | "read" | "archived"
       message_status: "draft" | "queued" | "sent" | "failed"
       player_position: "skip" | "third" | "second" | "lead"
+      seeding_method: "random" | "seeded" | "sectional"
       t20_grade: "gold" | "silver" | "bronze" | "fail"
       t20_section:
         | "jacks"
@@ -1664,9 +1643,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       age_group: ["open", "veteran", "junior", "u35"],
@@ -1701,6 +1677,7 @@ export const Constants = {
       message_recipient_status: ["unread", "read", "archived"],
       message_status: ["draft", "queued", "sent", "failed"],
       player_position: ["skip", "third", "second", "lead"],
+      seeding_method: ["random", "seeded", "sectional"],
       t20_grade: ["gold", "silver", "bronze", "fail"],
       t20_section: [
         "jacks",
