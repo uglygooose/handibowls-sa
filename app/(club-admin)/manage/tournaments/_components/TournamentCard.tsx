@@ -5,6 +5,7 @@ import { Calendar, User, Users } from "lucide-react";
 
 import { EntriesGatePill } from "@/components/tournament/EntriesGatePill";
 import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
+import { formatDateZA } from "@/lib/format/dates";
 import { FORMAT_DEFAULTS } from "@/lib/tournaments/formats";
 import { cn } from "@/lib/utils";
 
@@ -31,16 +32,6 @@ function formatRules(format: TournamentFormat): string {
   const d = FORMAT_DEFAULTS[format];
   if (d.scoringModel === "shots_up") return `${d.shotsTarget} shots up`;
   return `${d.endsTarget} ends`;
-}
-
-function formatDate(s: string | null): string {
-  if (!s) return "—";
-  const d = new Date(s);
-  return d.toLocaleDateString("en-ZA", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 function formatId(id: string): string {
@@ -112,7 +103,7 @@ export function TournamentCard({ tournament: t, className }: Props) {
               <ScopeBadge scope={t.scope} />
               <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 text-[12px] font-medium text-ink-muted ring-1 ring-inset ring-border">
                 <Calendar className="size-3.5" aria-hidden="true" />
-                {formatDate(t.starts_at)}
+                {formatDateZA(t.starts_at)}
               </span>
             </div>
           </div>

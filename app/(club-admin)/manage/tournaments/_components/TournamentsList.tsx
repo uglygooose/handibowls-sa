@@ -22,6 +22,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 
 import { Bowl } from "@/components/brand/Bowl";
+import { formatDateZA } from "@/lib/format/dates";
 import { cn } from "@/lib/utils";
 
 import type {
@@ -453,13 +454,7 @@ function ListView({ tournaments }: { tournaments: TournamentListRow[] }) {
         header: "Starts",
         cell: ({ row }) => (
           <span className="font-mono text-[12px] tabular-nums text-ink-muted">
-            {row.original.starts_at
-              ? new Date(row.original.starts_at).toLocaleDateString("en-ZA", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })
-              : "—"}
+            {formatDateZA(row.original.starts_at)}
           </span>
         ),
       },

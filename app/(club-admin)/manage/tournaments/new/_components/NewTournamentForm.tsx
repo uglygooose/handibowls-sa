@@ -513,7 +513,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
                 </strong>
               </div>
               <p className="mt-1 text-[13px] text-ink-muted">
-                Fees are displayed on the entry page only — players won't be
+                Fees are displayed on the entry page only — players won&apos;t be
                 charged through HandiBowls in v1. See{" "}
                 <Link
                   href="/payments"
