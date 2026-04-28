@@ -1409,6 +1409,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_finalize_matches_batch: {
+        Args: { p_matches: Json; p_tournament_id: string }
+        Returns: Json
+      }
+      bulk_save_match_scores_batch: {
+        Args: { p_matches: Json; p_tournament_id: string }
+        Returns: Json
+      }
       complete_player_profile: {
         Args: {
           p_bsa_number: string
