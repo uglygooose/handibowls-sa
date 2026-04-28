@@ -20,6 +20,7 @@ const FIXTURE: UserRow[] = [
     email: "super@handibowls.local",
     role: "super_admin",
     profile_completed: true,
+    bsa_number: null,
     created_at: "2026-04-01T00:00:00Z",
     clubs: [],
   },
@@ -29,8 +30,9 @@ const FIXTURE: UserRow[] = [
     email: "admin@demo.local",
     role: "club_admin",
     profile_completed: true,
+    bsa_number: "NOR-0001",
     created_at: "2026-04-02T00:00:00Z",
-    clubs: [{ id: "c-demo", name: "Demo Bowls Club" }],
+    clubs: [{ id: "c-demo", name: "Demo Bowls Club", short_name: "DEMO" }],
   },
   {
     id: "u-player",
@@ -38,10 +40,11 @@ const FIXTURE: UserRow[] = [
     email: "player@demo.local",
     role: "player",
     profile_completed: false,
+    bsa_number: "WP-2019",
     created_at: "2026-04-03T00:00:00Z",
     clubs: [
-      { id: "c-demo", name: "Demo Bowls Club" },
-      { id: "c-other", name: "Other Bowls Club" },
+      { id: "c-demo", name: "Demo Bowls Club", short_name: "DEMO" },
+      { id: "c-other", name: "Other Bowls Club", short_name: "OTH" },
     ],
   },
 ];
@@ -117,47 +120,56 @@ describe("UsersTable", () => {
     );
   }
 
-  it("renders one row per user with name, email, role, club count, and created", () => {
+  it("renders one row per user with name link, email, role, club chips, BSA #, and joined date", () => {
     renderTable();
     const rows = screen.getAllByTestId(/^user-row-/);
     expect(rows).toHaveLength(3);
 
-    // Name links
-    expect(screen.getByRole("link", { name: "Super Admin" })).toHaveAttribute(
+    // Name links — the redesigned cell wraps avatar + display name in a
+    // single Link to the detail page.
+    expect(screen.getByTestId("user-link-u-super")).toHaveAttribute(
       "href",
       "/platform/users/u-super",
     );
-    expect(screen.getByRole("link", { name: "Demo Admin" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Demo Player" })).toBeInTheDocument();
+    expect(screen.getByTestId("user-link-u-admin")).toHaveTextContent("Demo Admin");
+    expect(screen.getByTestId("user-link-u-player")).toHaveTextContent("Demo Player");
 
     // Email
     expect(screen.getByText("super@handibowls.local")).toBeInTheDocument();
     expect(screen.getByText("admin@demo.local")).toBeInTheDocument();
 
-    // Role labels
+    // RoleBadge labels
     expect(screen.getByText("Super admin")).toBeInTheDocument();
     expect(screen.getByText("Club admin")).toBeInTheDocument();
     expect(screen.getByText("Player")).toBeInTheDocument();
 
-    // Created (ISO date trimmed)
-    expect(screen.getByText("2026-04-01")).toBeInTheDocument();
-    expect(screen.getByText("2026-04-03")).toBeInTheDocument();
+    // BSA # column
+    expect(screen.getByText("NOR-0001")).toBeInTheDocument();
+    expect(screen.getByText("WP-2019")).toBeInTheDocument();
+
+    // Joined date — formatted as "DD Mon YYYY" (en-ZA).
+    expect(screen.getByText("01 Apr 2026")).toBeInTheDocument();
+    expect(screen.getByText("03 Apr 2026")).toBeInTheDocument();
   });
 
-  it("renders the club count as a tooltip trigger; em-dash when no clubs", () => {
+  it("renders ClubChips for each membership; em-dash when no clubs", () => {
     renderTable();
-    // Super admin has no clubs → em-dash in the Clubs column.
+    // Super admin has no clubs and no BSA #, so two em-dashes appear in
+    // the row — assert via the row scope and getAllByText.
     const superRow = screen.getByTestId("user-row-u-super");
-    const superCells = within(superRow).getAllByRole("cell");
-    expect(superCells[3].textContent).toBe("—");
+    expect(within(superRow).getAllByText("—").length).toBeGreaterThanOrEqual(1);
 
-    // Demo admin → 1, Demo player → 2.
-    expect(screen.getByTestId("user-clubs-u-admin").textContent).toBe("1");
-    expect(screen.getByTestId("user-clubs-u-player").textContent).toBe("2");
+    // Single-club admin → one chip with the club's short_name.
+    const adminClubsCell = screen.getByTestId("user-clubs-u-admin");
+    expect(within(adminClubsCell).getByText("DEMO")).toBeInTheDocument();
+
+    // Two-club player → two chips.
+    const playerClubsCell = screen.getByTestId("user-clubs-u-player");
+    expect(within(playerClubsCell).getByText("DEMO")).toBeInTheDocument();
+    expect(within(playerClubsCell).getByText("OTH")).toBeInTheDocument();
   });
 
   it("renders only the rows it is given — i.e. acts as the read-only render of the server-side filter", () => {
-    // Simulate the server having filtered down to only club-name matches.
     const filtered = FIXTURE.filter((u) =>
       u.clubs.some((c) => c.name.toLowerCase().includes("demo")) ||
       u.display.toLowerCase().includes("demo") ||
@@ -165,17 +177,16 @@ describe("UsersTable", () => {
     );
     renderTable(filtered, "demo");
 
-    expect(screen.queryByRole("link", { name: "Super Admin" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Demo Admin" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Demo Player" })).toBeInTheDocument();
+    expect(screen.queryByTestId("user-link-u-super")).toBeNull();
+    expect(screen.getByTestId("user-link-u-admin")).toBeInTheDocument();
+    expect(screen.getByTestId("user-link-u-player")).toBeInTheDocument();
   });
 
   it("filters by name field — display name match only", () => {
-    // Simulate server-side first_name match: only Demo Admin returned.
     const matched = FIXTURE.filter((u) => u.display === "Demo Admin");
     renderTable(matched, "Demo Admin");
     expect(screen.getAllByTestId(/^user-row-/)).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "Demo Admin" })).toBeInTheDocument();
+    expect(screen.getByTestId("user-link-u-admin")).toBeInTheDocument();
   });
 
   it("filters by email field — email-only match", () => {
@@ -184,7 +195,7 @@ describe("UsersTable", () => {
     );
     renderTable(matched, "super@handibowls");
     expect(screen.getAllByTestId(/^user-row-/)).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "Super Admin" })).toBeInTheDocument();
+    expect(screen.getByTestId("user-link-u-super")).toBeInTheDocument();
   });
 
   it("filters by club field — only users with a matching club", () => {
@@ -193,12 +204,22 @@ describe("UsersTable", () => {
     );
     renderTable(matched, "Other");
     expect(screen.getAllByTestId(/^user-row-/)).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "Demo Player" })).toBeInTheDocument();
+    expect(screen.getByTestId("user-link-u-player")).toBeInTheDocument();
   });
 
-  it("renders an empty-state message when no rows match the active query", () => {
+  it("renders an EmptyState when no rows match the active query", () => {
     renderTable([], "zzz");
-    expect(screen.getByText(/No users match/)).toBeInTheDocument();
-    expect(screen.getByText(/zzz/)).toBeInTheDocument();
+    expect(screen.getByText("Nothing matches.")).toBeInTheDocument();
+    // EmptyState description quotes the search hint, no longer the literal q.
+    expect(
+      screen.getByText(/Try a different name, email, or BSA number/),
+    ).toBeInTheDocument();
+  });
+
+  it("does NOT render an impersonation control (Q11 v2-deferred lockout)", () => {
+    renderTable();
+    expect(screen.queryByText(/impersonate/i)).toBeNull();
+    expect(screen.queryByText(/view as/i)).toBeNull();
+    expect(screen.queryByText(/act as/i)).toBeNull();
   });
 });

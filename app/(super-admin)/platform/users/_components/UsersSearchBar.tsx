@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { Loader2, Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Input } from "@/components/ui/input";
 
@@ -53,21 +54,25 @@ export function UsersSearchBar({ initialQuery, basePath }: Props) {
   }, []);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="relative">
+      <Search
+        className="pointer-events-none absolute left-5 top-1/2 size-[22px] -translate-y-1/2 text-ink-subtle"
+        aria-hidden="true"
+      />
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search by name, email, or club…"
+        placeholder="Search users by name, email, BSA number, or club…"
         aria-label="Search users"
         data-testid="users-search-input"
-        className="max-w-sm"
+        className="h-16 rounded-[12px] border-[1.5px] border-border bg-bone pl-14 text-[17px] focus-visible:border-primary-500"
       />
-      <span
-        aria-live="polite"
-        className="text-xs text-ink-muted tabular-nums min-w-12"
-      >
-        {isPending ? "Searching…" : ""}
-      </span>
+      {isPending && (
+        <Loader2
+          aria-label="Searching"
+          className="absolute right-5 top-1/2 size-4 -translate-y-1/2 animate-spin text-ink-subtle"
+        />
+      )}
     </div>
   );
 }

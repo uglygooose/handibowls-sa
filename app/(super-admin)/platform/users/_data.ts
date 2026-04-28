@@ -5,7 +5,7 @@ import type { Database } from "@/types/database.types";
 
 export type UserRole = Database["public"]["Enums"]["user_role"];
 
-export type UserClubRef = { id: string; name: string };
+export type UserClubRef = { id: string; name: string; short_name: string | null };
 
 export type UserRow = {
   id: string;
@@ -13,6 +13,7 @@ export type UserRow = {
   email: string | null;
   role: UserRole;
   profile_completed: boolean;
+  bsa_number: string | null;
   created_at: string;
   clubs: UserClubRef[];
 };
@@ -69,10 +70,12 @@ function display(p: {
 // "more than one relationship was found". `club_memberships` has a single FK
 // (`profile_id_fkey`) and resolves unambiguously.
 const PROFILE_SELECT = `
-  id, first_name, last_name, display_name, email, role, profile_completed, created_at,
-  club_memberships(club_id, clubs(id, name)),
-  club_admin_assignments!club_admin_assignments_profile_id_fkey(club_id, clubs(id, name))
+  id, first_name, last_name, display_name, email, role, profile_completed, bsa_number, created_at,
+  club_memberships(club_id, clubs(id, name, short_name)),
+  club_admin_assignments!club_admin_assignments_profile_id_fkey(club_id, clubs(id, name, short_name))
 `;
+
+type EmbeddedClub = { id: string; name: string; short_name: string | null };
 
 type EmbeddedProfile = {
   id: string;
@@ -82,20 +85,29 @@ type EmbeddedProfile = {
   email: string | null;
   role: UserRole;
   profile_completed: boolean;
+  bsa_number: string | null;
   created_at: string;
-  club_memberships?: { club_id: string; clubs: { id: string; name: string } | null }[] | null;
-  club_admin_assignments?:
-    | { club_id: string; clubs: { id: string; name: string } | null }[]
-    | null;
+  club_memberships?: { club_id: string; clubs: EmbeddedClub | null }[] | null;
+  club_admin_assignments?: { club_id: string; clubs: EmbeddedClub | null }[] | null;
 };
 
 function dedupeClubs(p: EmbeddedProfile): UserClubRef[] {
   const acc = new Map<string, UserClubRef>();
   for (const m of p.club_memberships ?? []) {
-    if (m.clubs) acc.set(m.clubs.id, { id: m.clubs.id, name: m.clubs.name });
+    if (m.clubs)
+      acc.set(m.clubs.id, {
+        id: m.clubs.id,
+        name: m.clubs.name,
+        short_name: m.clubs.short_name,
+      });
   }
   for (const a of p.club_admin_assignments ?? []) {
-    if (a.clubs) acc.set(a.clubs.id, { id: a.clubs.id, name: a.clubs.name });
+    if (a.clubs)
+      acc.set(a.clubs.id, {
+        id: a.clubs.id,
+        name: a.clubs.name,
+        short_name: a.clubs.short_name,
+      });
   }
   return [...acc.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -191,6 +203,7 @@ export async function listUsers({
     email: p.email,
     role: p.role,
     profile_completed: p.profile_completed,
+    bsa_number: p.bsa_number,
     created_at: p.created_at,
     clubs: dedupeClubs(p),
   }));

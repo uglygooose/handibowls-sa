@@ -28,14 +28,16 @@ export default async function PlatformUsers({
 
   const { rows, total } = await listUsers({ q, page, pageSize: PAGE_SIZE });
 
+  const eyebrow = `Platform · ${total} ${total === 1 ? "user" : "users"}`;
+
   return (
     <div className="flex flex-col">
       <PageHeader
-        eyebrow="Platform"
+        eyebrow={eyebrow}
         title="Users"
-        description="Search across all profiles by name, email, or club. Read-only."
+        description="Search any user across all clubs on the network. Read-only."
       />
-      <div className="flex flex-col gap-4 px-6 py-6">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-10 py-8">
         <UsersSearchBar initialQuery={q} basePath={BASE_PATH} />
         <UsersTable
           rows={rows}

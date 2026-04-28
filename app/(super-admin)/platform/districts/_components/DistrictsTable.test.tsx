@@ -54,8 +54,10 @@ describe("DistrictsTable", () => {
 
   it("reverses district order when the District sort header is clicked", () => {
     render(<DistrictsTable rows={FIXTURE} />);
-    const districtButton = screen.getByRole("button", { name: /district/i });
-    fireEvent.click(districtButton);
+    // Headers are now plain th elements (no nested button) — click the
+    // columnheader by role.
+    const districtHeader = screen.getByRole("columnheader", { name: /district/i });
+    fireEvent.click(districtHeader);
     const rows = screen.getAllByTestId(/^district-row-/);
     expect(rowName(rows[0])).toBe("Western Province");
   });
@@ -71,8 +73,8 @@ describe("DistrictsTable", () => {
     expect(bolandCells[2].textContent).toBe("0");
   });
 
-  it("shows the row count summary", () => {
+  it("does not surface a row-count summary inside the table itself (count lives in the page-level eyebrow per the redesign)", () => {
     render(<DistrictsTable rows={FIXTURE} />);
-    expect(screen.getByText("20 districts")).toBeInTheDocument();
+    expect(screen.queryByText("20 districts")).toBeNull();
   });
 });
