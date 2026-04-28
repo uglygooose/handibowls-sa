@@ -12,6 +12,7 @@
 
 "use client";
 
+import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
 import { matchStatusLabel } from "@/lib/tournaments/labels";
 import { isMatchBye, isMatchDone, winnerTeamIdFromMatch } from "@/lib/tournaments/match";
 import {
@@ -19,18 +20,21 @@ import {
   computeTreeLayout,
 } from "@/lib/tournaments/brackets/matchHelpers";
 
-// Phase-6a placeholder palette — bytewise equivalents of the deleted
-// `theme.*` constants. Replaced with var(--color-*) tokens in 6e.
+// Phase 1 token palette. Phase 6e restyle: literal RGB values from the
+// 6a port replaced with the design-system CSS variables defined in
+// app/globals.css (`@theme inline`). Tokens auto-respond to club theme
+// flips (the primary-* family swaps per `data-theme` on <html>) and to
+// any future light/dark surface inversions.
 const TONE = {
-  border: "#E5E7EB",
-  muted: "#6B7280",
-  text: "#111827",
-  maroon: "#7A1F2B",
-  feeder: "#CBBBA3",
-  winnerGreen: "#16A34A",
-  winnerGreenDeep: "#0F7A3D",
-  surface: "#fff",
-  selectedTint: "rgba(122,31,43,0.05)",
+  border: "var(--color-border)",
+  muted: "var(--color-ink-muted)",
+  subtle: "var(--color-ink-subtle)",
+  text: "var(--color-ink)",
+  primary: "var(--color-primary-500)",
+  primaryTint: "var(--color-primary-100)",
+  feeder: "var(--color-ink-subtle)",
+  winnerGreen: "var(--color-success-500)",
+  surface: "var(--color-surface)",
 } as const;
 
 // -------------------- structural types --------------------
@@ -262,8 +266,8 @@ export default function BracketTree(props: BracketTreeProps) {
                   onClick={() => setTreeFromRound(r)}
                   style={{
                     border: `1px solid ${TONE.border}`,
-                    background: active ? TONE.maroon : TONE.surface,
-                    color: active ? "#fff" : TONE.text,
+                    background: active ? TONE.primary : TONE.surface,
+                    color: active ? "var(--color-on-primary)" : TONE.text,
                     padding: "8px 10px",
                     borderRadius: 999,
                     fontWeight: 900,
@@ -412,14 +416,19 @@ export default function BracketTree(props: BracketTreeProps) {
   return (
     <div
       style={{
+        position: "relative",
         marginTop: 14,
         background: TONE.surface,
         border: `1px solid ${TONE.border}`,
         borderRadius: 16,
         padding: 14,
+        overflow: "hidden",
       }}
     >
-      <div style={{ fontWeight: 900, fontSize: 16 }}>Bracket</div>
+      {/* Speckle accent — Phase 1 brand decoration. Decorative overlay only;
+          pointer-events:none in SpeckleLayer keeps the bracket interactive. */}
+      <SpeckleLayer density="low" opacity={0.06} seed="bracket-tree" />
+      <div style={{ position: "relative", fontWeight: 900, fontSize: 16 }}>Bracket</div>
       <div style={{ marginTop: 6, fontSize: 13, color: TONE.muted, lineHeight: 1.35 }}>
         Follow the knockout path. Winners advance to the next round.
       </div>
@@ -460,8 +469,8 @@ export default function BracketTree(props: BracketTreeProps) {
                     onClick={() => setBracketRound(round)}
                     style={{
                       border: `1px solid ${TONE.border}`,
-                      background: active ? TONE.maroon : TONE.surface,
-                      color: active ? "#fff" : TONE.text,
+                      background: active ? TONE.primary : TONE.surface,
+                      color: active ? "var(--color-on-primary)" : TONE.text,
                       padding: "6px 10px",
                       borderRadius: 999,
                       fontWeight: 900,
@@ -482,8 +491,8 @@ export default function BracketTree(props: BracketTreeProps) {
                 const winnerId = winnerTeamIdFromMatch(m);
                 const winA = winnerId && m.team_a_id === winnerId;
                 const winB = winnerId && m.team_b_id === winnerId;
-                const cardBorder = isMine ? TONE.maroon : TONE.border;
-                const cardBg = isMine ? TONE.selectedTint : TONE.surface;
+                const cardBorder = isMine ? TONE.primary : TONE.border;
+                const cardBg = isMine ? TONE.primaryTint : TONE.surface;
 
                 return (
                   <div
@@ -500,9 +509,9 @@ export default function BracketTree(props: BracketTreeProps) {
                         `${slotLabel(m, "A")} - Auto-advance (BYE)`
                       ) : (
                         <>
-                          <span style={{ color: winA ? TONE.winnerGreenDeep : TONE.text }}>{slotLabel(m, "A")}</span>{" "}
+                          <span style={{ color: winA ? TONE.winnerGreen : TONE.text }}>{slotLabel(m, "A")}</span>{" "}
                           <span style={{ color: TONE.muted, fontWeight: 900 }}>vs</span>{" "}
-                          <span style={{ color: winB ? TONE.winnerGreenDeep : TONE.text }}>{slotLabel(m, "B")}</span>
+                          <span style={{ color: winB ? TONE.winnerGreen : TONE.text }}>{slotLabel(m, "B")}</span>
                         </>
                       )}
                     </div>

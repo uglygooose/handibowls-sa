@@ -64,7 +64,11 @@ export const createTournamentSchema = z
     { message: "ends_at must be on or after starts_at", path: ["ends_at"] },
   );
 
-export type CreateTournamentInput = z.infer<typeof createTournamentSchema>;
+// `z.input` (not `z.infer`) so callers can omit fields with `.default()`.
+// The defaulted fields are optional from the caller's POV and required
+// in the parsed output — Zod 4's `infer` returns the output type by
+// default, hence the explicit `input` here.
+export type CreateTournamentInput = z.input<typeof createTournamentSchema>;
 
 // -------------------- closeEntries / completeTournament / cancelTournament --------------------
 
