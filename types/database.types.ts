@@ -1416,6 +1416,16 @@ export type Database = {
         }
         Returns: string
       }
+      create_player_invites_batch: {
+        Args: { p_club_id: string; p_invites: Json }
+        Returns: Database["public"]["CompositeTypes"]["invite_batch_result"][]
+        SetofOptions: {
+          from: "*"
+          to: "invite_batch_result"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       current_club_ids: { Args: never; Returns: string[] }
       current_role: {
         Args: never
@@ -1504,7 +1514,12 @@ export type Database = {
       user_role: "super_admin" | "club_admin" | "player"
     }
     CompositeTypes: {
-      [_ in never]: never
+      invite_batch_result: {
+        email: string | null
+        status: string | null
+        invite_id: string | null
+        token: string | null
+      }
     }
   }
 }
