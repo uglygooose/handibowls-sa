@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth/role";
 
 import { TournamentHero } from "./_components/TournamentHero";
-import { TournamentTabs, parseTabFromUrl, type TabId } from "./_components/TournamentTabs";
+import { parseTabFromUrl, type TabId } from "./_components/tabs";
+import { TournamentTabs } from "./_components/TournamentTabs";
 import { AuditTab } from "./_components/tabs/AuditTab";
 import { CommsTab } from "./_components/tabs/CommsTab";
 import { DrawTab } from "./_components/tabs/DrawTab";

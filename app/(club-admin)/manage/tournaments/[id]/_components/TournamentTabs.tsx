@@ -14,26 +14,26 @@ import { useCallback, useMemo, useTransition } from "react";
 
 import { cn } from "@/lib/utils";
 
+import { ALL_TAB_IDS, type TabId } from "./tabs";
+
 // URL-driven sticky tab strip for /manage/tournaments/[id]. Mirrors the
 // 7a TournamentsList URL-state pattern: filter changes go through
 // router.replace so they survive reload + are shareable, without
 // polluting browser history.
+//
+// TabId / parseTabFromUrl / ALL_TAB_IDS live in ./tabs (universal module)
+// so the Server Component page can call the URL parser without crossing
+// the "use client" boundary.
 
-export type TabId =
-  | "entries"
-  | "draw"
-  | "scoring"
-  | "rinks"
-  | "comms"
-  | "audit";
+export type { TabId };
 
-type TabSpec = {
+type TabRender = {
   id: TabId;
   label: string;
   icon: LucideIcon;
 };
 
-const TABS: TabSpec[] = [
+const TABS: TabRender[] = [
   { id: "entries", label: "Entries", icon: Users },
   { id: "draw", label: "Draw", icon: GitFork },
   { id: "scoring", label: "Scoring", icon: Grid3x3 },
@@ -41,8 +41,6 @@ const TABS: TabSpec[] = [
   { id: "comms", label: "Comms", icon: Megaphone },
   { id: "audit", label: "Audit", icon: History },
 ];
-
-const TAB_IDS: ReadonlySet<TabId> = new Set(TABS.map((t) => t.id));
 
 type Badges = Partial<Record<TabId, number | null>>;
 
@@ -127,14 +125,7 @@ export function TournamentTabs({ active, badges = {} }: Props) {
   );
 }
 
-export function parseTabFromUrl(value: string | undefined | null): TabId {
-  if (!value) return "entries";
-  const v = String(value).trim();
-  return TAB_IDS.has(v as TabId) ? (v as TabId) : "entries";
-}
-
-export const ALL_TAB_IDS: TabId[] = TABS.map((t) => t.id);
-
 // Re-export so the page-level renderer can introspect badges against
 // the canonical id list.
-export const useTabIds = (): TabId[] => useMemo(() => ALL_TAB_IDS, []);
+export const useTabIds = (): readonly TabId[] =>
+  useMemo(() => ALL_TAB_IDS, []);
