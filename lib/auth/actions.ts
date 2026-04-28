@@ -206,10 +206,19 @@ export async function acceptInviteAction(
       club_id: lookup.clubId,
     });
   } else {
+    // First membership becomes is_primary=true; subsequent invites add as
+    // non-primary so the partial unique index club_memberships_one_primary
+    // can't be tripped. Player switches via the dual-club switcher (5e).
+    const { data: existingPrimary } = await admin
+      .from("club_memberships")
+      .select("id")
+      .eq("profile_id", profileId)
+      .eq("is_primary", true)
+      .maybeSingle();
     await admin.from("club_memberships").insert({
       profile_id: profileId,
       club_id: lookup.clubId,
-      is_primary: true,
+      is_primary: !existingPrimary,
       status: "active",
     });
   }
