@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { TournamentCompletionMatch } from "./deriveTournamentCompletion";
-import { bool, hasValue, hasWinnerTeamId, isMatchBye, isMatchDone, winnerTeamIdFromMatch } from "./match";
+import type { TournamentCompletionMatch } from "@/lib/tournaments/completion";
+import {
+  bool,
+  hasValue,
+  hasWinnerTeamId,
+  isMatchBye,
+  isMatchDone,
+  winnerTeamIdFromMatch,
+} from "@/lib/tournaments/match";
 
 describe("hasValue", () => {
   it("rejects null/undefined/empty", () => {
@@ -30,7 +37,7 @@ describe("isMatchBye", () => {
   });
   it("detects slot_b_source_type BYE", () => {
     expect(
-      isMatchBye({ round_no: 1, status: "OPEN", slot_b_source_type: "BYE" } as TournamentCompletionMatch)
+      isMatchBye({ round_no: 1, status: "OPEN", slot_b_source_type: "BYE" } as TournamentCompletionMatch),
     ).toBe(true);
   });
   it("detects legacy missing-opponent bye", () => {
@@ -43,7 +50,7 @@ describe("isMatchBye", () => {
         status: "OPEN",
         team_a_id: "a",
         team_b_id: "b",
-      } as TournamentCompletionMatch)
+      } as TournamentCompletionMatch),
     ).toBe(false);
   });
 });
@@ -54,12 +61,12 @@ describe("isMatchDone", () => {
   });
   it("true when admin finalised", () => {
     expect(
-      isMatchDone({ round_no: 1, status: "OPEN", finalized_by_admin: true } as TournamentCompletionMatch)
+      isMatchDone({ round_no: 1, status: "OPEN", finalized_by_admin: true } as TournamentCompletionMatch),
     ).toBe(true);
   });
   it("true when has winner_team_id", () => {
     expect(
-      isMatchDone({ round_no: 1, status: "OPEN", winner_team_id: "x" } as TournamentCompletionMatch)
+      isMatchDone({ round_no: 1, status: "OPEN", winner_team_id: "x" } as TournamentCompletionMatch),
     ).toBe(true);
   });
   it("false otherwise", () => {
@@ -80,7 +87,7 @@ describe("winnerTeamIdFromMatch", () => {
       winnerTeamIdFromMatch({
         round_no: 1,
         winner_team_id: "w",
-      } as TournamentCompletionMatch)
+      } as TournamentCompletionMatch),
     ).toBe("w");
   });
   it("returns null when not done", () => {
@@ -92,7 +99,7 @@ describe("winnerTeamIdFromMatch", () => {
         team_b_id: "b",
         score_a: 10,
         score_b: 8,
-      } as TournamentCompletionMatch)
+      } as TournamentCompletionMatch),
     ).toBe(null);
   });
   it("returns team_a_id for finalised BYE match without explicit winner", () => {
@@ -102,7 +109,7 @@ describe("winnerTeamIdFromMatch", () => {
         status: "BYE",
         team_a_id: "a",
         finalized_by_admin: true,
-      } as TournamentCompletionMatch)
+      } as TournamentCompletionMatch),
     ).toBe("a");
   });
   it("returns null for an unresolved BYE (not done, no winner)", () => {
@@ -111,7 +118,7 @@ describe("winnerTeamIdFromMatch", () => {
         round_no: 1,
         status: "BYE",
         team_a_id: "a",
-      } as TournamentCompletionMatch)
+      } as TournamentCompletionMatch),
     ).toBe(null);
   });
   it("infers from scores when done without explicit winner", () => {
@@ -123,7 +130,7 @@ describe("winnerTeamIdFromMatch", () => {
         team_b_id: "b",
         score_a: 10,
         score_b: 8,
-      } as TournamentCompletionMatch)
+      } as TournamentCompletionMatch),
     ).toBe("a");
     expect(
       winnerTeamIdFromMatch({
@@ -133,7 +140,7 @@ describe("winnerTeamIdFromMatch", () => {
         team_b_id: "b",
         score_a: 5,
         score_b: 9,
-      } as TournamentCompletionMatch)
+      } as TournamentCompletionMatch),
     ).toBe("b");
   });
   it("returns null on tie", () => {
@@ -145,7 +152,7 @@ describe("winnerTeamIdFromMatch", () => {
         team_b_id: "b",
         score_a: 7,
         score_b: 7,
-      } as TournamentCompletionMatch)
+      } as TournamentCompletionMatch),
     ).toBe(null);
   });
 });

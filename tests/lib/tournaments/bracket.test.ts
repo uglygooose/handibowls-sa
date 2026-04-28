@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { finishPlacementLabel, largestPowerOfTwoLE, roundLabel } from "./bracket";
+import { finishPlacementLabel, largestPowerOfTwoLE, roundLabel } from "@/lib/tournaments/bracket";
 
 describe("largestPowerOfTwoLE", () => {
   it("returns self for exact powers", () => {

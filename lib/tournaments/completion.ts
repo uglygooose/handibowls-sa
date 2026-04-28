@@ -1,22 +1,110 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  deriveTournamentCompletion,
-  isTournamentByeMatch,
-  type TournamentCompletionMatch,
-} from "@/lib/tournaments/deriveTournamentCompletion";
+// lib/tournaments/completion.ts
+//
+// Tournament + match completion primitives.
+//
+// Merged from the pre-Phase-6 pair `deriveTournamentCompletion.ts` (pure)
+// and `completeTournamentIfDone.ts` (DB-coupled). Per §18 keep-list and
+// the Phase-6 spec: "Pure function exported, IO function exported, IO
+// calls pure." All exports preserved from both originals.
 
-// Local match-row shape for the rows selected in this file. Extends the
-// shared completion-match type with the slot-source columns we also read
-// here (deriveTournamentCompletion doesn't need them, but cleanup does).
-type MatchRow = TournamentCompletionMatch & {
-  slot_a_source_type?: string | null;
-  slot_a_source_match_id?: string | null;
-  slot_b_source_match_id?: string | null;
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+// -------------------- Pure layer --------------------
+//
+// Match shape is structural — both the admin and the public callers have
+// wider `MatchRow` types in their pages; both are assignable to this.
+
+export type TournamentCompletionMatch = {
+  id?: string | null;
+  round_no: number | null;
+  status?: string | null;
+  finalized_by_admin?: boolean | null;
+  winner_team_id?: string | null;
+  team_a_id?: string | null;
+  team_b_id?: string | null;
+  score_a?: number | string | null;
+  score_b?: number | string | null;
+  slot_b_source_type?: string | null;
 };
 
 function hasValue(v: unknown) {
   return v != null && String(v) !== "";
 }
+
+export function isTournamentByeMatch(m: TournamentCompletionMatch) {
+  const st = String(m?.status ?? "");
+  const slotB = String(m?.slot_b_source_type ?? "");
+  const hasTeamB = hasValue(m?.team_b_id);
+
+  if (st === "BYE") return true;
+  if (slotB === "BYE") return true;
+
+  // Legacy "bye" encoding: no opponent + no dependency.
+  return !hasTeamB && !slotB;
+}
+
+export function isTournamentMatchDone(m: TournamentCompletionMatch) {
+  const st = String(m?.status ?? "");
+  const hasWinner = hasValue(m?.winner_team_id);
+  return st === "COMPLETED" || m?.finalized_by_admin === true || hasWinner;
+}
+
+function hasInferableWinner(m: TournamentCompletionMatch) {
+  if (hasValue(m?.winner_team_id)) return true;
+
+  const a = hasValue(m?.team_a_id) ? String(m.team_a_id) : "";
+  const b = hasValue(m?.team_b_id) ? String(m.team_b_id) : "";
+  if (!a || !b) return false;
+
+  const sa = m?.score_a == null ? null : Number(m.score_a);
+  const sb = m?.score_b == null ? null : Number(m.score_b);
+  if (!Number.isFinite(sa) || !Number.isFinite(sb)) return false;
+  if (!Number.isInteger(sa) || !Number.isInteger(sb)) return false;
+  if (sa === sb) return false;
+
+  return true;
+}
+
+export function deriveTournamentCompletion(matches: TournamentCompletionMatch[]) {
+  const playable = (matches ?? []).filter((m) => {
+    const rn = Number(m?.round_no ?? 0);
+    if (!rn) return false;
+    return !isTournamentByeMatch(m);
+  });
+
+  if (!playable.length) return { completed: false, maxPlayableRound: null as number | null };
+
+  const maxPlayableRound = Math.max(
+    ...playable.map((m) => Number(m?.round_no ?? 0)).filter((r) => r > 0),
+  );
+
+  if (!maxPlayableRound) return { completed: false, maxPlayableRound: null as number | null };
+
+  if (playable.some((m) => !isTournamentMatchDone(m))) {
+    return { completed: false, maxPlayableRound };
+  }
+
+  const finals = playable.filter((m) => Number(m?.round_no ?? 0) === maxPlayableRound);
+  const hasFinalWinner = finals.some((m) => hasInferableWinner(m));
+
+  return { completed: hasFinalWinner, maxPlayableRound };
+}
+
+// -------------------- IO layer --------------------
+//
+// Wraps the pure derivation with a Supabase write. Used by the
+// completeTournament + advanceRound server actions in 6d. Idempotent:
+// if the tournament is already COMPLETED, the update is a no-op
+// (the .neq("status", "COMPLETED") guard prevents a second write).
+
+// Local match-row shape for the rows selected here. Extends the shared
+// completion-match type with the slot-source columns we also read for
+// the stale-round cleanup pass.
+type MatchRow = TournamentCompletionMatch & {
+  slot_a_source_type?: string | null;
+  slot_a_source_match_id?: string | null;
+  slot_b_source_match_id?: string | null;
+};
 
 function inferWinnerTeamIdFromScores(m: MatchRow) {
   const a = hasValue(m?.team_a_id) ? String(m.team_a_id) : "";
@@ -33,14 +121,17 @@ function inferWinnerTeamIdFromScores(m: MatchRow) {
   return sa > sb ? a : b;
 }
 
-export async function completeTournamentIfDone(opts: { supabase: SupabaseClient; tournamentId: string }) {
+export async function completeTournamentIfDone(opts: {
+  supabase: SupabaseClient;
+  tournamentId: string;
+}) {
   const tournamentId = String(opts?.tournamentId ?? "");
   if (!tournamentId) return { attempted: false, completed: false, error: null as string | null };
 
   const { data: ms, error: mErr } = await opts.supabase
     .from("matches")
     .select(
-      "id, round_no, status, finalized_by_admin, winner_team_id, team_a_id, team_b_id, score_a, score_b, slot_a_source_type, slot_a_source_match_id, slot_b_source_type, slot_b_source_match_id"
+      "id, round_no, status, finalized_by_admin, winner_team_id, team_a_id, team_b_id, score_a, score_b, slot_a_source_type, slot_a_source_match_id, slot_b_source_type, slot_b_source_match_id",
     )
     .eq("tournament_id", tournamentId);
 
@@ -121,7 +212,9 @@ export async function completeTournamentIfDone(opts: { supabase: SupabaseClient;
 
   const maxFullRoundForDerive = fullRoundsForDerive.length ? Math.max(...fullRoundsForDerive) : null;
   const deriveMatches =
-    maxFullRoundForDerive != null ? matches.filter((m: MatchRow) => Number(m?.round_no ?? 0) <= maxFullRoundForDerive) : matches;
+    maxFullRoundForDerive != null
+      ? matches.filter((m: MatchRow) => Number(m?.round_no ?? 0) <= maxFullRoundForDerive)
+      : matches;
 
   // Best-effort: backfill missing winner_team_id on the final using stored scores.
   // (Older data may have status COMPLETED but no winner_team_id.)

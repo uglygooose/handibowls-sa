@@ -1,10 +1,10 @@
 // lib/tournaments/match.ts
 // Pure-function match helpers. Operate on the shared TournamentCompletionMatch shape.
 
-import type { TournamentCompletionMatch } from "./deriveTournamentCompletion";
+import type { TournamentCompletionMatch } from "./completion";
 
-export { isTournamentByeMatch as isMatchBye, isTournamentMatchDone as isMatchDone } from "./deriveTournamentCompletion";
-import { isTournamentByeMatch as isMatchBye, isTournamentMatchDone as isMatchDone } from "./deriveTournamentCompletion";
+export { isTournamentByeMatch as isMatchBye, isTournamentMatchDone as isMatchDone } from "./completion";
+import { isTournamentByeMatch as isMatchBye, isTournamentMatchDone as isMatchDone } from "./completion";
 
 export function hasValue(v: unknown): boolean {
   return v != null && String(v) !== "";

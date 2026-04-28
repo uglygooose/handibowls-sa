@@ -7,7 +7,7 @@ import {
   teamLabel,
   teamMembersLine,
   winnerLabelForMatch,
-} from "./teams";
+} from "@/lib/tournaments/teams";
 
 const teamById = { t1: { team_no: 1 }, t2: { team_no: 2 } };
 const teamMembersByTeamId = { t1: ["p1", "p2"], t2: ["p3"] };
@@ -27,17 +27,17 @@ describe("teamLabel", () => {
 describe("memberNameWithHandicap", () => {
   it("plain name when not handicap", () => {
     expect(
-      memberNameWithHandicap("p1", { nameByPlayerId, handicapByPlayerId, isHandicapTournament: false })
+      memberNameWithHandicap("p1", { nameByPlayerId, handicapByPlayerId, isHandicapTournament: false }),
     ).toBe("Alice");
   });
   it("appends handicap when available", () => {
     expect(
-      memberNameWithHandicap("p1", { nameByPlayerId, handicapByPlayerId, isHandicapTournament: true })
+      memberNameWithHandicap("p1", { nameByPlayerId, handicapByPlayerId, isHandicapTournament: true }),
     ).toBe("Alice (8)");
   });
   it("omits suffix when handicap is null", () => {
     expect(
-      memberNameWithHandicap("p2", { nameByPlayerId, handicapByPlayerId, isHandicapTournament: true })
+      memberNameWithHandicap("p2", { nameByPlayerId, handicapByPlayerId, isHandicapTournament: true }),
     ).toBe("Bob");
   });
 });
@@ -73,7 +73,7 @@ describe("teamMembersLine", () => {
   });
   it("'Members not loaded' when empty", () => {
     expect(
-      teamMembersLine({ teamId: "t3", teamMembersByTeamId, nameByPlayerId, handicapByPlayerId, isHandicapTournament: false })
+      teamMembersLine({ teamId: "t3", teamMembersByTeamId, nameByPlayerId, handicapByPlayerId, isHandicapTournament: false }),
     ).toBe("Members not loaded");
   });
   it("'-' when teamId null", () => {
@@ -109,7 +109,7 @@ describe("slotLabel", () => {
   });
   it("WINNER_OF_MATCH renders 'M<n> W'", () => {
     expect(
-      slotLabel({ teamId: null, sourceType: "WINNER_OF_MATCH", sourceMatchId: "m1", ...common })
+      slotLabel({ teamId: null, sourceType: "WINNER_OF_MATCH", sourceMatchId: "m1", ...common }),
     ).toBe("M3 W");
   });
   it("renders team display when teamId set", () => {
@@ -126,7 +126,7 @@ describe("slotMembersLine", () => {
   };
   it("Pending winner for WINNER_OF_MATCH", () => {
     expect(
-      slotMembersLine({ teamId: null, sourceType: "WINNER_OF_MATCH", sourceMatchId: "m1", ...common })
+      slotMembersLine({ teamId: null, sourceType: "WINNER_OF_MATCH", sourceMatchId: "m1", ...common }),
     ).toBe("Pending winner");
   });
   it("BYE source renders 'BYE'", () => {
@@ -137,7 +137,7 @@ describe("slotMembersLine", () => {
   });
   it("delegates to teamMembersLine when teamId set", () => {
     expect(
-      slotMembersLine({ teamId: "t1", sourceType: null, sourceMatchId: null, ...common })
+      slotMembersLine({ teamId: "t1", sourceType: null, sourceMatchId: null, ...common }),
     ).toBe("Alice * Bob");
   });
 });

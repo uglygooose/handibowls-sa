@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shortName, singlesHandicapInfo, singlesHandicapLine } from "./handicap";
+import { shortName, singlesHandicapInfo, singlesHandicapLine } from "@/lib/tournaments/handicap";
 
 describe("shortName", () => {
   it("returns first word", () => {
@@ -62,12 +62,12 @@ describe("singlesHandicapLine", () => {
   });
   it("returns 'Handicap: level' at level", () => {
     expect(
-      singlesHandicapLine(baseInput({ handicapByPlayerId: { p1: 10, p2: 10 } }), "HANDICAP_START")
+      singlesHandicapLine(baseInput({ handicapByPlayerId: { p1: 10, p2: 10 } }), "HANDICAP_START"),
     ).toBe("Handicap: level");
   });
   it("returns 'Handicap: -' when handicap missing", () => {
     expect(
-      singlesHandicapLine(baseInput({ handicapByPlayerId: { p1: 10, p2: null } }), "HANDICAP_START")
+      singlesHandicapLine(baseInput({ handicapByPlayerId: { p1: 10, p2: null } }), "HANDICAP_START"),
     ).toBe("Handicap: -");
   });
 });

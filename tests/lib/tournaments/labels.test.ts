@@ -7,7 +7,7 @@ import {
   ruleLabel,
   cleanTournamentName,
   matchStatusLabel,
-} from "./labels";
+} from "@/lib/tournaments/labels";
 
 describe("scopeLabel", () => {
   it("maps all scopes", () => {
