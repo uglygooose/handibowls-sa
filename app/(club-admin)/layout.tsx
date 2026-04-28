@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { CommandPaletteMount } from "@/components/command/CommandPaletteMount";
 import { AdminSidebar } from "@/components/nav/AdminSidebar";
 import { TopBar } from "@/components/nav/TopBar";
 import { getCurrentMemberships } from "@/lib/auth/memberships";
@@ -43,6 +44,7 @@ export default async function ClubAdminLayout({
         </div>
         <main className="flex-1 overflow-x-hidden">{children}</main>
       </div>
+      <CommandPaletteMount />
     </div>
   );
 }
