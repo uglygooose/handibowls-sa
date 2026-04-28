@@ -65,7 +65,7 @@ describe("Step5Review", () => {
     }
   });
 
-  it("shows district name, admin email, and player email", () => {
+  it("shows district + admin email on cards 1 and 2; card 4 shows the player count per redesign", () => {
     render(<Harness />);
     expect(screen.getByTestId("review-card-1")).toHaveTextContent(
       "Gauteng North",
@@ -73,8 +73,12 @@ describe("Step5Review", () => {
     expect(screen.getByTestId("review-card-2")).toHaveTextContent(
       "admin@club.co.za",
     );
+    // Per the design redesign, card 4 surfaces the player count as a big
+    // italic numeric — individual player emails were dropped in favour of
+    // the visual punch.
+    expect(screen.getByTestId("review-card-4")).toHaveTextContent("1");
     expect(screen.getByTestId("review-card-4")).toHaveTextContent(
-      "ada@club.co.za",
+      /Initial invites/,
     );
   });
 

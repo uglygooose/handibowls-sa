@@ -5,10 +5,9 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFormContext } from "react-hook-form";
 
-import { BowlChip } from "@/components/brand/BowlChip";
+import { Bowl } from "@/components/brand/Bowl";
 import { ThemePreview } from "@/components/brand/ThemePreview";
 import { THEME_PRESETS } from "@/components/brand/theme-presets";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   FormControl,
@@ -328,7 +327,7 @@ export function Step1Details({ districts, logoFile, onLogoChange }: Props) {
                 <ul
                   role="radiogroup"
                   aria-label="Club theme preset"
-                  className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5"
+                  className="grid grid-cols-2 gap-2.5 sm:grid-cols-3"
                   data-testid="theme-presets"
                 >
                   {THEME_PRESETS.map((preset) => {
@@ -342,21 +341,25 @@ export function Step1Details({ districts, logoFile, onLogoChange }: Props) {
                           data-testid={`theme-preset-${preset}`}
                           onClick={() => field.onChange(preset)}
                           className={cn(
-                            "flex w-full flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors",
-                            "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            "relative flex w-full flex-col items-center gap-2 rounded-[14px] border-2 bg-bone px-3 pb-3 pt-3.5 transition-all",
+                            "hover:-translate-y-0.5 hover:border-ink",
+                            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500",
                             isSelected
-                              ? "border-foreground bg-muted/60"
-                              : "border-border hover:bg-muted/30",
+                              ? "border-primary-500 px-[11px] pt-[13px] pb-[11px] [border-width:3px]"
+                              : "border-border",
                           )}
                         >
-                          <BowlChip preset={preset} size={40} selected={isSelected} />
-                          <span className="text-xs font-medium leading-tight">
+                          <Bowl preset={preset} size={72} idSuffix={`pp-${preset}`} />
+                          <span className="font-display text-[13px] font-extrabold italic uppercase tracking-[0.02em]">
                             {PRESET_BY_ID[preset].label}
                           </span>
                           {isSelected && (
-                            <Badge variant="outline" className="text-[10px]">
-                              Selected
-                            </Badge>
+                            <span
+                              aria-hidden="true"
+                              className="absolute right-2 top-2 inline-flex size-[18px] items-center justify-center rounded-full bg-primary-500"
+                            >
+                              <span className="block size-1.5 rotate-45 border-b-2 border-r-2 border-white" />
+                            </span>
                           )}
                         </button>
                       </li>

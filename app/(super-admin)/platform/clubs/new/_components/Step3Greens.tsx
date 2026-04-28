@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useFieldArray, useFormContext } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,14 @@ import { Input } from "@/components/ui/input";
 import type { WizardFormInput, WizardFormValues } from "../_schema";
 
 const MAX_GREENS = 10;
+const MIN_RINKS = 1;
+const MAX_RINKS = 12;
+
+// Repeating vertical lines per the design's green-card backing — visualises
+// the rinks within a green at low opacity so the card reads as the playing
+// surface itself.
+const LANE_STRIPES =
+  "repeating-linear-gradient(90deg, transparent 0, transparent 28px, var(--color-ink) 28px, var(--color-ink) 30px)";
 
 export function Step3Greens() {
   const form = useFormContext<WizardFormInput, unknown, WizardFormValues>();
@@ -33,90 +41,122 @@ export function Step3Greens() {
 
   return (
     <div data-testid="step-3-greens" className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        At least one green is required. Each green has 1–12 rinks (the standard
-        club layout is 6).
+      <p className="text-sm text-ink-muted">
+        Add the greens at this club. Rinks are the lanes within each green.
+        Most clubs run six rinks per green.
       </p>
 
-      <ul className="flex flex-col gap-3" data-testid="greens-list">
+      <ul className="flex flex-col gap-3.5" data-testid="greens-list">
         {fields.map((field, index) => (
           <li
             key={field.id}
             data-testid={`green-row-${index}`}
-            className="grid grid-cols-[1fr_120px_auto] gap-3 items-start"
+            className="relative overflow-hidden rounded-[14px] border-[1.5px] border-border bg-bone p-5"
           >
-            <FormField
-              control={form.control}
-              name={`greens.greens.${index}.name`}
-              render={({ field: nameField }) => (
-                <FormItem>
-                  <FormLabel className={index > 0 ? "sr-only" : undefined}>
-                    Green name
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      data-testid={`green-${index}-name`}
-                      placeholder={`Green ${index + 1}`}
-                      autoComplete="off"
-                      {...nameField}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+            {/* Lane-stripe backing — faint vertical lines at 4% opacity. */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 opacity-[0.04]"
+              style={{ background: LANE_STRIPES }}
             />
-            <FormField
-              control={form.control}
-              name={`greens.greens.${index}.rink_count`}
-              render={({ field: rinkField }) => (
-                <FormItem>
-                  <FormLabel className={index > 0 ? "sr-only" : undefined}>
-                    Rinks
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      data-testid={`green-${index}-rinks`}
-                      type="number"
-                      min={1}
-                      max={12}
-                      step={1}
-                      inputMode="numeric"
-                      {...rinkField}
-                      onChange={(e) =>
-                        rinkField.onChange(
-                          e.target.value === "" ? "" : Number(e.target.value),
-                        )
-                      }
-                      value={
-                        typeof rinkField.value === "number" ||
-                        typeof rinkField.value === "string"
-                          ? rinkField.value
-                          : ""
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className={index > 0 ? undefined : "pt-7"}>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-md"
-                aria-label={`Remove green ${index + 1}`}
-                disabled={!canRemove}
-                onClick={() => remove(index)}
-                data-testid={`green-${index}-remove`}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+            <div className="relative">
+              <div className="mb-3.5 flex items-start justify-between gap-3">
+                <FormField
+                  control={form.control}
+                  name={`greens.greens.${index}.name`}
+                  render={({ field: nameField }) => (
+                    <FormItem className="flex-1">
+                      <FormLabel className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
+                        Green name
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          data-testid={`green-${index}-name`}
+                          placeholder={`Green ${index + 1}`}
+                          autoComplete="off"
+                          className="max-w-[280px]"
+                          {...nameField}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <button
+                  type="button"
+                  aria-label={`Remove green ${index + 1}`}
+                  disabled={!canRemove}
+                  onClick={() => remove(index)}
+                  data-testid={`green-${index}-remove`}
+                  className="inline-flex size-7 items-center justify-center rounded-md border border-border bg-bone text-ink-muted transition-colors hover:border-danger-500 hover:text-danger-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <X className="size-3.5" aria-hidden="true" />
+                </button>
+              </div>
+              <FormField
+                control={form.control}
+                name={`greens.greens.${index}.rink_count`}
+                render={({ field: rinkField }) => {
+                  const value =
+                    typeof rinkField.value === "number"
+                      ? rinkField.value
+                      : Number(rinkField.value) || MIN_RINKS;
+                  const decrement = () =>
+                    rinkField.onChange(Math.max(MIN_RINKS, value - 1));
+                  const increment = () =>
+                    rinkField.onChange(Math.min(MAX_RINKS, value + 1));
+                  return (
+                    <FormItem>
+                      <FormLabel className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
+                        Rinks
+                      </FormLabel>
+                      <div className="text-[11px] italic text-ink-subtle mb-1">
+                        Most clubs have 6 rinks per green.
+                      </div>
+                      <FormControl>
+                        {/* Stepper per design: -/+ buttons flanking a
+                            read-only display of the current count. */}
+                        <div className="inline-flex items-center overflow-hidden rounded-md border border-border">
+                          <button
+                            type="button"
+                            onClick={decrement}
+                            disabled={value <= MIN_RINKS}
+                            aria-label="Decrement rinks"
+                            data-testid={`green-${index}-rinks-decrement`}
+                            className="size-8 bg-bone text-base text-ink hover:bg-surface-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            −
+                          </button>
+                          <input
+                            value={value}
+                            readOnly
+                            data-testid={`green-${index}-rinks`}
+                            aria-label="Rinks"
+                            className="size-12 w-12 border-x border-border bg-transparent text-center font-mono text-sm font-bold focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={increment}
+                            disabled={value >= MAX_RINKS}
+                            aria-label="Increment rinks"
+                            data-testid={`green-${index}-rinks-increment`}
+                            className="size-8 bg-bone text-base text-ink hover:bg-surface-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
             </div>
           </li>
         ))}
       </ul>
 
-      <div>
+      <div className="flex items-center gap-3">
         <Button
           type="button"
           variant="outline"
@@ -128,7 +168,7 @@ export function Step3Greens() {
           Add green
         </Button>
         {!canAdd && (
-          <span className="ml-3 text-xs text-ink-subtle">
+          <span className="text-xs text-ink-subtle">
             Maximum of {MAX_GREENS} greens per club.
           </span>
         )}

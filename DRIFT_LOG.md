@@ -56,6 +56,10 @@ Single source of truth for every piece of drift between Claude Design output / r
 - [ ] **Signup first_name / last_name fields unused.** Rendered + submitted but `signUpAction` only uses email + password. Wire in Phase 5. Files: `app/(auth)/signup/`, `lib/auth/actions.ts signUpAction`. Discovered: Phase 3 follow-up.
 - [ ] **Signup "check your inbox" success card unreachable.** Component built but `signUpAction` redirects to `/me/setup`. Decide at Phase 5 whether to wire or delete. Discovered: Phase 3 follow-up.
 
+### v2 — Greens surface attribute
+
+- [ ] **Greens table has no surface attribute.** Claude Design Step 3 of the new-club wizard specifies Grass / Synthetic / Indoor radio chips. v1 ships grass-only (lawn bowls default in SA). Add a `surface` enum column to the `greens` table + the chips UI when a real need surfaces (likely Phase 9 booking filtering, or post-v1 if a club requests it). Owning phase: v2 (or earlier if Phase 9 needs it). Discovered: Phase 4 design integration, 2026-04-29.
+
 ### Phase 11 — Comms
 
 - [ ] **Dev-only invite banner on new-club detail page.** Phase 4c surfaces the generated admin-invite URL via a sessionStorage-backed banner on `/platform/clubs/[id]` when `NODE_ENV !== 'production' && NEXT_PUBLIC_APP_ENV !== 'production'`. Dismissible, 60-min TTL. Replace with a proper Resend email flow (invite email with branded template + click-through) in Phase 11. Delete the banner component + sessionStorage key once Resend is wired. Discovered: Phase 4c, 2026-04-23.
