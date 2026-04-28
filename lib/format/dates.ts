@@ -52,13 +52,14 @@ function parse(input: string | Date | null | undefined): Date | null {
   return Number.isFinite(d.getTime()) ? d : null;
 }
 
-/** "9 May 2026" — day, short month, year. Returns "—" for null/empty. */
+/** "09 May 2026" — day, short month, year. Returns "—" for null/empty.
+ *  Day is zero-padded — that's what en-ZA's CLDR formatter emits. */
 export function formatDateZA(input: string | Date | null | undefined): string {
   const d = parse(input);
   return d ? dateFmt.format(d) : "—";
 }
 
-/** "Sat, 9 May 2026" — long form with weekday. */
+/** "Sat, 09 May 2026" — long form with weekday. */
 export function formatDateLongZA(input: string | Date | null | undefined): string {
   const d = parse(input);
   return d ? dateLongFmt.format(d) : "—";
@@ -70,13 +71,13 @@ export function formatTimeZA(input: string | Date | null | undefined): string {
   return d ? timeFmt.format(d) : "—";
 }
 
-/** "9 May 2026, 14:30". */
+/** "09 May 2026, 14:30". */
 export function formatDateTimeZA(input: string | Date | null | undefined): string {
   const d = parse(input);
   return d ? dateTimeFmt.format(d) : "—";
 }
 
-/** "9–10 May 2026" / "30 Apr – 2 May 2026" range collapsing same year /
+/** "09–10 May 2026" / "30 Apr – 02 May 2026" range collapsing same year /
  *  same month. Returns just the start date if `end` is null/equal. */
 export function formatDateRangeZA(
   start: string | Date | null | undefined,
