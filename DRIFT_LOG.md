@@ -60,6 +60,10 @@ Single source of truth for every piece of drift between Claude Design output / r
 
 - [ ] **Dev-only invite banner on new-club detail page.** Phase 4c surfaces the generated admin-invite URL via a sessionStorage-backed banner on `/platform/clubs/[id]` when `NODE_ENV !== 'production' && NEXT_PUBLIC_APP_ENV !== 'production'`. Dismissible, 60-min TTL. Replace with a proper Resend email flow (invite email with branded template + click-through) in Phase 11. Delete the banner component + sessionStorage key once Resend is wired. Discovered: Phase 4c, 2026-04-23.
 
+### Phase 12 — Cross-cutting
+
+- [ ] **`audit_log` table not planned.** The rebuild plan references audit rows being written across phases (Phase 9 bookings overrides at line 746, Phase 10 T20 submissions at line 835, Phase 7 club-admin tournaments "Audit — event stream" at line 647) and the Phase 4 club-detail design surface includes an "Audit" tab (line 503) plus an "Activity" feed on the Overview tab — but no migration creates an `audit_log` table and Phase 12 §15's step list doesn't include it. Affected surfaces: `app/(super-admin)/platform/clubs/[id]` Overview tab "Recent activity" feed (ships empty-state until table exists) and the Audit tab itself (same — empty-state until table exists). Phase-12 owner because the schema is cross-cutting (clubs, tournaments, bookings, T20 all write into it). Discovered: Phase 4 design integration, 2026-04-28.
+
 ### Phase 13 — Technical polish
 
 - [ ] **Vitest Windows worker-pool flake.** `npm test` pinned to `--fileParallelism=false` via Phase 4 prep Commit C. Upstream vitest 4.1.4 + Windows issue. Revisit when vitest ships a fix. File: `package.json`. Discovered: Phase 4 prep, 2026-04-23.
