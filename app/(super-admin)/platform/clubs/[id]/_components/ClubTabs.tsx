@@ -22,10 +22,10 @@ export function ClubTabs({ active }: { active: ClubTab }) {
   return (
     <nav
       aria-label="Club sections"
-      className="flex w-full overflow-x-auto border-b border-border bg-surface-muted"
+      className="sticky top-16 z-10 mb-6 flex w-full overflow-x-auto border-b border-border bg-surface"
       data-slot="club-tabs"
     >
-      <ul className="flex min-w-full items-stretch gap-1 px-6">
+      <ul className="flex min-w-full items-stretch gap-1 px-2">
         {CLUB_TABS.map((tab) => {
           const isActive = tab === active;
           const qs = new URLSearchParams(sp?.toString() ?? "");
@@ -38,10 +38,13 @@ export function ClubTabs({ active }: { active: ClubTab }) {
                 data-active={isActive ? "true" : undefined}
                 data-testid={`tab-${tab}`}
                 className={cn(
-                  "inline-flex h-11 items-center border-b-2 px-3 text-sm font-medium transition-colors",
+                  // Per design: 14px font, -1px margin-bottom so the active
+                  // border sits flush against the tab strip's own border.
+                  "inline-flex items-center px-4 py-3.5 text-sm transition-colors",
+                  "-mb-px border-b-2",
                   isActive
-                    ? "border-foreground text-foreground"
-                    : "border-transparent text-ink-muted hover:text-foreground",
+                    ? "border-primary-500 font-bold text-ink"
+                    : "border-transparent font-medium text-ink-muted hover:text-ink",
                 )}
               >
                 {CLUB_TAB_LABELS[tab]}
@@ -65,7 +68,7 @@ export function TabPanel({
 }) {
   if (tab !== active) return null;
   return (
-    <div role="tabpanel" aria-label={CLUB_TAB_LABELS[tab]} className="px-6 py-6">
+    <div role="tabpanel" aria-label={CLUB_TAB_LABELS[tab]}>
       {children}
     </div>
   );
