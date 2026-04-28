@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 
-import { requireRole } from "@/lib/auth/role";
 import { AdminSidebar } from "@/components/nav/AdminSidebar";
 import { TopBar } from "@/components/nav/TopBar";
+import { getCurrentProfile } from "@/lib/auth/profile";
+import { requireRole } from "@/lib/auth/role";
 
 export default async function SuperAdminLayout({
   children,
@@ -11,10 +12,16 @@ export default async function SuperAdminLayout({
 }) {
   await requireRole(["super_admin"]);
 
+  const profile = await getCurrentProfile();
+  const identity = {
+    primary: deriveDisplayName(profile),
+    role: "Super Admin",
+  };
+
   return (
     <div className="flex min-h-dvh bg-surface">
       <aside className="hidden lg:block">
-        <AdminSidebar variant="platform" />
+        <AdminSidebar variant="super_admin" identity={identity} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar variant="light" title="Platform" />
@@ -25,4 +32,13 @@ export default async function SuperAdminLayout({
       </div>
     </div>
   );
+}
+
+function deriveDisplayName(
+  profile: { display_name?: string | null; first_name?: string | null; last_name?: string | null } | null,
+): string {
+  if (!profile) return "Signed in";
+  if (profile.display_name) return profile.display_name;
+  const parts = [profile.first_name, profile.last_name].filter(Boolean);
+  return parts.length ? parts.join(" ") : "Signed in";
 }
