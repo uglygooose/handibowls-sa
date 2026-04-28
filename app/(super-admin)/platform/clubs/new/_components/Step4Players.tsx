@@ -1,7 +1,6 @@
 "use client";
 
 import { AlertCircle, CheckCircle2, FileUp, Plus, Trash2, X } from "lucide-react";
-import Papa from "papaparse";
 import { useRef, useState } from "react";
 import { useFieldArray, useFormContext } from "react-hook-form";
 
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { parsePlayerCsv, type CsvParseRow } from "@/lib/csv/parsePlayerCsv";
 import { cn } from "@/lib/utils";
 
 import {
@@ -20,35 +20,29 @@ import {
 
 const MAX_PLAYERS = 50;
 
-type CsvRow = {
-  index: number;
-  raw: Record<string, string>;
-  parsed: PlayerInput | null;
-  errors: string[];
-};
+type CsvRow = CsvParseRow<PlayerInput>;
 
 function parseCsv(text: string): CsvRow[] {
-  const result = Papa.parse<Record<string, string>>(text, {
-    header: true,
-    skipEmptyLines: true,
-    transformHeader: (h) => h.trim().toLowerCase(),
-  });
-  return result.data.slice(0, MAX_PLAYERS).map((raw, i) => {
-    const candidate = {
-      first_name: (raw.first_name ?? "").trim(),
-      last_name: (raw.last_name ?? "").trim(),
-      email: (raw.email ?? "").trim(),
-      is_club_admin: false,
-    };
-    const check = playerSchema.safeParse(candidate);
-    if (check.success) {
-      return { index: i, raw, parsed: check.data, errors: [] };
-    }
-    const errs = check.error.issues.map(
-      (iss) => `${iss.path.join(".") || "row"}: ${iss.message}`,
-    );
-    return { index: i, raw, parsed: null, errors: errs };
-  });
+  return parsePlayerCsv<PlayerInput>(
+    text,
+    (raw) => {
+      const candidate = {
+        first_name: (raw.first_name ?? "").trim(),
+        last_name: (raw.last_name ?? "").trim(),
+        email: (raw.email ?? "").trim(),
+        is_club_admin: false,
+      };
+      const check = playerSchema.safeParse(candidate);
+      if (check.success) return { ok: true, data: check.data };
+      return {
+        ok: false,
+        errors: check.error.issues.map(
+          (iss) => `${iss.path.join(".") || "row"}: ${iss.message}`,
+        ),
+      };
+    },
+    MAX_PLAYERS,
+  );
 }
 
 export function Step4Players() {
