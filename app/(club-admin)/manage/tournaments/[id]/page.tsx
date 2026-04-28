@@ -35,12 +35,14 @@ export default async function TournamentDetailPage({
   const tournament = await getTournamentDetail(id);
   if (!tournament) notFound();
 
-  // Tab-conditional fetches — only pull what the active tab needs. The
-  // entries tab uses its own query; the draw + scoring tabs share the
-  // matches query so we fetch it once when either is active.
+  // Tab-conditional fetches — only pull what the active tab needs.
+  //   * entries tab uses its own query
+  //   * draw + scoring + rinks all consume the matches query so we
+  //     fetch it once when any is active
+  //   * comms + audit don't need extra DB hits today
   const entries = tab === "entries" ? await getTournamentEntries(id) : [];
   const matches =
-    tab === "draw" || tab === "scoring"
+    tab === "draw" || tab === "scoring" || tab === "rinks"
       ? await getMatchesForTournament(id)
       : [];
 
@@ -83,8 +85,8 @@ export default async function TournamentDetailPage({
             endsTarget={tournament.ends_per_match}
           />
         )}
-        {tab === "rinks" && <RinksTab />}
-        {tab === "comms" && <CommsTab />}
+        {tab === "rinks" && <RinksTab matches={matches} />}
+        {tab === "comms" && <CommsTab tournament={tournament} />}
         {tab === "audit" && <AuditTab />}
       </div>
     </div>
