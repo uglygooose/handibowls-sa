@@ -1,7 +1,8 @@
+import { Plus } from "lucide-react";
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/role";
 
 import { ClubsTable } from "./_components/ClubsTable";
@@ -24,19 +25,25 @@ export default async function PlatformClubs({
 
   const { rows, total } = await listClubs({ page, pageSize: PAGE_SIZE });
 
+  // Per-design eyebrow: "PLATFORM · N CLUBS" — surfaces the count inline.
+  const eyebrow = `Platform · ${total} ${total === 1 ? "club" : "clubs"}`;
+
   return (
     <div className="flex flex-col">
       <PageHeader
-        eyebrow="Platform"
+        eyebrow={eyebrow}
         title="Clubs"
-        description="All registered clubs. Drill in to manage admins, greens, members, tournaments, and theme."
+        description="All clubs on the HandiBowls network."
         actions={
-          <Button asChild>
-            <Link href="/platform/clubs/new">New club</Link>
+          <Button asChild size="xl">
+            <Link href="/platform/clubs/new">
+              <Plus className="size-4" aria-hidden="true" />
+              New club
+            </Link>
           </Button>
         }
       />
-      <div className="px-6 py-6">
+      <div className="mx-auto w-full max-w-[1440px] px-10 py-8">
         <ClubsTable
           rows={rows}
           page={page}
