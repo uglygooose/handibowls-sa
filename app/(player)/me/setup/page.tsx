@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
+import { getCurrentProfile } from "@/lib/auth/profile";
 import { getAuthContext } from "@/lib/auth/role";
-import { createClient } from "@/lib/supabase/server";
 
 import { SetupWizard } from "./_components/SetupWizard";
 import type { ProfilePrefill } from "./_schema";
@@ -14,14 +14,10 @@ export default async function MeSetupPage() {
   const ctx = await getAuthContext();
   if (!ctx) redirect("/login");
 
-  const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(
-      "first_name, last_name, display_name, gender, date_of_birth, bsa_number, dominant_hand, phone, email_opt_in, profile_completed",
-    )
-    .eq("id", ctx.userId)
-    .maybeSingle();
+  // Single source of truth for "the current user's profile" — same React.cache-
+  // wrapped fetcher used by the (player) layout chain. The wizard step types
+  // pick out the columns they need from ProfileRow.
+  const profile = await getCurrentProfile();
 
   // Returning visitors who've already completed setup don't need the wizard;
   // bounce them to /play so they don't accidentally re-prompt their consents.
