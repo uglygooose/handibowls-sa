@@ -63,6 +63,7 @@ Single source of truth for every piece of drift between Claude Design output / r
 
 ### Phase 7 — Admin tournament UI
 
+- [ ] **closeEntries gate semantics — Phase 7 must mirror.** `closeEntries` sets `tournaments.entries_close_at = now()` rather than flipping a status field, because the schema has no "entries-closed-but-not-started" state. Phase 7 admin UI must gate "accepting entries" on `(status='open' AND (entries_close_at IS NULL OR entries_close_at > now()))`. Status only moves to `'in_progress'` when `generateBracket` creates round 1. Document in Phase 7 prompt to prevent UI from re-deriving this gate slightly differently. Owning phase: Phase 7. Discovered: Phase 6d, 2026-04-29.
 - [ ] **Tournament batch RPCs missing from rebuild migrations.** Pre-rebuild had `admin_finalize_matches_batch`, `bulk_save_match_scores_batch`, `save_round_fixtures_batch` (308 lines, three PL/pgSQL functions in deleted `supabase/migrations/20260422_tournament_batch_rpcs.sql`). Needed by Phase 7 admin UI for atomic batch fixture editing and bulk scoring; the singular routes also relied on them for winner-propagation + OPEN→SCHEDULED transitions. Restore or rebuild in Phase 7. Owning phase: Phase 7. Discovered: Phase 6a, 2026-04-29.
 
 ### Phase 11 — Comms
