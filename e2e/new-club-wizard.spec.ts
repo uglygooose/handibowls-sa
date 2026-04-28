@@ -111,11 +111,13 @@ test("super-admin creates a club through the 5-step wizard", async ({
   );
 
   // ---- Step 3 — greens + rinks -----------------------------------------
+  // Phase-4-design: rink count is a stepper (read-only display + ± buttons)
+  // — default is 6, which matches what this test wants, so we don't touch it.
   await page.getByTestId("green-0-name").fill("Main Green");
-  await page.getByTestId("green-0-rinks").fill("6");
+  await expect(page.getByTestId("green-0-rinks")).toHaveValue("6");
   await page.getByTestId("greens-add").click();
   await page.getByTestId("green-1-name").fill("East Green");
-  await page.getByTestId("green-1-rinks").fill("6");
+  await expect(page.getByTestId("green-1-rinks")).toHaveValue("6");
   await page.getByTestId("wizard-next").click();
   await expect(page.getByTestId("new-club-wizard")).toHaveAttribute(
     "data-current-step",
@@ -138,12 +140,18 @@ test("super-admin creates a club through the 5-step wizard", async ({
   await expect(page.getByTestId("review-card-1")).toContainText(TEST_CLUB_NAME);
   await expect(page.getByTestId("review-card-2")).toContainText(TEST_ADMIN_EMAIL);
   await expect(page.getByTestId("review-card-3")).toContainText("Main Green");
-  await expect(page.getByTestId("review-card-4")).toContainText(
-    TEST_PLAYER_EMAIL,
-  );
+  // Phase-4-design: review card 4 surfaces the player count, not individual
+  // emails (the per-player roster lives in step 4). One initial player added.
+  await expect(page.getByTestId("review-card-4")).toContainText("1");
 
   await page.getByTestId("wizard-submit").click();
-  // Land on the detail page.
+  // Phase-4-design: the wizard now lands on a success banner ("X is live.")
+  // with View-club / Add-another-club CTAs instead of auto-redirecting.
+  // Click View club to reach the detail page.
+  await expect(page.getByTestId("wizard-success")).toBeVisible({
+    timeout: 30_000,
+  });
+  await page.getByRole("link", { name: /view club/i }).click();
   await page.waitForURL(/\/platform\/clubs\/[0-9a-f-]{36}$/, {
     timeout: 30_000,
   });
@@ -154,10 +162,12 @@ test("super-admin creates a club through the 5-step wizard", async ({
   const url = await page.getByTestId("dev-invite-banner-url").textContent();
   expect(url).toMatch(/\/invite\/[A-Za-z0-9._-]+/);
 
-  // Navigate back to the list; the new club is present.
+  // Navigate back to the list; the new club is present. Phase-4-design moved
+  // row navigation from cell-Link to <tr onClick=router.push>, so we target
+  // the tr by its row-${id} testid.
   await page.goto("/platform/clubs");
   const row = page
-    .locator("a[data-testid^='club-row-']")
+    .locator("tr[data-testid^='row-']")
     .filter({ hasText: TEST_CLUB_NAME });
   await expect(row).toBeVisible({ timeout: 30_000 });
 });

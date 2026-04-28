@@ -61,14 +61,16 @@ test("super-admin flips the Demo club theme and the player sees it on /play", as
 
   // Wait for the ClubsTable client component to hydrate and render at least
   // one row. networkidle is unreliable in Next.js prod due to nav-link
-  // prefetches that race with the initial paint.
-  const demoRowLink = superPage
-    .locator("a[data-testid^='club-row-']")
+  // prefetches that race with the initial paint. Phase-4-design moved row
+  // navigation from a per-cell <Link> to <tr onClick=router.push>, so we now
+  // target the tr by its row-${id} testid and let the bubble handler fire.
+  const demoRow = superPage
+    .locator("tr[data-testid^='row-']")
     .filter({ hasText: "Demo" });
-  await expect(demoRowLink).toBeVisible({ timeout: 60_000 });
+  await expect(demoRow).toBeVisible({ timeout: 60_000 });
 
   // Open the Demo row
-  await demoRowLink.click();
+  await demoRow.click();
   await superPage.waitForURL(/\/platform\/clubs\/[0-9a-f-]+/, { timeout: 60_000 });
 
   // Jump to Theme tab — wait for the tab strip to hydrate before clicking.
