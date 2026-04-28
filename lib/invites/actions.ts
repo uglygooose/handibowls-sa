@@ -1,14 +1,28 @@
 "use server";
 
 import { getAuthContext } from "@/lib/auth/role";
+import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
   createInviteSchema,
+  createPlayerInvitesBatchSchema,
   type CreateInviteInput,
+  type CreatePlayerInvitesBatchInput,
 } from "@/lib/validation/invites";
 
 export type CreateInviteResult =
   | { ok: true; data: { invite_id: string; token: string } }
+  | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
+
+export type BatchInviteResultRow = {
+  email: string;
+  status: "created" | "duplicate";
+  invite_id: string | null;
+  token: string | null;
+};
+
+export type CreatePlayerInvitesBatchResult =
+  | { ok: true; data: BatchInviteResultRow[] }
   | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
 
 // Single source of truth for invite creation. Two call sites:
@@ -60,4 +74,51 @@ export async function createInvite(
     return { ok: false, error: error?.message ?? "Could not create invite." };
   }
   return { ok: true, data: { invite_id: data.id, token: data.token } };
+}
+
+// Batch player-invite creation. Defense-in-depth: re-check the role-aware gate
+// here before delegating to the SECURITY DEFINER RPC (which has its own gate).
+// The RPC is atomic and idempotent — see migration 018 for details.
+export async function createPlayerInvitesBatch(
+  input: CreatePlayerInvitesBatchInput,
+): Promise<CreatePlayerInvitesBatchResult> {
+  const parsed = createPlayerInvitesBatchSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Invalid input.",
+      fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+  const v = parsed.data;
+
+  const ctx = await getAuthContext();
+  if (!ctx) return { ok: false, error: "Not authenticated." };
+  const allowed =
+    ctx.role === "super_admin" ||
+    (ctx.role === "club_admin" && ctx.clubIds.includes(v.club_id));
+  if (!allowed) return { ok: false, error: "Not authorized to invite to this club." };
+
+  // Use the authed server client so the RPC's internal current_role() and
+  // current_club_ids() resolve to the calling user. The RPC body is
+  // SECURITY DEFINER but the auth checks read the caller's JWT.
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_player_invites_batch", {
+    p_club_id: v.club_id,
+    p_invites: v.invites.map((i) => ({
+      email: i.email,
+      first_name: i.first_name ?? null,
+      last_name: i.last_name ?? null,
+    })),
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  const rows: BatchInviteResultRow[] = (data ?? []).map((r) => ({
+    email: r.email ?? "",
+    status: (r.status as "created" | "duplicate") ?? "duplicate",
+    invite_id: r.invite_id,
+    token: r.token,
+  }));
+  return { ok: true, data: rows };
 }

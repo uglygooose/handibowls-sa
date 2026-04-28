@@ -7,6 +7,7 @@ import Link from "next/link";
 import { DevInviteBanner } from "@/app/(super-admin)/platform/clubs/[id]/_components/DevInviteBanner";
 import { DEV_PLAYER_INVITE_BANNER_KEY } from "@/lib/dev-banner";
 
+import { BulkInvitePlayersModal } from "./_components/BulkInvitePlayersModal";
 import { InvitePlayerModal } from "./_components/InvitePlayerModal";
 import { MembersTable } from "./_components/MembersTable";
 import { getMembersData } from "./_data";
@@ -42,6 +43,13 @@ export default async function ManageMembers() {
     );
   }
 
+  // Lowercased emails already known to this club. The bulk-invite modal
+  // uses this client-side to flag duplicates in the preview before submit;
+  // the DB RPC dedupes again as the authoritative check.
+  const existingEmails = data.rows
+    .map((r) => r.email)
+    .filter((e): e is string => Boolean(e));
+
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
       <header className="mb-2 flex items-end justify-between gap-4">
@@ -56,7 +64,10 @@ export default async function ManageMembers() {
             Active players and pending invites. Filter by name or email; click a column to sort.
           </p>
         </div>
-        <InvitePlayerModal clubId={data.clubId} />
+        <div className="flex items-center gap-2">
+          <BulkInvitePlayersModal clubId={data.clubId} existingEmails={existingEmails} />
+          <InvitePlayerModal clubId={data.clubId} />
+        </div>
       </header>
 
       <DevInviteBanner

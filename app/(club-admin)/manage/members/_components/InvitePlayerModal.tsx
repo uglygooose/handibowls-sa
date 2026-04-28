@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -44,6 +45,7 @@ type Props = { clubId: string };
 export function InvitePlayerModal({ clubId }: Props) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const form = useForm<PlayerInviteFormValues>({
     resolver: zodResolver(playerInviteFormSchema),
     defaultValues: { email: "", first_name: "", last_name: "" },
@@ -94,6 +96,9 @@ export function InvitePlayerModal({ clubId }: Props) {
       toast.success(`Invite sent to ${values.email}`);
       form.reset();
       setOpen(false);
+      // Refresh the server-rendered page so the new pending-invite row
+      // appears in the table without a manual reload.
+      router.refresh();
     });
   }
 
