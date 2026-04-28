@@ -1478,6 +1478,10 @@ export type Database = {
       }
       match_tournament_id: { Args: { p_match: string }; Returns: string }
       message_club_id: { Args: { p_message: string }; Returns: string }
+      save_round_fixtures_batch: {
+        Args: { p_fixtures: Json; p_round: number; p_tournament_id: string }
+        Returns: Json
+      }
       set_primary_membership: {
         Args: { p_membership_id: string }
         Returns: undefined
