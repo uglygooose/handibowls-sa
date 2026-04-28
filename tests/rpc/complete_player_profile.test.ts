@@ -6,8 +6,6 @@ import {
   createTestUser,
   seedClub,
   signIn,
-  type TestSession,
-  type TestUser,
 } from "../rls/helpers";
 
 // Stable test data shared across cases — the RPC's COALESCE on
