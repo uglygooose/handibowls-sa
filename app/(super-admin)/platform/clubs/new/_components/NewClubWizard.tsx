@@ -28,22 +28,26 @@ import {
 import { createClub } from "../../_actions";
 import type { DistrictRow } from "../../_data";
 import { clearDraft, readDraft, writeDraft } from "../_draft";
+import { WizardNav } from "@/components/wizard/WizardNav";
+import { WizardProgress } from "@/components/wizard/WizardProgress";
+
 import {
   isThemePreset,
   STEP_COUNT,
+  STEP_KEYS,
+  STEP_LABELS,
   STEP_TRIGGERS,
   WIZARD_DEFAULTS,
   wizardSchema,
   type WizardFormInput,
   type WizardFormValues,
 } from "../_schema";
+
 import { Step1Details } from "./Step1Details";
 import { Step2AdminInvite } from "./Step2AdminInvite";
 import { Step3Greens } from "./Step3Greens";
 import { Step4Players } from "./Step4Players";
 import { Step5Review } from "./Step5Review";
-import { WizardNav } from "./WizardNav";
-import { WizardProgress } from "./WizardProgress";
 
 type Props = {
   districts: DistrictRow[];
@@ -319,6 +323,8 @@ export function NewClubWizard({ districts }: Props) {
         className="flex flex-col gap-6"
       >
         <WizardProgress
+          steps={STEP_KEYS}
+          labels={STEP_LABELS}
           currentStep={currentStep}
           furthestStep={furthestStep}
           onJump={handleJump}
@@ -334,6 +340,8 @@ export function NewClubWizard({ districts }: Props) {
           onNext={handleNext}
           onSaveDraft={handleSaveDraft}
           onSubmit={handleSubmit}
+          submitLabel="Create club"
+          submittingLabel="Creating…"
         />
       </form>
       <Dialog open={draftState === "prompt"}>

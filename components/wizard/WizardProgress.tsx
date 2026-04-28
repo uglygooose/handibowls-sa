@@ -4,25 +4,33 @@ import { Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-import { STEP_KEYS, STEP_LABELS } from "../_schema";
-
-type Props = {
+type Props<TKey extends string> = {
+  steps: readonly TKey[];
+  labels: Record<TKey, string>;
   currentStep: number;
   furthestStep: number;
   onJump: (step: number) => void;
 };
 
-// Five-step progress bar. Clicking an already-reached step jumps back —
-// forward jumps are disallowed (the user has to pass each gate). The
-// currently-active step gets accented; completed steps get a checkmark.
-export function WizardProgress({ currentStep, furthestStep, onJump }: Props) {
+// Generic multi-step progress bar. Clicking an already-reached step jumps
+// back; forward jumps are disallowed (the caller advances furthestStep when
+// the user passes each gate). The currently-active step is accented;
+// completed steps render with a checkmark.
+export function WizardProgress<TKey extends string>({
+  steps,
+  labels,
+  currentStep,
+  furthestStep,
+  onJump,
+}: Props<TKey>) {
+  const total = steps.length;
   return (
     <ol
       aria-label="Wizard progress"
       data-testid="wizard-progress"
       className="flex flex-wrap items-center gap-x-2 gap-y-3 text-sm"
     >
-      {STEP_KEYS.map((key, i) => {
+      {steps.map((key, i) => {
         const step = i + 1;
         const isActive = step === currentStep;
         const isComplete = step < furthestStep;
@@ -57,9 +65,9 @@ export function WizardProgress({ currentStep, furthestStep, onJump }: Props) {
               >
                 {isComplete ? <Check className="h-3 w-3" /> : step}
               </span>
-              {STEP_LABELS[key]}
+              {labels[key]}
             </button>
-            {step < 5 && (
+            {step < total && (
               <span
                 aria-hidden="true"
                 className={cn(

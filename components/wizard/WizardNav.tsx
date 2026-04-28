@@ -10,23 +10,30 @@ type Props = {
   isSubmitting: boolean;
   onBack: () => void;
   onNext: () => void;
-  onSaveDraft: () => void;
   onSubmit: () => void;
+  // Optional draft-save action. When omitted, the Save-draft button is
+  // hidden — appropriate for one-shot wizards (e.g. /me/setup) that don't
+  // persist intermediate state.
+  onSaveDraft?: () => void;
   nextLabel?: string;
+  submitLabel?: string;
+  submittingLabel?: string;
 };
 
-// Footer button row for the wizard. Back is disabled on step 1; Next becomes
-// "Create club" on the final step and routes to onSubmit instead of onNext.
-// Save draft is always available — draft write happens eagerly in the parent.
+// Generic footer button row. Back is disabled on step 1; on the final step
+// the primary CTA switches to the caller-specific submit handler with
+// caller-specific labels.
 export function WizardNav({
   currentStep,
   totalSteps,
   isSubmitting,
   onBack,
   onNext,
-  onSaveDraft,
   onSubmit,
+  onSaveDraft,
   nextLabel,
+  submitLabel = "Submit",
+  submittingLabel = "Submitting…",
 }: Props) {
   const isFinal = currentStep === totalSteps;
   return (
@@ -45,15 +52,17 @@ export function WizardNav({
         Back
       </Button>
       <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onSaveDraft}
-          disabled={isSubmitting}
-          data-testid="wizard-save-draft"
-        >
-          Save draft
-        </Button>
+        {onSaveDraft && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onSaveDraft}
+            disabled={isSubmitting}
+            data-testid="wizard-save-draft"
+          >
+            Save draft
+          </Button>
+        )}
         {isFinal ? (
           <Button
             type="button"
@@ -64,7 +73,7 @@ export function WizardNav({
             {isSubmitting && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
             )}
-            {isSubmitting ? "Creating…" : "Create club"}
+            {isSubmitting ? submittingLabel : submitLabel}
           </Button>
         ) : (
           <Button
