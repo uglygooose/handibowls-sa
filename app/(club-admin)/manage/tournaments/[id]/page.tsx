@@ -10,7 +10,11 @@ import { DrawTab } from "./_components/tabs/DrawTab";
 import { EntriesTab } from "./_components/tabs/EntriesTab";
 import { RinksTab } from "./_components/tabs/RinksTab";
 import { ScoringTab } from "./_components/tabs/ScoringTab";
-import { getTournamentDetail, getTournamentEntries } from "./_data";
+import {
+  getMatchesForTournament,
+  getTournamentDetail,
+  getTournamentEntries,
+} from "./_data";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -31,10 +35,26 @@ export default async function TournamentDetailPage({
   const tournament = await getTournamentDetail(id);
   if (!tournament) notFound();
 
-  // Fetch entries only for the entries tab — saves the round-trip on
-  // tabs that don't consume them. Phase 7c-ii's draw / 7c-iii's scoring
-  // will fetch matches via similar tab-conditional queries.
+  // Tab-conditional fetches — only pull what the active tab needs. The
+  // entries tab uses its own query; the draw + scoring tabs share the
+  // matches query so we fetch it once when either is active.
   const entries = tab === "entries" ? await getTournamentEntries(id) : [];
+  const matches =
+    tab === "draw" || tab === "scoring"
+      ? await getMatchesForTournament(id)
+      : [];
+
+  // Current round = highest round_no with any non-final match, or the
+  // highest round_no overall if everything's done.
+  const roundsWithOpen = matches
+    .filter((m) => m.status !== "completed" && m.status !== "cancelled")
+    .map((m) => m.round ?? 0);
+  const allRounds = matches.map((m) => m.round ?? 0).filter((r) => r > 0);
+  const currentRound = roundsWithOpen.length
+    ? Math.min(...roundsWithOpen)
+    : allRounds.length
+      ? Math.max(...allRounds)
+      : null;
 
   const badges = {
     entries: tournament.entries_count,
@@ -47,7 +67,14 @@ export default async function TournamentDetailPage({
       <TournamentTabs active={tab} badges={badges} />
       <div className="pt-2">
         {tab === "entries" && <EntriesTab entries={entries} />}
-        {tab === "draw" && <DrawTab />}
+        {tab === "draw" && (
+          <DrawTab
+            tournamentId={tournament.id}
+            matches={matches}
+            decorPreset={tournament.host_club.theme_preset}
+            currentRound={currentRound}
+          />
+        )}
         {tab === "scoring" && <ScoringTab />}
         {tab === "rinks" && <RinksTab />}
         {tab === "comms" && <CommsTab />}

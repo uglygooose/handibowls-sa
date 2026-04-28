@@ -1,11 +1,17 @@
 import "server-only";
 
 import { getAuthContext } from "@/lib/auth/role";
+import { matchRowToPrimitive } from "@/lib/tournaments/adapters";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database.types";
 
 type DbTournament = Database["public"]["Tables"]["tournaments"]["Row"];
 type DbEntry = Database["public"]["Tables"]["tournament_entries"]["Row"];
+type DbMatch = Database["public"]["Tables"]["matches"]["Row"];
+type DbTournamentTeam = Pick<
+  Database["public"]["Tables"]["tournament_teams"]["Row"],
+  "id" | "name" | "seed"
+>;
 type DbProfile = Pick<
   Database["public"]["Tables"]["profiles"]["Row"],
   "id" | "first_name" | "last_name" | "display_name" | "bsa_number"
@@ -132,6 +138,105 @@ export async function getTournamentEntries(
       paid_placeholder: false,
     };
   });
+}
+
+// -------------------- matches (Draw + Scoring tabs) --------------------
+
+export type MatchRow = {
+  id: string;
+  match_no: number | null;
+  round: number | null;
+  rink: string | null;
+  status: Database["public"]["Enums"]["match_status"];
+  finalized_by_admin: boolean;
+  home_team: DbTournamentTeam | null;
+  away_team: DbTournamentTeam | null;
+  home_shots: number;
+  away_shots: number;
+  winner_team_id: string | null;
+  slot_a_source_type: string | null;
+  slot_a_source_match_id: string | null;
+  slot_b_source_type: string | null;
+  slot_b_source_match_id: string | null;
+};
+
+export async function getMatchesForTournament(
+  tournamentId: string,
+): Promise<MatchRow[]> {
+  const ctx = await getAuthContext();
+  if (!ctx) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("matches")
+    .select(
+      "id, match_no, round, status, finalized_by_admin, home_shots, away_shots, winner_team_id, slot_a_source_type, slot_a_source_match_id, slot_b_source_type, slot_b_source_match_id, rink:rinks(name), home_team:tournament_teams!home_team_id(id, name, seed), away_team:tournament_teams!away_team_id(id, name, seed)",
+    )
+    .eq("tournament_id", tournamentId)
+    .order("round", { ascending: true })
+    .order("match_no", { ascending: true });
+
+  if (error || !data) return [];
+
+  return data.map((m) => {
+    const rinkObj = m.rink as { name?: string | null } | null;
+    return {
+      id: m.id,
+      match_no: m.match_no,
+      round: m.round,
+      rink: rinkObj?.name ?? null,
+      status: m.status,
+      finalized_by_admin: m.finalized_by_admin,
+      home_team: (m.home_team as DbTournamentTeam | null) ?? null,
+      away_team: (m.away_team as DbTournamentTeam | null) ?? null,
+      home_shots: m.home_shots,
+      away_shots: m.away_shots,
+      winner_team_id: m.winner_team_id,
+      slot_a_source_type: m.slot_a_source_type,
+      slot_a_source_match_id: m.slot_a_source_match_id,
+      slot_b_source_type: m.slot_b_source_type,
+      slot_b_source_match_id: m.slot_b_source_match_id,
+    };
+  });
+}
+
+/** Pure derivation that picks the display status for the bracket — uses
+ *  the existing adapter so admin / player surfaces stay in lock-step. */
+export function matchToDisplayStatus(
+  m: Pick<MatchRow, "status" | "finalized_by_admin">,
+) {
+  // Reuse the canonical primitive mapper. Returns one of the
+  // `PrimitiveMatchStatus` literals which the StatusDot component
+  // recognises directly.
+  return matchRowToPrimitive({
+    // Only the two fields the mapper needs for status synthesis.
+    status: m.status,
+    finalized_by_admin: m.finalized_by_admin,
+    // Stub the rest — matchRowToPrimitive doesn't read them for status.
+    id: "",
+    home_team_id: null,
+    away_team_id: null,
+    home_shots: 0,
+    away_shots: 0,
+    home_ends_won: 0,
+    away_ends_won: 0,
+    bracket_slot: null,
+    rink_id: null,
+    round: null,
+    section_label: null,
+    starts_at: null,
+    ends_at: null,
+    notes: null,
+    tournament_id: "",
+    winner_team_id: null,
+    slot_a_source_match_id: null,
+    slot_a_source_type: null,
+    slot_b_source_match_id: null,
+    slot_b_source_type: null,
+    match_no: null,
+    created_at: "",
+    updated_at: "",
+  } as Database["public"]["Tables"]["matches"]["Row"]).status;
 }
 
 function deriveDisplayName(p: DbProfile | null): string {
