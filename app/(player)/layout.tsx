@@ -5,9 +5,11 @@ import { PlayerBottomNav } from "@/components/nav/PlayerBottomNav";
 import { TopBar } from "@/components/nav/TopBar";
 import { ClubSwitcher } from "@/components/player/ClubSwitcher";
 import { NoviceBadge } from "@/components/player/NoviceBadge";
+import { OfflineSyncBadge } from "@/components/player/OfflineSyncBadge";
 import { getCurrentMemberships } from "@/lib/auth/memberships";
 import { getCurrentProfile } from "@/lib/auth/profile";
-import { requireRole } from "@/lib/auth/role";
+import { getAuthContext, requireRole } from "@/lib/auth/role";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function PlayerLayout({
   children,
@@ -21,9 +23,10 @@ export default async function PlayerLayout({
   // Both fetchers are React.cache-wrapped so any nested page reading the
   // same data shares this render's queries. NoviceBadge + ClubSwitcher
   // both render conditionally on their own data, so render unconditionally.
-  const [profile, memberships] = await Promise.all([
+  const [profile, memberships, unreadCount] = await Promise.all([
     getCurrentProfile(),
     getCurrentMemberships(),
+    countUnreadNotifications(),
   ]);
 
   return (
@@ -41,12 +44,39 @@ export default async function PlayerLayout({
               }))}
             />
           }
-          right={<NoviceBadge noviceRegisteredAt={profile?.novice_registered_at ?? null} />}
+          right={
+            <div className="flex items-center gap-1.5">
+              <NoviceBadge
+                noviceRegisteredAt={profile?.novice_registered_at ?? null}
+              />
+              {/* Sync state is statically "synced" until 8d wires the
+                  Dexie outbox + service-worker queue. The badge primitive
+                  is here so every player surface gets the slot reserved
+                  in the chrome — that prevents the layout reflow when
+                  state flips to pending/error. */}
+              <OfflineSyncBadge state="synced" />
+            </div>
+          }
         />
       }
-      nav={<PlayerBottomNav />}
+      nav={<PlayerBottomNav unreadNotifications={unreadCount} />}
     >
       {children}
     </MobileShell>
   );
+}
+
+// Lightweight count for the bottom-nav unread dot. Lives here rather
+// than in /play/_data.ts so the layout doesn't import a route-scoped
+// file. Same RLS path; same SSR Supabase client.
+async function countUnreadNotifications(): Promise<number> {
+  const ctx = await getAuthContext();
+  if (!ctx) return 0;
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("notifications")
+    .select("*", { count: "exact", head: true })
+    .eq("profile_id", ctx.userId)
+    .eq("read", false);
+  return count ?? 0;
 }
