@@ -1,4 +1,3 @@
-import { PageHeader } from "@/components/layout/PageHeader";
 import { requireRole } from "@/lib/auth/role";
 
 import { listDistricts } from "../_data";
@@ -13,16 +12,8 @@ export default async function NewClubPage() {
 
   const districts = await listDistricts();
 
-  return (
-    <div className="flex flex-col">
-      <PageHeader
-        eyebrow="Platform · Clubs"
-        title="New club"
-        description="Five steps: club details, admin invite, greens & rinks, initial players, review & publish. Save a draft at any point."
-      />
-      <div className="px-6 py-6">
-        <NewClubWizard districts={districts} />
-      </div>
-    </div>
-  );
+  // No top-level PageHeader on the wizard — the wizard owns its own
+  // per-step chrome (eyebrow + step-specific title + cancel button)
+  // per the design.
+  return <NewClubWizard districts={districts} />;
 }

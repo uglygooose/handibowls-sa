@@ -1,13 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { ThemePreset } from "@/components/brand/theme-presets";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 
 import { createClub } from "../../_actions";
@@ -30,6 +31,8 @@ import { clearDraft, readDraft, writeDraft } from "../_draft";
 import {
   isThemePreset,
   STEP_COUNT,
+  STEP_KEYS,
+  STEP_LABELS,
   STEP_TRIGGERS,
   WIZARD_DEFAULTS,
   wizardSchema,
@@ -43,6 +46,19 @@ import { Step4Players } from "./Step4Players";
 import { Step5Review } from "./Step5Review";
 import { WizardNav } from "./WizardNav";
 import { WizardProgress } from "./WizardProgress";
+import { WizardSuccess } from "./WizardSuccess";
+
+// State for the post-publish success banner. Captured at submit time so the
+// banner can render without re-querying the DB.
+type PublishSuccess = {
+  clubId: string;
+  clubName: string;
+  themePreset: ThemePreset;
+  districtName: string;
+  adminEmail: string;
+  greensCount: number;
+  totalRinks: number;
+};
 
 type Props = {
   districts: DistrictRow[];
@@ -75,6 +91,7 @@ export function NewClubWizard({ districts }: Props) {
   const [furthestStep, setFurthestStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [published, setPublished] = useState<PublishSuccess | null>(null);
   // Logo file is held in component state — not in form values, not in
   // sessionStorage. Survives step navigation but dies on page refresh by
   // design (binary-file draft restore is not worth the complexity).
@@ -268,7 +285,21 @@ export function NewClubWizard({ districts }: Props) {
       }
 
       clearDraft();
-      router.push(`/platform/clubs/${result.data.club_id}`);
+      // Render the success banner in-place per the design's flow. The user
+      // chooses "View club" or "Add another" from there; we don't auto-
+      // navigate away.
+      const districtName =
+        districts.find((d) => d.id === values.details.district_id)?.name ??
+        values.details.district_id;
+      setPublished({
+        clubId: result.data.club_id,
+        clubName: values.details.name,
+        themePreset: values.details.theme_preset as ThemePreset,
+        districtName,
+        adminEmail: values.adminInvite.admin_email,
+        greensCount: values.greens.greens.length,
+        totalRinks: values.greens.greens.reduce((s, g) => s + g.rink_count, 0),
+      });
     } catch (err) {
       setPublishError(
         err instanceof Error ? err.message : "Unexpected error while publishing.",
@@ -276,7 +307,15 @@ export function NewClubWizard({ districts }: Props) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [form, logoFile, router]);
+  }, [form, logoFile, districts]);
+
+  const handleSkipToPlayers = useCallback(() => {
+    // Step 4 is the "initial players" step — entirely optional. Allow the
+    // user to bypass it without filling fields, advancing the gate so the
+    // review step renders.
+    setFurthestStep((f) => Math.max(f, 5));
+    goToStep(5);
+  }, [goToStep]);
 
   const currentContent = useMemo(() => {
     switch (currentStep) {
@@ -308,6 +347,16 @@ export function NewClubWizard({ districts }: Props) {
     }
   }, [currentStep, districts, handleJump, logoFile, publishError]);
 
+  if (published) {
+    return (
+      <div className="mx-auto w-full max-w-[1100px] px-10 pb-20 pt-8">
+        <WizardSuccess {...published} />
+      </div>
+    );
+  }
+
+  const stepLabel = STEP_LABELS[STEP_KEYS[currentStep - 1]];
+
   return (
     <FormProvider {...form}>
       <form
@@ -315,16 +364,40 @@ export function NewClubWizard({ districts }: Props) {
         data-current-step={currentStep}
         data-draft-state={draftState}
         onSubmit={(e) => e.preventDefault()}
-        className="flex flex-col gap-6"
+        className="mx-auto flex w-full max-w-[1100px] flex-col gap-2 px-10 pb-20 pt-8"
       >
+        {/* Per-step page chrome — eyebrow shows step counter, h1 shows the
+            step's specific title, cancel exits to the clubs list. */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="mb-2 inline-flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-ink-subtle">
+              <span className="size-1.5 rounded-full bg-primary-500" aria-hidden="true" />
+              New club · Step {currentStep} of {STEP_COUNT}
+            </div>
+            <h1 className="m-0 font-display text-[48px] font-black italic uppercase tracking-[-0.02em] leading-tight">
+              {stepLabel}
+            </h1>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/platform/clubs")}
+            disabled={isSubmitting}
+            data-testid="wizard-cancel"
+            className="gap-1.5"
+          >
+            <X className="size-3.5" aria-hidden="true" />
+            Cancel
+          </Button>
+        </div>
+
         <WizardProgress
           currentStep={currentStep}
           furthestStep={furthestStep}
           onJump={handleJump}
         />
-        <Card>
-          <CardContent className="pt-6">{currentContent}</CardContent>
-        </Card>
+        <div className="pt-2">{currentContent}</div>
         <WizardNav
           currentStep={currentStep}
           totalSteps={STEP_COUNT}
@@ -333,6 +406,7 @@ export function NewClubWizard({ districts }: Props) {
           onNext={handleNext}
           onSaveDraft={handleSaveDraft}
           onSubmit={handleSubmit}
+          onSkip={currentStep === 4 ? handleSkipToPlayers : undefined}
         />
       </form>
       <Dialog open={draftState === "prompt"}>
