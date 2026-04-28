@@ -21,6 +21,7 @@ import { Bowl } from "@/components/brand/Bowl";
 import { HandiBowlsMark } from "@/components/brand/HandiBowlsMark";
 import { HandiBowlsWordmark } from "@/components/brand/HandiBowlsWordmark";
 import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
+import { SplatterAccent } from "@/components/brand/SplatterAccent";
 import type { ThemePreset } from "@/components/brand/ThemeApplier";
 import { cn } from "@/lib/utils";
 
@@ -68,10 +69,13 @@ type Identity = {
   primary: string;
   /** Secondary line: "Club Admin" / "Super Admin" — uppercase by CSS. */
   role: string;
-  /** Theme preset for the foot bowl (club_admin only). Layouts fetch the
-   *  active user's primary club preset; ThemeApplier already syncs <html
-   *  data-theme> separately, so this is the bowl-specific tint. */
-  bowlPreset?: ThemePreset;
+  /** Theme preset that drives the foot bowl (club_admin only) AND the
+   *  top-right splatter accent (both variants). Layouts pass the active
+   *  user's primary club preset; super_admin layouts may omit and fall
+   *  back to the platform brand default ("atomic-red"). The same preset
+   *  flows through ThemeApplier elsewhere, so the sidebar decorations
+   *  track the page's active theme in lock-step. */
+  decorPreset?: ThemePreset;
   /** Stable seed for the bowl's speckle pattern. Defaults to `primary`. */
   bowlSeed?: string;
 };
@@ -115,6 +119,23 @@ export function AdminSidebar({
         opacity={0.07}
         className="z-0"
       />
+
+      {/* Top-right splatter brand accent — preserved from the Phase 4
+          design integration treatment. Phase-7 enhancement: tied to
+          identity.decorPreset (active club's preset for club_admin,
+          atomic-red default for super_admin) so it tracks the active
+          theme rather than being hardcoded to atomic-red. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-8 -top-5 z-0 opacity-[0.35]"
+      >
+        <SplatterAccent
+          preset={identity.decorPreset ?? "atomic-red"}
+          variant={2}
+          size={140}
+          rotate={-18}
+        />
+      </div>
 
       <div className="relative z-10 flex h-full flex-col">
         {/* Head — wordmark + collapse toggle. */}
@@ -193,9 +214,9 @@ export function AdminSidebar({
             data-slot="admin-sidebar-foot"
             className="flex shrink-0 items-center gap-2.5 border-t border-[#1a1a1a] p-[14px]"
           >
-            {showBowl && identity.bowlPreset ? (
+            {showBowl && identity.decorPreset ? (
               <Bowl
-                preset={identity.bowlPreset}
+                preset={identity.decorPreset}
                 size={36}
                 seed={identity.bowlSeed ?? identity.primary}
                 emblem={false}

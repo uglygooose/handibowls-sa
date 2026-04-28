@@ -24,7 +24,10 @@ export default async function ClubAdminLayout({
   const identity = {
     primary: primary?.club_name ?? deriveDisplayName(profile),
     role: "Club Admin",
-    bowlPreset: primary?.club_theme_preset,
+    // Drives both the foot bowl AND the top-right splatter accent,
+    // both of which track the active club's preset in lock-step with
+    // the page's ThemeApplier output.
+    decorPreset: primary?.club_theme_preset,
     bowlSeed: primary?.club_id,
   };
 
