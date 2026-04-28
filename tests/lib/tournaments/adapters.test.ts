@@ -439,11 +439,18 @@ describe("round-trip — composite real-round-2 match (6b → 6c follow-up)", ()
       slot_b_source_match_id: "r1m2",
     });
 
-    // Round-trip the SHAPE that the action layer would write back into the
-    // matches table (e.g., a re-insert in a copy/restore flow). The genesis
-    // `RoundAdvanceInsert` doesn't carry play-state (scores / winner /
-    // finalized) — those come from the play lifecycle — so we verify the
-    // structural columns the insert adapter is responsible for.
+    // The FINAL status doesn't pass through `RoundAdvanceInsert` — that
+    // type's `status` is constrained to "SCHEDULED" | "OPEN" by design
+    // (insert specs are always for new rounds, never finalised state).
+    // The status case-map for FINAL is verified separately via
+    // `primitiveStatusToDb("FINAL")` returning `{ status: "completed",
+    // finalizedByAdmin: true }`.
+    const finalStatusMap = primitiveStatusToDb("FINAL");
+    expect(finalStatusMap).toEqual({ status: "completed", finalizedByAdmin: true });
+
+    // Now round-trip the structural columns via a play-state-free
+    // RoundAdvanceInsert (status SCHEDULED — what an action would emit
+    // when materialising a round-2 match before play happens).
     const reinsert: RoundAdvanceInsert = {
       round_no: primitive.round_no!,
       match_no: primitive.match_no!,
@@ -453,13 +460,9 @@ describe("round-trip — composite real-round-2 match (6b → 6c follow-up)", ()
       slot_a_source_match_id: primitive.slot_a_source_match_id,
       slot_b_source_type: primitive.slot_b_source_type as "WINNER_OF_MATCH",
       slot_b_source_match_id: primitive.slot_b_source_match_id,
-      status: primitive.status as "FINAL",
+      status: "SCHEDULED",
     };
     const dbInsert = roundAdvanceInsertToMatchInsert(reinsert, "tour-1");
-
-    // The status case-map is the only place where information is intentionally
-    // multiplexed — FINAL → status='completed' + finalized_by_admin=true. All
-    // other flagged fields preserve verbatim.
     expect(dbInsert.tournament_id).toBe("tour-1");
     expect(dbInsert.round).toBe(2);
     expect(dbInsert.match_no).toBe(1);
@@ -469,15 +472,15 @@ describe("round-trip — composite real-round-2 match (6b → 6c follow-up)", ()
     expect(dbInsert.slot_a_source_match_id).toBe(null);
     expect(dbInsert.slot_b_source_type).toBe("WINNER_OF_MATCH");
     expect(dbInsert.slot_b_source_match_id).toBe("r1m2");
-    expect(dbInsert.status).toBe("completed");
-    expect(dbInsert.finalized_by_admin).toBe(true);
+    expect(dbInsert.status).toBe("scheduled");
+    expect(dbInsert.finalized_by_admin).toBe(false);
 
-    // And re-reading that insert (after the DB fills computed defaults +
-    // the play-lifecycle fields the insert adapter doesn't set) lands on
-    // the same primitive shape — i.e., the conversion is lossless for the
-    // structural columns the user flagged.
-    const synthesisedRow = matchRow({
-      id: dbInsert.tournament_id === "tour-1" ? "r2m1" : finalisedRow.id,
+    // Synthesise the post-finalisation Row using the FINAL status-map
+    // (i.e., the row the action layer would produce after the match is
+    // played + admin-verified). Re-parsing via matchRowToPrimitive should
+    // land us back on the same primitive shape we started with.
+    const finalisedRowReplay = matchRow({
+      id: "r2m1",
       tournament_id: "tour-1",
       round: dbInsert.round,
       match_no: dbInsert.match_no,
@@ -486,14 +489,14 @@ describe("round-trip — composite real-round-2 match (6b → 6c follow-up)", ()
       home_shots: 21,
       away_shots: 14,
       winner_team_id: "team-a",
-      status: dbInsert.status ?? "scheduled",
-      finalized_by_admin: dbInsert.finalized_by_admin ?? false,
+      status: finalStatusMap.status,
+      finalized_by_admin: finalStatusMap.finalizedByAdmin,
       slot_a_source_type: dbInsert.slot_a_source_type ?? null,
       slot_a_source_match_id: dbInsert.slot_a_source_match_id ?? null,
       slot_b_source_type: dbInsert.slot_b_source_type ?? null,
       slot_b_source_match_id: dbInsert.slot_b_source_match_id ?? null,
     });
-    const reparsed = matchRowToPrimitive(synthesisedRow);
+    const reparsed = matchRowToPrimitive(finalisedRowReplay);
     expect(reparsed).toEqual(primitive);
   });
 });
