@@ -162,10 +162,11 @@ at the moment a phase closed, derived from
 
 ---
 
-## Phase 7 — Tournament admin UI — closed 2026-04-28
+## Phase 7 — Tournament admin UI — closed 2026-04-29 (formal close after manual QA)
 
-- **Branch tip:** `b9ad0fa` (`rebuild/phase-7-tournament-admin-ui`,
-  cut from `f1862f7`; PHASE_LOG bookkeeping commit lands on top)
+- **Branch tip:** `95cd810` (`rebuild/phase-7-tournament-admin-ui`,
+  cut from `f1862f7`; PHASE_LOG bookkeeping commit `37afd03` lands on top
+  of 7e, then 4 follow-up commits for manual-QA findings before formal close)
 - **Sub-checkpoints:** 7-prep (cmdk + react-hotkeys-hook +
   `@react-pdf/renderer` deps · `AdminSidebar` dual-variant club_admin +
   super_admin · `EntriesGatePill` extract · `FormatPicker` 5-card grid
@@ -192,12 +193,73 @@ at the moment a phase closed, derived from
 - **Drift delta:** 29 → 29 open / 11 → 11 closed (no net drift movement
   in 7e; 7d-prep added 1 entry — feeder match_no display via hash —
   before sub-phase work began).
-- **Manual QA:** Lighthouse desktop on `/manage/tournaments/[id]`:
-  **Performance 86 / Accessibility 100 / Best Practices 96 / SEO 91**
-  (target ≥85 met). Suite at 418 tests passing (343 baseline + 75
-  Phase-7e additions). RLS suite 49/49 green against cloud. Manual
-  visual walkthrough is the user's job — see Phase 7 close report
-  for the manual QA checklist.
+- **Manual QA (7e close, 2026-04-28):** Lighthouse desktop on
+  `/manage/tournaments/[id]`: **Performance 86 / Accessibility 100 /
+  Best Practices 96 / SEO 91** (target ≥85 met). Suite at 418 tests
+  passing (343 baseline + 75 Phase-7e additions). RLS suite 49/49 green
+  against cloud. The Lighthouse score was later found to have been
+  measured against a 404 page rather than the real detail surface — see
+  `DRIFT_LOG.md` Phase 7 retrospective entry; Lighthouse re-run is queued.
+- **Follow-up commits (2026-04-29 manual QA findings):** 4 commits land
+  on top of `37afd03` before formal close.
+  - `954938c` **host-club resolver** — Findings 1 + 3. Phase 7 admin
+    layouts resolved the host club via `getCurrentMemberships()` which
+    only queries `club_memberships`; club_admins live in
+    `club_admin_assignments`. Result: admin@demo.local foot card
+    duplicated the role label ("Club Admin / CLUB ADMIN") and
+    `/manage/tournaments/new` redirected to the list because `primary`
+    was null. New `lib/auth/admin-clubs.ts` + unified
+    `getCurrentHostClub()` resolver in `lib/auth/memberships.ts` switching
+    on JWT role. AdminSidebar contract preserved (club name on club_admin,
+    user name on super_admin). +10 tests. +1 drift (Phase 13 hydration
+    mismatch on TournamentsList junk URL params, logged but not fixed).
+  - `5cd4375` **parseTabFromUrl client/server boundary** — surfaced after
+    the host-club fix unblocked `/new`. Detail page Server Component
+    imported `parseTabFromUrl` from a `"use client"` module; Next 16 wraps
+    such imports as Client References, throwing
+    "Attempted to call parseTabFromUrl() from the server" at SSR. Fix:
+    extracted parser + `TabId` + `ALL_TAB_IDS` to a universal module
+    `_components/tabs.ts` (no `"use client"`, no `"server-only"`). +5
+    tests. `npm run build` did not catch the bug (dynamic route skipped
+    during prerender) — documented in commit message as a known Next 16
+    static-analysis gap.
+  - `525ed3d` **detail-page 404 — embed query** — Finding 4. Form-submit
+    redirect to `/manage/tournaments/[id]` 404'd; the parent embed
+    `matches:matches(count, status)` translated to invalid SQL
+    (Postgres 42803, "must appear in the GROUP BY clause"). Fix:
+    dropped the broken embed, added a separate scoped
+    `select status from matches` query, aggregate the three buckets in
+    JS. Surfaced query errors to `console.error` so this class of bug
+    can't silently 404 again. +8 tests. +3 drift (profile_id /
+    auth.users.id audit + Lighthouse-on-404 retro + tournament_summary
+    RPC consolidation for Phase 12). Diagnosis evidence captured via
+    direct PostgREST replication; no migration, no cloud touch.
+  - `95cd810` **command-palette z-index + splatter stacking + /payments
+    public-route** — Findings 6 + 7 + 8 + 9. cmdk's `Command.Dialog`
+    overlay-styling was on the wrong className target (inner Command
+    instead of Dialog.Overlay/Content) — Radix portal dropped the panel
+    at `z-auto`. Fix: explicit `fixed z-50` on overlay + content,
+    matching `components/ui/dialog.tsx`. SplatterAccent's intrinsic
+    `transform: rotate(...)` stacking context could leak above sibling
+    content; fix: `isolate` on `TournamentHero` + `BracketCanvas`
+    parents, plus a stacking-expectation block on `SplatterAccent.tsx`.
+    `/payments` was missing from `isPublicPath()`, bouncing logged-in
+    admins to `/manage/overview` and anon users to `/login`; fix: add
+    to allow-list, delete vestigial empty `app/(public)/payments/`
+    directory. +3 tests. No new drift (all Phase 7 bug fixes).
+- **Manual QA (formal close, 2026-04-29):** User walked checklist Phase
+  5 through Phase 9 (detail hero + 6 tabs + command palette + /payments).
+  All pass. Phase 10 (theme regression across `data-theme` swaps)
+  deferred — single seeded club means there's no second club to
+  regression-test against; will run when `seed:dev:tournaments` lands
+  in Phase 8 prep.
+- **Test-suite trajectory:** 418 (7e) → 428 (host-club) → 433 (tab
+  parser) → 441 (detail 404) → 444 (palette + payments). Final: 41
+  files / 444 cases / 0 failures. RLS suite remained 49/49 throughout.
+- **Drift delta (formal close):** 29 → 33 open / 11 → 11 closed across
+  all of Phase 7 (29 carried in from 7d-prep + 7e bookkeeping; +1 from
+  host-club commit, +3 from detail-404 commit; no closes — Phase 7
+  follow-ups were bug fixes, not deferred-drift resolution).
 
 ---
 
