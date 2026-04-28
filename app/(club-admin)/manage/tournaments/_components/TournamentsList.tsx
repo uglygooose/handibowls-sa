@@ -18,7 +18,8 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 
 import { Bowl } from "@/components/brand/Bowl";
 import { cn } from "@/lib/utils";
@@ -88,11 +89,64 @@ type Props = {
 };
 
 export function TournamentsList({ tournaments, clubName }: Props) {
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<Set<DisplayState>>(new Set());
-  const [filterFormat, setFilterFormat] = useState<Set<TournamentFormat>>(new Set());
-  const [filterScope, setFilterScope] = useState<TournamentScope | "all">("all");
-  const [view, setView] = useState<ViewMode>("grid");
+  // URL-state filters — survive reload + are shareable. router.replace
+  // (not push) so filter tweaks don't pollute history. Mirrors the Phase-4
+  // /platform/clubs pattern.
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [, startTransition] = useTransition();
+
+  const initial = useMemo(() => parseFiltersFromUrl(searchParams), [searchParams]);
+  const [search, setSearch] = useState(initial.q);
+  const [filterStatus, setFilterStatus] = useState<Set<DisplayState>>(initial.status);
+  const [filterFormat, setFilterFormat] = useState<Set<TournamentFormat>>(initial.format);
+  const [filterScope, setFilterScope] = useState<TournamentScope | "all">(initial.scope);
+  const [view, setView] = useState<ViewMode>(initial.view);
+
+  // Push state changes back to the URL (debounced for the search input
+  // since it fires on every keystroke). On every render, derive what the
+  // URL ought to be and replace iff it differs.
+  const writeUrl = useCallback(
+    (next: {
+      q: string;
+      status: Set<DisplayState>;
+      format: Set<TournamentFormat>;
+      scope: TournamentScope | "all";
+      view: ViewMode;
+    }) => {
+      const params = new URLSearchParams();
+      if (next.q.trim()) params.set("q", next.q.trim());
+      if (next.status.size > 0) params.set("status", Array.from(next.status).sort().join(","));
+      if (next.format.size > 0) params.set("format", Array.from(next.format).sort().join(","));
+      if (next.scope !== "all") params.set("scope", next.scope);
+      if (next.view !== "grid") params.set("view", next.view);
+      const qs = params.toString();
+      const target = qs ? `${pathname}?${qs}` : pathname;
+      // Avoid no-op replacements that would still trigger React re-renders.
+      const current = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+      if (current === target) return;
+      startTransition(() => {
+        router.replace(target, { scroll: false });
+      });
+    },
+    [pathname, router, searchParams],
+  );
+
+  // Debounce the URL sync of `search` so each keystroke doesn't slam
+  // history.replaceState. 200ms feels responsive without being noisy.
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      writeUrl({
+        q: search,
+        status: filterStatus,
+        format: filterFormat,
+        scope: filterScope,
+        view,
+      });
+    }, 200);
+    return () => window.clearTimeout(id);
+  }, [search, filterStatus, filterFormat, filterScope, view, writeUrl]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -237,6 +291,61 @@ export function TournamentsList({ tournaments, clubName }: Props) {
       )}
     </div>
   );
+}
+
+// -------------------- url-state parsing --------------------
+
+const STATUS_VALUES: ReadonlySet<DisplayState> = new Set([
+  "draft",
+  "open",
+  "entries_closed",
+  "in_progress",
+  "completed",
+  "cancelled",
+]);
+const FORMAT_VALUES: ReadonlySet<TournamentFormat> = new Set([
+  "singles",
+  "pairs",
+  "triples",
+  "fours",
+  "mixed_pairs",
+]);
+const SCOPE_VALUES: ReadonlySet<TournamentScope> = new Set([
+  "club",
+  "district",
+  "provincial",
+  "national",
+]);
+
+function parseFiltersFromUrl(sp: ReturnType<typeof useSearchParams>): {
+  q: string;
+  status: Set<DisplayState>;
+  format: Set<TournamentFormat>;
+  scope: TournamentScope | "all";
+  view: ViewMode;
+} {
+  const q = sp.get("q") ?? "";
+  const statusParam = sp.get("status") ?? "";
+  const formatParam = sp.get("format") ?? "";
+  const scopeParam = sp.get("scope") ?? "all";
+  const viewParam = sp.get("view") ?? "grid";
+
+  const status = new Set(
+    statusParam
+      .split(",")
+      .filter((s): s is DisplayState => STATUS_VALUES.has(s as DisplayState)),
+  );
+  const format = new Set(
+    formatParam
+      .split(",")
+      .filter((s): s is TournamentFormat => FORMAT_VALUES.has(s as TournamentFormat)),
+  );
+  const scope: TournamentScope | "all" =
+    scopeParam !== "all" && SCOPE_VALUES.has(scopeParam as TournamentScope)
+      ? (scopeParam as TournamentScope)
+      : "all";
+  const view: ViewMode = viewParam === "list" ? "list" : "grid";
+  return { q, status, format, scope, view };
 }
 
 // -------------------- helpers --------------------
