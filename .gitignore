@@ -49,3 +49,10 @@ next-env.d.ts
 # supabase CLI scratch (produced by `supabase gen types` and friends)
 /supabase/.temp/
 .claude/
+
+# lighthouse audit reports (helper scripts in scripts/, JSON output ignored)
+scripts/lighthouse-*.json
+
+# chrome-launcher temp profile dirs — under WSL the Windows LOCALAPPDATA env
+# leaks through and a literal "C:\Users\..." directory appears at repo root.
+C:*
