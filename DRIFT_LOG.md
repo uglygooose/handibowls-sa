@@ -57,6 +57,10 @@ Single source of truth for every piece of drift between Claude Design output / r
 - [x] ~~**Signup "check your inbox" success card unreachable.** Component built but `signUpAction` redirects to `/me/setup`. Decide at Phase 5 whether to wire or delete. Discovered: Phase 3 follow-up.~~ Closed: 5b, 2026-04-28. Resolved by deletion. Audit found no separate component file — the "dead success card" was a comment block in signup-form.tsx describing the unreachable state. Block removed; no email-confirmation flow planned.
 - [x] ~~**Invite page copy says "seven days", schema is 14.** `app/(auth)/invite/[token]/page.tsx:70` hardcodes "Invites last seven days" but `invites.expires_at` defaults to `now() + 14 days` (migration 011). Fix to "14 days" or read from the invite row. Owning phase: 5b. Discovered: Phase 5a, 2026-04-28.~~ Closed: 5b, 2026-04-28.
 
+### Phase 6 — Tournament engine
+
+- [ ] **lib/tournaments primitives use uppercase enum vocab.** `labels.ts` and `handicap.ts` reference `SINGLES`/`SCRATCH`/`HANDICAP_START` but Phase 2 schema enums are lowercase (`singles`/`scratch`/`handicap_start`). Tests pass in isolation; modules can't be wired to current DB rows without case-mapping. 6b adapters must address — either case-map at adapter boundary or normalise primitives to lowercase. Recommend case-map at adapter (contained, doesn't rewrite tested logic). Owning phase: 6b. Discovered: Phase 6a, 2026-04-29.
+
 ### Phase 7 — Admin tournament UI
 
 - [ ] **Tournament batch RPCs missing from rebuild migrations.** Pre-rebuild had `admin_finalize_matches_batch`, `bulk_save_match_scores_batch`, `save_round_fixtures_batch` (308 lines, three PL/pgSQL functions in deleted `supabase/migrations/20260422_tournament_batch_rpcs.sql`). Needed by Phase 7 admin UI for atomic batch fixture editing and bulk scoring; the singular routes also relied on them for winner-propagation + OPEN→SCHEDULED transitions. Restore or rebuild in Phase 7. Owning phase: Phase 7. Discovered: Phase 6a, 2026-04-29.
@@ -73,6 +77,7 @@ Single source of truth for every piece of drift between Claude Design output / r
 
 ### Phase 13 — Technical polish
 
+- [ ] **§18 documentation drift — `bracket.ts` content vs §18 mapping.** HANDIBOWLS_REBUILD_PLAN.md §18 line 1026 maps `lib/tournaments/bracket.ts` → `lib/tournaments/brackets/knockout.ts` ("Moved; same exports re-exported"). On disk `bracket.ts` is label helpers (`largestPowerOfTwoLE`, `roundLabel`, `finishPlacementLabel`), not knockout pairing. Phase 6a kept `bracket.ts` in place (renaming would mislabel content) and wrote a fresh `lib/tournaments/brackets/knockout.ts` for the round-1 pairing primitive — preserving §18's INTENT (knockout primitive exists) while diverging from §18's letter (bracket.ts source). Update §18 line 1026 + §9 step 1/2 to reflect on-disk reality at the Phase-13 plan reconciliation. Discovered: Phase 6a, 2026-04-29.
 - [ ] **Vitest Windows worker-pool flake.** `npm test` pinned to `--fileParallelism=false` via Phase 4 prep Commit C. Upstream vitest 4.1.4 + Windows issue. Revisit when vitest ships a fix. File: `package.json`. Discovered: Phase 4 prep, 2026-04-23.
 - [ ] **RLS test club teardown.** `tests/rls/helpers.ts` seeds `test-%` clubs without cleanup. Phase 4 prep did a one-time manual wipe. Add `afterAll` teardown. Discovered: Phase 4 prep, 2026-04-23.
 - [ ] **Supabase local Storage healthcheck flake.** `npx supabase start` requires `--ignore-health-check` on Windows WSL2 due to slow service boot. Services are actually healthy; CLI window is too short. Revisit when Supabase CLI ships longer healthcheck windows or when the rebuild is cross-platform. Discovered: Phase 4 prep, 2026-04-23.
