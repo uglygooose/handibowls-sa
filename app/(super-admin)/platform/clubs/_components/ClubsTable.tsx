@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 
 import { BowlChip } from "@/components/brand/BowlChip";
 import { StatusPill } from "@/components/brand/StatusPill";
@@ -79,6 +79,30 @@ export function ClubsTable({ rows, page, pageSize, total, basePath }: Props) {
   const [districtFilter, setDistrictFilter] = useState<string[]>([]);
   const [themeFilter, setThemeFilter] = useState<ThemePreset[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
+  // Defer the values that drive TanStack's filter pipeline so typing into
+  // the search input remains responsive while the table recomputes at a
+  // lower priority. Without this, every keystroke synchronously re-renders
+  // 19 rows × 8 cells × cell-fn JSX before the input's next character
+  // paints — perceptible as a freeze on slower devices.
+  const deferredGlobalFilter = useDeferredValue(globalFilter);
+  const deferredDistrictFilter = useDeferredValue(districtFilter);
+  const deferredThemeFilter = useDeferredValue(themeFilter);
+  const deferredStatusFilter = useDeferredValue(statusFilter);
+
+  // Memoise the columnFilters array. Passing a fresh array literal as
+  // state to TanStack busts its internal slice memoisation and forces the
+  // filtered-row-model to recompute on every render — not just when
+  // filters change. Reference is stable as long as the deferred filter
+  // values are stable.
+  const columnFilters = useMemo(
+    () => [
+      { id: "district", value: deferredDistrictFilter },
+      { id: "theme_preset", value: deferredThemeFilter },
+      { id: "active", value: deferredStatusFilter },
+    ],
+    [deferredDistrictFilter, deferredThemeFilter, deferredStatusFilter],
+  );
 
   const districtOptions = useMemo(
     () =>
@@ -204,12 +228,8 @@ export function ClubsTable({ rows, page, pageSize, total, basePath }: Props) {
     columns,
     state: {
       sorting,
-      globalFilter,
-      columnFilters: [
-        { id: "district", value: districtFilter },
-        { id: "theme_preset", value: themeFilter },
-        { id: "active", value: statusFilter },
-      ],
+      globalFilter: deferredGlobalFilter,
+      columnFilters,
     },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
