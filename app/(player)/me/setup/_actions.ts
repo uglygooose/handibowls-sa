@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { getAuthContext } from "@/lib/auth/role";
 import {
   MARKETING_VERSION,
@@ -62,5 +64,12 @@ export async function completePlayerProfile(
   });
 
   if (error) return { ok: false, error: error.message };
+
+  // Bust the (player) layout chain's cached profile read so the gate sees
+  // profile_completed=true on the very next navigation. Without this, the
+  // wizard's router.replace('/play') would render against a stale RSC
+  // cache where profile_completed=false → the gate redirects back to
+  // /me/setup, leaving the player stuck on the wizard.
+  revalidatePath("/", "layout");
   return { ok: true };
 }

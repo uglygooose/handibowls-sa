@@ -61,22 +61,29 @@ export function SetupWizard({ prefill, email }: Props) {
 
   const handleSubmit = () => {
     startSubmit(async () => {
-      const ok = await form.trigger();
-      if (!ok) {
-        toast.error("Please fix the errors before submitting.");
-        return;
+      try {
+        const ok = await form.trigger();
+        if (!ok) {
+          toast.error("Please fix the errors before submitting.");
+          return;
+        }
+        const values = form.getValues() as unknown as SetupFormValues;
+        const result = await completePlayerProfile(values);
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
+        toast.success("Profile complete — welcome to HandiBowls.");
+        // The (player)/(gated) layout's gate now sees profile_completed=true
+        // and lets the user through without bouncing back to /me/setup.
+        router.replace("/play");
+        router.refresh();
+      } catch (err) {
+        // Server actions throwing should never silently hang the transition;
+        // surface the error so the player isn't stuck on "Saving…".
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        toast.error(`Setup failed: ${msg}`);
       }
-      const values = form.getValues() as unknown as SetupFormValues;
-      const result = await completePlayerProfile(values);
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Profile complete — welcome to HandiBowls.");
-      // The (player)/(gated) layout's gate now sees profile_completed=true
-      // and lets the user through without bouncing back to /me/setup.
-      router.replace("/play");
-      router.refresh();
     });
   };
 
