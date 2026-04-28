@@ -263,6 +263,12 @@ at the moment a phase closed, derived from
 
 ---
 
+## Operational conventions
+
+- **Browser-driven QA is human-side throughout the rebuild.** Multi-viewport visual checks and Lighthouse performance audits run on a real browser / device by the human at phase close — Claude Code cannot drive a browser in this WSL container (Playwright + chrome-devtools MCPs both fail to attach). Claude Code's QA scope is limited to code review against the design source + curl-level route checks. Subsequent phase briefs and stop-and-reports drop the "mandatory mobile QA at 4 viewports" item from Claude's gate list. Recorded: 2026-04-29 (post Phase 8 first batch).
+
+---
+
 ## Append-on-close protocol
 
 Future phases follow the same template. When a phase closes:
