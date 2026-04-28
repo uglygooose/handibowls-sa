@@ -16,6 +16,7 @@ describe("shortName", () => {
 function baseInput(overrides: Partial<Parameters<typeof singlesHandicapInfo>[0]> = {}) {
   return {
     format: "SINGLES" as string | null | undefined,
+    ruleType: "HANDICAP_START" as Parameters<typeof singlesHandicapInfo>[0]["ruleType"],
     teamAId: "A",
     teamBId: "B",
     teamMembersByTeamId: { A: ["p1"], B: ["p2"] },
@@ -25,7 +26,27 @@ function baseInput(overrides: Partial<Parameters<typeof singlesHandicapInfo>[0]>
   };
 }
 
-describe("singlesHandicapInfo", () => {
+describe("singlesHandicapInfo — handicap_rule gate", () => {
+  it("returns null when ruleType is SCRATCH (gate at entry, no computation)", () => {
+    expect(singlesHandicapInfo(baseInput({ ruleType: "SCRATCH" }))).toBe(null);
+  });
+  it("returns null when ruleType is null", () => {
+    expect(singlesHandicapInfo(baseInput({ ruleType: null }))).toBe(null);
+  });
+  it("returns null when ruleType is undefined", () => {
+    expect(singlesHandicapInfo(baseInput({ ruleType: undefined }))).toBe(null);
+  });
+  it("returns null for unknown rule values (defensive — only HANDICAP_START opts in)", () => {
+    expect(singlesHandicapInfo(baseInput({ ruleType: "UNKNOWN_RULE" }))).toBe(null);
+  });
+  it("computes when ruleType is HANDICAP_START", () => {
+    const hc = singlesHandicapInfo(baseInput({ ruleType: "HANDICAP_START" }));
+    expect(hc).not.toBeNull();
+    expect(hc!.diff).toBe(4);
+  });
+});
+
+describe("singlesHandicapInfo — existing behaviour (rule HANDICAP_START)", () => {
   it("returns null for non-SINGLES", () => {
     expect(singlesHandicapInfo(baseInput({ format: "DOUBLES" }))).toBe(null);
   });
@@ -53,21 +74,30 @@ describe("singlesHandicapInfo", () => {
   });
 });
 
-describe("singlesHandicapLine", () => {
-  it("returns null for SCRATCH rule", () => {
-    expect(singlesHandicapLine(baseInput(), "SCRATCH")).toBe(null);
+describe("singlesHandicapLine — handicap_rule gate", () => {
+  it("returns null when ruleType is SCRATCH", () => {
+    expect(singlesHandicapLine(baseInput({ ruleType: "SCRATCH" }))).toBe(null);
   });
+  it("returns null when ruleType is null", () => {
+    expect(singlesHandicapLine(baseInput({ ruleType: null }))).toBe(null);
+  });
+  it("returns null when ruleType is undefined", () => {
+    expect(singlesHandicapLine(baseInput({ ruleType: undefined }))).toBe(null);
+  });
+});
+
+describe("singlesHandicapLine — existing behaviour (rule HANDICAP_START)", () => {
   it("returns '+N to <name>' when there's a diff", () => {
-    expect(singlesHandicapLine(baseInput(), "HANDICAP_START")).toBe("Handicap: +4 to Alice");
+    expect(singlesHandicapLine(baseInput())).toBe("Handicap: +4 to Alice");
   });
   it("returns 'Handicap: level' at level", () => {
     expect(
-      singlesHandicapLine(baseInput({ handicapByPlayerId: { p1: 10, p2: 10 } }), "HANDICAP_START"),
+      singlesHandicapLine(baseInput({ handicapByPlayerId: { p1: 10, p2: 10 } })),
     ).toBe("Handicap: level");
   });
   it("returns 'Handicap: -' when handicap missing", () => {
     expect(
-      singlesHandicapLine(baseInput({ handicapByPlayerId: { p1: 10, p2: null } }), "HANDICAP_START"),
+      singlesHandicapLine(baseInput({ handicapByPlayerId: { p1: 10, p2: null } })),
     ).toBe("Handicap: -");
   });
 });

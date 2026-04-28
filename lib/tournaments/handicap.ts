@@ -1,5 +1,14 @@
 // lib/tournaments/handicap.ts
 // Pure-function handicap helpers. Take data via explicit params; no closures over state.
+//
+// Phase 6c: handicap is GATED on `ruleType === "HANDICAP_START"`. When rule
+// is anything else (only "SCRATCH" today, but future rules without a
+// handicap concept must explicitly opt in), the public functions short-
+// circuit at entry and return null — no work computed, no allocations.
+// Adapter callers (`lib/tournaments/adapters.ts:dbHandicapRuleToPrimitive`)
+// case-map lowercase DB enum to this uppercase string.
+
+export type TournamentRule = "SCRATCH" | "HANDICAP_START";
 
 export function shortName(s: string | null | undefined): string {
   const t = (s ?? "").trim();
@@ -10,6 +19,9 @@ export function shortName(s: string | null | undefined): string {
 
 export type HandicapInfoInput = {
   format: string | null | undefined;
+  /** Tournament-level handicap rule. Gated at entry — anything other than
+   *  "HANDICAP_START" is a no-op. */
+  ruleType: TournamentRule | string | null | undefined;
   teamAId: string | null;
   teamBId: string | null;
   teamMembersByTeamId: Record<string, string[]>;
@@ -26,7 +38,14 @@ export type HandicapInfo = {
   plusTo: "A" | "B" | null;
 };
 
+function isHandicapApplied(ruleType: HandicapInfoInput["ruleType"]): boolean {
+  return ruleType === "HANDICAP_START";
+}
+
 export function singlesHandicapInfo(input: HandicapInfoInput): HandicapInfo | null {
+  // Cheap-exit gate — runs before any field reads or allocations.
+  if (!isHandicapApplied(input.ruleType)) return null;
+
   if (input.format !== "SINGLES") return null;
   if (!input.teamAId || !input.teamBId) return null;
 
@@ -48,11 +67,10 @@ export function singlesHandicapInfo(input: HandicapInfoInput): HandicapInfo | nu
   return { nameA, nameB, ha, hb, diff, plusTo };
 }
 
-export function singlesHandicapLine(
-  input: HandicapInfoInput,
-  ruleType: string | null | undefined
-): string | null {
-  if (ruleType === "SCRATCH") return null;
+export function singlesHandicapLine(input: HandicapInfoInput): string | null {
+  // Same gate as info — keeps the entry point uniform across public API.
+  if (!isHandicapApplied(input.ruleType)) return null;
+
   const hc = singlesHandicapInfo(input);
   if (!hc) return null;
   if (hc.diff == null) return "Handicap: -";
