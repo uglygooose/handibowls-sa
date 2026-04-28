@@ -125,7 +125,7 @@ export default async function PlayerTournamentDetailPage({ params }: Props) {
           {/* CTA — when the player has an in-play or scheduled match */}
           {openMatch && (
             <Link
-              href={`/tournaments/${tournament.id}`}
+              href={`/tournaments/${tournament.id}/matches/${openMatch.id}`}
               className="mt-2 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-ink px-4 text-[13px] font-extrabold uppercase tracking-[0.04em] text-ink-inverse"
             >
               {isLiveForPlayer ? "Score next match" : "Open next match"}

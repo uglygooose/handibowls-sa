@@ -48,7 +48,29 @@ Single source of truth for every piece of drift between Claude Design output / r
 
 ### Player surfaces (Phase 8 output, added when shipped)
 
-*(empty)*
+- [ ] **Match-ends Dexie → server sync worker.** Phase 8c lands the
+  scorecard against a Dexie outbox (`public.match_ends` server table
+  exists from migration 005 but the client doesn't write to it yet).
+  Need a service-worker-driven flush that takes queued Dexie rows,
+  upserts them to server `match_ends` via PostgREST INSERT ... ON
+  CONFLICT (match_id, end_number) DO UPDATE WHERE local_updated_at >
+  server_updated_at, and reconciles via the conflict modal when the
+  server is newer. Owning phase: Phase 8d. Discovered: Phase 8c
+  build, 2026-04-29.
+- [ ] **Captain-submitted / opponent-confirmed schema gap.** The
+  scorecard's state machine has 5 distinct UI states (in_progress,
+  captain_submitted, opponent_confirmed, admin_verified, walkover/
+  cancelled) but the `match_status` enum only ships scheduled /
+  in_progress / completed / walkover / cancelled. Phase 8c renders
+  captain_submitted and opponent_confirmed as the same UI ("Awaiting
+  verification") gated on `status='completed' AND
+  finalized_by_admin=false` — the player whose POV is the captain
+  side and the opposing side both see the OpponentConfirmationCard.
+  Need a migration adding two enum values + an action that
+  transitions captain_submitted → opponent_confirmed → completed
+  rather than the current submitMatch (sets in_progress) →
+  confirmMatch (sets completed) collapse. Owning phase: Phase 8d.
+  Discovered: Phase 8c build, 2026-04-29.
 
 ### T20 compass capture (Phase 10 output, added when shipped)
 

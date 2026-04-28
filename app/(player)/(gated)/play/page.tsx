@@ -79,9 +79,7 @@ export default async function PlayHome() {
       {nextMatch ? (
         <HeroNextMatch
           match={nextMatch}
-          // 8c will route to the actual scorecard. Until then the CTA
-          // takes the player to the read-only tournament detail page.
-          scorecardHref={`/tournaments/${nextMatch.tournament.id}`}
+          scorecardHref={`/tournaments/${nextMatch.tournament.id}/matches/${nextMatch.match_id}`}
         />
       ) : (
         <EmptyNextMatch />
