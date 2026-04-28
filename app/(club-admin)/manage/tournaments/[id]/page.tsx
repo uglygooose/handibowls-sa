@@ -75,7 +75,14 @@ export default async function TournamentDetailPage({
             currentRound={currentRound}
           />
         )}
-        {tab === "scoring" && <ScoringTab />}
+        {tab === "scoring" && (
+          <ScoringTab
+            tournamentId={tournament.id}
+            matches={matches}
+            shotsTarget={tournament.shots_up_target}
+            endsTarget={tournament.ends_per_match}
+          />
+        )}
         {tab === "rinks" && <RinksTab />}
         {tab === "comms" && <CommsTab />}
         {tab === "audit" && <AuditTab />}
