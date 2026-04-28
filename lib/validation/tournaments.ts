@@ -122,3 +122,23 @@ export const verifyMatchSchema = z.object({
   override_away_shots: nonNegativeInt.optional(),
 });
 export type VerifyMatchInput = z.infer<typeof verifyMatchSchema>;
+
+// -------------------- bulk scoring --------------------
+
+const matchScorePatch = z.object({
+  match_id: uuid,
+  home_shots: nonNegativeInt,
+  away_shots: nonNegativeInt,
+});
+
+export const bulkSaveMatchScoresSchema = z.object({
+  tournament_id: uuid,
+  matches: z.array(matchScorePatch).min(1).max(200),
+});
+export type BulkSaveMatchScoresInput = z.infer<typeof bulkSaveMatchScoresSchema>;
+
+export const finalizeMatchesBatchSchema = z.object({
+  tournament_id: uuid,
+  matches: z.array(matchScorePatch).min(1).max(200),
+});
+export type FinalizeMatchesBatchInput = z.infer<typeof finalizeMatchesBatchSchema>;

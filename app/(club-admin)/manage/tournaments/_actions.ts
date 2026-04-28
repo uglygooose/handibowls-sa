@@ -35,18 +35,22 @@ import { advanceRound as advanceRoundPrimitive } from "@/lib/tournaments/rounds"
 import { seedEntries as seedEntriesPrimitive } from "@/lib/tournaments/seeding";
 import {
   advanceRoundSchema,
+  bulkSaveMatchScoresSchema,
   cancelTournamentSchema,
   confirmMatchSchema,
   createTournamentSchema,
+  finalizeMatchesBatchSchema,
   generateBracketSchema,
   seedEntriesSchema,
   submitMatchSchema,
   tournamentIdSchema,
   verifyMatchSchema,
   type AdvanceRoundInput,
+  type BulkSaveMatchScoresInput,
   type CancelTournamentInput,
   type ConfirmMatchInput,
   type CreateTournamentInput,
+  type FinalizeMatchesBatchInput,
   type GenerateBracketInput,
   type SeedEntriesInput,
   type SubmitMatchInput,
@@ -588,6 +592,70 @@ export async function completeTournament(
       already_completed: alreadyCompleted,
     },
   };
+}
+
+// -------------------- 11. bulkSaveMatchScores --------------------
+
+export async function bulkSaveMatchScores(
+  input: BulkSaveMatchScoresInput,
+): Promise<ActionResult<{ updated_count: number }>> {
+  const parsed = bulkSaveMatchScoresSchema.safeParse(input);
+  if (!parsed.success) return invalidInput(parsed.error);
+
+  const gate = await authForTournament(parsed.data.tournament_id);
+  if (!gate.ok) return gate;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("bulk_save_match_scores_batch", {
+    p_tournament_id: parsed.data.tournament_id,
+    p_matches: parsed.data.matches.map((m) => ({
+      match_id: m.match_id,
+      score_a: m.home_shots,
+      score_b: m.away_shots,
+    })),
+  });
+
+  if (error) return { ok: false, error: error.message };
+  const result = data as { ok: boolean; updated_count: number } | null;
+  if (!result?.ok) return { ok: false, error: "RPC returned no result." };
+
+  revalidatePath(`/manage/tournaments/${parsed.data.tournament_id}`, "page");
+  return { ok: true, data: { updated_count: result.updated_count } };
+}
+
+// -------------------- 12. finalizeMatchesBatch --------------------
+
+export async function finalizeMatchesBatch(
+  input: FinalizeMatchesBatchInput,
+): Promise<ActionResult<{ updated_count: number }>> {
+  const parsed = finalizeMatchesBatchSchema.safeParse(input);
+  if (!parsed.success) return invalidInput(parsed.error);
+
+  const gate = await authForTournament(parsed.data.tournament_id);
+  if (!gate.ok) return gate;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_finalize_matches_batch", {
+    p_tournament_id: parsed.data.tournament_id,
+    p_matches: parsed.data.matches.map((m) => ({
+      match_id: m.match_id,
+      score_a: m.home_shots,
+      score_b: m.away_shots,
+    })),
+  });
+
+  if (error) return { ok: false, error: error.message };
+  const result = data as { ok: boolean; updated_count: number } | null;
+  if (!result?.ok) return { ok: false, error: "RPC returned no result." };
+
+  // Winner propagation may have completed the tournament.
+  await completeTournamentIfDone({
+    supabase,
+    tournamentId: parsed.data.tournament_id,
+  });
+
+  revalidatePath(`/manage/tournaments/${parsed.data.tournament_id}`, "page");
+  return { ok: true, data: { updated_count: result.updated_count } };
 }
 
 // -------------------- 10. cancelTournament --------------------

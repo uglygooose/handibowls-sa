@@ -26,5 +26,7 @@ export {
   verifyMatch,
   completeTournament,
   cancelTournament,
+  bulkSaveMatchScores,
+  finalizeMatchesBatch,
   type ActionResult,
 } from "@/app/(club-admin)/manage/tournaments/_actions";
