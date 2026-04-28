@@ -93,10 +93,9 @@ export function BulkScoringGrid({
   }, [matches, filter]);
 
   // Refs for each input so keyboard nav can call .focus() programmatically.
+  // Lazy-init per-row in the input ref callbacks below — never written
+  // during render to satisfy the React Compiler refs rule.
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
-  if (inputRefs.current.length !== filtered.length) {
-    inputRefs.current = filtered.map(() => [null, null]);
-  }
 
   const focusCell = useCallback((row: number, side: "home" | "away") => {
     const ref = inputRefs.current[row]?.[side === "home" ? 0 : 1];

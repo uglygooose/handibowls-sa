@@ -28,15 +28,15 @@ type Props = {
 };
 
 export function MatchModal({ match, decorPreset, onClose }: Props) {
+  // Internal state is reset by the parent passing `key={match?.id}`,
+  // which unmounts/remounts this component on match change. That keeps
+  // initial state derivation in render (allowed) instead of in an
+  // effect (a "you might not need an effect" anti-pattern).
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [finalized, setFinalized] = useState<boolean>(false);
-
-  // Reset internal state whenever a new match is opened.
-  useEffect(() => {
-    setError(null);
-    setFinalized(match?.finalized_by_admin ?? false);
-  }, [match]);
+  const [finalized, setFinalized] = useState<boolean>(
+    match?.finalized_by_admin ?? false,
+  );
 
   // Esc to close — common modal expectation.
   useEffect(() => {

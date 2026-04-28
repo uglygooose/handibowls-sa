@@ -135,6 +135,7 @@ export function DrawTab({
       </div>
 
       <MatchModal
+        key={openMatchId ?? "closed"}
         match={openMatchId ? (matchById.get(openMatchId) ?? null) : null}
         decorPreset={decorPreset}
         onClose={() => setOpenMatchId(null)}
