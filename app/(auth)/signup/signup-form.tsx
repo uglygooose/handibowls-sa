@@ -14,10 +14,6 @@ import { SubmitButton } from "../_components/SubmitButton";
 
 const initial: AuthFormState = {};
 
-// The signUpAction redirects to /me/setup on success, so the "check your
-// inbox" success state from the Claude Design preview isn't reachable with
-// the current action contract. Left as a drift candidate for a later phase
-// that may switch to an explicit email-confirmation flow.
 export function SignupForm() {
   const [state, action] = useActionState(signUpAction, initial);
   const [password, setPassword] = useState("");

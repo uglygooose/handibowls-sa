@@ -51,23 +51,43 @@ export async function signInAction(
 }
 
 // Email + password sign-up. The profiles row is auto-created by the
-// handle_new_user() trigger with role='player' and profile_completed=false.
+// handle_new_user() trigger with role='player' and profile_completed=false;
+// this action then writes first_name / last_name from the form into that
+// row so /me/setup step 1 can prefill them.
 export async function signUpAction(
   _prev: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
   const email = getString(formData, "email");
   const password = getString(formData, "password");
+  const firstName = getString(formData, "first_name");
+  const lastName = getString(formData, "last_name");
   if (!email || !password) return { error: "Email and password are required." };
   if (password.length < 8) return { error: "Password must be at least 8 characters." };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { emailRedirectTo: `${await siteUrl()}/auth/callback` },
   });
   if (error) return { error: error.message };
+
+  const userId = data.user?.id;
+  if (userId && (firstName || lastName)) {
+    // Service client: the handle_new_user trigger has just inserted the
+    // profile row in the same transaction as auth.signUp. We update it
+    // from outside RLS because the session isn't necessarily set yet
+    // (email-confirmation flows may suppress immediate sign-in).
+    const admin = createServiceClient();
+    await admin
+      .from("profiles")
+      .update({
+        first_name: firstName || null,
+        last_name: lastName || null,
+      })
+      .eq("id", userId);
+  }
 
   redirect("/me/setup");
 }
@@ -96,6 +116,8 @@ export type InviteLookup =
       ok: true;
       email: string;
       role: UserRole;
+      firstName: string | null;
+      lastName: string | null;
       clubId: string;
       clubName: string;
       clubThemePreset: string;
@@ -111,7 +133,9 @@ export async function lookupInvite(token: string): Promise<InviteLookup> {
   const admin = createServiceClient();
   const { data, error } = await admin
     .from("invites")
-    .select("email, role, club_id, status, expires_at, clubs(name, theme_preset)")
+    .select(
+      "email, role, first_name, last_name, club_id, status, expires_at, clubs(name, theme_preset)",
+    )
     .eq("token", token)
     .maybeSingle();
 
@@ -126,6 +150,8 @@ export async function lookupInvite(token: string): Promise<InviteLookup> {
     ok: true,
     email: data.email,
     role: data.role,
+    firstName: data.first_name,
+    lastName: data.last_name,
     clubId: data.club_id,
     clubName: data.clubs?.name ?? "Your club",
     // core-black is the universal fallback when a club has no theme preset
@@ -163,8 +189,18 @@ export async function acceptInviteAction(
 
   const profileId = created.user.id;
 
+  // Carry first_name / last_name from the invite row to the profile, mirroring
+  // signUpAction's wire-up. The /me/setup wizard will prefill step 1 from
+  // these and let the player edit before submit.
+  const profilePatch: { role?: UserRole; first_name?: string | null; last_name?: string | null } = {};
+  if (lookup.role === "club_admin") profilePatch.role = "club_admin";
+  if (lookup.firstName !== null) profilePatch.first_name = lookup.firstName;
+  if (lookup.lastName !== null) profilePatch.last_name = lookup.lastName;
+  if (Object.keys(profilePatch).length > 0) {
+    await admin.from("profiles").update(profilePatch).eq("id", profileId);
+  }
+
   if (lookup.role === "club_admin") {
-    await admin.from("profiles").update({ role: "club_admin" }).eq("id", profileId);
     await admin.from("club_admin_assignments").insert({
       profile_id: profileId,
       club_id: lookup.clubId,
