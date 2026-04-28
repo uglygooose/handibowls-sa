@@ -49,3 +49,7 @@ next-env.d.ts
 # supabase CLI scratch (produced by `supabase gen types` and friends)
 /supabase/.temp/
 .claude/
+
+# Lighthouse report JSON — large, ephemeral, regenerated per run. Script
+# itself (scripts/lighthouse-platform-clubs.mjs) is committed.
+scripts/lighthouse-*.json
