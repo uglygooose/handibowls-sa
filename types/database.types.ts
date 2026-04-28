@@ -560,14 +560,20 @@ export type Database = {
           bracket_slot: number | null
           created_at: string
           ends_at: string | null
+          finalized_by_admin: boolean
           home_ends_won: number
           home_shots: number
           home_team_id: string | null
           id: string
+          match_no: number | null
           notes: string | null
           rink_id: string | null
           round: number | null
           section_label: string | null
+          slot_a_source_match_id: string | null
+          slot_a_source_type: string | null
+          slot_b_source_match_id: string | null
+          slot_b_source_type: string | null
           starts_at: string | null
           status: Database["public"]["Enums"]["match_status"]
           tournament_id: string
@@ -581,14 +587,20 @@ export type Database = {
           bracket_slot?: number | null
           created_at?: string
           ends_at?: string | null
+          finalized_by_admin?: boolean
           home_ends_won?: number
           home_shots?: number
           home_team_id?: string | null
           id?: string
+          match_no?: number | null
           notes?: string | null
           rink_id?: string | null
           round?: number | null
           section_label?: string | null
+          slot_a_source_match_id?: string | null
+          slot_a_source_type?: string | null
+          slot_b_source_match_id?: string | null
+          slot_b_source_type?: string | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["match_status"]
           tournament_id: string
@@ -602,14 +614,20 @@ export type Database = {
           bracket_slot?: number | null
           created_at?: string
           ends_at?: string | null
+          finalized_by_admin?: boolean
           home_ends_won?: number
           home_shots?: number
           home_team_id?: string | null
           id?: string
+          match_no?: number | null
           notes?: string | null
           rink_id?: string | null
           round?: number | null
           section_label?: string | null
+          slot_a_source_match_id?: string | null
+          slot_a_source_type?: string | null
+          slot_b_source_match_id?: string | null
+          slot_b_source_type?: string | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["match_status"]
           tournament_id?: string
@@ -636,6 +654,20 @@ export type Database = {
             columns: ["rink_id"]
             isOneToOne: false
             referencedRelation: "rinks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_slot_a_source_match_id_fkey"
+            columns: ["slot_a_source_match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_slot_b_source_match_id_fkey"
+            columns: ["slot_b_source_match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
             referencedColumns: ["id"]
           },
           {
