@@ -1399,6 +1399,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_player_profile: {
+        Args: {
+          p_bsa_number: string
+          p_club_grading: Database["public"]["Enums"]["player_position"]
+          p_date_of_birth: string
+          p_display_name: string
+          p_dominant_hand: Database["public"]["Enums"]["dominant_hand"]
+          p_email_opt_in: boolean
+          p_first_name: string
+          p_gender: Database["public"]["Enums"]["gender"]
+          p_last_name: string
+          p_marketing_version: string
+          p_phone: string
+          p_privacy_version: string
+          p_terms_version: string
+        }
+        Returns: undefined
+      }
       create_club_with_dependencies: {
         Args: {
           p_admin_email: string
