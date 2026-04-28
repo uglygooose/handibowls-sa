@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
 import { SplatterAccent } from "@/components/brand/SplatterAccent";
-import { getCurrentMemberships } from "@/lib/auth/memberships";
+import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { requireRole } from "@/lib/auth/role";
 
 import { TournamentsList } from "./_components/TournamentsList";
@@ -12,14 +12,12 @@ import { getTournamentsForCurrentAdmin } from "./_data";
 export default async function ManageTournamentsPage() {
   await requireRole(["club_admin", "super_admin"]);
 
-  const [memberships, tournaments] = await Promise.all([
-    getCurrentMemberships(),
+  const [hostClub, tournaments] = await Promise.all([
+    getCurrentHostClub(),
     getTournamentsForCurrentAdmin(),
   ]);
-  const primary =
-    memberships.find((m) => m.is_primary) ?? memberships[0] ?? null;
-  const clubName = primary?.club_name ?? "your club";
-  const splatterPreset = primary?.club_theme_preset ?? "atomic-red";
+  const clubName = hostClub?.club_name ?? "your club";
+  const splatterPreset = hostClub?.club_theme_preset ?? "atomic-red";
 
   // Subtitle text — dynamic count, BSA-canonical phrasing. Avoids the
   // design's hardcoded "Five active competitions across four formats" so

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { getCurrentMemberships } from "@/lib/auth/memberships";
+import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { requireRole } from "@/lib/auth/role";
 import { createClient } from "@/lib/supabase/server";
 
@@ -10,18 +10,16 @@ export default async function NewTournamentPage() {
   await requireRole(["club_admin", "super_admin"]);
 
   // Need a host club to scope the create against. Club admins author for
-  // their primary club; super_admins author against the primary club they
-  // happen to be a member of (or — for cross-club authoring — Phase 7
-  // doesn't surface a club picker yet, that's Phase-12 polish).
-  const memberships = await getCurrentMemberships();
-  const primary =
-    memberships.find((m) => m.is_primary) ?? memberships[0] ?? null;
+  // their assigned club; super_admins have no canonical host club here
+  // (Phase-12 polish will surface a cross-club picker) so they bounce
+  // unless they happen to also be an admin somewhere.
+  const hostClub = await getCurrentHostClub();
 
-  if (!primary) {
-    // No active club membership = nothing to create against. Bounce back
-    // to the list (which will render the empty-state explaining the
-    // missing prerequisite). This is the only viable redirect target since
-    // /manage/overview has its own role gates.
+  if (!hostClub) {
+    // No host club = nothing to create against. Bounce back to the list
+    // (which renders the empty-state explaining the missing prerequisite).
+    // This is the only viable redirect target since /manage/overview has
+    // its own role gates.
     redirect("/manage/tournaments");
   }
 
@@ -29,15 +27,15 @@ export default async function NewTournamentPage() {
   const { data: greens } = await supabase
     .from("greens")
     .select("id, name, rink_count")
-    .eq("club_id", primary.club_id)
+    .eq("club_id", hostClub.club_id)
     .eq("active", true)
     .order("name", { ascending: true });
 
   return (
     <NewTournamentForm
       hostClub={{
-        id: primary.club_id,
-        name: primary.club_name,
+        id: hostClub.club_id,
+        name: hostClub.club_name,
       }}
       greens={greens ?? []}
     />

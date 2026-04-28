@@ -37,7 +37,11 @@ Single source of truth for every piece of drift between Claude Design output / r
 
 ### Admin chrome (Phase 7 output, added when shipped)
 
-*(empty)*
+- [ ] **Hydration mismatch on TournamentsList with junk URL params.** Server-rendered HTML vs client first-render diverges when allow-list filter rewrites URL params during initial render. Page works correctly; warning is cosmetic. Likely needs <Suspense> around useSearchParams or stable URL parsing. Owning phase: Phase 13. Discovered: Phase 7 manual QA, 2026-04-29.
+
+#### Decisions (documentation only — not open work)
+
+- **AdminSidebar foot card contract: club name (club_admin) / user name (super_admin).** Primary line shows club name when there's a single club to display; user name when there isn't. Bowl-vs-avatar branching tied to this contract. Phase 8 player surfaces will need their own contract decision (players can be at multiple clubs). Owning phase: documentation only — no follow-up work. Recorded: Phase 7 manual QA, 2026-04-29.
 
 ### Player surfaces (Phase 8 output, added when shipped)
 

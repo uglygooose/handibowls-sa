@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { CommandPaletteMount } from "@/components/command/CommandPaletteMount";
 import { AdminSidebar } from "@/components/nav/AdminSidebar";
 import { TopBar } from "@/components/nav/TopBar";
-import { getCurrentMemberships } from "@/lib/auth/memberships";
+import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { requireRole } from "@/lib/auth/role";
 
@@ -14,22 +14,25 @@ export default async function ClubAdminLayout({
 }) {
   await requireRole(["club_admin", "super_admin"]);
 
-  // Foot-card identity. Club admins see their primary club + role; the bowl
-  // tints to the primary club's theme preset (matching the page's overall
-  // ThemeApplier output, since both read from the same membership).
-  const memberships = await getCurrentMemberships();
-  const primary =
-    memberships.find((m) => m.is_primary) ?? memberships[0] ?? null;
-  const profile = await getCurrentProfile();
+  // Foot-card identity. Club admins see their host club + role; the bowl
+  // tints to the host club's theme preset (matching the page's overall
+  // ThemeApplier output, since both ultimately read from the same
+  // club_admin_assignments row for club_admins). super_admins fall through
+  // to deriveDisplayName(profile) — they have no canonical host club, so
+  // the foot card shows their user identity instead.
+  const [hostClub, profile] = await Promise.all([
+    getCurrentHostClub(),
+    getCurrentProfile(),
+  ]);
 
   const identity = {
-    primary: primary?.club_name ?? deriveDisplayName(profile),
+    primary: hostClub?.club_name ?? deriveDisplayName(profile),
     role: "Club Admin",
     // Drives both the foot bowl AND the top-right splatter accent,
     // both of which track the active club's preset in lock-step with
     // the page's ThemeApplier output.
-    decorPreset: primary?.club_theme_preset,
-    bowlSeed: primary?.club_id,
+    decorPreset: hostClub?.club_theme_preset,
+    bowlSeed: hostClub?.club_id,
   };
 
   return (
