@@ -1,9 +1,21 @@
 // Shared constants + helpers for the dev-only post-creation invite banner.
-// Keeping these in one place so the writer (wizard publish path) and the
-// reader (club detail page) can't drift on key name or TTL.
+// Two separate sessionStorage keys because the writers + readers are on
+// different surfaces and shouldn't collide:
+//   • admin-invite banner — written by /platform/clubs/new wizard,
+//     read by /platform/clubs/[id]
+//   • player-invite banner — written by /manage/members invite modal,
+//     read by /manage/members itself
+// Same payload shape, same TTL, same gate.
 
 export const DEV_INVITE_BANNER_KEY = "handibowls:dev-invite-banner";
+export const DEV_PLAYER_INVITE_BANNER_KEY = "handibowls:dev-player-invite-banner";
 export const DEV_INVITE_TTL_MS = 60 * 60 * 1000; // 60 minutes
+
+// Custom-event name dispatched by writers (wizard, invite modal) after a
+// successful sessionStorage update. The banner subscribes via
+// useSyncExternalStore so a same-tab write is reflected without a navigation.
+// sessionStorage's native StorageEvent only fires across tabs, hence this.
+export const DEV_INVITE_BANNER_EVENT = "handibowls:invite-banner-update";
 
 export type DevInviteBannerPayload = {
   clubId: string;

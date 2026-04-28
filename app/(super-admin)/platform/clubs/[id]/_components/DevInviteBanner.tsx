@@ -1,70 +1,87 @@
 "use client";
 
 import { Check, Copy, X } from "lucide-react";
-import { useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
+  DEV_INVITE_BANNER_EVENT,
   DEV_INVITE_BANNER_KEY,
   isDevBannerEnabled,
   type DevInviteBannerPayload,
-} from "../../new/_dev-banner";
+} from "@/lib/dev-banner";
 
-type Props = { clubId: string };
+type Props = {
+  clubId: string;
+  // Defaults preserve the original admin-invite shape used by /platform/clubs/[id].
+  // /manage/members passes its own key + label to surface player invites.
+  storageKey?: string;
+  label?: string;
+};
 
-// Snapshot cache keeps useSyncExternalStore's return reference stable when
-// the underlying raw string is unchanged. React warns otherwise.
-let cachedRaw: string | null = null;
-let cachedParsed: DevInviteBannerPayload | null = null;
+// Snapshot cache keyed by sessionStorage key — keeps useSyncExternalStore's
+// return reference stable when the underlying raw string is unchanged. React
+// warns otherwise. Per-key entries so two banners (admin + player) cache
+// independently if they ever co-mount.
+type CacheEntry = { raw: string | null; parsed: DevInviteBannerPayload | null };
+const cache = new Map<string, CacheEntry>();
 
-function readSnapshot(): DevInviteBannerPayload | null {
-  if (typeof window === "undefined") return null;
-  if (!isDevBannerEnabled()) return null;
-  const raw = window.sessionStorage.getItem(DEV_INVITE_BANNER_KEY);
-  if (raw === cachedRaw) return cachedParsed;
-  cachedRaw = raw;
-  if (!raw) {
-    cachedParsed = null;
-    return cachedParsed;
-  }
-  try {
-    const parsed = JSON.parse(raw) as DevInviteBannerPayload;
-    if (
-      typeof parsed?.clubId !== "string" ||
-      typeof parsed?.inviteToken !== "string" ||
-      typeof parsed?.expiresAt !== "number" ||
-      parsed.expiresAt <= Date.now()
-    ) {
-      window.sessionStorage.removeItem(DEV_INVITE_BANNER_KEY);
-      cachedParsed = null;
-    } else {
-      cachedParsed = parsed;
+function makeReader(storageKey: string) {
+  return function readSnapshot(): DevInviteBannerPayload | null {
+    if (typeof window === "undefined") return null;
+    if (!isDevBannerEnabled()) return null;
+    const raw = window.sessionStorage.getItem(storageKey);
+    const cached = cache.get(storageKey) ?? { raw: null, parsed: null };
+    if (raw === cached.raw) return cached.parsed;
+
+    let parsed: DevInviteBannerPayload | null = null;
+    if (raw) {
+      try {
+        const candidate = JSON.parse(raw) as DevInviteBannerPayload;
+        if (
+          typeof candidate?.clubId === "string" &&
+          typeof candidate?.inviteToken === "string" &&
+          typeof candidate?.expiresAt === "number" &&
+          candidate.expiresAt > Date.now()
+        ) {
+          parsed = candidate;
+        } else {
+          window.sessionStorage.removeItem(storageKey);
+        }
+      } catch {
+        window.sessionStorage.removeItem(storageKey);
+      }
     }
-  } catch {
-    window.sessionStorage.removeItem(DEV_INVITE_BANNER_KEY);
-    cachedParsed = null;
-  }
-  return cachedParsed;
+    cache.set(storageKey, { raw, parsed });
+    return parsed;
+  };
 }
 
-// sessionStorage doesn't fire StorageEvent in the same tab; nothing to
-// subscribe to. The snapshot is read once on mount.
-const NOOP_SUBSCRIBE = () => () => {};
+// sessionStorage doesn't fire StorageEvent in the same tab. Writers (wizard,
+// invite modal) dispatch a CustomEvent after each write so the banner can
+// re-read without a navigation. Cross-tab updates aren't a concern — the
+// banner is dev-only.
+function subscribe(callback: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener(DEV_INVITE_BANNER_EVENT, callback);
+  return () => window.removeEventListener(DEV_INVITE_BANNER_EVENT, callback);
+}
 const getServerSnapshot = () => null;
 
 // Renders only when:
 //   • not production (NODE_ENV and NEXT_PUBLIC_APP_ENV both non-prod)
-//   • a payload exists under DEV_INVITE_BANNER_KEY
+//   • a payload exists under storageKey
 //   • payload.clubId matches this page's clubId
 //   • payload.expiresAt is still in the future
 // Any mismatch clears the entry — tokens are credentials and shouldn't
 // linger across sessions or leak to another club's detail page.
-export function DevInviteBanner({ clubId }: Props) {
-  const payload = useSyncExternalStore(
-    NOOP_SUBSCRIBE,
-    readSnapshot,
-    getServerSnapshot,
-  );
+export function DevInviteBanner({
+  clubId,
+  storageKey = DEV_INVITE_BANNER_KEY,
+  label = "Admin invite link (valid for 60 minutes):",
+}: Props) {
+  const reader = useMemo(() => makeReader(storageKey), [storageKey]);
+  const payload = useSyncExternalStore(subscribe, reader, getServerSnapshot);
   const [dismissed, setDismissed] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -84,9 +101,8 @@ export function DevInviteBanner({ clubId }: Props) {
   };
 
   const handleDismiss = () => {
-    window.sessionStorage.removeItem(DEV_INVITE_BANNER_KEY);
-    cachedRaw = null;
-    cachedParsed = null;
+    window.sessionStorage.removeItem(storageKey);
+    cache.delete(storageKey);
     setDismissed(true);
   };
 
@@ -99,7 +115,7 @@ export function DevInviteBanner({ clubId }: Props) {
       <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-800">
         Dev only
       </span>
-      <span>Admin invite link (valid for 60 minutes):</span>
+      <span>{label}</span>
       <code
         data-testid="dev-invite-banner-url"
         className="flex-1 min-w-[220px] truncate rounded-md border border-amber-500/30 bg-background px-2 py-1 font-mono text-xs"

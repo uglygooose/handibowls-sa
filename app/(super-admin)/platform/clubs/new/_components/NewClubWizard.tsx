@@ -18,14 +18,15 @@ import {
 } from "@/components/ui/dialog";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 
-import { createClub } from "../../_actions";
-import type { DistrictRow } from "../../_data";
 import {
   DEV_INVITE_BANNER_KEY,
   DEV_INVITE_TTL_MS,
   isDevBannerEnabled,
   type DevInviteBannerPayload,
-} from "../_dev-banner";
+} from "@/lib/dev-banner";
+
+import { createClub } from "../../_actions";
+import type { DistrictRow } from "../../_data";
 import { clearDraft, readDraft, writeDraft } from "../_draft";
 import {
   isThemePreset,
@@ -250,7 +251,7 @@ export function NewClubWizard({ districts }: Props) {
 
       // Dev-only: stash the admin invite token so the freshly-loaded club
       // detail page can render a copy-link banner. Gated on both env flags
-      // so production never sees this path. See _dev-banner.ts.
+      // so production never sees this path. See lib/dev-banner.ts.
       if (isDevBannerEnabled() && result.data.admin_invite_token) {
         try {
           const payload: DevInviteBannerPayload = {

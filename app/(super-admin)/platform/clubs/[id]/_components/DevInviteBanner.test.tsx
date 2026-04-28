@@ -1,10 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import {
-  DEV_INVITE_BANNER_KEY,
-  DEV_INVITE_TTL_MS,
-} from "../../new/_dev-banner";
+import { DEV_INVITE_BANNER_KEY, DEV_INVITE_TTL_MS } from "@/lib/dev-banner";
 import { DevInviteBanner } from "./DevInviteBanner";
 
 const CLUB_ID = "22222222-2222-4222-8222-222222222222";
