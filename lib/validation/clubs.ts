@@ -52,11 +52,3 @@ export const assignClubAdminSchema = z.object({
 });
 
 export type AssignClubAdminInput = z.infer<typeof assignClubAdminSchema>;
-
-export const createInviteSchema = z.object({
-  club_id: z.string().uuid(),
-  email: emailSchema,
-  role: z.enum(["club_admin", "player"]),
-});
-
-export type CreateInviteInput = z.infer<typeof createInviteSchema>;

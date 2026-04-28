@@ -55,7 +55,7 @@ Single source of truth for every piece of drift between Claude Design output / r
 
 - [ ] **Signup first_name / last_name fields unused.** Rendered + submitted but `signUpAction` only uses email + password. Wire in Phase 5. Files: `app/(auth)/signup/`, `lib/auth/actions.ts signUpAction`. Discovered: Phase 3 follow-up.
 - [ ] **Signup "check your inbox" success card unreachable.** Component built but `signUpAction` redirects to `/me/setup`. Decide at Phase 5 whether to wire or delete. Discovered: Phase 3 follow-up.
-- [ ] **Invite page copy says "seven days", schema is 14.** `app/(auth)/invite/[token]/page.tsx:70` hardcodes "Invites last seven days" but `invites.expires_at` defaults to `now() + 14 days` (migration 011). Fix to "14 days" or read from the invite row. Owning phase: 5b. Discovered: Phase 5a, 2026-04-28.
+- [x] ~~**Invite page copy says "seven days", schema is 14.** `app/(auth)/invite/[token]/page.tsx:70` hardcodes "Invites last seven days" but `invites.expires_at` defaults to `now() + 14 days` (migration 011). Fix to "14 days" or read from the invite row. Owning phase: 5b. Discovered: Phase 5a, 2026-04-28.~~ Closed: 5b, 2026-04-28.
 
 ### Phase 11 — Comms
 

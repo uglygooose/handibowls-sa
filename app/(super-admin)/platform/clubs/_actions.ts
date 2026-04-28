@@ -1,16 +1,15 @@
 "use server";
 
 import { getAuthContext } from "@/lib/auth/role";
+import { createInvite } from "@/lib/invites/actions";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
   assignClubAdminSchema,
   createClubInputSchema,
-  createInviteSchema,
   updateClubThemeSchema,
   type AssignClubAdminInput,
   type CreateClubInput,
-  type CreateInviteInput,
   type UpdateClubThemeInput,
 } from "@/lib/validation/clubs";
 
@@ -114,8 +113,10 @@ export async function updateClubTheme(
   return { ok: true, data: true };
 }
 
-// Invite a new club-admin to an existing club. Emits a pending invite row;
-// the accept flow at /invite/[token] writes the club_admin_assignments row.
+// Invite a new club-admin to an existing club. Super-admin only — adding a
+// club_admin to a club is a platform operation. Delegates row insertion to
+// lib/invites/actions.ts so player-invites and admin-invites share one
+// writer.
 export async function assignClubAdmin(
   input: AssignClubAdminInput,
 ): Promise<ActionResult<{ invite_id: string; token: string }>> {
@@ -131,51 +132,9 @@ export async function assignClubAdmin(
     };
   }
 
-  return insertInvite({
+  return createInvite({
     club_id: parsed.data.club_id,
     email: parsed.data.email,
     role: "club_admin",
   });
-}
-
-export async function createInvite(
-  input: CreateInviteInput,
-): Promise<ActionResult<{ invite_id: string; token: string }>> {
-  const gate = await requireSuperAdmin();
-  if (!gate.ok) return gate;
-
-  const parsed = createInviteSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      ok: false,
-      error: "Invalid input.",
-      fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
-    };
-  }
-
-  return insertInvite(parsed.data);
-}
-
-async function insertInvite(args: {
-  club_id: string;
-  email: string;
-  role: "club_admin" | "player";
-}): Promise<ActionResult<{ invite_id: string; token: string }>> {
-  // Service client: token default + updated_at trigger both run regardless,
-  // and we want to return the generated token to the UI without a second
-  // round-trip through RLS.
-  const admin = createServiceClient();
-  const ctx = await getAuthContext();
-  const { data, error } = await admin
-    .from("invites")
-    .insert({
-      club_id: args.club_id,
-      email: args.email.toLowerCase(),
-      role: args.role,
-      invited_by: ctx?.userId ?? null,
-    })
-    .select("id, token")
-    .single();
-  if (error || !data) return { ok: false, error: error?.message ?? "Could not create invite." };
-  return { ok: true, data: { invite_id: data.id, token: data.token } };
 }

@@ -67,7 +67,7 @@ const REASON_COPY: Record<
         <em className="not-italic italic text-primary-500">expired.</em>
       </>
     ),
-    sub: "Invites last seven days. Ask the club admin to issue another one.",
+    sub: "Invites last 14 days. Ask the club admin to issue another one.",
     icon: "warn",
   },
 };
