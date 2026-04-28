@@ -66,7 +66,10 @@ export function TournamentHero({ tournament: t }: Props) {
     t.matches_total > 0 && t.matches_open === 0 && t.matches_in_progress === 0;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border bg-surface px-8 py-7">
+    // `isolate` creates a fresh stacking context so the splatter SVG's
+    // transform-induced stacking context can't leak above the action-stack
+    // CTAs. See SplatterAccent.tsx stacking-expectation block.
+    <div className="relative isolate overflow-hidden rounded-2xl border border-border bg-surface px-8 py-7">
       <div className="pointer-events-none absolute inset-0 z-0">
         <SpeckleLayer seed={`detail-hero-${t.id}`} density="med" opacity={0.06} />
       </div>

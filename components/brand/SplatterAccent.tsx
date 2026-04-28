@@ -13,6 +13,17 @@ import {
 //
 // Use as a corner accent — never as a full background. Absolute-positioned
 // via caller (left/top/rotate handled outside).
+//
+// Stacking expectation (consumers must obey):
+//   1. Wrap the SplatterAccent in an absolute-positioned div with `z-0`
+//      (the bottom of the parent's stacking sandbox).
+//   2. Sibling content must be `relative z-10` (or higher).
+//   3. The parent that owns both must have `relative isolate` (or another
+//      stacking-context trigger). Without `isolate`, the SVG's intrinsic
+//      `transform: rotate(...)` creates a stacking context that can leak
+//      above the parent's siblings — that was the Phase 7 manual-QA bug
+//      where the splatter rendered on top of the "Complete tournament" CTA
+//      and the bracket-canvas empty state.
 
 type Props = {
   preset: ThemePreset | PresetSwatch;

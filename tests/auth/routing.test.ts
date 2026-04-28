@@ -32,6 +32,8 @@ describe("isPublicPath", () => {
     "/api/auth/callback",
     "/design",
     "/design/bowls",
+    "/payments",
+    "/payments/peach",
   ])("%s is public", (p) => {
     expect(isPublicPath(p)).toBe(true);
   });
@@ -91,6 +93,17 @@ describe("decideRedirect", () => {
     expect(decideRedirect("/login", null)).toBeNull();
     expect(decideRedirect("/signup", null)).toBeNull();
     expect(decideRedirect("/invite/xyz", null)).toBeNull();
+    expect(decideRedirect("/payments", null)).toBeNull();
+  });
+
+  it("passes /payments through for logged-in users (regression — Finding 7)", () => {
+    // Pre-fix: /payments matched no public rule, fell through to the
+    // "unknown private path" branch and bounced to homeFor(role). Now
+    // explicitly public, so admins clicking through from the new-tournament
+    // entry-fee link don't get yanked back to /manage/overview.
+    expect(decideRedirect("/payments", { role: "club_admin" })).toBeNull();
+    expect(decideRedirect("/payments", { role: "super_admin" })).toBeNull();
+    expect(decideRedirect("/payments", { role: "player" })).toBeNull();
   });
 
   it("bounces authenticated users away from /login + /signup", () => {

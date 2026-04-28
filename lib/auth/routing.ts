@@ -20,6 +20,11 @@ export function isPublicPath(pathname: string): boolean {
   if (pathname.startsWith("/auth/")) return true;
   if (pathname.startsWith("/api/auth")) return true;
   if (pathname === "/design" || pathname.startsWith("/design/")) return true;
+  // /payments is the v2-roadmap landing page linked from the new-tournament
+  // entry-fee placeholder. Public per the Phase 7d brief — anyone clicking
+  // the entry-fee link from a logged-out player surface lands here, and
+  // logged-in admins also need it without bouncing through /manage.
+  if (pathname === "/payments" || pathname.startsWith("/payments/")) return true;
   return false;
 }
 

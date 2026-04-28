@@ -114,13 +114,24 @@ export default function TournamentCommandPalette({
   }
 
   return (
+    // cmdk's Command.Dialog wraps Radix Dialog. The three className-style
+    // props target distinct elements:
+    //   • overlayClassName → Dialog.Overlay (the dim backdrop)
+    //   • contentClassName → Dialog.Content (the floating panel)
+    //   • className        → the inner Command (search/list root)
+    // Earlier this component put the overlay styling onto `className` (the
+    // wrong target — applied it to the inner Command), leaving Dialog.Content
+    // and Dialog.Overlay unstyled and unpositioned. Result: the Radix portal
+    // dropped Dialog.Content into body at static-flow z-auto, so the palette
+    // rendered behind anything earlier in the tree with explicit z-index
+    // (hero splatter, etc.). Fix: position the overlay + content explicitly
+    // at z-50 like the rest of the dialog family (see components/ui/dialog.tsx).
     <Command.Dialog
       open={open}
       onOpenChange={setOpen}
       label="Tournament command palette"
-      // cmdk renders a Radix dialog; styling via globals + inline.
-      className="fixed inset-0 z-50 flex items-start justify-center bg-ink/40 p-4 pt-[10vh]"
-      contentClassName="w-full max-w-[640px] overflow-hidden rounded-2xl bg-surface shadow-2xl"
+      overlayClassName="fixed inset-0 z-50 bg-ink/40"
+      contentClassName="fixed left-1/2 top-[10vh] z-50 w-[calc(100%-2rem)] max-w-[640px] -translate-x-1/2 overflow-hidden rounded-2xl bg-surface shadow-2xl"
     >
       {/* Input row */}
       <div className="relative flex items-center border-b border-border">

@@ -85,7 +85,11 @@ export function BracketCanvas({
       </div>
 
       {/* Canvas */}
-      <div className="relative overflow-auto rounded-2xl border border-border bg-bone p-6">
+      {/* `isolate` keeps the splatter SVG's transform-induced stacking
+          context bounded inside the canvas — without it the empty-state
+          and round columns can render beneath the splatter accent.
+          See SplatterAccent.tsx stacking-expectation block. */}
+      <div className="relative isolate overflow-auto rounded-2xl border border-border bg-bone p-6">
         <div className="pointer-events-none absolute inset-0 z-0">
           <SpeckleLayer seed="bracket-canvas" density="high" opacity={0.5} />
         </div>
