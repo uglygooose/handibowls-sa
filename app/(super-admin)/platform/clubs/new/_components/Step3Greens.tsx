@@ -42,8 +42,8 @@ export function Step3Greens() {
   return (
     <div data-testid="step-3-greens" className="flex flex-col gap-4">
       <p className="text-sm text-ink-muted">
-        Add the greens at this club. Rinks are the lanes within each green.
-        Most clubs run six rinks per green.
+        Add the greens at this club. Each green is divided into rinks — the
+        standard club layout is six rinks per green.
       </p>
 
       <ul className="flex flex-col gap-3.5" data-testid="greens-list">
