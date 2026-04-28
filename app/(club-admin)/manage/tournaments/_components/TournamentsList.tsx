@@ -8,14 +8,11 @@ import {
 } from "@tanstack/react-table";
 import {
   ArrowRight,
-  Calendar,
   ChevronDown,
   LayoutGrid,
   List,
   Plus,
   Search,
-  User,
-  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -576,7 +573,3 @@ function EmptyState({
   );
 }
 
-// -------------------- icon helper --------------------
-// Used by the (currently unused) FormatIcon helper if we surface it later.
-// Keeping the lucide imports above stable so future additions don't churn imports.
-export const __formatIcons = { User, Users, Calendar };
