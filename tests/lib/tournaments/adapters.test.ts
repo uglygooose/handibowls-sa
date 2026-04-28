@@ -392,6 +392,112 @@ describe("knockoutInsertToMatchInsert", () => {
 
 // -------------------- round-trip coverage --------------------
 
+describe("round-trip — composite real-round-2 match (6b → 6c follow-up)", () => {
+  it("DB row of a finalised round-2 match with WINNER_OF_MATCH feeder + admin-final + winner round-trips primitive ↔ DB Insert", () => {
+    // Scenario: round-2 match. team_a was a direct seed (slot_a_source_type
+    // 'TEAM'); team_b was decided by the winner of round-1 match r1m2
+    // (slot_b_source_type 'WINNER_OF_MATCH', slot_b_source_match_id 'r1m2').
+    // The match has been played, scores 21–14 to team_a, admin finalised,
+    // winner_team_id pinned. Every field the user flagged is populated.
+    const finalisedRow = matchRow({
+      id: "r2m1",
+      tournament_id: "tour-1",
+      round: 2,
+      match_no: 1,
+      home_team_id: "team-a",
+      away_team_id: "team-b",
+      home_shots: 21,
+      away_shots: 14,
+      home_ends_won: 12,
+      away_ends_won: 6,
+      winner_team_id: "team-a",
+      status: "completed",
+      finalized_by_admin: true,
+      slot_a_source_type: "TEAM",
+      slot_a_source_match_id: null,
+      slot_b_source_type: "WINNER_OF_MATCH",
+      slot_b_source_match_id: "r1m2",
+    });
+
+    // Adapter produces the primitive shape for the round-tracking + bracket
+    // tree consumers.
+    const primitive = matchRowToPrimitive(finalisedRow);
+    expect(primitive).toEqual({
+      id: "r2m1",
+      round_no: 2,
+      match_no: 1,
+      status: "FINAL",
+      finalized_by_admin: true,
+      team_a_id: "team-a",
+      team_b_id: "team-b",
+      score_a: 21,
+      score_b: 14,
+      winner_team_id: "team-a",
+      slot_a_source_type: "TEAM",
+      slot_a_source_match_id: null,
+      slot_b_source_type: "WINNER_OF_MATCH",
+      slot_b_source_match_id: "r1m2",
+    });
+
+    // Round-trip the SHAPE that the action layer would write back into the
+    // matches table (e.g., a re-insert in a copy/restore flow). The genesis
+    // `RoundAdvanceInsert` doesn't carry play-state (scores / winner /
+    // finalized) — those come from the play lifecycle — so we verify the
+    // structural columns the insert adapter is responsible for.
+    const reinsert: RoundAdvanceInsert = {
+      round_no: primitive.round_no!,
+      match_no: primitive.match_no!,
+      team_a_id: primitive.team_a_id,
+      team_b_id: primitive.team_b_id,
+      slot_a_source_type: primitive.slot_a_source_type as "TEAM",
+      slot_a_source_match_id: primitive.slot_a_source_match_id,
+      slot_b_source_type: primitive.slot_b_source_type as "WINNER_OF_MATCH",
+      slot_b_source_match_id: primitive.slot_b_source_match_id,
+      status: primitive.status as "FINAL",
+    };
+    const dbInsert = roundAdvanceInsertToMatchInsert(reinsert, "tour-1");
+
+    // The status case-map is the only place where information is intentionally
+    // multiplexed — FINAL → status='completed' + finalized_by_admin=true. All
+    // other flagged fields preserve verbatim.
+    expect(dbInsert.tournament_id).toBe("tour-1");
+    expect(dbInsert.round).toBe(2);
+    expect(dbInsert.match_no).toBe(1);
+    expect(dbInsert.home_team_id).toBe("team-a");
+    expect(dbInsert.away_team_id).toBe("team-b");
+    expect(dbInsert.slot_a_source_type).toBe("TEAM");
+    expect(dbInsert.slot_a_source_match_id).toBe(null);
+    expect(dbInsert.slot_b_source_type).toBe("WINNER_OF_MATCH");
+    expect(dbInsert.slot_b_source_match_id).toBe("r1m2");
+    expect(dbInsert.status).toBe("completed");
+    expect(dbInsert.finalized_by_admin).toBe(true);
+
+    // And re-reading that insert (after the DB fills computed defaults +
+    // the play-lifecycle fields the insert adapter doesn't set) lands on
+    // the same primitive shape — i.e., the conversion is lossless for the
+    // structural columns the user flagged.
+    const synthesisedRow = matchRow({
+      id: dbInsert.tournament_id === "tour-1" ? "r2m1" : finalisedRow.id,
+      tournament_id: "tour-1",
+      round: dbInsert.round,
+      match_no: dbInsert.match_no,
+      home_team_id: dbInsert.home_team_id ?? null,
+      away_team_id: dbInsert.away_team_id ?? null,
+      home_shots: 21,
+      away_shots: 14,
+      winner_team_id: "team-a",
+      status: dbInsert.status ?? "scheduled",
+      finalized_by_admin: dbInsert.finalized_by_admin ?? false,
+      slot_a_source_type: dbInsert.slot_a_source_type ?? null,
+      slot_a_source_match_id: dbInsert.slot_a_source_match_id ?? null,
+      slot_b_source_type: dbInsert.slot_b_source_type ?? null,
+      slot_b_source_match_id: dbInsert.slot_b_source_match_id ?? null,
+    });
+    const reparsed = matchRowToPrimitive(synthesisedRow);
+    expect(reparsed).toEqual(primitive);
+  });
+});
+
 describe("round-trip — DB row → primitive → DB Insert (advance flow)", () => {
   it("an advance-round-2 spec converted from a DB-loaded round-1 winner round-trips column-for-column", () => {
     // Simulate: round-1 finalised match with team_a winner
