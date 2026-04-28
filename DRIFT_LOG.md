@@ -38,6 +38,9 @@ Single source of truth for every piece of drift between Claude Design output / r
 ### Admin chrome (Phase 7 output, added when shipped)
 
 - [ ] **Hydration mismatch on TournamentsList with junk URL params.** Server-rendered HTML vs client first-render diverges when allow-list filter rewrites URL params during initial render. Page works correctly; warning is cosmetic. Likely needs <Suspense> around useSearchParams or stable URL parsing. Owning phase: Phase 13. Discovered: Phase 7 manual QA, 2026-04-29.
+- [ ] **`profile_id` vs `auth.users.id` confusion in queries joining auth.users.** Has now bitten twice — Finding 3 (host-club lookup queried wrong table) and Finding 4 diagnosis (cloud SELECT example used `user_id` not `profile_id` in `club_admin_assignments`). Audit every query that joins or filters on `auth.users` to confirm domain FKs are named correctly. Owning phase: Phase 13. Discovered: Phase 7 manual QA, 2026-04-29.
+- [ ] **Phase 7 Lighthouse score (`/manage/tournaments/[id]` 86/100/96/91) was measured against a 404 page, not the real detail page.** The `matches:matches(count, status)` embed returned PostgREST 400 from day one (Phase 7c-i landing commit `98d4448`). Re-run Lighthouse against the working detail page after Finding 4 fix lands. Update Phase 7 manual QA notes. Owning phase: Phase 7 retrospective. Discovered: Phase 7 manual QA, 2026-04-29.
+- [ ] **Tournament detail RPC consolidation.** Multi-embed PostgREST queries (count + status grouping) are fragile and have already broken once. When player scorecard / T20 / other detail pages need similar shapes, batch them into RPCs returning aggregated row + counts in one round-trip (e.g. `tournament_summary(uuid)`). Owning phase: Phase 12. Discovered: Phase 7 manual QA, 2026-04-29.
 
 #### Decisions (documentation only — not open work)
 

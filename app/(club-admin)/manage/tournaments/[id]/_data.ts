@@ -47,6 +47,17 @@ export type EntryRow = {
 // Loads a single tournament + host club + summary counts. Returns null
 // when the tournament doesn't exist OR when the caller isn't authorised
 // (RLS hides it; the server-side filter is defence-in-depth).
+//
+// Two queries by design: the parent tournament + host_club + entries
+// count come back in one PostgREST round-trip; match-status counts run
+// as a second small SELECT. The previous single-embed approach used
+// `matches:matches(count, status)` which PostgREST translates to
+// `select count(*), status from matches` — invalid SQL without GROUP BY
+// (Postgres 42803), returning HTTP 400 for every detail request. The
+// two-query shape sidesteps the embed limitation entirely; for O(50–200)
+// matches per tournament it's well inside the page's render budget.
+// Phase-12 polish may consolidate via a `tournament_summary(uuid)` RPC
+// when player scorecard / T20 surface similar shapes — see DRIFT_LOG.
 export async function getTournamentDetail(
   tournamentId: string,
 ): Promise<TournamentDetail | null> {
@@ -57,12 +68,19 @@ export async function getTournamentDetail(
   const { data, error } = await supabase
     .from("tournaments")
     .select(
-      "*, host_club:clubs!host_club_id(id, name, short_name, theme_preset), entries:tournament_entries(count), matches:matches(count, status)",
+      "*, host_club:clubs!host_club_id(id, name, short_name, theme_preset), entries:tournament_entries(count)",
     )
     .eq("id", tournamentId)
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error) {
+    // Surface unexpected query errors to dev/server logs so we never
+    // silently 404 again. Returning null after this preserves the
+    // existing notFound() flow but the operator sees the cause.
+    console.error("[getTournamentDetail] tournaments query failed:", error);
+    return null;
+  }
+  if (!data) return null;
 
   if (
     ctx.role === "club_admin" &&
@@ -71,19 +89,29 @@ export async function getTournamentDetail(
     return null;
   }
 
-  // Supabase aggregate-with-where — `matches:matches(count, status)`
-  // returns rows aggregated per status. Reshape into the counts we
-  // care about; defensive against the array being a flat aggregate row.
-  const matchesAgg = Array.isArray(data.matches) ? data.matches : [];
+  // Match-status counts via a separate scoped SELECT. We project just
+  // `status` and bucket in JS — three counts the page actually consumes
+  // (total, scheduled = "open", in_progress). RLS on `matches` reuses
+  // `tournament_host_club()` so club_admin scope matches the parent
+  // tournaments policy, no scope drift.
+  const { data: matchStatuses, error: matchesErr } = await supabase
+    .from("matches")
+    .select("status")
+    .eq("tournament_id", tournamentId);
+  if (matchesErr) {
+    // Don't fail the whole render — log and fall back to zero counts so
+    // the hero + tabs still mount. The Scoring tab's own fetcher will
+    // surface a real error if the matches table is genuinely unreadable.
+    console.error("[getTournamentDetail] matches count query failed:", matchesErr);
+  }
+
   let matchesTotal = 0;
   let matchesOpen = 0;
   let matchesInProgress = 0;
-  for (const m of matchesAgg) {
-    const c = Number((m as { count?: number }).count ?? 0);
-    matchesTotal += c;
-    const s = String((m as { status?: string }).status ?? "");
-    if (s === "scheduled") matchesOpen += c;
-    if (s === "in_progress") matchesInProgress += c;
+  for (const m of matchStatuses ?? []) {
+    matchesTotal += 1;
+    if (m.status === "scheduled") matchesOpen += 1;
+    else if (m.status === "in_progress") matchesInProgress += 1;
   }
 
   const entriesAgg = Array.isArray(data.entries) ? data.entries : [];
@@ -93,9 +121,8 @@ export async function getTournamentDetail(
 
   // Strip the join shapes from the parent row so the typed return shape
   // matches what callers actually consume.
-  const { host_club, entries: _e, matches: _m, ...rest } = data;
+  const { host_club, entries: _e, ...rest } = data;
   void _e;
-  void _m;
 
   return {
     ...(rest as DbTournament),
