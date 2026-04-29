@@ -1,5 +1,7 @@
 // Generates placeholder PWA icons (192/512 + maskable variants) into
-// public/icons/. Solid-colour circular mark on a padded safe-zone background
+// public/icons/, plus app/apple-icon.png (180x180) consumed by Next 16's
+// App Router convention to auto-emit `<link rel="apple-touch-icon">`.
+// Solid-colour circular mark on a padded safe-zone background
 // — good enough to satisfy the manifest + Lighthouse maskable checks.
 // Replace with final branded artwork before launch.
 
@@ -10,6 +12,7 @@ import sharp from "sharp";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outDir = resolve(__dirname, "..", "public", "icons");
+const appDir = resolve(__dirname, "..", "app");
 await mkdir(outDir, { recursive: true });
 
 const CORE_BLACK = "#0A0A0A";
@@ -41,6 +44,17 @@ const targets = [
 for (const { name, size, opts } of targets) {
   const svg = markSvg(size, opts);
   const out = resolve(outDir, name);
+  await sharp(Buffer.from(svg)).png().toFile(out);
+  console.log("wrote", out);
+}
+
+// app/apple-icon.png — 180x180, full-bleed (no maskable safe zone).
+// iOS rounds the corners itself; we want the mark to fill the square.
+// The unbleed mark variant is the right shape — same circle composition
+// as icon-192/512, scaled to 180.
+{
+  const svg = markSvg(180);
+  const out = resolve(appDir, "apple-icon.png");
   await sharp(Buffer.from(svg)).png().toFile(out);
   console.log("wrote", out);
 }
