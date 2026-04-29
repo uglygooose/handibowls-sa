@@ -144,7 +144,7 @@ export async function listAssessmentsForClub(): Promise<ListResult> {
   }
 
   const ids = (data ?? []).map((r) => r.id);
-  let deliveryCounts: Record<string, number> = {};
+  const deliveryCounts: Record<string, number> = {};
   if (ids.length > 0) {
     const { data: deliv } = await supabase
       .from("t20_deliveries")
