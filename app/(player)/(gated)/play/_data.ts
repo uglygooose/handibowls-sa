@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getAuthContext } from "@/lib/auth/role";
+import { formatRinkLabel, type RinkEmbed } from "@/lib/format/rink";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database.types";
 
@@ -81,7 +82,7 @@ export async function getNextMatchForCurrentPlayer(): Promise<PlayerNextMatch | 
   const { data } = await supabase
     .from("matches")
     .select(
-      "id, match_no, round, status, finalized_by_admin, home_shots, away_shots, home_team_id, away_team_id, starts_at, rink:rinks(name), home_team:tournament_teams!home_team_id(name), away_team:tournament_teams!away_team_id(name), tournament:tournaments(id, name, format, structure, handicap_rule, shots_up_target, ends_per_match, clubs!host_club_id(theme_preset))",
+      "id, match_no, round, status, finalized_by_admin, home_shots, away_shots, home_team_id, away_team_id, starts_at, rink:rinks(number, green:greens(name)), home_team:tournament_teams!home_team_id(name), away_team:tournament_teams!away_team_id(name), tournament:tournaments(id, name, format, structure, handicap_rule, shots_up_target, ends_per_match, clubs!host_club_id(theme_preset))",
     )
     .or(`home_team_id.in.(${teamIds.join(",")}),away_team_id.in.(${teamIds.join(",")})`)
     .in("status", ["scheduled", "in_progress"])
@@ -106,12 +107,11 @@ export async function getNextMatchForCurrentPlayer(): Promise<PlayerNextMatch | 
     clubs: { theme_preset: Database["public"]["Enums"]["club_theme_preset"] } | null;
   } | null;
 
-  const rinkObj = data.rink as { name?: string } | null;
   return {
     match_id: data.id,
     match_no: data.match_no,
     round: data.round,
-    rink: rinkObj?.name ?? null,
+    rink: formatRinkLabel(data.rink as RinkEmbed),
     status: data.status,
     finalized_by_admin: data.finalized_by_admin,
     home_shots: data.home_shots,

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getAuthContext } from "@/lib/auth/role";
+import { formatRinkLabel, type RinkEmbed } from "@/lib/format/rink";
 import { matchRowToPrimitive } from "@/lib/tournaments/adapters";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database.types";
@@ -197,7 +198,7 @@ export async function getMatchesForTournament(
   const { data, error } = await supabase
     .from("matches")
     .select(
-      "id, match_no, round, status, finalized_by_admin, home_shots, away_shots, winner_team_id, slot_a_source_type, slot_a_source_match_id, slot_b_source_type, slot_b_source_match_id, rink:rinks(name), home_team:tournament_teams!home_team_id(id, name, seed), away_team:tournament_teams!away_team_id(id, name, seed)",
+      "id, match_no, round, status, finalized_by_admin, home_shots, away_shots, winner_team_id, slot_a_source_type, slot_a_source_match_id, slot_b_source_type, slot_b_source_match_id, rink:rinks(number, green:greens(name)), home_team:tournament_teams!home_team_id(id, name, seed), away_team:tournament_teams!away_team_id(id, name, seed)",
     )
     .eq("tournament_id", tournamentId)
     .order("round", { ascending: true })
@@ -206,12 +207,11 @@ export async function getMatchesForTournament(
   if (error || !data) return [];
 
   return data.map((m) => {
-    const rinkObj = m.rink as { name?: string | null } | null;
     return {
       id: m.id,
       match_no: m.match_no,
       round: m.round,
-      rink: rinkObj?.name ?? null,
+      rink: formatRinkLabel(m.rink as RinkEmbed),
       status: m.status,
       finalized_by_admin: m.finalized_by_admin,
       home_team: (m.home_team as DbTournamentTeam | null) ?? null,

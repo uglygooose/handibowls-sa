@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getAuthContext } from "@/lib/auth/role";
+import { formatRinkLabel, type RinkEmbed } from "@/lib/format/rink";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database.types";
 
@@ -75,7 +76,7 @@ export async function getScorecardMatch(
   const { data, error } = await supabase
     .from("matches")
     .select(
-      "id, match_no, round, status, finalized_by_admin, submission_status, captain_submitted_at, opponent_confirmed_at, home_team_id, away_team_id, home_shots, away_shots, rink:rinks(name), home_team:tournament_teams!home_team_id(name, handicap_shots), away_team:tournament_teams!away_team_id(name, handicap_shots), tournament:tournaments(id, name, format, structure, handicap_rule, shots_up_target, ends_per_match, clubs!host_club_id(theme_preset))",
+      "id, match_no, round, status, finalized_by_admin, submission_status, captain_submitted_at, opponent_confirmed_at, home_team_id, away_team_id, home_shots, away_shots, rink:rinks(number, green:greens(name)), home_team:tournament_teams!home_team_id(name, handicap_shots), away_team:tournament_teams!away_team_id(name, handicap_shots), tournament:tournaments(id, name, format, structure, handicap_rule, shots_up_target, ends_per_match, clubs!host_club_id(theme_preset))",
     )
     .eq("id", matchId)
     .maybeSingle();
@@ -113,8 +114,6 @@ export async function getScorecardMatch(
     ends_per_match: number | null;
     clubs: { theme_preset: DbThemePreset } | null;
   } | null;
-  const rinkObj = data.rink as { name?: string } | null;
-
   return {
     match_id: data.id,
     match_no: data.match_no,
@@ -130,7 +129,7 @@ export async function getScorecardMatch(
     away_team_name: awayTeam?.name ?? "Away team",
     home_shots: data.home_shots,
     away_shots: data.away_shots,
-    rink: rinkObj?.name ?? null,
+    rink: formatRinkLabel(data.rink as RinkEmbed),
     player_is_home: playerIsHome,
     tournament: {
       id: tournament?.id ?? "",
