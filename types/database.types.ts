@@ -558,6 +558,7 @@ export type Database = {
           away_shots: number
           away_team_id: string | null
           bracket_slot: number | null
+          captain_submitted_at: string | null
           created_at: string
           ends_at: string | null
           finalized_by_admin: boolean
@@ -567,6 +568,7 @@ export type Database = {
           id: string
           match_no: number | null
           notes: string | null
+          opponent_confirmed_at: string | null
           rink_id: string | null
           round: number | null
           section_label: string | null
@@ -576,6 +578,7 @@ export type Database = {
           slot_b_source_type: string | null
           starts_at: string | null
           status: Database["public"]["Enums"]["match_status"]
+          submission_status: Database["public"]["Enums"]["submission_status"]
           tournament_id: string
           updated_at: string
           winner_team_id: string | null
@@ -585,6 +588,7 @@ export type Database = {
           away_shots?: number
           away_team_id?: string | null
           bracket_slot?: number | null
+          captain_submitted_at?: string | null
           created_at?: string
           ends_at?: string | null
           finalized_by_admin?: boolean
@@ -594,6 +598,7 @@ export type Database = {
           id?: string
           match_no?: number | null
           notes?: string | null
+          opponent_confirmed_at?: string | null
           rink_id?: string | null
           round?: number | null
           section_label?: string | null
@@ -603,6 +608,7 @@ export type Database = {
           slot_b_source_type?: string | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["match_status"]
+          submission_status?: Database["public"]["Enums"]["submission_status"]
           tournament_id: string
           updated_at?: string
           winner_team_id?: string | null
@@ -612,6 +618,7 @@ export type Database = {
           away_shots?: number
           away_team_id?: string | null
           bracket_slot?: number | null
+          captain_submitted_at?: string | null
           created_at?: string
           ends_at?: string | null
           finalized_by_admin?: boolean
@@ -621,6 +628,7 @@ export type Database = {
           id?: string
           match_no?: number | null
           notes?: string | null
+          opponent_confirmed_at?: string | null
           rink_id?: string | null
           round?: number | null
           section_label?: string | null
@@ -630,6 +638,7 @@ export type Database = {
           slot_b_source_type?: string | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["match_status"]
+          submission_status?: Database["public"]["Enums"]["submission_status"]
           tournament_id?: string
           updated_at?: string
           winner_team_id?: string | null
@@ -1529,6 +1538,7 @@ export type Database = {
       message_status: "draft" | "queued" | "sent" | "failed"
       player_position: "skip" | "third" | "second" | "lead"
       seeding_method: "random" | "seeded" | "sectional"
+      submission_status: "pending" | "captain_submitted" | "opponent_confirmed"
       t20_grade: "gold" | "silver" | "bronze" | "fail"
       t20_section:
         | "jacks"
@@ -1722,6 +1732,7 @@ export const Constants = {
       message_status: ["draft", "queued", "sent", "failed"],
       player_position: ["skip", "third", "second", "lead"],
       seeding_method: ["random", "seeded", "sectional"],
+      submission_status: ["pending", "captain_submitted", "opponent_confirmed"],
       t20_grade: ["gold", "silver", "bronze", "fail"],
       t20_section: [
         "jacks",

@@ -472,7 +472,7 @@ describe("submitMatch", () => {
   it("happy path — admin submits (super_admin bypasses team-membership check)", async () => {
     mockCtx = SUPER_CTX;
     rig("matches", "selectSingle", {
-      data: { id: "m1", tournament_id: "t-1", home_team_id: "tm1", away_team_id: "tm2", status: "scheduled" },
+      data: { id: "m1", tournament_id: "t-1", home_team_id: "tm1", away_team_id: "tm2", status: "scheduled", submission_status: "pending" },
       error: null,
     });
     rig("matches", "update", { data: null, error: null });
@@ -482,6 +482,21 @@ describe("submitMatch", () => {
       away_shots: 14,
     });
     expect(res.ok).toBe(true);
+  });
+
+  it("rejects re-submission once opponent has confirmed", async () => {
+    mockCtx = SUPER_CTX;
+    rig("matches", "selectSingle", {
+      data: { id: "m1", tournament_id: "t-1", home_team_id: "tm1", away_team_id: "tm2", status: "in_progress", submission_status: "opponent_confirmed" },
+      error: null,
+    });
+    const res = await actions.submitMatch({
+      match_id: "11111111-1111-4111-8111-111111111111",
+      home_shots: 22,
+      away_shots: 14,
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/already confirmed/i);
   });
 });
 
@@ -496,8 +511,11 @@ describe("confirmMatch", () => {
 
   it("happy path — admin confirms, primitive infers winner from scores", async () => {
     mockCtx = SUPER_CTX;
+    // Phase 8d-prep precondition: confirmMatch only accepts a match
+    // whose submission_status is 'captain_submitted'. Fixture must
+    // reflect a captain having already submitted.
     rig("matches", "selectSingle", {
-      data: { id: "m1", tournament_id: "t-1", home_team_id: "tm1", away_team_id: "tm2", home_shots: 21, away_shots: 14, status: "in_progress" },
+      data: { id: "m1", tournament_id: "t-1", home_team_id: "tm1", away_team_id: "tm2", home_shots: 21, away_shots: 14, status: "in_progress", submission_status: "captain_submitted" },
       error: null,
     });
     rig("matches", "update", { data: null, error: null });
@@ -505,6 +523,19 @@ describe("confirmMatch", () => {
       match_id: "11111111-1111-4111-8111-111111111111",
     });
     expect(res.ok).toBe(true);
+  });
+
+  it("rejects when submission_status is still 'pending'", async () => {
+    mockCtx = SUPER_CTX;
+    rig("matches", "selectSingle", {
+      data: { id: "m1", tournament_id: "t-1", home_team_id: "tm1", away_team_id: "tm2", home_shots: 0, away_shots: 0, status: "scheduled", submission_status: "pending" },
+      error: null,
+    });
+    const res = await actions.confirmMatch({
+      match_id: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/hasn't submitted/i);
   });
 });
 
@@ -522,7 +553,7 @@ describe("verifyMatch", () => {
   it("rejects player role (admin verification only)", async () => {
     mockCtx = PLAYER_CTX;
     rig("matches", "selectSingle", {
-      data: { id: "m1", tournament_id: "t-1", home_team_id: "tm1", away_team_id: "tm2", home_shots: 21, away_shots: 14, status: "completed" },
+      data: { id: "m1", tournament_id: "t-1", home_team_id: "tm1", away_team_id: "tm2", home_shots: 21, away_shots: 14, status: "completed", submission_status: "opponent_confirmed" },
       error: null,
     });
     const res = await actions.verifyMatch({
@@ -534,8 +565,10 @@ describe("verifyMatch", () => {
 
   it("happy path — super_admin finalises, completes-tournament-if-done invoked", async () => {
     mockCtx = SUPER_CTX;
+    // Default verify path requires submission_status='opponent_confirmed'
+    // (both captains have agreed; admin is the final signoff).
     rig("matches", "selectSingle", {
-      data: { id: "m1", tournament_id: "t-1", home_team_id: "tm1", away_team_id: "tm2", home_shots: 21, away_shots: 14, status: "completed" },
+      data: { id: "m1", tournament_id: "t-1", home_team_id: "tm1", away_team_id: "tm2", home_shots: 21, away_shots: 14, status: "completed", submission_status: "opponent_confirmed" },
       error: null,
     });
     rig("matches", "update", { data: null, error: null });
@@ -543,6 +576,36 @@ describe("verifyMatch", () => {
     rig("tournaments", "update", { data: null, error: null });
     const res = await actions.verifyMatch({
       match_id: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(res.ok).toBe(true);
+  });
+
+  it("rejects default-path verify when submission_status is 'pending'", async () => {
+    mockCtx = SUPER_CTX;
+    rig("matches", "selectSingle", {
+      data: { id: "m1", tournament_id: "t-1", home_team_id: "tm1", away_team_id: "tm2", home_shots: 0, away_shots: 0, status: "scheduled", submission_status: "pending" },
+      error: null,
+    });
+    const res = await actions.verifyMatch({
+      match_id: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/override scores/i);
+  });
+
+  it("override path — admin verifies a 'pending' match by passing override scores (dispute resolution)", async () => {
+    mockCtx = SUPER_CTX;
+    rig("matches", "selectSingle", {
+      data: { id: "m1", tournament_id: "t-1", home_team_id: "tm1", away_team_id: "tm2", home_shots: 0, away_shots: 0, status: "scheduled", submission_status: "pending" },
+      error: null,
+    });
+    rig("matches", "update", { data: null, error: null });
+    rig("matches", "insert", { data: null, error: null });
+    rig("tournaments", "update", { data: null, error: null });
+    const res = await actions.verifyMatch({
+      match_id: "11111111-1111-4111-8111-111111111111",
+      override_home_shots: 21,
+      override_away_shots: 14,
     });
     expect(res.ok).toBe(true);
   });

@@ -12,6 +12,7 @@ import type { Database } from "@/types/database.types";
 type DbMatch = Database["public"]["Tables"]["matches"]["Row"];
 type DbTournament = Database["public"]["Tables"]["tournaments"]["Row"];
 type DbThemePreset = Database["public"]["Enums"]["club_theme_preset"];
+type DbSubmissionStatus = Database["public"]["Enums"]["submission_status"];
 
 export type ScorecardMatch = {
   match_id: string;
@@ -19,6 +20,11 @@ export type ScorecardMatch = {
   round: number | null;
   status: DbMatch["status"];
   finalized_by_admin: boolean;
+  /** Phase 8d-prep: captain/opponent verification handshake state. */
+  submission_status: DbSubmissionStatus;
+  /** Timestamps drive "submitted Xm ago" UI labels. */
+  captain_submitted_at: string | null;
+  opponent_confirmed_at: string | null;
   home_team_id: string | null;
   away_team_id: string | null;
   home_team_name: string;
@@ -69,7 +75,7 @@ export async function getScorecardMatch(
   const { data, error } = await supabase
     .from("matches")
     .select(
-      "id, match_no, round, status, finalized_by_admin, home_team_id, away_team_id, home_shots, away_shots, rink:rinks(name), home_team:tournament_teams!home_team_id(name, handicap_shots), away_team:tournament_teams!away_team_id(name, handicap_shots), tournament:tournaments(id, name, format, structure, handicap_rule, shots_up_target, ends_per_match, clubs!host_club_id(theme_preset))",
+      "id, match_no, round, status, finalized_by_admin, submission_status, captain_submitted_at, opponent_confirmed_at, home_team_id, away_team_id, home_shots, away_shots, rink:rinks(name), home_team:tournament_teams!home_team_id(name, handicap_shots), away_team:tournament_teams!away_team_id(name, handicap_shots), tournament:tournaments(id, name, format, structure, handicap_rule, shots_up_target, ends_per_match, clubs!host_club_id(theme_preset))",
     )
     .eq("id", matchId)
     .maybeSingle();
@@ -115,6 +121,9 @@ export async function getScorecardMatch(
     round: data.round,
     status: data.status,
     finalized_by_admin: data.finalized_by_admin,
+    submission_status: data.submission_status,
+    captain_submitted_at: data.captain_submitted_at,
+    opponent_confirmed_at: data.opponent_confirmed_at,
     home_team_id: data.home_team_id,
     away_team_id: data.away_team_id,
     home_team_name: homeTeam?.name ?? "Home team",

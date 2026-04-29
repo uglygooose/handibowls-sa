@@ -141,10 +141,19 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
   const lead = Math.abs(playerScore - opponentScore);
   const playerLeading = playerScore > opponentScore;
 
+  // Phase 8d-prep state-machine branches. The submission_status enum
+  // (migration 026) gives us proper distinction between captain-
+  // submitted and opponent-confirmed; isLive now means "the match is
+  // still being played" — captain hasn't submitted final scores yet.
   const isLive =
-    initialMatch.status === "in_progress" || initialMatch.status === "scheduled";
-  const awaitingVerification =
-    initialMatch.status === "completed" && !initialMatch.finalized_by_admin;
+    (initialMatch.status === "in_progress" ||
+      initialMatch.status === "scheduled") &&
+    initialMatch.submission_status === "pending";
+  const awaitingOpponentConfirm =
+    initialMatch.submission_status === "captain_submitted";
+  const awaitingAdminVerify =
+    initialMatch.submission_status === "opponent_confirmed" &&
+    !initialMatch.finalized_by_admin;
   const verified =
     initialMatch.status === "completed" && initialMatch.finalized_by_admin;
   const walkover = initialMatch.status === "walkover";
@@ -330,8 +339,8 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
           {walkover && <ReadOnlyNotice tone="warning" title="Walkover recorded" body="No further scoring on this match." />}
           {cancelled && <ReadOnlyNotice tone="danger" title="Match cancelled" body="The admin cancelled this match. No score is recorded." />}
           {verified && <VerifiedBanner playerWon={playerLeading} wetHands={wetHands.on} />}
-          {awaitingVerification && (
-            <AwaitingVerification
+          {awaitingOpponentConfirm && (
+            <CaptainSubmittedBranch
               match={initialMatch}
               localHomeTotal={localHomeTotal}
               localAwayTotal={localAwayTotal}
@@ -339,6 +348,9 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
               onDispute={openDispute}
               pending={pending}
             />
+          )}
+          {awaitingAdminVerify && (
+            <AwaitingAdminVerify wetHands={wetHands.on} />
           )}
 
           {/* Live scoring controls */}
@@ -922,7 +934,20 @@ function ReadyToSubmitCard({
   );
 }
 
-function AwaitingVerification({
+// Phase 8d-prep: branch on which side of the handshake the player is on.
+//
+// We don't yet have a "submitted_by_team_id" column to track which captain
+// posted, so for 8d-prep we infer: when submission_status is
+// 'captain_submitted', either captain may have submitted. The acting
+// player needs to know whether they're the submitter (passive
+// banner — wait for opponent) or the receiver (action card — confirm
+// or dispute). Heuristic for now: the submitting captain sees the
+// scores as already in the match row, so we render the action card
+// to BOTH sides; the submitter taps Confirm to no-op (or the
+// confirmMatch action rejects with the existing precondition check).
+// A proper "submitted_by_team_id" column is Phase 12 polish — flagged
+// in the action precondition error path.
+function CaptainSubmittedBranch({
   match,
   localHomeTotal,
   localAwayTotal,
@@ -937,11 +962,6 @@ function AwaitingVerification({
   onDispute: () => void;
   pending: boolean;
 }) {
-  // For 8c we render the OpponentConfirmationCard for everyone in this
-  // state because the schema doesn't yet distinguish "captain submitted"
-  // from "opponent confirmed". The original captain sees a passive
-  // banner; the opposing captain sees the action card. This is a UX
-  // approximation pending the 8d schema work.
   return (
     <OpponentConfirmationCard
       yourScore={match.player_is_home ? localHomeTotal : localAwayTotal}
@@ -952,6 +972,36 @@ function AwaitingVerification({
       onDispute={onDispute}
       pending={pending}
     />
+  );
+}
+
+function AwaitingAdminVerify({ wetHands }: { wetHands: boolean }) {
+  return (
+    <section
+      className={cn(
+        "flex items-center gap-3 rounded-2xl border-2 px-4 py-4",
+        wetHands
+          ? "border-[#f5b700] bg-[#1a1a00] text-[#f5b700]"
+          : "border-info-500 bg-info-500/8 text-info-500",
+      )}
+    >
+      <span
+        className={cn(
+          "flex size-10 shrink-0 items-center justify-center rounded-full",
+          wetHands ? "bg-[#f5b700]/20" : "bg-info-500/15",
+        )}
+      >
+        <Check className="size-5" aria-hidden="true" />
+      </span>
+      <div className="flex flex-col gap-0.5">
+        <strong className="font-display text-[18px] font-black italic uppercase tracking-tight">
+          Both captains agree
+        </strong>
+        <p className="text-[13px]">
+          Awaiting admin verification — the result locks once admin signs off.
+        </p>
+      </div>
+    </section>
   );
 }
 

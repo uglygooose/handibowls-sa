@@ -48,6 +48,7 @@ Single source of truth for every piece of drift between Claude Design output / r
 
 ### Player surfaces (Phase 8 output, added when shipped)
 
+- [ ] **`matches.submitted_by_team_id` column for passive-vs-active captain rendering.** Phase 8d-prep (migration 026) added the `submission_status` enum but not a column tracking which side actually submitted. The scorecard's `<CaptainSubmittedBranch />` currently renders the action card to both captains; the submitter taps Confirm and gets the action's "Match already submitted" precondition error. UX is functional but not optimal — submitting captain should see a passive "Awaiting opponent" banner instead. Phase 12 polish: add `submitted_by_team_id uuid references tournament_teams(id)` to `matches`, populate in submitMatch, branch the scorecard render on it. Owning phase: Phase 12. Discovered: Phase 8d-prep, 2026-04-29.
 - [ ] **Match-ends Dexie → server sync worker.** Phase 8c lands the
   scorecard against a Dexie outbox (`public.match_ends` server table
   exists from migration 005 but the client doesn't write to it yet).
@@ -57,7 +58,7 @@ Single source of truth for every piece of drift between Claude Design output / r
   server_updated_at, and reconciles via the conflict modal when the
   server is newer. Owning phase: Phase 8d. Discovered: Phase 8c
   build, 2026-04-29.
-- [ ] **Captain-submitted / opponent-confirmed schema gap.** The
+- [x] ~~**Captain-submitted / opponent-confirmed schema gap.** The
   scorecard's state machine has 5 distinct UI states (in_progress,
   captain_submitted, opponent_confirmed, admin_verified, walkover/
   cancelled) but the `match_status` enum only ships scheduled /
@@ -70,7 +71,19 @@ Single source of truth for every piece of drift between Claude Design output / r
   transitions captain_submitted → opponent_confirmed → completed
   rather than the current submitMatch (sets in_progress) →
   confirmMatch (sets completed) collapse. Owning phase: Phase 8d.
-  Discovered: Phase 8c build, 2026-04-29.
+  Discovered: Phase 8c build, 2026-04-29.~~ Closed: Phase 8d-prep
+  migration 026, 2026-04-29. Resolved via Option (b) — separate
+  `submission_status` enum (`pending` / `captain_submitted` /
+  `opponent_confirmed`) + `captain_submitted_at` +
+  `opponent_confirmed_at` audit timestamps + CHECK constraint pinning
+  consistency. Actions updated: submitMatch sets captain_submitted +
+  audit timestamp; confirmMatch transitions to opponent_confirmed
+  (no longer collapses to status=completed); verifyMatch requires
+  opponent_confirmed by default with override-score escape hatch for
+  dispute resolution. Open follow-up captured in this same section:
+  the "submitted_by_team_id" column for proper passive-vs-active card
+  branching is a Phase-12 polish item (currently both captains see
+  the action card; the action precondition rejects no-op confirms).
 
 ### T20 compass capture (Phase 10 output, added when shipped)
 

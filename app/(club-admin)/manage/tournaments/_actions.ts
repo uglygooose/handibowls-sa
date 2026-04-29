@@ -19,13 +19,13 @@ import { revalidatePath } from "next/cache";
 
 import { getAuthContext, type AuthContext } from "@/lib/auth/role";
 import { createClient } from "@/lib/supabase/server";
+import type { Database } from "@/types/database.types";
 import {
   matchRowToRoundAdvanceMatch,
   teamRowToRoundAdvanceTeam,
   entryRowToSeedingTeam,
   roundAdvanceInsertToMatchInsert,
   knockoutInsertToMatchInsert,
-  primitiveStatusToDb,
 } from "@/lib/tournaments/adapters";
 import { generateKnockoutRound1 } from "@/lib/tournaments/brackets/knockout";
 import { generateRoundRobinFixtures } from "@/lib/tournaments/brackets/roundRobin";
@@ -355,7 +355,7 @@ export async function advanceRound(
   const { data: matches, error: mErr } = await supabase
     .from("matches")
     .select(
-      "id, tournament_id, home_team_id, away_team_id, home_shots, away_shots, home_ends_won, away_ends_won, rink_id, round, bracket_slot, section_label, status, starts_at, ends_at, winner_team_id, notes, match_no, finalized_by_admin, slot_a_source_type, slot_a_source_match_id, slot_b_source_type, slot_b_source_match_id, created_at, updated_at",
+      "id, tournament_id, home_team_id, away_team_id, home_shots, away_shots, home_ends_won, away_ends_won, rink_id, round, bracket_slot, section_label, status, starts_at, ends_at, winner_team_id, notes, match_no, finalized_by_admin, slot_a_source_type, slot_a_source_match_id, slot_b_source_type, slot_b_source_match_id, submission_status, captain_submitted_at, opponent_confirmed_at, created_at, updated_at",
     )
     .eq("tournament_id", parsed.data.tournament_id)
     .eq("round", parsed.data.round_no);
@@ -428,7 +428,7 @@ export async function submitMatch(
   const supabase = await createClient();
   const { data: match, error } = await supabase
     .from("matches")
-    .select("id, tournament_id, home_team_id, away_team_id, status")
+    .select("id, tournament_id, home_team_id, away_team_id, status, submission_status")
     .eq("id", v.match_id)
     .single();
   if (error || !match) {
@@ -439,12 +439,30 @@ export async function submitMatch(
   const allowed = await isPlayerOnMatchOrAdmin(ctx, match);
   if (!allowed) return NOT_AUTHORIZED();
 
+  // Phase 8d-prep: submission lifecycle. submitMatch is the captain's
+  // post-game score post. It moves the match to in_progress (if it
+  // wasn't already) and pins submission_status to 'captain_submitted'.
+  // Re-submission while still 'captain_submitted' is allowed (captain
+  // edits before opponent confirms) — captain_submitted_at refreshes
+  // to now() so the audit trail tracks the latest edit. Re-submission
+  // after 'opponent_confirmed' is rejected; admin override via
+  // verifyMatch is the escape hatch for that scenario.
+  if (match.submission_status === "opponent_confirmed") {
+    return {
+      ok: false,
+      error:
+        "Match already confirmed by opponent — captain can't resubmit. Ask the admin to verify with override values if scores need correcting.",
+    };
+  }
+
   const { error: upErr } = await supabase
     .from("matches")
     .update({
       home_shots: v.home_shots,
       away_shots: v.away_shots,
       status: "in_progress",
+      submission_status: "captain_submitted",
+      captain_submitted_at: new Date().toISOString(),
     })
     .eq("id", v.match_id);
 
@@ -468,7 +486,7 @@ export async function confirmMatch(
   const supabase = await createClient();
   const { data: match, error } = await supabase
     .from("matches")
-    .select("id, tournament_id, home_team_id, away_team_id, home_shots, away_shots, status")
+    .select("id, tournament_id, home_team_id, away_team_id, home_shots, away_shots, status, submission_status")
     .eq("id", parsed.data.match_id)
     .single();
   if (error || !match) {
@@ -478,15 +496,36 @@ export async function confirmMatch(
   const allowed = await isPlayerOnMatchOrAdmin(ctx, match);
   if (!allowed) return NOT_AUTHORIZED();
 
-  // Confirm = mark COMPLETED (not finalized — admin verification adds that).
-  // Caller derives the winner from scores; the DB CHECK keeps it consistent.
+  // Phase 8d-prep contract change: confirmMatch no longer collapses to
+  // status='completed'. It transitions submission_status from
+  // 'captain_submitted' to 'opponent_confirmed' — the intermediate
+  // state is meaningful: the players agree but admin verification is
+  // still required before the match is final. verifyMatch is the only
+  // path that sets status='completed' + finalized_by_admin=true.
+  //
+  // Precondition: the match must be in 'captain_submitted'. If still
+  // 'pending' nobody has submitted yet; if already 'opponent_confirmed'
+  // it's a no-op duplicate confirm.
+  if (match.submission_status !== "captain_submitted") {
+    return {
+      ok: false,
+      error:
+        match.submission_status === "pending"
+          ? "Captain hasn't submitted scores yet — nothing to confirm."
+          : "Match already confirmed; awaiting admin verification.",
+    };
+  }
+
+  // Pre-compute the winner so the DB row already reflects the
+  // captains' agreed result. verifyMatch may overwrite this if the
+  // admin uses override scores.
   const winnerTeamId = inferWinnerFromScores(match);
 
-  const { dbStatus } = primitiveStatusToDbCompletion();
   const { error: upErr } = await supabase
     .from("matches")
     .update({
-      status: dbStatus,
+      submission_status: "opponent_confirmed",
+      opponent_confirmed_at: new Date().toISOString(),
       winner_team_id: winnerTeamId,
     })
     .eq("id", parsed.data.match_id);
@@ -512,7 +551,9 @@ export async function verifyMatch(
   const supabase = await createClient();
   const { data: match, error } = await supabase
     .from("matches")
-    .select("id, tournament_id, home_team_id, away_team_id, home_shots, away_shots, status")
+    .select(
+      "id, tournament_id, home_team_id, away_team_id, home_shots, away_shots, status, submission_status",
+    )
     .eq("id", v.match_id)
     .single();
   if (error || !match) {
@@ -527,26 +568,72 @@ export async function verifyMatch(
       (await tournamentBelongsToAdminClubs(supabase, match.tournament_id, ctx)));
   if (!adminAllowed) return NOT_AUTHORIZED("Admin verification only.");
 
+  // Phase 8d-prep submission lifecycle precondition.
+  //
+  // Default path — no override scores:
+  //   submission_status MUST be 'opponent_confirmed'. Captains have
+  //   agreed; admin is the final signoff before the match is locked.
+  //
+  // Override path — override_home_shots / override_away_shots provided:
+  //   The admin is resolving a dispute. Precondition relaxes — admin
+  //   may verify even if submission_status is 'pending' (no captain
+  //   ever submitted) or 'captain_submitted' (opponent never confirmed).
+  //   This is the explicit dispute-resolution / abandoned-match
+  //   workflow. The CHECK constraint on the matches table is satisfied
+  //   by setting both timestamps to now() when they're not already
+  //   populated, so submission_status can move to 'opponent_confirmed'
+  //   in lock-step.
+  const hasOverride =
+    v.override_home_shots != null || v.override_away_shots != null;
+
+  if (!hasOverride && match.submission_status !== "opponent_confirmed") {
+    return {
+      ok: false,
+      error:
+        match.submission_status === "pending"
+          ? "Match isn't yet submitted by either captain. Use override scores to verify directly."
+          : "Opponent hasn't confirmed yet. Wait for confirmation, or use override scores to resolve a dispute.",
+    };
+  }
+
   const finalShots = {
     home: v.override_home_shots ?? match.home_shots,
     away: v.override_away_shots ?? match.away_shots,
   };
 
-  const { dbStatus, finalizedByAdmin } = primitiveStatusToDbFinal();
-  const { error: upErr } = await supabase
-    .from("matches")
-    .update({
+  // When the override path is used and the lifecycle wasn't fully
+  // walked, force submission_status forward + populate any missing
+  // audit timestamps so the CHECK constraint is satisfied. Existing
+  // 'opponent_confirmed' rows keep their original timestamps.
+  const nowIso = new Date().toISOString();
+  const baseUpdates = {
+    home_shots: finalShots.home,
+    away_shots: finalShots.away,
+    status: "completed" as const,
+    finalized_by_admin: true,
+    winner_team_id: inferWinnerFromScores({
+      home_team_id: match.home_team_id,
+      away_team_id: match.away_team_id,
       home_shots: finalShots.home,
       away_shots: finalShots.away,
-      status: dbStatus,
-      finalized_by_admin: finalizedByAdmin,
-      winner_team_id: inferWinnerFromScores({
-        home_team_id: match.home_team_id,
-        away_team_id: match.away_team_id,
-        home_shots: finalShots.home,
-        away_shots: finalShots.away,
-      }),
-    })
+    }),
+  };
+  const updates: Database["public"]["Tables"]["matches"]["Update"] =
+    match.submission_status !== "opponent_confirmed"
+      ? {
+          ...baseUpdates,
+          submission_status: "opponent_confirmed",
+          // Both timestamps must be set per the matches_submission_consistent
+          // CHECK constraint. Use now() — for legacy/override paths this is
+          // the admin's verdict timestamp.
+          captain_submitted_at: nowIso,
+          opponent_confirmed_at: nowIso,
+        }
+      : baseUpdates;
+
+  const { error: upErr } = await supabase
+    .from("matches")
+    .update(updates)
     .eq("id", v.match_id);
 
   if (upErr) return { ok: false, error: upErr.message };
@@ -718,24 +805,6 @@ function inferWinnerFromScores(m: {
   }
   if (m.home_shots === m.away_shots) return null;
   return m.home_shots > m.away_shots ? m.home_team_id : m.away_team_id;
-}
-
-// Confirm = primitive COMPLETED ↔ DB (status='completed', finalized_by_admin=false).
-function primitiveStatusToDbCompletion(): {
-  dbStatus: "completed";
-  finalizedByAdmin: false;
-} {
-  const out = primitiveStatusToDb("COMPLETED");
-  return { dbStatus: out.status as "completed", finalizedByAdmin: out.finalizedByAdmin as false };
-}
-
-// Verify = primitive FINAL ↔ DB (status='completed', finalized_by_admin=true).
-function primitiveStatusToDbFinal(): {
-  dbStatus: "completed";
-  finalizedByAdmin: true;
-} {
-  const out = primitiveStatusToDb("FINAL");
-  return { dbStatus: out.status as "completed", finalizedByAdmin: out.finalizedByAdmin as true };
 }
 
 async function isPlayerOnMatchOrAdmin(
