@@ -478,9 +478,31 @@ pnpm dev
 - Role-gated redirects enforced at middleware + group layouts.
 - `data-theme` correctly applied from user's club preset.
 - `app_metadata.role` resolves from JWT on first render (no client re-fetch).
-- Lighthouse PWA ≥ 90.
+- PWA installability checks pass (see "PWA gate realignment" note below).
 
 **Stop & report.** Route tree, role-redirect outcomes, Lighthouse scores. Await approval.
+
+**PWA gate realignment (Phase 8g, 2026-04-29).** The original plan
+asserted "Lighthouse PWA ≥ 90/95" at Phases 3, 8, and 13. Lighthouse 12+
+(current default via `npx -y lighthouse` at 13.1.0) **removed the PWA
+category entirely** — Chrome's installability story moved to runtime
+checks the static audit could no longer model. The legacy individual
+audits (`installable-manifest`, `service-worker`, `themed-omnibox`,
+`splash-screen`, `maskable-icon`, `apple-touch-icon`) are also gone
+from default runs. The score gate is structurally unverifiable.
+
+**Replacement gates** for "is this app installable as a PWA":
+- Real-device install verified per platform:
+  - Android Chrome: `beforeinstallprompt` fires → Install button → standalone launch → start_url = `/play`
+  - iOS Safari: Add to Home Screen → standalone launch → start_url = `/play`
+- `public/manifest.webmanifest` valid (id, name, short_name, start_url, scope, display, theme_color, background_color, ≥1 any-purpose ≥192px icon, ≥1 maskable ≥192px icon).
+- Service worker `app/sw.js` registers + activates (DevTools → Application → Service Workers).
+- Offline shell loads (verified by Phase 8d Scenario 2).
+
+**Performance bar** moves to Phase 12.5. Phase 8g production-build
+Lighthouse measured `/play` 62 / `/book` 77 / `/tournaments` 77 / `/me`
+73 — all below the ≥90 target. Drift entry tracks the bundle/asset
+polish work; no Phase 8 blocker.
 
 ---
 
@@ -711,9 +733,18 @@ grep -riE "henselite|choice of champions" app components   # zero hits
 
 **Success criteria.**
 - Full 18-end Pairs match scored offline and synced within 10s on reconnect.
-- Dispute path works.
-- Lighthouse PWA ≥ 95 on `/play`.
+- Dispute path works (post-submit captain → opponent handshake — Phase 8d Finding 14).
+- PWA installability checks pass (per the realignment note in Phase 3 — manifest valid, SW registers, offline shell loads, real-device install on Android + iOS verified).
 - Scorecard buttons ≥ 56px; axe smoke test passes.
+
+**Phase 8g note.** Offline conflict-resolution UI (the original
+`ConflictResolutionSheet` modal with "use mine" / "use theirs" /
+"dispute" paths) was stripped at phase close. Real-world likelihood
+of concurrent same-end scoring across two devices, one offline, both
+syncing through different timestamps is effectively zero for bowls.
+Server-side last-write-wins via migration 027 is the conflict story.
+Dexie outbox + auto-flush on reconnect remain — that's the offline
+path players genuinely benefit from.
 
 **Stop & report.** Lighthouse + Playwright offline log. Await approval.
 
@@ -986,7 +1017,7 @@ grep -riE "henselite|choice of champions" app components   # zero hits
 
 **Steps.**
 
-1. **Performance.** Lighthouse on top routes. Targets: Performance ≥ 90, Accessibility ≥ 95, Best Practices ≥ 95, PWA ≥ 95 on player routes. Fix N+1s via joins/RPCs.
+1. **Performance.** Lighthouse on top routes. Targets: Performance ≥ 90, Accessibility ≥ 95, Best Practices ≥ 95. (Lighthouse PWA category was removed in v12+; PWA verification per the Phase-3 realignment is real-device installability + manifest/SW/offline-shell structural checks.) Fix N+1s via joins/RPCs.
 
 2. **Accessibility.** Axe + keyboard pass on every page. Contrast audit across all 9 theme presets.
 
@@ -1078,7 +1109,7 @@ Everything else rebuilt fresh.
 - [ ] No service-role key in client bundle (grep).
 - [ ] No unhandled promise rejections in dev console.
 - [ ] `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` all clean.
-- [ ] Lighthouse PWA ≥ 95 on `/play`; Perf ≥ 90 on top routes.
+- [ ] Real-device PWA install verified (Android Chrome + iOS Safari) per the Phase-3 realignment; Perf ≥ 90 on top routes.
 - [ ] Axe: zero serious/critical.
 - [ ] `loading.tsx` + `error.tsx` on every route.
 - [ ] Player pages mobile-first (320px ref); admin pages desktop-first (1280px ref).

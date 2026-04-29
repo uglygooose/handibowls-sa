@@ -263,6 +263,48 @@ at the moment a phase closed, derived from
 
 ---
 
+## Phase 8 — Tournament player UI (mobile-first, offline-first) — closed 2026-04-29
+
+- **Branch tip:** `<tip>` (`rebuild/phase-8-player-surfaces`, cut from
+  `37afd03`). Phase 8 carved into eight sub-checkpoints (8-prep, 8a–8g)
+  driven incrementally as user-greenlit chunks; sub-phases not pre-named
+  in the rebuild plan.
+- **Sub-checkpoints + headline SHAs:**
+  - **8-prep** `e6cd30b` — player primitives + 5-tab bottom nav + /t20 stub.
+  - **8a** `6f840ca` — `/play` home + `/me` profile + `/me/inbox` surfaces.
+  - **8b** `ca8ef47` — `/tournaments` list + read-only player detail.
+  - **8-seed** `4dda0a6` — dev tournament seeder + browser-QA convention.
+  - **8c** `d177162` — scorecard surface (wake-lock + wet-hands + Dexie outbox).
+  - **8d-prep** `9e5d909`–`66c6004` — migrations 026 (`submission_status` enum) + 027 (match_ends participant RW + `updated_at` trigger) + lifecycle action contracts.
+  - **8d** `bd9c668`–`c358dfb` — outbox flush + Serwist runtime caching + scoring-grid design alignment + migration 028 (matches participant UPDATE + state-machine guard) + rinks-embed fix across three `_data.ts` sites.
+  - **8d follow-ups** `c9be11d`–`527a89d` — Finding 13 (cache revalidation across player surfaces) + Finding 14 (migration 029 `matches.submitted_by_team_id` + passive-vs-active captain branching) + Finding 17 (overview queries hide captain_submitted matches) + types regen + drift retrospective.
+  - **8e-prep** `05d7b1a` — migration 030 `cancel_own_booking` RPC + plan split (old Phase 9 → 8e player + 9 admin).
+  - **8e-1 → 8e-3** `806ed78`, `a8f17ed`, `637f709` — `/book` shell + DateStrip + SlotList → BookingSheet + `createBooking` + GIST race handling → MyBookings shared component on `/book` (compact) + `/me` (full) + `cancelBooking` action.
+  - **8e follow-ups** `3048543`, `0958e00` — Finding 18 seed gap (Demo Bowls Club greens + rinks) + degenerate-state UX (allRinksCount === 0 branch).
+  - **8f-1 → 8f-3** `0940ea2`, `a4b2a50`, `2a837ee` — apple-touch-icon + manifest `id` → InstallPromptToast (Android `beforeinstallprompt` + iOS Safari fallback) → `scripts/lighthouse-pwa.mjs` runner across 5 player surfaces.
+  - **8g** `fb65cae` (strip) + close commit — ConflictResolutionSheet stripped (real-world conflict frequency does not justify maintenance burden); plan PWA-gate realignment + drift triage applied + this PHASE_LOG entry.
+- **Migrations applied:** 026 (`submission_status` enum) · 027 (`match_ends.updated_at` + participant RW policies + set_updated_at trigger) · 028 (matches participant UPDATE + state-machine guard) · 029 (`matches.submitted_by_team_id` + first-submission gate + freeze trigger) · 030 (`cancel_own_booking` SECURITY DEFINER RPC).
+- **Drift delta:** 33 → 43 open / 11 → 17 closed. Phase 8 added the largest drift movement of any phase to date (Findings 1–18, several Phase 13 audit tasks, several Phase 12.5 polish tasks); Phase 8g triage closed 6 entries (134 batch RPCs already shipped, 156 RLS test teardown already wired, plus 4 carried-over closures across the phase).
+- **Test-suite trajectory:** 444 (Phase 7 close) → 615 (Phase 8f-3 peak) → **610 (Phase 8 close, post-strip)**. 62 test files / 610 tests / 0 failures. RLS integration suite ships +9 cases for migrations 028/029/030 but is deferred-execution (Docker-up dependency).
+- **PWA gate realignment.** The original plan's "Lighthouse PWA ≥ 95" gate is structurally unverifiable — Lighthouse 12+ removed the PWA category entirely. Replacement gates: real-device install per platform (Android Chrome `beforeinstallprompt` → standalone; iOS Safari Add to Home Screen → standalone), manifest validity, SW registration, offline shell loads. Performance gate (`/play` 62 / `/book` 77 / `/tournaments` 77 / `/me` 73 from Phase 8g production-build re-run) moved to Phase 12.5 final polish; primary suspect is a single 1.4MB chunk in `.next/static/chunks/`. Plan diff lands in this commit.
+- **Manual QA verification:**
+  - **Scenario 1 (book + cancel):** verified during Phase 8e walk; reset and re-walked after Finding 18 fix.
+  - **Scenario 2 (offline path):** verified during Phase 8d walk — score offline, reconnect, outbox flushes.
+  - **Scenario 3 (conflict resolution):** **obsolete by Phase 8g strip** — the conflict UI no longer exists; server-side LWW via migration 027 is the conflict story.
+  - **Scenarios 4 + 5 (tap-to-retry, wake-lock + wet-hands):** deferred to user-walk-when-convenient (low-risk; underlying primitives are stable, unit-tested, and mostly behavior-on-real-device).
+  - **Production-build Lighthouse:** scores recorded above; gate realignment closes the verification loop.
+- **Operational conventions added during Phase 8** (recorded under "Operational conventions" below):
+  - "Browser-driven QA is human-side throughout the rebuild" (post 8a).
+  - "Bot-opponent matches confirm via admin verifyMatch override in dev QA" (8d).
+  - "Autumn Singles Final · 21-14 win on /play is intentional seed data" (8d follow-up Finding 15).
+- **Process artefacts logged for Phase 13 codification:**
+  - **Two-commit rule for schema-dependent application changes** (drift entry post Finding 14): migration lands as its own atomic commit, pushed and verified on cloud, BEFORE any application code that depends on the new schema. Pattern applies to Phase 9 (admin booking schema), Phase 10 (T20), Phase 11 (Resend).
+  - **State-machine-vs-surface audit** (drift entry post Finding 17): every state machine introduced by a migration must be checked against every consuming surface in the same phase. Phase 13 audit task: build a state×surface matrix.
+  - **Server-only module poisoning risk audit** (drift entry post 8e-2): `_data.ts` modules with `import "server-only"` cannot export runtime values consumed by Client Components. Phase 13 audit + ESLint rule candidate.
+- **Phase 9 readiness.** Schema for admin booking surfaces is fully in place (migrations 005, 006, 010 — booking_windows, bookings, GIST exclusion, RLS policies). Plan section "12. Phase 9 — Admin booking surfaces" carved out from old Phase 9 during 8e-prep. Likely needs an `admin_force_cancel_booking(uuid, reason text)` RPC parallel to `cancel_own_booking` for audit-trail semantics — audit-table decision deferred to that phase.
+
+---
+
 ## Operational conventions
 
 - **Browser-driven QA is human-side throughout the rebuild.** Multi-viewport visual checks and Lighthouse performance audits run on a real browser / device by the human at phase close — Claude Code cannot drive a browser in this WSL container (Playwright + chrome-devtools MCPs both fail to attach). Claude Code's QA scope is limited to code review against the design source + curl-level route checks. Subsequent phase briefs and stop-and-reports drop the "mandatory mobile QA at 4 viewports" item from Claude's gate list. Recorded: 2026-04-29 (post Phase 8 first batch).
