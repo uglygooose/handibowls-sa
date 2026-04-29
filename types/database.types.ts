@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          id: string
+          payload: Json | null
+          performed_at: string
+          performed_by: string | null
+          reason: string | null
+          row_id: string
+          table_name: string
+        }
+        Insert: {
+          action: string
+          id?: string
+          payload?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+          reason?: string | null
+          row_id: string
+          table_name: string
+        }
+        Update: {
+          action?: string
+          id?: string
+          payload?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+          reason?: string | null
+          row_id?: string
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_windows: {
         Row: {
           club_id: string
@@ -1434,6 +1475,14 @@ export type Database = {
       admin_finalize_matches_batch: {
         Args: { p_matches: Json; p_tournament_id: string }
         Returns: Json
+      }
+      admin_force_cancel_booking: {
+        Args: { p_booking_id: string; p_reason: string }
+        Returns: undefined
+      }
+      audit_log_visible_to_admin: {
+        Args: { p_row_id: string; p_table_name: string }
+        Returns: boolean
       }
       bulk_save_match_scores_batch: {
         Args: { p_matches: Json; p_tournament_id: string }
