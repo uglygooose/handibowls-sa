@@ -20,10 +20,35 @@ import { BookingSheet, type Slot } from "./BookingSheet";
 export type Props = {
   slots: BookingSlot[];
   clubName: string;
+  /** Total active rinks at the club. When zero, render the
+   *  "no rinks configured" empty state instead of the slot grid —
+   *  prevents the Finding 18 rendering where every slot showed
+   *  "Booked" because available_rinks could never be non-empty. */
+  allRinksCount: number;
 };
 
-export function SlotList({ slots, clubName }: Props) {
+export function SlotList({ slots, clubName, allRinksCount }: Props) {
   const [activeSlot, setActiveSlot] = useState<Slot | null>(null);
+
+  // Phase 8e Finding 18 — distinct empty state for "club has no rinks
+  // configured" vs "all rinks booked". Same `available_rinks.length === 0`
+  // shape, two semantically different causes; this branch fires when
+  // allRinks itself is empty.
+  if (allRinksCount === 0) {
+    return (
+      <section
+        data-slot="slot-list-no-rinks"
+        className="rounded-xl border border-dashed border-border bg-surface px-4 py-6 text-center"
+      >
+        <p className="text-[14px] font-bold text-ink">
+          No rinks configured at this club yet.
+        </p>
+        <p className="mt-1 text-[12px] text-ink-muted">
+          Ask your club admin to set up the rinks.
+        </p>
+      </section>
+    );
+  }
 
   if (slots.length === 0) {
     return (

@@ -69,6 +69,7 @@ export async function getBookingDataForCurrentPlayer(
       club_name: club.club_name,
       bookingDates: strip,
       slotsForDate: [],
+      allRinksCount: 0,
     };
   }
 
@@ -138,5 +139,6 @@ export async function getBookingDataForCurrentPlayer(
     club_name: club.club_name,
     bookingDates: strip,
     slotsForDate,
+    allRinksCount: allRinks.length,
   };
 }

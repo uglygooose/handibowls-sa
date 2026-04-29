@@ -74,6 +74,12 @@ export type BookingPageData = {
   club_name: string;
   bookingDates: BookingDate[];
   slotsForDate: BookingSlot[];
+  /** Total active rinks at the player's club. Drives the SlotList
+   *  empty-state branch — when zero, every slot's `available_rinks`
+   *  is empty regardless of bookings, which used to render five
+   *  misleading "Booked" cards (Phase 8e Finding 18). The component
+   *  switches to a "no rinks configured" notice when this is 0. */
+  allRinksCount: number;
 };
 
 export type MyBookingRow = {

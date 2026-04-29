@@ -49,7 +49,7 @@ describe("<SlotList /> — render + booking-sheet open", () => {
       }),
     ];
     const { container } = render(
-      <SlotList slots={slots} clubName="Demo Bowls Club" />,
+      <SlotList slots={slots} clubName="Demo Bowls Club" allRinksCount={5} />,
     );
     const count = container.querySelector("[data-slot='open-count']");
     expect(count?.textContent?.toLowerCase()).toContain("2 open");
@@ -58,7 +58,7 @@ describe("<SlotList /> — render + booking-sheet open", () => {
   it("renders rink chips for available slots and an enabled 'Book this slot' CTA", () => {
     const slots = [makeSlot()];
     const { container } = render(
-      <SlotList slots={slots} clubName="Demo Bowls Club" />,
+      <SlotList slots={slots} clubName="Demo Bowls Club" allRinksCount={5} />,
     );
     const chips = container.querySelectorAll("[data-slot='rink-chip']");
     expect(chips).toHaveLength(2);
@@ -84,7 +84,7 @@ describe("<SlotList /> — render + booking-sheet open", () => {
       }),
     ];
     const { container } = render(
-      <SlotList slots={slots} clubName="Demo Bowls Club" />,
+      <SlotList slots={slots} clubName="Demo Bowls Club" allRinksCount={5} />,
     );
     const card = container.querySelector("[data-slot='slot-card']");
     expect(card?.getAttribute("data-fully-booked")).toBe("true");
@@ -100,7 +100,7 @@ describe("<SlotList /> — render + booking-sheet open", () => {
       makeSlot({ available_rinks: [], bookings_in_slot: [] }),
     ];
     const { container } = render(
-      <SlotList slots={slots} clubName="Demo Bowls Club" />,
+      <SlotList slots={slots} clubName="Demo Bowls Club" allRinksCount={5} />,
     );
     const tag = container.querySelector("[data-slot='booked-tag']");
     expect(tag?.textContent?.toLowerCase()).toContain("booked");
@@ -109,7 +109,7 @@ describe("<SlotList /> — render + booking-sheet open", () => {
 
   it("renders the empty state when slots array is empty (closed-day case)", () => {
     const { container } = render(
-      <SlotList slots={[]} clubName="Demo Bowls Club" />,
+      <SlotList slots={[]} clubName="Demo Bowls Club" allRinksCount={5} />,
     );
     expect(
       container.querySelector("[data-slot='slot-list-empty']"),
@@ -119,7 +119,71 @@ describe("<SlotList /> — render + booking-sheet open", () => {
 
   it("renders time labels in the slot card header", () => {
     const slots = [makeSlot({ starts_label: "12:00", ends_label: "14:00" })];
-    render(<SlotList slots={slots} clubName="Demo Bowls Club" />);
+    render(
+      <SlotList slots={slots} clubName="Demo Bowls Club" allRinksCount={5} />,
+    );
     expect(screen.getByText(/12:00 . 14:00/)).toBeInTheDocument();
+  });
+});
+
+// Phase 8e Finding 18 — `allRinksCount === 0` branch fires the
+// "no rinks configured" empty state, regardless of the slot grid
+// content. Pre-fix, every slot rendered as "Booked" with the
+// "0 OPEN" header. These cases pin the new contract.
+describe("<SlotList /> — Finding 18: no rinks configured at club", () => {
+  it("renders the 'no rinks configured' notice when allRinksCount === 0", () => {
+    const slots = [makeSlot()];
+    const { container } = render(
+      <SlotList slots={slots} clubName="Demo Bowls Club" allRinksCount={0} />,
+    );
+    expect(
+      container.querySelector("[data-slot='slot-list-no-rinks']"),
+    ).not.toBeNull();
+    expect(
+      screen.getByText(/no rinks configured at this club/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/ask your club admin/i),
+    ).toBeInTheDocument();
+  });
+
+  it("does NOT render the slot grid header or any cards when allRinksCount === 0", () => {
+    const slots = [makeSlot()];
+    const { container } = render(
+      <SlotList slots={slots} clubName="Demo Bowls Club" allRinksCount={0} />,
+    );
+    expect(container.querySelector("[data-slot='slot-list']")).toBeNull();
+    expect(container.querySelector("[data-slot='slot-card']")).toBeNull();
+    expect(container.querySelector("[data-slot='open-count']")).toBeNull();
+  });
+
+  it("normal slot grid renders when allRinksCount > 0 and slots have availability", () => {
+    const slots = [makeSlot()];
+    const { container } = render(
+      <SlotList slots={slots} clubName="Demo Bowls Club" allRinksCount={5} />,
+    );
+    expect(container.querySelector("[data-slot='slot-list']")).not.toBeNull();
+    expect(container.querySelector("[data-slot='slot-list-no-rinks']")).toBeNull();
+    expect(container.querySelector("[data-slot='slot-card']")).not.toBeNull();
+  });
+
+  it("genuine fully-booked rendering preserved when allRinksCount > 0 and every slot is full", () => {
+    const slots: BookingSlot[] = [
+      makeSlot({
+        available_rinks: [],
+        bookings_in_slot: [
+          { id: "b-1", rink_label: "Main 1", purpose: "match" },
+        ],
+      }),
+    ];
+    const { container } = render(
+      <SlotList slots={slots} clubName="Demo Bowls Club" allRinksCount={5} />,
+    );
+    // The "no rinks" branch must NOT fire for a fully-booked club.
+    expect(container.querySelector("[data-slot='slot-list-no-rinks']")).toBeNull();
+    // The booked rendering DOES fire (this is the genuine case).
+    expect(
+      container.querySelector("[data-slot='slot-card'][data-fully-booked='true']"),
+    ).not.toBeNull();
   });
 });

@@ -74,7 +74,11 @@ export default async function BookPage({ searchParams }: Props) {
         <DateStrip dates={data.bookingDates} />
       </section>
 
-      <SlotList slots={data.slotsForDate} clubName={data.club_name} />
+      <SlotList
+        slots={data.slotsForDate}
+        clubName={data.club_name}
+        allRinksCount={data.allRinksCount}
+      />
 
       <MyBookings
         rows={myBookings}
