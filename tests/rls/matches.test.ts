@@ -180,11 +180,17 @@ describe("RLS · matches + match_ends", () => {
       .select("id")
       .single();
     const { client } = await signIn(player);
-    return { matchId: m!.id, client, player };
+    return {
+      matchId: m!.id,
+      homeTeamId: home!.id,
+      awayTeamId: away!.id,
+      client,
+      player,
+    };
   }
 
   it("participant CAN UPDATE own match — pending → captain_submitted", async () => {
-    const { matchId: mid, client } = await provisionParticipant();
+    const { matchId: mid, homeTeamId: ht, client } = await provisionParticipant();
     const { error, data } = await client
       .from("matches")
       .update({
@@ -193,12 +199,14 @@ describe("RLS · matches + match_ends", () => {
         status: "in_progress",
         submission_status: "captain_submitted",
         captain_submitted_at: new Date().toISOString(),
+        submitted_by_team_id: ht,
       })
       .eq("id", mid)
-      .select("submission_status, home_shots, away_shots")
+      .select("submission_status, home_shots, away_shots, submitted_by_team_id")
       .single();
     expect(error).toBeNull();
     expect(data?.submission_status).toBe("captain_submitted");
+    expect(data?.submitted_by_team_id).toBe(ht);
     expect(data?.home_shots).toBe(21);
     expect(data?.away_shots).toBe(14);
   });
@@ -272,13 +280,14 @@ describe("RLS · matches + match_ends", () => {
   });
 
   it("participant re-submit preserves captain_submitted_at (audit timestamp frozen)", async () => {
-    const { matchId: mid, client } = await provisionParticipant();
+    const { matchId: mid, homeTeamId: ht, client } = await provisionParticipant();
     const t1 = new Date().toISOString();
     await client
       .from("matches")
       .update({
         submission_status: "captain_submitted",
         captain_submitted_at: t1,
+        submitted_by_team_id: ht,
         status: "in_progress",
         home_shots: 10,
         away_shots: 5,
@@ -313,5 +322,121 @@ describe("RLS · matches + match_ends", () => {
     );
     expect(after?.home_shots).toBe(12);
     expect(after?.away_shots).toBe(7);
+  });
+
+  // ------------------------------------------------------------------
+  // Migration 029 — matches.submitted_by_team_id audit + guard
+  // ------------------------------------------------------------------
+  // Closes Phase 8d Diagnostic 14 (captain self-confirmed because the
+  // post-submit UI couldn't tell the two captains apart). The new
+  // column is the audit signal; trigger guarantees layered defence.
+
+  it("first submission writes submitted_by_team_id to the caller's team", async () => {
+    const { matchId: mid, homeTeamId: ht, client } = await provisionParticipant();
+    const { error } = await client
+      .from("matches")
+      .update({
+        home_shots: 21,
+        away_shots: 14,
+        status: "in_progress",
+        submission_status: "captain_submitted",
+        captain_submitted_at: new Date().toISOString(),
+        submitted_by_team_id: ht,
+      })
+      .eq("id", mid);
+    expect(error).toBeNull();
+    const { data: after } = await admin()
+      .from("matches")
+      .select("submitted_by_team_id")
+      .eq("id", mid)
+      .single();
+    expect(after?.submitted_by_team_id).toBe(ht);
+  });
+
+  it("first submission with submitted_by_team_id null is rejected (DB-pin)", async () => {
+    const { matchId: mid, client } = await provisionParticipant();
+    const { error } = await client
+      .from("matches")
+      .update({
+        home_shots: 21,
+        away_shots: 14,
+        status: "in_progress",
+        submission_status: "captain_submitted",
+        captain_submitted_at: new Date().toISOString(),
+      })
+      .eq("id", mid);
+    expect(error?.message).toMatch(
+      /submitted_by_team_id required on first submission/,
+    );
+  });
+
+  it("participant CANNOT claim opponent's team_id as submitter (trigger raises)", async () => {
+    const { matchId: mid, awayTeamId: at, client } = await provisionParticipant();
+    const { error } = await client
+      .from("matches")
+      .update({
+        home_shots: 21,
+        away_shots: 14,
+        status: "in_progress",
+        submission_status: "captain_submitted",
+        captain_submitted_at: new Date().toISOString(),
+        submitted_by_team_id: at,
+      })
+      .eq("id", mid);
+    expect(error?.message).toMatch(
+      /caller is not a member of submitted_by_team_id/,
+    );
+  });
+
+  it("submitted_by_team_id frozen on re-submit (mirrors captain_submitted_at)", async () => {
+    const { matchId: mid, homeTeamId: ht, awayTeamId: at, client } =
+      await provisionParticipant();
+    await client
+      .from("matches")
+      .update({
+        submission_status: "captain_submitted",
+        captain_submitted_at: new Date().toISOString(),
+        submitted_by_team_id: ht,
+        status: "in_progress",
+        home_shots: 10,
+        away_shots: 5,
+      })
+      .eq("id", mid);
+    // Try to flip submitter on re-submit — trigger silently restores OLD.
+    await client
+      .from("matches")
+      .update({
+        submission_status: "captain_submitted",
+        submitted_by_team_id: at,
+        home_shots: 12,
+        away_shots: 7,
+      })
+      .eq("id", mid);
+    const { data: after } = await admin()
+      .from("matches")
+      .select("submitted_by_team_id, home_shots, away_shots")
+      .eq("id", mid)
+      .single();
+    expect(after?.submitted_by_team_id).toBe(ht);
+    expect(after?.home_shots).toBe(12);
+    expect(after?.away_shots).toBe(7);
+  });
+
+  it("CHECK constraint rejects submitted_by_team_id pointing outside the match", async () => {
+    const a = admin();
+    const { matchId: mid } = await provisionParticipant();
+    // Create a third team on the same tournament that's NOT in this
+    // match. Trigger gate (caller-membership) doesn't fire because we
+    // run as service-role; the CHECK constraint should still raise.
+    const { data: foreign } = await a
+      .from("tournament_teams")
+      .insert({ tournament_id: tournamentId, name: "Foreign" })
+      .select("id")
+      .single();
+    const { error } = await a
+      .from("matches")
+      .update({ submitted_by_team_id: foreign!.id })
+      .eq("id", mid);
+    expect(error?.message).toMatch(/matches_submitter_is_participant/);
   });
 });

@@ -50,6 +50,7 @@ function matchRow(over: Partial<DbMatchRow> = {}): DbMatchRow {
     submission_status: "pending",
     captain_submitted_at: null,
     opponent_confirmed_at: null,
+    submitted_by_team_id: null,
     created_at: "2026-04-29T00:00:00Z",
     updated_at: "2026-04-29T00:00:00Z",
     ...over,

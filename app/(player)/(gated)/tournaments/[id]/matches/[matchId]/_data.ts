@@ -26,6 +26,11 @@ export type ScorecardMatch = {
   /** Timestamps drive "submitted Xm ago" UI labels. */
   captain_submitted_at: string | null;
   opponent_confirmed_at: string | null;
+  /** Migration 029 — which team's captain submitted. Drives the
+   *  passive-vs-active branch on the post-submit scorecard. NULL on
+   *  legacy rows + admin-override paths; UI degrades to passive
+   *  banner on both sides when null. */
+  submitted_by_team_id: string | null;
   home_team_id: string | null;
   away_team_id: string | null;
   home_team_name: string;
@@ -76,7 +81,7 @@ export async function getScorecardMatch(
   const { data, error } = await supabase
     .from("matches")
     .select(
-      "id, match_no, round, status, finalized_by_admin, submission_status, captain_submitted_at, opponent_confirmed_at, home_team_id, away_team_id, home_shots, away_shots, rink:rinks(number, green:greens(name)), home_team:tournament_teams!home_team_id(name, handicap_shots), away_team:tournament_teams!away_team_id(name, handicap_shots), tournament:tournaments(id, name, format, structure, handicap_rule, shots_up_target, ends_per_match, clubs!host_club_id(theme_preset))",
+      "id, match_no, round, status, finalized_by_admin, submission_status, captain_submitted_at, opponent_confirmed_at, submitted_by_team_id, home_team_id, away_team_id, home_shots, away_shots, rink:rinks(number, green:greens(name)), home_team:tournament_teams!home_team_id(name, handicap_shots), away_team:tournament_teams!away_team_id(name, handicap_shots), tournament:tournaments(id, name, format, structure, handicap_rule, shots_up_target, ends_per_match, clubs!host_club_id(theme_preset))",
     )
     .eq("id", matchId)
     .maybeSingle();
@@ -123,6 +128,7 @@ export async function getScorecardMatch(
     submission_status: data.submission_status,
     captain_submitted_at: data.captain_submitted_at,
     opponent_confirmed_at: data.opponent_confirmed_at,
+    submitted_by_team_id: data.submitted_by_team_id,
     home_team_id: data.home_team_id,
     away_team_id: data.away_team_id,
     home_team_name: homeTeam?.name ?? "Home team",

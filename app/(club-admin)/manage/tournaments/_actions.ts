@@ -356,7 +356,7 @@ export async function advanceRound(
   const { data: matches, error: mErr } = await supabase
     .from("matches")
     .select(
-      "id, tournament_id, home_team_id, away_team_id, home_shots, away_shots, home_ends_won, away_ends_won, rink_id, round, bracket_slot, section_label, status, starts_at, ends_at, winner_team_id, notes, match_no, finalized_by_admin, slot_a_source_type, slot_a_source_match_id, slot_b_source_type, slot_b_source_match_id, submission_status, captain_submitted_at, opponent_confirmed_at, created_at, updated_at",
+      "id, tournament_id, home_team_id, away_team_id, home_shots, away_shots, home_ends_won, away_ends_won, rink_id, round, bracket_slot, section_label, status, starts_at, ends_at, winner_team_id, notes, match_no, finalized_by_admin, slot_a_source_type, slot_a_source_match_id, slot_b_source_type, slot_b_source_match_id, submission_status, captain_submitted_at, opponent_confirmed_at, submitted_by_team_id, created_at, updated_at",
     )
     .eq("tournament_id", parsed.data.tournament_id)
     .eq("round", parsed.data.round_no);
@@ -429,7 +429,9 @@ export async function submitMatch(
   const supabase = await createClient();
   const { data: match, error } = await supabase
     .from("matches")
-    .select("id, tournament_id, home_team_id, away_team_id, status, submission_status")
+    .select(
+      "id, tournament_id, home_team_id, away_team_id, status, submission_status, submitted_by_team_id",
+    )
     .eq("id", v.match_id)
     .single();
   if (error || !match) {
@@ -461,6 +463,19 @@ export async function submitMatch(
   }
 
   const isFirstSubmission = match.submission_status === "pending";
+
+  // Migration 029 — on the first submission, seed submitted_by_team_id
+  // with the writing user's team. Lets the post-submit UI branch
+  // passive (caller submitted → "Awaiting opponent confirmation"
+  // banner) vs active (caller is the opponent → "Confirm result"
+  // card). Skipped for admin paths (returns null) — admin submissions
+  // leave the field null, which the trigger allows because the guard
+  // is bypassed for admin roles. On re-submit the trigger silently
+  // restores OLD anyway, so we omit the field entirely.
+  const submittedByTeamId = isFirstSubmission
+    ? await playerTeamForMatch(ctx, match)
+    : null;
+
   const { error: upErr } = await supabase
     .from("matches")
     .update({
@@ -474,6 +489,9 @@ export async function submitMatch(
       // explicit avoids a misleading write that gets discarded.
       ...(isFirstSubmission
         ? { captain_submitted_at: new Date().toISOString() }
+        : {}),
+      ...(isFirstSubmission && submittedByTeamId
+        ? { submitted_by_team_id: submittedByTeamId }
         : {}),
     })
     .eq("id", v.match_id);
@@ -850,6 +868,31 @@ async function isPlayerOnMatchOrAdmin(
     .limit(1);
   if (error) return false;
   return (data ?? []).length > 0;
+}
+
+// Returns the team_id the caller plays for in this match, or null when
+// the caller is admin / not a player on either team. submitMatch uses
+// this to seed `matches.submitted_by_team_id` on the first submission
+// (Migration 029) so the post-submit UI can branch passive-vs-active.
+async function playerTeamForMatch(
+  ctx: AuthContext,
+  match: { home_team_id: string | null; away_team_id: string | null },
+): Promise<string | null> {
+  if (ctx.role !== "player") return null;
+  const teamIds = [match.home_team_id, match.away_team_id].filter(
+    (x): x is string => typeof x === "string",
+  );
+  if (teamIds.length === 0) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("tournament_team_members")
+    .select("team_id")
+    .eq("profile_id", ctx.userId)
+    .in("team_id", teamIds)
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.team_id;
 }
 
 async function tournamentBelongsToAdminClubs(

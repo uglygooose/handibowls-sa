@@ -1043,20 +1043,26 @@ function ReadyToSubmitCard({
   );
 }
 
-// Phase 8d-prep: branch on which side of the handshake the player is on.
+// Phase 8d follow-up — Migration 029 closes the Phase-12-polish gap.
+// Branch on `submitted_by_team_id`:
 //
-// We don't yet have a "submitted_by_team_id" column to track which captain
-// posted, so for 8d-prep we infer: when submission_status is
-// 'captain_submitted', either captain may have submitted. The acting
-// player needs to know whether they're the submitter (passive
-// banner — wait for opponent) or the receiver (action card — confirm
-// or dispute). Heuristic for now: the submitting captain sees the
-// scores as already in the match row, so we render the action card
-// to BOTH sides; the submitter taps Confirm to no-op (or the
-// confirmMatch action rejects with the existing precondition check).
-// A proper "submitted_by_team_id" column is Phase 12 polish — flagged
-// in the action precondition error path.
-function CaptainSubmittedBranch({
+//   • caller's team_id == submitted_by_team_id → AwaitingOpponentConfirm
+//     passive banner. The captain who just submitted shouldn't see a
+//     "Confirm result" button — they'd self-confirm, sliding the
+//     match through the state machine without the opponent ever
+//     touching it. The visible-but-inert state pre-029 caused
+//     Diagnostic 14.
+//
+//   • caller's team_id != submitted_by_team_id → OpponentConfirmationCard
+//     (the active "Confirm" / "Dispute" card).
+//
+//   • submitted_by_team_id == null → legacy fallback. Pre-029 rows
+//     don't carry the audit signal; admin-override paths (verifyMatch
+//     with override scores) also skip it. Render the active card —
+//     same as the pre-029 behaviour, so legacy / dev-seed data still
+//     works. The captain self-confirm bug only re-surfaces for these
+//     legacy rows; new matches submitted post-029 are protected.
+export function CaptainSubmittedBranch({
   match,
   localHomeTotal,
   localAwayTotal,
@@ -1071,6 +1077,17 @@ function CaptainSubmittedBranch({
   onDispute: () => void;
   pending: boolean;
 }) {
+  const callerTeamId = match.player_is_home
+    ? match.home_team_id
+    : match.away_team_id;
+  const callerIsSubmitter =
+    match.submitted_by_team_id != null &&
+    match.submitted_by_team_id === callerTeamId;
+
+  if (callerIsSubmitter) {
+    return <AwaitingOpponentConfirm />;
+  }
+
   return (
     <OpponentConfirmationCard
       yourScore={match.player_is_home ? localHomeTotal : localAwayTotal}
@@ -1081,6 +1098,27 @@ function CaptainSubmittedBranch({
       onDispute={onDispute}
       pending={pending}
     />
+  );
+}
+
+function AwaitingOpponentConfirm() {
+  return (
+    <section
+      data-slot="awaiting-opponent-confirm"
+      className="flex items-center gap-3 rounded-2xl border-2 border-info-500 bg-info-500/8 px-4 py-4 text-info-500"
+    >
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-info-500/15">
+        <Check className="size-5" aria-hidden="true" />
+      </span>
+      <div className="flex flex-col gap-0.5">
+        <strong className="font-display text-[18px] font-black italic uppercase tracking-tight">
+          Score submitted
+        </strong>
+        <p className="text-[13px]">
+          Awaiting opponent confirmation — they&apos;ll confirm or dispute the result.
+        </p>
+      </div>
+    </section>
   );
 }
 
