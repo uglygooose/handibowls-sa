@@ -613,3 +613,43 @@ export async function createAssessmentFromForm(
   // wires through 10-7 results view's `Add second marker` flow.
   return result;
 }
+
+// Phase 10 / 10-7 — placeholder PDF export action.
+//
+// The results view ships a visible Export PDF button (per design
+// source) that's wired to this action. The actual PDF template +
+// renderer is a separate Claude Design follow-up — until that
+// lands, this returns kind='pending' so the UI can surface a
+// "PDF generation pending" toast without throwing.
+//
+// When the template ships:
+//   1. Replace the body with a real renderer call (e.g. @react-pdf
+//      or a server endpoint that streams the PDF).
+//   2. Persist the resulting URL to t20_assessments.pdf_url so
+//      future "Download PDF" clicks short-circuit to the cached
+//      file.
+//   3. Update the result kinds to surface a download URL on success.
+
+export type RequestPdfExportInput = { assessment_id: string };
+export type RequestPdfExportResult =
+  | { kind: "pending"; reason: "template_not_ready" }
+  | { kind: "auth"; error: string }
+  | { kind: "validation"; error: string };
+
+const requestPdfExportSchema = z.object({
+  assessment_id: z.string().uuid(),
+});
+
+export async function requestPdfExport(
+  input: RequestPdfExportInput,
+): Promise<RequestPdfExportResult> {
+  const ctx = await getAuthContext();
+  if (!ctx) return { kind: "auth", error: "Not authenticated" };
+  const parsed = requestPdfExportSchema.safeParse(input);
+  if (!parsed.success) {
+    return { kind: "validation", error: firstZodError(parsed.error) };
+  }
+  // No-op until the PDF template ships. Surface a typed pending so
+  // the UI knows the action was reachable but the work is deferred.
+  return { kind: "pending", reason: "template_not_ready" };
+}
