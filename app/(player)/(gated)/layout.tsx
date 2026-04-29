@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { InstallPromptToast } from "@/components/player/InstallPromptToast";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { getAuthContext } from "@/lib/auth/role";
 
@@ -13,6 +14,13 @@ import { getAuthContext } from "@/lib/auth/role";
 // Reads via getCurrentProfile() which is React.cache()-wrapped so the
 // gate adds zero extra DB hits per render — any nested page (e.g. /me)
 // that calls getCurrentProfile reuses the same row.
+//
+// Phase 8f-2 — InstallPromptToast mounts here so the eligibility
+// state machine survives client-side route changes within the player
+// surface (App Router preserves layouts across navigations). Auth +
+// admin shells deliberately excluded — players are the install
+// target, and the toast is suppressed on the scorecard route so it
+// doesn't cover the scoring UI mid-end.
 export default async function GatedPlayerLayout({
   children,
 }: {
@@ -25,5 +33,10 @@ export default async function GatedPlayerLayout({
       redirect("/me/setup");
     }
   }
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <InstallPromptToast />
+    </>
+  );
 }
