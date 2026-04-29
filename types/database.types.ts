@@ -1439,6 +1439,7 @@ export type Database = {
         Args: { p_matches: Json; p_tournament_id: string }
         Returns: Json
       }
+      cancel_own_booking: { Args: { p_booking_id: string }; Returns: undefined }
       complete_player_profile: {
         Args: {
           p_bsa_number: string

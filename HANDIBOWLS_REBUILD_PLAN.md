@@ -44,7 +44,8 @@
 9. Phase 6 — Tournament engine (port existing primitives)
 10. Phase 7 — Tournament admin UI (desktop-focused)
 11. Phase 8 — Tournament player UI (mobile-focused, offline-first)
-12. Phase 9 — Green/rink booking
+11b. Phase 8e — Player booking (carved out from Phase 9)
+12. Phase 9 — Admin booking surfaces
 13. Phase 10 — T20 assessment module (production rubric)
 14. Phase 11 — Player communication (email only)
 15. Phase 12 — Cross-cutting (stats, history, calendar, optional handicap)
@@ -718,34 +719,60 @@ grep -riE "henselite|choice of champions" app components   # zero hits
 
 ---
 
-## 12. Phase 9 — Green/rink booking
+## 11b. Phase 8e — Player booking (carved out from Phase 9)
 
-**Goal.** Admin configures availability; players book rinks from mobile; double-booking impossible at the DB layer.
+**Goal.** Players book rinks from mobile; double-booking impossible at the DB layer; cancel up to 2h before start.
 
-**Precondition.** Phase 5 complete; greens/rinks exist.
+**Precondition.** Phase 8 complete; greens/rinks exist (Phase 5); bookings + booking_windows tables and RLS exist (migrations 005, 006, 010).
+
+**Migration prerequisite.** `030_bookings_cancel_own_rpc.sql` adds the `cancel_own_booking(uuid)` SECURITY DEFINER RPC for the 2h cancel gate — RLS only covers self-insert today, not self-update. Land migration as its own commit (8e-prep), push to cloud, regen types, then UI work begins (per the two-commit rule codified in Phase 8d follow-up).
+
+**Steps.**
+
+1. **Player `/book`** — mobile-first: date picker (default today); time-slot grid with available rinks per slot (coloured by green); tap → modal with purpose (roll-up / practice / coaching / match / social), party size, optional notes; submit writes `bookings` row; GIST exclusion constraint blocks overlaps. Race-condition UX: 23P01 conflict → toast "That slot was just booked — try another" + `router.refresh()` + close sheet.
+
+2. **"My bookings" on `/book` (compact) + `/me` (full)** — upcoming + history; cancel up to 2h before start via the migration-030 RPC. Shared component, two variants. (Plan-level overlap with the design's PageBook inline section is intentional.)
+
+3. **Tests.** Vitest: action-layer happy + race-condition path; Real-RLS integration (`tests/rls/bookings.test.ts`): self_insert (own booked_by + own club_id only), no_overlap GIST (two clients overlap → second rejected), cancel_own_booking RPC paths (owner >2h, owner <2h, non-owner, wrong-state, cancelled rows release the slot).
+
+**Success criteria.**
+- Zero double-bookings possible at DB (GIST verified end-to-end via integration test).
+- Player books in ≤ 4 taps (tap date · tap slot · pick purpose+party · submit).
+- Cancel surfaces `cancel_own_booking` errors as toasts mapped from typed errcodes + message prefixes (P0002 not_found, 42501 not_owner, 22023 wrong_state / too_close_to_start).
+
+**Stop & report.** Concurrency test log + UI screenshots. Await approval.
+
+**Out of scope (deferred).**
+- Admin `/manage/greens` weekly availability editor — Phase 9.
+- Admin `/manage/overview` Bookings calendar tab — Phase 9.
+- Booking reminders 2h before start — Phase 11 (Resend pipeline).
+- Fair-Rink hints (soft-deprioritisation algorithm) — Phase 12.5.
+- `bookings.updated_at` column — YAGNI for player flow.
+
+---
+
+## 12. Phase 9 — Admin booking surfaces
+
+**Goal.** Admin configures availability; admin oversees + overrides bookings.
+
+**Precondition.** Phase 8e complete (player flow shipping into a populated bookings table); admin shell from Phase 7.
 
 **Steps.**
 
 1. **Admin `/manage/greens`** — grid per green + weekly availability editor (`booking_windows`); rink-disable toggle (e.g. maintenance).
 
-2. **Player `/book`** — mobile-first: date picker (default today); time-slot grid with available rinks per slot (coloured by green); tap → modal with purpose (roll-up / practice / coaching / match / social), party size, optional notes; submit writes `bookings` row; GIST exclusion constraint blocks overlaps.
+2. **Admin "Bookings" calendar tab** on `/manage/overview` — weekly grid + override (force-book / cancel) with audit entry. May require a separate `admin_force_cancel_booking(uuid, reason text)` RPC to write an audit row alongside the cancel; defer the audit-table decision to this phase's design step.
 
-3. **"My bookings" on `/me`** — upcoming + history; cancel up to 2h before start.
+3. **Reminders.** Notification 2h before start (Phase 11 pipeline). Wired into the admin tab as opt-in per club setting.
 
-4. **Admin "Bookings" calendar tab** on `/manage/overview` — weekly grid + override (force-book / cancel) with audit entry.
-
-5. **Reminders.** Notification 2h before start (Phase 11 pipeline).
-
-6. **Fair-Rink hints.** Booking UI soft-deprioritises rinks most-allocated in tournaments this season.
-
-7. **Tests.** Integration: two players target the same rink + slot → second booking rejected cleanly.
+4. **Fair-Rink hints.** Booking UI soft-deprioritises rinks most-allocated in tournaments this season. Surfaces on the player /book slot grid as muted-vs-emphasised rink chips, but the algorithm + admin tunable lives here.
 
 **Success criteria.**
-- Zero double-bookings possible at DB (GIST verified).
-- Player books in ≤ 4 taps.
 - Admin override creates an audit record.
+- Fair-Rink hints visible on /book slot grid.
+- Reminder dispatch runs from a scheduled job (Supabase Edge Function or cron-like) and emits exactly one notification per booking.
 
-**Stop & report.** Concurrency test log + UI screenshots. Await approval.
+**Stop & report.** Override audit log sample + reminder dispatch logs.
 
 ---
 
