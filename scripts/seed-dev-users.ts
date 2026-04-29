@@ -133,6 +133,8 @@ async function run() {
   if (!club) throw new Error(`Club not found: ${DEMO_CLUB_SLUG}`);
   const demoClubId = club.id;
 
+  await ensureGreensAndRinks(admin, demoClubId);
+
   for (const user of USERS) {
     const id = await ensureAuthUser(user);
 
@@ -176,6 +178,55 @@ async function run() {
   }
 
   console.log(`\nAll three users share the password: ${DEV_PASSWORD}`);
+}
+
+// Demo Bowls Club booking topology — 2 greens × 5 rinks total. Names
+// chosen to mirror the design source's bookingSlots example data
+// (handibowls/project/player-data.js:106-114), not from a design spec
+// naming the club's canonical topology — flagging here so a future
+// rename against actual club records doesn't surprise anyone.
+//
+// Idempotent via the unique constraints (greens.club_id+name,
+// rinks.green_id+number). Re-running upserts; no orphans, no dupes.
+async function ensureGreensAndRinks(
+  admin: ReturnType<typeof createClient<Database>>,
+  clubId: string,
+) {
+  const greens: Array<{ name: string; rink_count: number; rinks: number[] }> = [
+    { name: "Main", rink_count: 3, rinks: [1, 2, 3] },
+    { name: "South", rink_count: 2, rinks: [1, 2] },
+  ];
+
+  for (const green of greens) {
+    const { data: greenRow, error: greenErr } = await admin
+      .from("greens")
+      .upsert(
+        {
+          club_id: clubId,
+          name: green.name,
+          rink_count: green.rink_count,
+          active: true,
+        },
+        { onConflict: "club_id,name" },
+      )
+      .select("id")
+      .single();
+    if (greenErr) throw greenErr;
+
+    const rinkRows = green.rinks.map((number) => ({
+      green_id: greenRow.id,
+      number,
+      active: true,
+    }));
+    const { error: rinkErr } = await admin
+      .from("rinks")
+      .upsert(rinkRows, { onConflict: "green_id,number" });
+    if (rinkErr) throw rinkErr;
+
+    console.log(
+      `seeded green ${green.name} (${green.rinks.length} rink${green.rinks.length === 1 ? "" : "s"})`,
+    );
+  }
 }
 
 run().catch((err) => {
