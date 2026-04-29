@@ -336,4 +336,225 @@ describe("RLS · bookings", () => {
     expect(error?.code).toBe("P0002");
     expect(error?.message).toMatch(/not_found/);
   });
+
+  // ------------------------------------------------------------------
+  // Phase 9-2 — admin_force_cancel_booking RPC paths (migration 031)
+  // ------------------------------------------------------------------
+  // Mirrors the action layer's AdminForceCancelResult contract. Each
+  // case targets one error / success path so the SQLSTATE +
+  // message-prefix routing stays honest end-to-end. Reuses the
+  // 8e-3 fresh-rink seed pattern (see seedOwnBooking) to avoid GIST
+  // collisions between cases that share the same offset window.
+
+  async function seedAdminBooking(opts: {
+    clubId: string;
+    bookerId?: string;
+    startsInMs: number;
+    endsInMs: number;
+    status?: "booked" | "cancelled";
+  }): Promise<string> {
+    const a = admin();
+    const greenName = `9-2-${randomBookingTag()}`;
+    const { data: green, error: greenErr } = await a
+      .from("greens")
+      .insert({ club_id: opts.clubId, name: greenName, rink_count: 1 })
+      .select("id")
+      .single();
+    if (greenErr || !green) {
+      throw new Error(`seedAdminBooking: green ${greenErr?.message}`);
+    }
+    const { data: rink, error: rinkErr } = await a
+      .from("rinks")
+      .insert({ green_id: green.id, number: 1, active: true })
+      .select("id")
+      .single();
+    if (rinkErr || !rink) {
+      throw new Error(`seedAdminBooking: rink ${rinkErr?.message}`);
+    }
+    const { data, error } = await a
+      .from("bookings")
+      .insert({
+        rink_id: rink.id,
+        club_id: opts.clubId,
+        booked_by: opts.bookerId ?? null,
+        purpose: "practice",
+        status: opts.status ?? "booked",
+        starts_at: new Date(Date.now() + opts.startsInMs).toISOString(),
+        ends_at: new Date(Date.now() + opts.endsInMs).toISOString(),
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`seedAdminBooking: ${error?.message}`);
+    return data.id;
+  }
+
+  it("9-2 · admin_force_cancel_booking: club_admin CAN cancel own-club booking (success + audit_log row)", async () => {
+    const adminUser = await createTestUser({
+      role: "club_admin",
+      clubIds: [clubA],
+    });
+    const player = await createTestUser({ role: "player", clubIds: [clubA] });
+    users.push(adminUser.id, player.id);
+    const FOUR_HOURS = 4 * 60 * 60 * 1000;
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    const id = await seedAdminBooking({
+      clubId: clubA,
+      bookerId: player.id,
+      startsInMs: FOUR_HOURS,
+      endsInMs: SIX_HOURS,
+    });
+    const { client } = await signIn(adminUser);
+    const { error } = await client.rpc("admin_force_cancel_booking", {
+      p_booking_id: id,
+      p_reason: "Member requested via secretary",
+    });
+    expect(error).toBeNull();
+    const after = await admin()
+      .from("bookings")
+      .select("status")
+      .eq("id", id)
+      .single();
+    expect(after.data?.status).toBe("cancelled");
+    // audit_log row landed atomically.
+    const audit = await admin()
+      .from("audit_log")
+      .select("table_name, action, reason, performed_by")
+      .eq("row_id", id)
+      .single();
+    expect(audit.data?.table_name).toBe("bookings");
+    expect(audit.data?.action).toBe("force_cancel_booking");
+    expect(audit.data?.reason).toBe("Member requested via secretary");
+    expect(audit.data?.performed_by).toBe(adminUser.id);
+  });
+
+  it("9-2 · admin_force_cancel_booking: club_admin from a DIFFERENT club gets wrong_club", async () => {
+    const otherAdmin = await createTestUser({
+      role: "club_admin",
+      clubIds: [clubB],
+    });
+    const player = await createTestUser({ role: "player", clubIds: [clubA] });
+    users.push(otherAdmin.id, player.id);
+    const FOUR_HOURS = 4 * 60 * 60 * 1000;
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    const id = await seedAdminBooking({
+      clubId: clubA,
+      bookerId: player.id,
+      startsInMs: FOUR_HOURS,
+      endsInMs: SIX_HOURS,
+    });
+    const { client } = await signIn(otherAdmin);
+    const { error } = await client.rpc("admin_force_cancel_booking", {
+      p_booking_id: id,
+      p_reason: "test",
+    });
+    expect(error?.code).toBe("42501");
+    expect(error?.message).toMatch(/wrong_club/);
+  });
+
+  it("9-2 · admin_force_cancel_booking: cancelling an already-cancelled booking returns wrong_state", async () => {
+    const adminUser = await createTestUser({
+      role: "club_admin",
+      clubIds: [clubA],
+    });
+    users.push(adminUser.id);
+    const FOUR_HOURS = 4 * 60 * 60 * 1000;
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    const id = await seedAdminBooking({
+      clubId: clubA,
+      startsInMs: FOUR_HOURS,
+      endsInMs: SIX_HOURS,
+      status: "cancelled",
+    });
+    const { client } = await signIn(adminUser);
+    const { error } = await client.rpc("admin_force_cancel_booking", {
+      p_booking_id: id,
+      p_reason: "test",
+    });
+    expect(error?.code).toBe("22023");
+    expect(error?.message).toMatch(/wrong_state/);
+  });
+
+  it("9-2 · admin_force_cancel_booking: non-existent booking_id returns not_found", async () => {
+    const adminUser = await createTestUser({
+      role: "club_admin",
+      clubIds: [clubA],
+    });
+    users.push(adminUser.id);
+    const { client } = await signIn(adminUser);
+    const { error } = await client.rpc("admin_force_cancel_booking", {
+      p_booking_id: "00000000-0000-0000-0000-000000000000",
+      p_reason: "test",
+    });
+    expect(error?.code).toBe("P0002");
+    expect(error?.message).toMatch(/not_found/);
+  });
+
+  it("9-2 · admin_force_cancel_booking: empty reason raises reason_required", async () => {
+    const adminUser = await createTestUser({
+      role: "club_admin",
+      clubIds: [clubA],
+    });
+    users.push(adminUser.id);
+    const FOUR_HOURS = 4 * 60 * 60 * 1000;
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    const id = await seedAdminBooking({
+      clubId: clubA,
+      startsInMs: FOUR_HOURS,
+      endsInMs: SIX_HOURS,
+    });
+    const { client } = await signIn(adminUser);
+    const { error } = await client.rpc("admin_force_cancel_booking", {
+      p_booking_id: id,
+      p_reason: "   ", // whitespace-only — RPC trims and rejects
+    });
+    expect(error?.code).toBe("22004");
+    expect(error?.message).toMatch(/reason_required/);
+  });
+
+  it("9-2 · admin_force_cancel_booking: player role gets insufficient_role", async () => {
+    const player = await createTestUser({ role: "player", clubIds: [clubA] });
+    users.push(player.id);
+    const FOUR_HOURS = 4 * 60 * 60 * 1000;
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    const id = await seedAdminBooking({
+      clubId: clubA,
+      bookerId: player.id,
+      startsInMs: FOUR_HOURS,
+      endsInMs: SIX_HOURS,
+    });
+    const { client } = await signIn(player);
+    const { error } = await client.rpc("admin_force_cancel_booking", {
+      p_booking_id: id,
+      p_reason: "test",
+    });
+    expect(error?.code).toBe("42501");
+    expect(error?.message).toMatch(/insufficient_role/);
+  });
+
+  it("9-2 · admin_force_cancel_booking: super_admin can cancel ANY club's booking", async () => {
+    const superAdmin = await createTestUser({
+      role: "super_admin",
+      clubIds: [],
+    });
+    users.push(superAdmin.id);
+    const FOUR_HOURS = 4 * 60 * 60 * 1000;
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    const id = await seedAdminBooking({
+      clubId: clubB, // booking lives at clubB; super_admin has no club_ids
+      startsInMs: FOUR_HOURS,
+      endsInMs: SIX_HOURS,
+    });
+    const { client } = await signIn(superAdmin);
+    const { error } = await client.rpc("admin_force_cancel_booking", {
+      p_booking_id: id,
+      p_reason: "Platform override",
+    });
+    expect(error).toBeNull();
+    const after = await admin()
+      .from("bookings")
+      .select("status")
+      .eq("id", id)
+      .single();
+    expect(after.data?.status).toBe("cancelled");
+  });
 });
