@@ -4,9 +4,11 @@ import { redirect } from "next/navigation";
 
 import { Bowl } from "@/components/brand/Bowl";
 import { SpeckleField } from "@/components/brand/SpeckleField";
+import { MyBookings } from "@/components/player/MyBookings";
 import { getCurrentMemberships } from "@/lib/auth/memberships";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { getAuthContext } from "@/lib/auth/role";
+import { getMyBookingsForCurrentPlayer } from "@/lib/bookings/my-bookings";
 import { formatRelativeZA } from "@/lib/format/relative";
 
 import { getInboxPreview, getPlayerStats } from "./_data";
@@ -28,11 +30,12 @@ export default async function MePage() {
   const ctx = await getAuthContext();
   if (!ctx) redirect("/login");
 
-  const [profile, memberships, stats, inbox] = await Promise.all([
+  const [profile, memberships, stats, inbox, myBookings] = await Promise.all([
     getCurrentProfile(),
     getCurrentMemberships(),
     getPlayerStats(),
     getInboxPreview(3),
+    getMyBookingsForCurrentPlayer("full"),
   ]);
 
   const fullName = displayName(
@@ -170,6 +173,13 @@ export default async function MePage() {
             ))}
           </ul>
         )}
+
+        {/* My bookings — Phase 8e-3, full variant on /me */}
+        <MyBookings
+          rows={myBookings}
+          variant="full"
+          heading="My bookings"
+        />
 
         {/* Your clubs */}
         <SectionHead title="Your clubs" />

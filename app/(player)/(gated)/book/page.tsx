@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
 
+import { MyBookings } from "@/components/player/MyBookings";
+import { getMyBookingsForCurrentPlayer } from "@/lib/bookings/my-bookings";
+
 import { getBookingDataForCurrentPlayer } from "./_data";
 import { parseDateParam } from "./slots";
 import { DateStrip } from "./_components/DateStrip";
@@ -37,7 +40,10 @@ export default async function BookPage({ searchParams }: Props) {
     redirect(`/book?d=${selectedDate}`);
   }
 
-  const data = await getBookingDataForCurrentPlayer(selectedDate);
+  const [data, myBookings] = await Promise.all([
+    getBookingDataForCurrentPlayer(selectedDate),
+    getMyBookingsForCurrentPlayer("compact"),
+  ]);
 
   if (!data) {
     return (
@@ -70,9 +76,11 @@ export default async function BookPage({ searchParams }: Props) {
 
       <SlotList slots={data.slotsForDate} clubName={data.club_name} />
 
-      {/* MyBookings inline section ships in 8e-3 — placeholder kept
-          out of the markup so the page doesn't render a half-built
-          surface. */}
+      <MyBookings
+        rows={myBookings}
+        variant="compact"
+        heading="Your bookings"
+      />
     </main>
   );
 }

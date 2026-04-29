@@ -184,4 +184,129 @@ describe("RLS · bookings", () => {
     });
     expect(rebookErr).toBeNull();
   });
+
+  // ------------------------------------------------------------------
+  // Phase 8e-3 — cancel_own_booking RPC paths (migration 030)
+  // ------------------------------------------------------------------
+  // Mirrors the action layer's CancelBookingResult contract. Each
+  // case targets exactly one error / success path so the SQLSTATE +
+  // message-prefix routing stays honest end-to-end.
+
+  async function seedOwnBooking(opts: {
+    user: { id: string; email: string };
+    startsInMs: number;
+    endsInMs: number;
+  }): Promise<string> {
+    const a = admin();
+    const { data, error } = await a
+      .from("bookings")
+      .insert({
+        rink_id: rinkA,
+        club_id: clubA,
+        booked_by: opts.user.id,
+        purpose: "practice",
+        starts_at: new Date(Date.now() + opts.startsInMs).toISOString(),
+        ends_at: new Date(Date.now() + opts.endsInMs).toISOString(),
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`seedOwnBooking: ${error?.message}`);
+    return data.id;
+  }
+
+  it("8e-3 · cancel_own_booking RPC: owner CAN cancel >2h before start (success)", async () => {
+    const player = await createTestUser({ role: "player", clubIds: [clubA] });
+    users.push(player.id);
+    const FIVE_HOURS = 5 * 60 * 60 * 1000;
+    const SEVEN_HOURS = 7 * 60 * 60 * 1000;
+    const id = await seedOwnBooking({
+      user: player,
+      startsInMs: FIVE_HOURS,
+      endsInMs: SEVEN_HOURS,
+    });
+    const { client } = await signIn(player);
+    const { error } = await client.rpc("cancel_own_booking", {
+      p_booking_id: id,
+    });
+    expect(error).toBeNull();
+    const { data: after } = await admin()
+      .from("bookings")
+      .select("status")
+      .eq("id", id)
+      .single();
+    expect(after?.status).toBe("cancelled");
+  });
+
+  it("8e-3 · cancel_own_booking RPC: owner CANNOT cancel <2h before start (too_close_to_start)", async () => {
+    const player = await createTestUser({ role: "player", clubIds: [clubA] });
+    users.push(player.id);
+    const ONE_HOUR = 60 * 60 * 1000;
+    const THREE_HOURS = 3 * 60 * 60 * 1000;
+    const id = await seedOwnBooking({
+      user: player,
+      startsInMs: ONE_HOUR,
+      endsInMs: THREE_HOURS,
+    });
+    const { client } = await signIn(player);
+    const { error } = await client.rpc("cancel_own_booking", {
+      p_booking_id: id,
+    });
+    expect(error).not.toBeNull();
+    expect(error?.code).toBe("22023");
+    expect(error?.message).toMatch(/too_close_to_start/);
+  });
+
+  it("8e-3 · cancel_own_booking RPC: non-owner CANNOT cancel another user's booking (not_owner)", async () => {
+    const owner = await createTestUser({ role: "player", clubIds: [clubA] });
+    const intruder = await createTestUser({ role: "player", clubIds: [clubA] });
+    users.push(owner.id, intruder.id);
+    const FIVE_HOURS = 5 * 60 * 60 * 1000;
+    const SEVEN_HOURS = 7 * 60 * 60 * 1000;
+    const id = await seedOwnBooking({
+      user: owner,
+      startsInMs: FIVE_HOURS,
+      endsInMs: SEVEN_HOURS,
+    });
+    const { client } = await signIn(intruder);
+    const { error } = await client.rpc("cancel_own_booking", {
+      p_booking_id: id,
+    });
+    expect(error?.code).toBe("42501");
+    expect(error?.message).toMatch(/not_owner/);
+  });
+
+  it("8e-3 · cancel_own_booking RPC: cancelling an already-cancelled booking returns wrong_state", async () => {
+    const player = await createTestUser({ role: "player", clubIds: [clubA] });
+    users.push(player.id);
+    const FIVE_HOURS = 5 * 60 * 60 * 1000;
+    const SEVEN_HOURS = 7 * 60 * 60 * 1000;
+    const id = await seedOwnBooking({
+      user: player,
+      startsInMs: FIVE_HOURS,
+      endsInMs: SEVEN_HOURS,
+    });
+    // First cancel succeeds.
+    await admin()
+      .from("bookings")
+      .update({ status: "cancelled" })
+      .eq("id", id);
+    // Second attempt by the owner via RPC raises wrong_state.
+    const { client } = await signIn(player);
+    const { error } = await client.rpc("cancel_own_booking", {
+      p_booking_id: id,
+    });
+    expect(error?.code).toBe("22023");
+    expect(error?.message).toMatch(/wrong_state/);
+  });
+
+  it("8e-3 · cancel_own_booking RPC: non-existent booking_id returns not_found", async () => {
+    const player = await createTestUser({ role: "player", clubIds: [clubA] });
+    users.push(player.id);
+    const { client } = await signIn(player);
+    const { error } = await client.rpc("cancel_own_booking", {
+      p_booking_id: "00000000-0000-0000-0000-000000000000",
+    });
+    expect(error?.code).toBe("P0002");
+    expect(error?.message).toMatch(/not_found/);
+  });
 });

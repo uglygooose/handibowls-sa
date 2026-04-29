@@ -185,3 +185,82 @@ export async function createBooking(
 
   return { kind: "ok", booking_id: inserted.id };
 }
+
+// -------------------- cancelBooking --------------------
+//
+// Phase 8e-3 — wraps the migration-030 cancel_own_booking RPC.
+//
+// The RPC raises typed errors (errcode + message prefix
+// `cancel_own_booking: <slug>`); the action maps them to the
+// CancelBookingResult union so the MyBookings component can show
+// the right toast for each failure mode without parsing strings at
+// the call site. Mirror of the createBooking error-routing pattern.
+
+const cancelBookingSchema = z.object({
+  booking_id: z.string().uuid(),
+});
+
+export type CancelBookingInput = z.input<typeof cancelBookingSchema>;
+
+export type CancelBookingResult =
+  | { kind: "ok" }
+  | { kind: "not_found" }
+  | { kind: "not_owner" }
+  | { kind: "wrong_state" }
+  | { kind: "too_close_to_start" }
+  | { kind: "validation"; error: string }
+  | { kind: "auth"; error: string }
+  | { kind: "error"; error: string };
+
+const RPC_SQLSTATE_INSUFFICIENT_PRIVILEGE = "42501";
+const RPC_SQLSTATE_NOT_FOUND = "P0002";
+const RPC_SQLSTATE_INVALID_PARAMETER = "22023";
+
+export async function cancelBooking(
+  input: CancelBookingInput,
+): Promise<CancelBookingResult> {
+  const ctx = await getAuthContext();
+  if (!ctx) {
+    return { kind: "auth", error: "Not authenticated" };
+  }
+
+  const parsed = cancelBookingSchema.safeParse(input);
+  if (!parsed.success) {
+    return { kind: "validation", error: "Invalid booking id" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_own_booking", {
+    p_booking_id: parsed.data.booking_id,
+  });
+
+  if (error) {
+    // Errcode + message prefix together — errcode picks the family,
+    // prefix disambiguates within it. wrong_state and
+    // too_close_to_start share 22023; the slug splits them.
+    const msg = error.message ?? "";
+    if (error.code === RPC_SQLSTATE_NOT_FOUND) {
+      return { kind: "not_found" };
+    }
+    if (error.code === RPC_SQLSTATE_INSUFFICIENT_PRIVILEGE) {
+      if (msg.includes("not_owner")) return { kind: "not_owner" };
+      // Fallback for the not_authenticated case (RPC checks
+      // auth.uid() before hitting the booking row); shouldn't fire
+      // in practice because the action's own ctx-null guard runs
+      // first, but defensive.
+      return { kind: "auth", error: "Not authenticated" };
+    }
+    if (error.code === RPC_SQLSTATE_INVALID_PARAMETER) {
+      if (msg.includes("too_close_to_start")) {
+        return { kind: "too_close_to_start" };
+      }
+      if (msg.includes("wrong_state")) {
+        return { kind: "wrong_state" };
+      }
+    }
+    return { kind: "error", error: msg || "Cancel failed" };
+  }
+
+  revalidateBookingSurfaces();
+  return { kind: "ok" };
+}

@@ -14,6 +14,7 @@ import {
   buildSlotShells,
   dateIsClosed,
   purposeLabel,
+  formatWhenLabel,
 } from "@/app/(player)/(gated)/book/slots";
 
 describe("todayIsoSAST", () => {
@@ -174,5 +175,46 @@ describe("purposeLabel", () => {
     expect(purposeLabel("coaching")).toBe("Coaching");
     expect(purposeLabel("match")).toBe("Match");
     expect(purposeLabel("social")).toBe("Social");
+  });
+});
+
+describe("formatWhenLabel", () => {
+  // Anchor `now` at 2026-04-29 10:00 SAST (08:00 UTC).
+  const now = new Date("2026-04-29T08:00:00.000Z");
+
+  it("emits 'Today · HH:MM – HH:MM' when starts_at is today (SAST)", () => {
+    const start = "2026-04-29T12:00:00.000Z"; // 14:00 SAST
+    const end = "2026-04-29T14:00:00.000Z"; // 16:00 SAST
+    expect(formatWhenLabel(start, end, now)).toBe("Today · 14:00 – 16:00");
+  });
+
+  it("emits 'Tomorrow · HH:MM – HH:MM' when starts_at is the next SAST day", () => {
+    const start = "2026-04-30T07:00:00.000Z"; // 09:00 SAST
+    const end = "2026-04-30T09:00:00.000Z"; // 11:00 SAST
+    expect(formatWhenLabel(start, end, now)).toBe("Tomorrow · 09:00 – 11:00");
+  });
+
+  it("emits 'DOW DD MMM · HH:MM – HH:MM' for any other day", () => {
+    const start = "2026-05-02T07:00:00.000Z"; // Sat 09:00 SAST
+    const end = "2026-05-02T09:00:00.000Z"; // 11:00 SAST
+    expect(formatWhenLabel(start, end, now)).toBe(
+      "Sat 02 May · 09:00 – 11:00",
+    );
+  });
+
+  it("zero-pads the day-of-month for single-digit days", () => {
+    const start = "2026-05-04T07:00:00.000Z"; // Mon 09:00 SAST
+    const end = "2026-05-04T09:00:00.000Z"; // 11:00 SAST
+    expect(formatWhenLabel(start, end, now)).toBe(
+      "Mon 04 May · 09:00 – 11:00",
+    );
+  });
+
+  it("handles past bookings — same shape, no relative-time tweak", () => {
+    const start = "2026-04-20T14:00:00.000Z"; // Mon 16:00 SAST (past)
+    const end = "2026-04-20T16:00:00.000Z"; // 18:00 SAST
+    expect(formatWhenLabel(start, end, now)).toBe(
+      "Mon 20 Apr · 16:00 – 18:00",
+    );
   });
 });

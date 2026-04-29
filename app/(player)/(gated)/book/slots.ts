@@ -1,5 +1,7 @@
 import type { Database } from "@/types/database.types";
 
+type DbBookingStatus = Database["public"]["Enums"]["booking_status"];
+
 // Phase 8e — pure helpers + types for the booking surface.
 //
 // Lives outside `_data.ts` because Client Components (SlotList,
@@ -72,6 +74,27 @@ export type BookingPageData = {
   club_name: string;
   bookingDates: BookingDate[];
   slotsForDate: BookingSlot[];
+};
+
+export type MyBookingRow = {
+  id: string;
+  starts_at: string;
+  ends_at: string;
+  /** "Today · 14:00 – 16:00" / "Tomorrow · 09:00 – 11:00" /
+   *  "Sat 02 May · 14:00 – 16:00" — derived from starts_at + ends_at
+   *  via formatWhenLabel below. */
+  when_label: string;
+  rink_label: string;
+  purpose: Database["public"]["Enums"]["booking_purpose"];
+  party_size: number | null;
+  /** Booking is in 'booked' state AND starts_at > now() + 2h.
+   *  Mirrors the cancel_own_booking RPC's gate so the UI hides the
+   *  cancel button when the action would reject. */
+  cancellable: boolean;
+  /** ends_at < now OR status != 'booked'. Drives the "past" visual
+   *  style on MyBookings rows. */
+  is_past: boolean;
+  status: DbBookingStatus;
 };
 
 export const SAST_OFFSET = "+02:00";
@@ -208,6 +231,60 @@ export function dateIsClosed(
     }
   }
   return false;
+}
+
+/** Builds the "when" label for a MyBookings row from a booking's
+ *  starts_at + ends_at. SAST anchored. Matches design seed strings:
+ *  "Today · 14:00 – 16:00", "Tomorrow · 09:00 – 11:00",
+ *  "Sat 02 May · 14:00 – 16:00".
+ *
+ *  Past bookings get the same date label (no "Yesterday" / "X days
+ *  ago" — the row is dimmed visually, not relative-timed). */
+export function formatWhenLabel(
+  starts_at: string,
+  ends_at: string,
+  now: Date = new Date(),
+): string {
+  const todayIso = todayIsoSAST(now);
+  const tomorrow = new Date(`${todayIso}T00:00:00${SAST_OFFSET}`);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const tomorrowIso = isoDateInSAST(tomorrow);
+
+  const start = new Date(starts_at);
+  const startIso = isoDateInSAST(start);
+  const startTime = formatTime(start);
+  const endTime = formatTime(new Date(ends_at));
+
+  let dayLabel: string;
+  if (startIso === todayIso) dayLabel = "Today";
+  else if (startIso === tomorrowIso) dayLabel = "Tomorrow";
+  else {
+    const dow = new Intl.DateTimeFormat("en-US", {
+      timeZone: SAST_TZ,
+      weekday: "short",
+    }).format(start);
+    const day = new Intl.DateTimeFormat("en-CA", {
+      timeZone: SAST_TZ,
+      day: "numeric",
+    }).format(start);
+    const month = new Intl.DateTimeFormat("en-US", {
+      timeZone: SAST_TZ,
+      month: "short",
+    }).format(start);
+    const dd = day.padStart(2, "0");
+    dayLabel = `${dow} ${dd} ${month}`;
+  }
+
+  return `${dayLabel} · ${startTime} – ${endTime}`;
+}
+
+function formatTime(d: Date): string {
+  return new Intl.DateTimeFormat("en-ZA", {
+    timeZone: SAST_TZ,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
 }
 
 /** Returns true when `a` and `b` (both `[start, end)` ranges) overlap. */
