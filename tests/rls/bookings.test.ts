@@ -192,16 +192,40 @@ describe("RLS · bookings", () => {
   // case targets exactly one error / success path so the SQLSTATE +
   // message-prefix routing stays honest end-to-end.
 
+  // Each 8e-3 cancel_own_booking case needs a booking with a specific
+  // window (e.g. <2h before now to trigger too_close_to_start). Multiple
+  // tests using the same offsets on the same rink hit GIST exclusion
+  // when an earlier test left a row in 'booked' (e.g. the non-owner
+  // test fails its RPC — the seed booking stays alive). Allocate a
+  // fresh dedicated rink per call so per-test windows can never
+  // collide with each other or with earlier suites' rinkA writes.
   async function seedOwnBooking(opts: {
     user: { id: string; email: string };
     startsInMs: number;
     endsInMs: number;
   }): Promise<string> {
     const a = admin();
+    const greenName = `8e3-${randomBookingTag()}`;
+    const { data: green, error: greenErr } = await a
+      .from("greens")
+      .insert({ club_id: clubA, name: greenName, rink_count: 1 })
+      .select("id")
+      .single();
+    if (greenErr || !green) {
+      throw new Error(`seedOwnBooking: green insert ${greenErr?.message}`);
+    }
+    const { data: rink, error: rinkErr } = await a
+      .from("rinks")
+      .insert({ green_id: green.id, number: 1, active: true })
+      .select("id")
+      .single();
+    if (rinkErr || !rink) {
+      throw new Error(`seedOwnBooking: rink insert ${rinkErr?.message}`);
+    }
     const { data, error } = await a
       .from("bookings")
       .insert({
-        rink_id: rinkA,
+        rink_id: rink.id,
         club_id: clubA,
         booked_by: opts.user.id,
         purpose: "practice",
@@ -212,6 +236,9 @@ describe("RLS · bookings", () => {
       .single();
     if (error || !data) throw new Error(`seedOwnBooking: ${error?.message}`);
     return data.id;
+  }
+  function randomBookingTag(): string {
+    return `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
   }
 
   it("8e-3 · cancel_own_booking RPC: owner CAN cancel >2h before start (success)", async () => {
