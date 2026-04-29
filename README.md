@@ -6,7 +6,16 @@ HandiBowls is a Bowls South Africa–native platform for running club, district,
 
 ## Status
 
-**Rebuild in progress.** This repository is being rebuilt from a fresh Supabase project, fresh routing, a fresh design system, and a three-role architecture. See [`HANDIBOWLS_REBUILD_PLAN.md`](HANDIBOWLS_REBUILD_PLAN.md) for the phase-gated plan. Current phase: **0 — teardown & fresh setup**.
+**Rebuild in progress — Phase 10 closed (2026-04-29), awaiting manual QA.** This repository is being rebuilt from a fresh Supabase project, fresh routing, a fresh design system, and a three-role architecture. See [`HANDIBOWLS_REBUILD_PLAN.md`](HANDIBOWLS_REBUILD_PLAN.md) for the phase-gated plan and [`PHASE_LOG.md`](PHASE_LOG.md) for the canonical progress tracker.
+
+Phases shipped to date:
+
+- **Phase 0–4** — teardown · design system · auth shells · schema · demo club CRUD
+- **Phase 5–7** — player onboarding · tournament engine · admin tournament UI
+- **Phase 8–9** — player tournament + booking surfaces · admin booking + audit log
+- **Phase 10** — Twenty 20 assessment module (production rubric)
+
+Pending: comms via Resend (Phase 11) · stakeholder polish (Phase 12) · technical polish (Phase 13). Open drift items tracked in [`DRIFT_LOG.md`](DRIFT_LOG.md).
 
 Preserved from the previous iteration: tournament primitives (`lib/tournaments/`). Everything else is being rebuilt.
 
@@ -23,7 +32,7 @@ Preserved from the previous iteration: tournament primitives (`lib/tournaments/`
 - Supabase (Postgres + Auth + Storage + Edge Functions + Realtime)
 - Vitest, ESLint 9
 
-Additions land phase by phase: TanStack Query/Table, React Hook Form + Zod, Dexie (offline scoring), Serwist (PWA), Resend (email), React PDF.
+Shipped through Phase 10: TanStack Query/Table (Phase 4d/7), React Hook Form + Zod (Phase 5b), Dexie outbox (Phase 8c), Serwist PWA (Phase 8d–8f), React PDF for tournament exports (Phase 7). Pending: Resend (email, Phase 11) and the Twenty 20 PDF template (Phase 10 follow-up).
 
 ## Getting started
 

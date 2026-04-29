@@ -265,7 +265,7 @@ at the moment a phase closed, derived from
 
 ## Phase 8 — Tournament player UI (mobile-first, offline-first) — closed 2026-04-29
 
-- **Branch tip:** `<tip>` (`rebuild/phase-8-player-surfaces`, cut from
+- **Branch tip:** `4c42ca7` (`rebuild/phase-8-player-surfaces`, cut from
   `37afd03`). Phase 8 carved into eight sub-checkpoints (8-prep, 8a–8g)
   driven incrementally as user-greenlit chunks; sub-phases not pre-named
   in the rebuild plan.
@@ -307,7 +307,7 @@ at the moment a phase closed, derived from
 
 ## Phase 9 — Admin booking surfaces — closed 2026-04-29
 
-- **Branch tip:** `<tip>` (`rebuild/phase-9-admin-booking`, cut from
+- **Branch tip:** `b41e814` (`rebuild/phase-9-admin-booking`, cut from
   `4c42ca7` Phase 8 close). Phase 9 carved into four sub-checkpoints
   driven incrementally — 9-prep / 9-1 / 9-2 / 9-3 — none pre-named in
   the rebuild plan; the carve mirrored Phase 8's incremental sub-phase
@@ -346,7 +346,7 @@ at the moment a phase closed, derived from
     directive — same poisoning-risk pattern Phase 8e-2 codified for
     `slots.ts`, since `BookingsCalendarGrid` (Client) imports them at
     runtime.
-  - **9-3** `<this commit>` — `AuditLogPanel` server-rendered list of
+  - **9-3** `b41e814` — `AuditLogPanel` server-rendered list of
     recent audit-log rows scoped to the host club. Sits below the
     bookings calendar so a force-cancel appears in the trail without
     leaving the page. Data fetcher `getRecentAuditLogForClub` uses a
@@ -419,7 +419,7 @@ at the moment a phase closed, derived from
 
 ## Phase 10 — Twenty 20 assessment module (production rubric) — closed 2026-04-29
 
-- **Branch tip:** `<tip>` (`rebuild/phase-10-twenty20`, cut from
+- **Branch tip:** `ce6f548` (`rebuild/phase-10-twenty20`, cut from
   `b41e814` Phase 9 close). Phase 10 carved into nine sub-checkpoints
   driven incrementally — 10-prep / 10-1 / 10-2 / 10-3 (six commits) /
   10-4 / 10-5 / 10-6 / 10-7 / 10-8 / 10-close.
@@ -513,7 +513,7 @@ at the moment a phase closed, derived from
     `RubricChange[]` covering grading bands + passPctTarget +
     assessor + per-section model/distances/points/zonePoints/
     pointsPerOnLength. 40 cases (13 diff + 27 client).
-  - **10-close** `<this commit>` — PHASE_LOG entry + DRIFT_LOG
+  - **10-close** `ce6f548` — PHASE_LOG entry + DRIFT_LOG
     sweep + Phase 9 corrective addendum.
 - **Migrations applied:** 032 (`t20_distance_bucket text` column +
   CHECK + partial index). One migration this phase; the rest of the
