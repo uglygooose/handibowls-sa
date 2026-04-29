@@ -5,36 +5,39 @@ import { z } from "zod";
 import { getAuthContext } from "@/lib/auth/role";
 import { createClient } from "@/lib/supabase/server";
 
-// Phase 8d / migration 027 — match-end LWW upsert action. The scorecard's
+// Phase 8d / migration 027 — match-end upsert action. The scorecard's
 // Dexie outbox flush calls this once per queued end on reconnect/focus.
+//
+// Phase 8g — simplified shape. The original Phase 8d contract returned
+// `kind: "remote_newer"` when the server's `updated_at` was at-or-after
+// the client's `local_updated_at`, expecting a UI conflict-resolution
+// modal to surface. That UI was stripped in Phase 8g (real-world
+// likelihood of concurrent same-end scoring across two devices, one
+// offline, both syncing through different timestamps is effectively
+// zero for bowls — players score live on a green with one device).
+//
+// Current contract: server-side last-write-wins. INSERT when no row
+// exists, UPDATE when one does. Migration 027's `match_ends.updated_at`
+// + `match_ends_set_updated_at` BEFORE UPDATE trigger still bump the
+// stamp on every write; the participant UPDATE/DELETE policies still
+// gate access. Both are required for the offline write path that
+// genuinely works.
+//
 // Three outcomes per call:
 //
 //   • `{ ok: true }`           — server now matches the client's intent
 //                                (INSERT or UPDATE applied).
-//   • `{ ok: false,
-//       kind: "remote_newer",
-//       server: {...} }`        — server's row is at least as new as the
-//                                client's `local_updated_at`. Conflict.
-//                                The client opens the conflict-resolution
-//                                modal so the player picks "use mine"
-//                                (force overwrite) / "use theirs" /
-//                                "dispute".
-//   • `{ ok: false, kind: ... }` — auth, validation, or DB error. Each
-//                                kind has a stable string for the flush
-//                                worker to branch on.
-//
-// LWW logic lives in TypeScript here rather than a SECURITY DEFINER RPC
-// because RLS already enforces participant-only access (migration 027)
-// and the server-action surface gives us cleaner Zod + ActionResult
-// ergonomics for the conflict-shape contract. Two round-trips on
-// conflict — common-path INSERT is one trip.
+//   • `{ ok: false, kind: "auth" | "validation" }`
+//                              — request rejected pre-DB.
+//   • `{ ok: false, kind: "db_error" }`
+//                              — DB error (RLS denial, constraint
+//                                violation, etc.). The flush worker
+//                                marks the row errored and surfaces
+//                                via the sync badge for retry.
 //
 // No `revalidatePath` here — by design. Per-end UI is driven by the
 // scorecard's Dexie outbox + client-side aggregation: the local row
-// is already the source of truth for the captain mid-game, and other
-// clients pick up changes via the realtime channel on `match_ends`.
-// Forcing an RSC re-render on every end would defeat the offline-first
-// flow and add latency for nothing the user can see. Match-level
+// is already the source of truth for the captain mid-game. Match-level
 // surfaces (admin overview, player scorecard meta, /play) are
 // invalidated by the lifecycle actions (`submitMatch`, `confirmMatch`,
 // `verifyMatch`) via `revalidateMatchSurfaces` once the match
@@ -45,9 +48,8 @@ const upsertMatchEndSchema = z.object({
   end_number: z.number().int().positive(),
   home_shots: z.number().int().min(0).max(99),
   away_shots: z.number().int().min(0).max(99),
-  /** ISO timestamp of the local edit that produced these scores. The
-   *  server compares this against the existing row's `updated_at` to
-   *  pick a winner. */
+  /** ISO timestamp of the local edit. Retained for outbox audit + log
+   *  correlation; no longer drives a server-side comparison. */
   local_updated_at: z.string().datetime(),
 });
 
@@ -65,11 +67,6 @@ export type UpsertMatchEndResult =
       kind: "validation";
       error: string;
       fieldErrors?: Record<string, string[]>;
-    }
-  | {
-      ok: false;
-      kind: "remote_newer";
-      server: { home_shots: number; away_shots: number; updated_at: string };
     }
   | {
       ok: false;
@@ -98,22 +95,14 @@ export async function upsertMatchEnd(
     };
   }
   const v = parsed.data;
-  const localUpdatedAt = new Date(v.local_updated_at);
-  if (Number.isNaN(localUpdatedAt.getTime())) {
-    return {
-      ok: false,
-      kind: "validation",
-      error: "local_updated_at is not a valid ISO timestamp",
-    };
-  }
 
   const supabase = await createClient();
 
-  // Read existing row — RLS gates: participants + admins for the match's
-  // host club can read.
+  // Probe for an existing row. RLS gates: participants + admins for
+  // the match's host club can read.
   const { data: existing, error: selErr } = await supabase
     .from("match_ends")
-    .select("home_shots, away_shots, updated_at")
+    .select("id")
     .eq("match_id", v.match_id)
     .eq("end_number", v.end_number)
     .maybeSingle();
@@ -122,9 +111,7 @@ export async function upsertMatchEnd(
     return { ok: false, kind: "db_error", error: selErr.message };
   }
 
-  // Path A — no existing row. INSERT. Migration-027-installed UPDATE
-  // policy isn't on the path; INSERT goes through the existing
-  // `match_ends_participant_submit` policy.
+  // Path A — no existing row. INSERT through `match_ends_participant_submit`.
   if (!existing) {
     const { error: insErr } = await supabase.from("match_ends").insert({
       match_id: v.match_id,
@@ -141,26 +128,11 @@ export async function upsertMatchEnd(
     };
   }
 
-  // Path B — server already has a row. Compare timestamps. Use >= so
-  // a tie goes to the server (treat as remote-newer); ties are vanishingly
-  // rare in practice but the deterministic tiebreak avoids flapping when
-  // two clients write within the same millisecond.
-  const serverUpdatedAt = new Date(existing.updated_at);
-  if (serverUpdatedAt >= localUpdatedAt) {
-    return {
-      ok: false,
-      kind: "remote_newer",
-      server: {
-        home_shots: existing.home_shots,
-        away_shots: existing.away_shots,
-        updated_at: existing.updated_at,
-      },
-    };
-  }
-
-  // Path C — local is newer. UPDATE. RLS gate (027): participant +
-  // not finalized_by_admin. Admin lock surfaces here as a DB error;
-  // the flush worker treats unknown DB errors as retryable with backoff.
+  // Path B — server already has a row. UPDATE with the client's values
+  // (last-write-wins server-side; the trigger bumps `updated_at`). RLS
+  // gate (027): participant + not finalized_by_admin. Admin lock
+  // surfaces here as a DB error; the flush worker treats unknown DB
+  // errors as retryable with backoff.
   const { error: upErr } = await supabase
     .from("match_ends")
     .update({

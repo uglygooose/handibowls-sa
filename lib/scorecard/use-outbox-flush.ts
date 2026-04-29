@@ -7,7 +7,6 @@ import { submitMatch } from "@/app/(club-admin)/manage/tournaments/_actions";
 import { upsertMatchEnd, type UpsertMatchEndResult } from "./actions";
 import {
   getDb,
-  listMatchEndsForMatch,
   markSubmissionError,
   markSubmissionSynced,
   type MatchEndRow,
@@ -21,38 +20,30 @@ import {
 // worker handles cache strategies but doesn't replay action calls —
 // double-flush would be a real risk if both layers ran.
 //
+// Phase 8g — conflict pipeline stripped. The original Phase 8d worker
+// branched on `kind: "remote_newer"` and surfaced a conflict payload
+// to a Scorecard-mounted ConflictResolutionSheet. That UI was removed
+// in 8g (real-world likelihood of concurrent same-end scoring across
+// two devices, one offline, both syncing through different timestamps
+// is effectively zero for bowls). Server-side last-write-wins via
+// migration 027 is the only conflict story now: whichever flush
+// completes the UPDATE last wins.
+//
 // Two queues processed in order:
 //
-//   1. matchEnds — calls `upsertMatchEnd` per row. Three outcomes:
+//   1. matchEnds — calls `upsertMatchEnd` per row. Two outcomes:
 //        • `ok: true`           → mark row synced, advance.
-//        • `remote_newer`       → push to the conflict callback so
-//                                  the surface can render the modal.
-//                                  Stop processing the queue (the
-//                                  user's resolution choice may rewrite
-//                                  the row before resuming).
-//        • `db_error` / `auth`  → mark row errored, advance to next
-//                                  row. Surface picks up the error
-//                                  state via the sync badge.
+//        • `auth | validation | db_error` → mark row errored, advance
+//          to next row. Surface picks up the error state via the sync
+//          badge and the user can tap-to-retry.
 //
-//   2. submissions — calls `submitMatch` per row. Same three-outcome
-//      shape minus the conflict path (submissions are per-match, not
-//      per-end, and the server-side action is already idempotent w.r.t.
-//      double-submits).
+//   2. submissions — calls `submitMatch` per row. Same shape; the
+//      server-side action is already idempotent w.r.t. double-submits.
 //
 // The hook returns:
 //   • `state`           — { running, lastFlushedAt, lastError }
 //   • `flushNow()`      — manual trigger (e.g. tap-to-retry from the
 //                          OfflineSyncBadge error state)
-//   • `pendingConflict` — null or the latest conflict payload — feeds
-//                          the conflict-resolution sheet trigger.
-//   • `clearConflict()` — call after the modal handles a conflict.
-
-export type ConflictPayload = {
-  match_id: string;
-  end_number: number;
-  local: { home_shots: number; away_shots: number; localUpdatedAt: string };
-  server: { home_shots: number; away_shots: number; updated_at: string };
-};
 
 export type FlushState = {
   running: boolean;
@@ -63,8 +54,6 @@ export type FlushState = {
 export type UseOutboxFlushResult = {
   state: FlushState;
   flushNow: () => Promise<void>;
-  pendingConflict: ConflictPayload | null;
-  clearConflict: () => void;
 };
 
 const FLUSH_THROTTLE_MS = 2_000;
@@ -75,7 +64,6 @@ export function useOutboxFlush(): UseOutboxFlushResult {
     lastFlushedAt: null,
     lastError: null,
   });
-  const [pendingConflict, setPendingConflict] = useState<ConflictPayload | null>(null);
 
   // Reentrancy guard: a focus event followed by a brief online event can
   // double-fire. Single in-flight flush at a time; the second call
@@ -104,8 +92,6 @@ export function useOutboxFlush(): UseOutboxFlushResult {
         .anyOf("queued", "error")
         .toArray();
 
-      // Group by matchId so a conflict on one match doesn't block other
-      // matches' rows from flushing.
       const byMatch = new Map<string, MatchEndRow[]>();
       for (const row of queuedEnds) {
         const list = byMatch.get(row.matchId) ?? [];
@@ -113,9 +99,7 @@ export function useOutboxFlush(): UseOutboxFlushResult {
         byMatch.set(row.matchId, list);
       }
 
-      let conflict: ConflictPayload | null = null;
-
-      for (const [matchId, rows] of byMatch.entries()) {
+      for (const [, rows] of byMatch.entries()) {
         rows.sort((a, b) => a.endNumber - b.endNumber);
         for (const row of rows) {
           // Mark flushing so a concurrent re-render doesn't re-pick it.
@@ -138,27 +122,6 @@ export function useOutboxFlush(): UseOutboxFlushResult {
             continue;
           }
 
-          if (result.kind === "remote_newer") {
-            // Stop processing this match — the user's resolution choice
-            // may overwrite or skip this row. Other matches keep
-            // flushing in the outer loop.
-            await db.matchEnds.update([row.matchId, row.endNumber] as unknown as string, {
-              syncStatus: "queued",
-              lastError: "Server has a newer version of this end.",
-            });
-            conflict = {
-              match_id: matchId,
-              end_number: row.endNumber,
-              local: {
-                home_shots: row.homeShots,
-                away_shots: row.awayShots,
-                localUpdatedAt: row.localUpdatedAt,
-              },
-              server: result.server,
-            };
-            break;
-          }
-
           // Auth / validation / db_error — mark errored, continue.
           const errorMessage =
             "error" in result && typeof result.error === "string"
@@ -169,35 +132,29 @@ export function useOutboxFlush(): UseOutboxFlushResult {
             lastError: errorMessage,
           });
         }
-        if (conflict) break;
       }
 
       // -- Phase B: submissions -----------------------------------------
-      // Skip submissions for any match that hit a conflict — the user
-      // needs to resolve ends first.
-      if (!conflict) {
-        const queuedSubs: SubmissionRow[] = await db.submissions
-          .where("syncStatus")
-          .anyOf("queued", "error")
-          .toArray();
-        for (const sub of queuedSubs) {
-          await db.submissions.update(sub.matchId, {
-            syncStatus: "flushing",
-          });
-          const result = await submitMatch({
-            match_id: sub.matchId,
-            home_shots: sub.homeShots,
-            away_shots: sub.awayShots,
-          });
-          if (result.ok) {
-            await markSubmissionSynced(sub.matchId);
-          } else {
-            await markSubmissionError(sub.matchId, result.error);
-          }
+      const queuedSubs: SubmissionRow[] = await db.submissions
+        .where("syncStatus")
+        .anyOf("queued", "error")
+        .toArray();
+      for (const sub of queuedSubs) {
+        await db.submissions.update(sub.matchId, {
+          syncStatus: "flushing",
+        });
+        const result = await submitMatch({
+          match_id: sub.matchId,
+          home_shots: sub.homeShots,
+          away_shots: sub.awayShots,
+        });
+        if (result.ok) {
+          await markSubmissionSynced(sub.matchId);
+        } else {
+          await markSubmissionError(sub.matchId, result.error);
         }
       }
 
-      setPendingConflict((prev) => conflict ?? prev);
       setState({
         running: false,
         lastFlushedAt: new Date().toISOString(),
@@ -232,9 +189,7 @@ export function useOutboxFlush(): UseOutboxFlushResult {
     };
   }, [flushNow]);
 
-  const clearConflict = useCallback(() => setPendingConflict(null), []);
-
-  return { state, flushNow, pendingConflict, clearConflict };
+  return { state, flushNow };
 }
 
 // Test-only — re-fetches a row's current local state. The flush worker's
@@ -244,8 +199,8 @@ export async function _peekMatchEndForTests(
   matchId: string,
   endNumber: number,
 ): Promise<MatchEndRow | undefined> {
-  // listMatchEndsForMatch is the public reader used by Scorecard;
-  // tests can depend on the same path.
-  const all = await listMatchEndsForMatch(matchId);
+  const all = await import("./outbox").then((m) =>
+    m.listMatchEndsForMatch(matchId),
+  );
   return all.find((r) => r.endNumber === endNumber);
 }

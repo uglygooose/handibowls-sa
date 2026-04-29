@@ -23,7 +23,6 @@ import { EndStepper } from "@/components/player/EndStepper";
 import { OpponentConfirmationCard } from "@/components/player/OpponentConfirmationCard";
 import { DisputeForm } from "@/components/player/DisputeForm";
 import { BottomSheet } from "@/components/player/BottomSheet";
-import { ConflictResolutionSheet } from "@/components/player/ConflictResolutionSheet";
 import { confirmMatch, submitMatch } from "@/app/(club-admin)/manage/tournaments/_actions";
 import {
   deleteMatchEnd,
@@ -33,7 +32,7 @@ import {
   queueSubmission,
   upsertMatchEnd as upsertMatchEndLocal,
 } from "@/lib/scorecard/outbox";
-import { useOutboxFlush, type ConflictPayload } from "@/lib/scorecard/use-outbox-flush";
+import { useOutboxFlush } from "@/lib/scorecard/use-outbox-flush";
 import { useSyncState } from "@/lib/scorecard/use-sync-state";
 import { useWakeLock } from "@/lib/scorecard/use-wake-lock";
 import { useWetHands } from "@/lib/scorecard/use-wet-hands";
@@ -71,15 +70,15 @@ import type { ScorecardMatch } from "../_data";
 //   walkover               → walkover notice (read-only)
 //   cancelled              → cancelled notice (read-only)
 //
-// 8d carries forward
-//   • `captain_submitted` / `opponent_confirmed` distinct enum values
-//     (currently both rendered against status='completed AND
-//     finalized_by_admin=false') — schema migration owned by 8d
-//   • Server-side last-write-wins enforcement on match_ends — currently
-//     client-side only via Dexie compound key
-//   • Real conflict-resolution flush via service worker — the modal
-//     in this file is plumbed but its trigger lives in 8d's outbox
-//     worker
+// Phase 8g — offline-conflict UI stripped. The Phase 8d wiring (outbox
+// flush returns `remote_newer`, ConflictResolutionSheet renders a
+// use-mine / use-theirs / dispute modal) was removed because real-world
+// concurrent same-end scoring across two devices, one offline, both
+// syncing through different timestamps is effectively zero for bowls.
+// Server-side last-write-wins via migration 027 is the only conflict
+// story now: whichever flush completes the UPDATE last wins. Dexie
+// outbox + auto-flush on reconnect remain — that's the offline path
+// players genuinely benefit from.
 
 type Props = {
   match: ScorecardMatch;
@@ -101,9 +100,9 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
   const [submissionState, setSubmissionState] = useState<"idle" | "queued" | "submitted">("idle");
 
   // Phase 8d outbox flush worker — auto-flushes on online + visibility
-  // events. Surfaces conflicts via `pendingConflict` which routes to
-  // the conflict-resolution sheet below. `useSyncState` derives the
-  // header sync badge from Dexie counts.
+  // events. `useSyncState` derives the header sync badge from Dexie
+  // counts. The Phase 8d conflict pipeline was stripped in 8g; the
+  // worker is now the simple "upsert each queued row" loop.
   const flush = useOutboxFlush();
   const sync = useSyncState();
   const flushNow = flush.flushNow;
@@ -327,44 +326,6 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
     return sync.state;
   }, [serverError, sync.state]);
 
-  // The conflict sheet's open state is derived directly from the
-  // flush worker's pendingConflict — no separate boolean. Closing the
-  // sheet calls clearConflict() which sets pendingConflict to null,
-  // which closes the sheet. Avoids the setState-in-effect lint and the
-  // associated rerender flap.
-  const conflictOpen = flush.pendingConflict !== null;
-
-  async function resolveUseMine(c: ConflictPayload) {
-    // Re-stamp the local row with now() so the next flush wins LWW.
-    await upsertMatchEndLocal({
-      matchId: c.match_id,
-      endNumber: c.end_number,
-      homeShots: c.local.home_shots,
-      awayShots: c.local.away_shots,
-      // upsertMatchEndLocal sets localUpdatedAt to now() by default.
-    });
-    flush.clearConflict();
-    void flushNow();
-  }
-
-  async function resolveUseTheirs(c: ConflictPayload) {
-    // Overwrite the local row with the server's values + mark synced.
-    // The next flush will see the synced row and skip it.
-    await upsertMatchEndLocal({
-      matchId: c.match_id,
-      endNumber: c.end_number,
-      homeShots: c.server.home_shots,
-      awayShots: c.server.away_shots,
-      localUpdatedAt: c.server.updated_at,
-    });
-    flush.clearConflict();
-  }
-
-  function resolveDispute() {
-    flush.clearConflict();
-    setDisputeOpen(true);
-  }
-
   return (
     <div
       data-slot="scorecard"
@@ -562,21 +523,6 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
           />
         </BottomSheet.Content>
       </BottomSheet>
-
-      {/* Conflict resolution — opens whenever the flush worker reports
-          a remote-newer end. The sheet's three buttons rewrite the
-          local Dexie row + clear the conflict. */}
-      <ConflictResolutionSheet
-        open={conflictOpen}
-        onOpenChange={(open) => {
-          if (!open) flush.clearConflict();
-        }}
-        conflict={flush.pendingConflict}
-        onUseMine={resolveUseMine}
-        onUseTheirs={resolveUseTheirs}
-        onDispute={resolveDispute}
-        pending={pending}
-      />
     </div>
   );
 }
