@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 
-import {
-  getBookingDataForCurrentPlayer,
-  parseDateParam,
-} from "./_data";
+import { getBookingDataForCurrentPlayer } from "./_data";
+import { parseDateParam } from "./slots";
 import { DateStrip } from "./_components/DateStrip";
 import { SlotList } from "./_components/SlotList";
 
@@ -70,7 +68,7 @@ export default async function BookPage({ searchParams }: Props) {
         <DateStrip dates={data.bookingDates} />
       </section>
 
-      <SlotList slots={data.slotsForDate} />
+      <SlotList slots={data.slotsForDate} clubName={data.club_name} />
 
       {/* MyBookings inline section ships in 8e-3 — placeholder kept
           out of the markup so the page doesn't render a half-built

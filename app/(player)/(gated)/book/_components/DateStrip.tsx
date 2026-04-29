@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 
-import type { BookingDate } from "../_data";
+import type { BookingDate } from "../slots";
 
 // Phase 8e-1 — date carousel. Pure render: each pill is a Link to
 // `/book?d=<iso>`, URL drives selection. No client state, no event

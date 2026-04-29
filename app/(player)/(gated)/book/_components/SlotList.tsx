@@ -1,28 +1,30 @@
+"use client";
+
 import { ArrowRight, Clock } from "lucide-react";
+import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-import type { BookingSlot } from "../_data";
-import { purposeLabel } from "../_data";
+import { type BookingSlot, purposeLabel } from "../slots";
+import { BookingSheet, type Slot } from "./BookingSheet";
 
-// Phase 8e-1 — read-only slot list. Renders the day's five 2-hour
-// blocks per design source `player-pages.jsx:147-162`:
+// Phase 8e — slot list. Was Server Component in 8e-1; converted to
+// Client in 8e-2 because the "Book this slot" CTA now opens a
+// bottom-sheet form. The list owns one piece of state (currently
+// open slot) so the sheet renders on top of the slot grid + closes
+// cleanly via Cancel / submit / overlay-tap.
 //
-//   • slot card with time row (mono, 16px) + rink chips
-//   • "Book this slot" CTA appears only when at least one rink is
-//     available
-//   • fully-booked slots render dimmed with "BOOKED · <purpose>"
-//
-// "Book this slot" is a Phase 8e-2 hand-off — it stays disabled and
-// inert in this round so the read-only flow ships first. The button
-// preserves visual rhythm so the page doesn't reflow when 8e-2
-// wires the BookingSheet.
+// Visual contract per design source `player-pages.jsx:147-162` +
+// `player-styles-additions.css:185-196` is unchanged from 8e-1.
 
 export type Props = {
   slots: BookingSlot[];
+  clubName: string;
 };
 
-export function SlotList({ slots }: Props) {
+export function SlotList({ slots, clubName }: Props) {
+  const [activeSlot, setActiveSlot] = useState<Slot | null>(null);
+
   if (slots.length === 0) {
     return (
       <div
@@ -37,34 +39,62 @@ export function SlotList({ slots }: Props) {
   const openCount = slots.filter((s) => s.available_rinks.length > 0).length;
 
   return (
-    <section data-slot="slot-list">
-      <header className="mb-3 flex items-center justify-between">
-        <h3 className="font-display text-[18px] font-black uppercase italic tracking-tight">
-          Available slots
-        </h3>
-        <span
-          data-slot="open-count"
-          className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted"
-        >
-          {openCount} open
-        </span>
-      </header>
+    <>
+      <section data-slot="slot-list">
+        <header className="mb-3 flex items-center justify-between">
+          <h3 className="font-display text-[18px] font-black uppercase italic tracking-tight">
+            Available slots
+          </h3>
+          <span
+            data-slot="open-count"
+            className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted"
+          >
+            {openCount} open
+          </span>
+        </header>
 
-      <div className="flex flex-col gap-2">
-        {slots.map((s) => (
-          <SlotCard key={s.starts_at} slot={s} />
-        ))}
-      </div>
-    </section>
+        <div className="flex flex-col gap-2">
+          {slots.map((s) => (
+            <SlotCard
+              key={s.starts_at}
+              slot={s}
+              onBook={() => setActiveSlot(toSlot(s))}
+            />
+          ))}
+        </div>
+      </section>
+
+      {activeSlot && (
+        <BookingSheet
+          open={Boolean(activeSlot)}
+          onOpenChange={(o) => {
+            if (!o) setActiveSlot(null);
+          }}
+          slot={activeSlot}
+          clubName={clubName}
+        />
+      )}
+    </>
   );
 }
 
-function SlotCard({ slot }: { slot: BookingSlot }) {
+function toSlot(s: BookingSlot): Slot {
+  return {
+    starts_at: s.starts_at,
+    ends_at: s.ends_at,
+    starts_label: s.starts_label,
+    ends_label: s.ends_label,
+  };
+}
+
+function SlotCard({
+  slot,
+  onBook,
+}: {
+  slot: BookingSlot;
+  onBook: () => void;
+}) {
   const isFullyBooked = slot.available_rinks.length === 0;
-  // For fully-booked slots, surface the FIRST booking's purpose (design
-  // shows just one label even when multiple bookings overlap). Falls
-  // back to "Booked" when somehow a slot is fully booked but the
-  // bookings_in_slot list is empty (shouldn't happen — defensive).
   const firstBooking = slot.bookings_in_slot[0];
 
   return (
@@ -112,15 +142,12 @@ function SlotCard({ slot }: { slot: BookingSlot }) {
       {!isFullyBooked && (
         <button
           type="button"
-          disabled
+          onClick={onBook}
           data-slot="book-cta"
-          aria-disabled="true"
-          title="Booking opens in the next checkpoint"
           className={cn(
             "mt-3 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary-500 px-3",
             "text-[13px] font-extrabold uppercase tracking-[0.04em] text-on-primary",
-            "shadow-sm transition-opacity",
-            "disabled:cursor-not-allowed disabled:opacity-60",
+            "shadow-sm transition-opacity hover:opacity-90",
           )}
         >
           Book this slot

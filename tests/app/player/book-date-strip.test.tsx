@@ -1,7 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-vi.mock("server-only", () => ({}));
 // Next's <Link> is a Server Component shim; under jsdom we only need
 // it to render an <a>. Use the actual export — App Router's Link
 // works in client tests because the prefetch path is no-op when
@@ -9,7 +8,7 @@ vi.mock("server-only", () => ({}));
 // stub with `({ href, children }) => <a href={href}>{children}</a>`.
 
 import { DateStrip } from "@/app/(player)/(gated)/book/_components/DateStrip";
-import type { BookingDate } from "@/app/(player)/(gated)/book/_data";
+import type { BookingDate } from "@/app/(player)/(gated)/book/slots";
 
 function makeDate(over: Partial<BookingDate>): BookingDate {
   return {

@@ -88,4 +88,100 @@ describe("RLS · bookings", () => {
     expect(second).not.toBeNull();
     expect(second?.message).toMatch(/bookings_no_overlap|exclusion/i);
   });
+
+  // ------------------------------------------------------------------
+  // Phase 8e-2 — createBooking action contract coverage
+  // ------------------------------------------------------------------
+  // The action server-derives booked_by + club_id and only INSERTs
+  // through the cookie-bound supabase client (never service-role), so
+  // the RLS policy IS the authorization. These cases pin the policy
+  // surface so a future refactor that relaxes `bookings_self_insert`
+  // gets caught.
+
+  it("8e-2 · player CANNOT stamp booked_by with another user's id (with check denial)", async () => {
+    const me = await createTestUser({ role: "player", clubIds: [clubA] });
+    const other = await createTestUser({ role: "player", clubIds: [clubA] });
+    users.push(me.id, other.id);
+    const { client } = await signIn(me);
+    const start = new Date(Date.now() + 200_000_000).toISOString();
+    const end = new Date(Date.now() + 203_600_000).toISOString();
+    const { data, error } = await client
+      .from("bookings")
+      .insert({
+        rink_id: rinkA,
+        club_id: clubA,
+        booked_by: other.id, // hostile — claim someone else's identity
+        starts_at: start,
+        ends_at: end,
+      })
+      .select("id");
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+  });
+
+  it("8e-2 · GIST is rink-scoped — alternate rink in same slot succeeds", async () => {
+    const a = admin();
+    const { data: g } = await a
+      .from("greens")
+      .insert({ club_id: clubA, name: "Alt Green", rink_count: 1 })
+      .select("id")
+      .single();
+    const { data: r2 } = await a
+      .from("rinks")
+      .insert({ green_id: g!.id, number: 1, active: true })
+      .select("id")
+      .single();
+    const start = new Date(Date.now() + 250_000_000).toISOString();
+    const end = new Date(Date.now() + 253_600_000).toISOString();
+
+    const { error: firstErr } = await a.from("bookings").insert({
+      rink_id: rinkA,
+      club_id: clubA,
+      starts_at: start,
+      ends_at: end,
+    });
+    expect(firstErr).toBeNull();
+    // Same time window, DIFFERENT rink — GIST is per-rink so no conflict.
+    const { error: altErr } = await a.from("bookings").insert({
+      rink_id: r2!.id,
+      club_id: clubA,
+      starts_at: start,
+      ends_at: end,
+    });
+    expect(altErr).toBeNull();
+  });
+
+  it("8e-2 · GIST releases the slot when the prior booking is cancelled", async () => {
+    const a = admin();
+    const start = new Date(Date.now() + 300_000_000).toISOString();
+    const end = new Date(Date.now() + 303_600_000).toISOString();
+    const { data: original, error: insErr } = await a
+      .from("bookings")
+      .insert({
+        rink_id: rinkA,
+        club_id: clubA,
+        starts_at: start,
+        ends_at: end,
+      })
+      .select("id")
+      .single();
+    expect(insErr).toBeNull();
+    expect(original?.id).toBeTruthy();
+
+    // Cancellation flips status — GIST WHERE clause `status='booked'`
+    // releases the row from the exclusion set.
+    await a
+      .from("bookings")
+      .update({ status: "cancelled" })
+      .eq("id", original!.id);
+
+    // Same slot now bookable again.
+    const { error: rebookErr } = await a.from("bookings").insert({
+      rink_id: rinkA,
+      club_id: clubA,
+      starts_at: start,
+      ends_at: end,
+    });
+    expect(rebookErr).toBeNull();
+  });
 });

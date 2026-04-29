@@ -1,20 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-vi.mock("server-only", () => ({}));
-
-// Phase 8e-1 — pure helpers in `app/(player)/(gated)/book/_data.ts`.
+// Phase 8e — pure helpers in `app/(player)/(gated)/book/slots.ts`.
 // Date math, slot shell construction, closure detection, purpose
 // labels. No Supabase, no auth — just deterministic math against
-// fixed clock values.
+// fixed clock values. Lives in `slots.ts` (no `'server-only'`
+// directive) so Client Components can import them without breaking
+// the build.
 
-const {
+import {
   todayIsoSAST,
   parseDateParam,
   buildDateStrip,
   buildSlotShells,
   dateIsClosed,
   purposeLabel,
-} = await import("@/app/(player)/(gated)/book/_data");
+} from "@/app/(player)/(gated)/book/slots";
 
 describe("todayIsoSAST", () => {
   it("returns SAST date even when UTC clock is past midnight on next day", () => {
