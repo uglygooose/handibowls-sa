@@ -4,8 +4,8 @@ import { MobileShell } from "@/components/layout/MobileShell";
 import { PlayerBottomNav } from "@/components/nav/PlayerBottomNav";
 import { TopBar } from "@/components/nav/TopBar";
 import { ClubSwitcher } from "@/components/player/ClubSwitcher";
+import { DynamicSyncBadge } from "@/components/player/DynamicSyncBadge";
 import { NoviceBadge } from "@/components/player/NoviceBadge";
-import { OfflineSyncBadge } from "@/components/player/OfflineSyncBadge";
 import { getCurrentMemberships } from "@/lib/auth/memberships";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { getAuthContext, requireRole } from "@/lib/auth/role";
@@ -49,12 +49,11 @@ export default async function PlayerLayout({
               <NoviceBadge
                 noviceRegisteredAt={profile?.novice_registered_at ?? null}
               />
-              {/* Sync state is statically "synced" until 8d wires the
-                  Dexie outbox + service-worker queue. The badge primitive
-                  is here so every player surface gets the slot reserved
-                  in the chrome — that prevents the layout reflow when
-                  state flips to pending/error. */}
-              <OfflineSyncBadge state="synced" />
+              {/* DynamicSyncBadge subscribes to the Dexie outbox + wires
+                  tap-to-retry on the error state. Mount lives here so every
+                  player surface gets live sync state without each surface
+                  re-wiring the hook. */}
+              <DynamicSyncBadge />
             </div>
           }
         />

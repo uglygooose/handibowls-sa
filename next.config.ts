@@ -1,14 +1,15 @@
 import type { NextConfig } from "next";
+import { withSerwist } from "@serwist/turbopack";
 
-// Phase 3: service-worker source + manifest + icons live in the repo as
-// scaffolding, but we do not wrap the config with @serwist/next yet because
-// Next 16's Turbopack-first build doesn't accept serwist's webpack plugin
-// until @serwist/turbopack lands. Phase 8 re-introduces the wrapper.
+// Phase 8d — wrap with `@serwist/turbopack`. The wrapper adds esbuild
+// + esbuild-wasm to `serverExternalPackages` so the Serwist build
+// (run inside the route handler at `app/[path]/route.ts`) can shell
+// out to esbuild at request time without bundling its native binary
+// into the server build. No webpack plugin path because Next 16 is
+// Turbopack-first.
 
-const nextConfig: NextConfig = {
-  // Empty turbopack block silences the "webpack config with no turbopack
-  // config" warning once Phase 8 adds build-time integrations.
+const baseConfig: NextConfig = {
   turbopack: {},
 };
 
-export default nextConfig;
+export default withSerwist(baseConfig);

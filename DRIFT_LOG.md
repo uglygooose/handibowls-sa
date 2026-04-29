@@ -49,7 +49,7 @@ Single source of truth for every piece of drift between Claude Design output / r
 ### Player surfaces (Phase 8 output, added when shipped)
 
 - [ ] **`matches.submitted_by_team_id` column for passive-vs-active captain rendering.** Phase 8d-prep (migration 026) added the `submission_status` enum but not a column tracking which side actually submitted. The scorecard's `<CaptainSubmittedBranch />` currently renders the action card to both captains; the submitter taps Confirm and gets the action's "Match already submitted" precondition error. UX is functional but not optimal — submitting captain should see a passive "Awaiting opponent" banner instead. Phase 12 polish: add `submitted_by_team_id uuid references tournament_teams(id)` to `matches`, populate in submitMatch, branch the scorecard render on it. Owning phase: Phase 12. Discovered: Phase 8d-prep, 2026-04-29.
-- [ ] **Match-ends Dexie → server sync worker.** Phase 8c lands the
+- [x] ~~**Match-ends Dexie → server sync worker.** Phase 8c lands the
   scorecard against a Dexie outbox (`public.match_ends` server table
   exists from migration 005 but the client doesn't write to it yet).
   Need a service-worker-driven flush that takes queued Dexie rows,
@@ -57,7 +57,18 @@ Single source of truth for every piece of drift between Claude Design output / r
   CONFLICT (match_id, end_number) DO UPDATE WHERE local_updated_at >
   server_updated_at, and reconciles via the conflict modal when the
   server is newer. Owning phase: Phase 8d. Discovered: Phase 8c
-  build, 2026-04-29.
+  build, 2026-04-29.~~ Closed: Phase 8d, 2026-04-29. Resolved via
+  client-side `useOutboxFlush` hook (lib/scorecard/use-outbox-flush.ts)
+  + the `upsertMatchEnd` Server Action (lib/scorecard/actions.ts)
+  enabled by migration 027 (match_ends.updated_at + participant
+  UPDATE/DELETE policies). Auto-flush on online + visibility events;
+  conflicts surface to `<ConflictResolutionSheet />` with three
+  resolutions (use mine / use theirs / dispute). Service worker
+  (Serwist via `@serwist/turbopack`) handles cache strategies for
+  the player surfaces; write-side queueing lives in Dexie + the
+  client flush, not in a sw BackgroundSync queue (avoids
+  double-flush since both layers would otherwise replay the same
+  Server Action calls).
 - [x] ~~**Captain-submitted / opponent-confirmed schema gap.** The
   scorecard's state machine has 5 distinct UI states (in_progress,
   captain_submitted, opponent_confirmed, admin_verified, walkover/

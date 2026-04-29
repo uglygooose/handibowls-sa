@@ -22,6 +22,7 @@ import { EndStepper } from "@/components/player/EndStepper";
 import { OpponentConfirmationCard } from "@/components/player/OpponentConfirmationCard";
 import { DisputeForm } from "@/components/player/DisputeForm";
 import { BottomSheet } from "@/components/player/BottomSheet";
+import { ConflictResolutionSheet } from "@/components/player/ConflictResolutionSheet";
 import { confirmMatch, submitMatch } from "@/app/(club-admin)/manage/tournaments/_actions";
 import {
   deleteMatchEnd,
@@ -29,8 +30,10 @@ import {
   markSubmissionError,
   markSubmissionSynced,
   queueSubmission,
-  upsertMatchEnd,
+  upsertMatchEnd as upsertMatchEndLocal,
 } from "@/lib/scorecard/outbox";
+import { useOutboxFlush, type ConflictPayload } from "@/lib/scorecard/use-outbox-flush";
+import { useSyncState } from "@/lib/scorecard/use-sync-state";
 import { useWakeLock } from "@/lib/scorecard/use-wake-lock";
 import { useWetHands } from "@/lib/scorecard/use-wet-hands";
 import { cn } from "@/lib/utils";
@@ -95,6 +98,14 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
   const [showHistory, setShowHistory] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [submissionState, setSubmissionState] = useState<"idle" | "queued" | "submitted">("idle");
+
+  // Phase 8d outbox flush worker — auto-flushes on online + visibility
+  // events. Surfaces conflicts via `pendingConflict` which routes to
+  // the conflict-resolution sheet below. `useSyncState` derives the
+  // header sync badge from Dexie counts.
+  const flush = useOutboxFlush();
+  const sync = useSyncState();
+  const flushNow = flush.flushNow;
 
   // Dexie live query — match_ends rolling log. SSR-safe via the
   // server-only guard inside getDb(); useLiveQuery returns undefined
@@ -211,7 +222,7 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
   // Commit the current end to Dexie. Last-write-wins by (matchId,
   // endNumber) — re-confirming an end overwrites the previous row.
   async function commitEnd() {
-    await upsertMatchEnd({
+    await upsertMatchEndLocal({
       matchId: initialMatch.match_id,
       endNumber: currentEndNumber,
       homeShots: pendingHome,
@@ -220,6 +231,9 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
     setPendingHome(0);
     setPendingAway(0);
     setConfirmOpen(false);
+    // Trigger an opportunistic flush — common path is "online while
+    // scoring" where the row should sync within a second of commit.
+    void flushNow();
   }
 
   async function deleteEnd(endNumber: number) {
@@ -275,14 +289,53 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
 
   // ---- render ---------------------------------------------------------
 
-  // Sync state surfaces in the header. Drawn from local Dexie state +
-  // submission status. 8d will replace this with the service-worker
-  // queue's real status events.
+  // Sync state surfaces in the header. Phase 8d wires it to the live
+  // Dexie outbox state via useSyncState. Server errors from the inline
+  // submitMatch call (the optimistic-online path) bump it to "error"
+  // even when no Dexie row is errored — the user needs the visible cue
+  // to retry.
   const syncState: SyncState = useMemo(() => {
     if (serverError) return "error";
-    if (submissionState === "queued") return "pending";
-    return "synced";
-  }, [serverError, submissionState]);
+    return sync.state;
+  }, [serverError, sync.state]);
+
+  // The conflict sheet's open state is derived directly from the
+  // flush worker's pendingConflict — no separate boolean. Closing the
+  // sheet calls clearConflict() which sets pendingConflict to null,
+  // which closes the sheet. Avoids the setState-in-effect lint and the
+  // associated rerender flap.
+  const conflictOpen = flush.pendingConflict !== null;
+
+  async function resolveUseMine(c: ConflictPayload) {
+    // Re-stamp the local row with now() so the next flush wins LWW.
+    await upsertMatchEndLocal({
+      matchId: c.match_id,
+      endNumber: c.end_number,
+      homeShots: c.local.home_shots,
+      awayShots: c.local.away_shots,
+      // upsertMatchEndLocal sets localUpdatedAt to now() by default.
+    });
+    flush.clearConflict();
+    void flushNow();
+  }
+
+  async function resolveUseTheirs(c: ConflictPayload) {
+    // Overwrite the local row with the server's values + mark synced.
+    // The next flush will see the synced row and skip it.
+    await upsertMatchEndLocal({
+      matchId: c.match_id,
+      endNumber: c.end_number,
+      homeShots: c.server.home_shots,
+      awayShots: c.server.away_shots,
+      localUpdatedAt: c.server.updated_at,
+    });
+    flush.clearConflict();
+  }
+
+  function resolveDispute() {
+    flush.clearConflict();
+    setDisputeOpen(true);
+  }
 
   return (
     <div
@@ -470,13 +523,30 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
             opponentLabel={initialMatch.player_is_home ? initialMatch.away_team_name : initialMatch.home_team_name}
             onCancel={() => setDisputeOpen(false)}
             onSubmit={async () => {
-              // 8c: dispute is client-recorded only — 8d wires the
-              // dispute action through to the engine.
+              // 8d: dispute is recorded client-side only. The action-side
+              // dispute path (write to a disputes table + notify admin)
+              // is Phase 11 alongside the comms wiring; until then closing
+              // the form is the right local UX.
               setDisputeOpen(false);
             }}
           />
         </BottomSheet.Content>
       </BottomSheet>
+
+      {/* Conflict resolution — opens whenever the flush worker reports
+          a remote-newer end. The sheet's three buttons rewrite the
+          local Dexie row + clear the conflict. */}
+      <ConflictResolutionSheet
+        open={conflictOpen}
+        onOpenChange={(open) => {
+          if (!open) flush.clearConflict();
+        }}
+        conflict={flush.pendingConflict}
+        onUseMine={resolveUseMine}
+        onUseTheirs={resolveUseTheirs}
+        onDispute={resolveDispute}
+        pending={pending}
+      />
     </div>
   );
 }
