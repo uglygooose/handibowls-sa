@@ -1,17 +1,21 @@
 import Link from "next/link";
 
+import { AuditLogPanel } from "./_components/AuditLogPanel";
 import { BookingsCalendarGrid } from "./_components/BookingsCalendarGrid";
-import { getBookingsForWeek } from "./_data";
+import { getBookingsForWeek, getRecentAuditLogForClub } from "./_data";
 import { parseWeekParam } from "./week";
 
-// Phase 9-2 — `/manage/overview` Bookings tab. Replaces the Phase 4 stub.
+// Phase 9-2/9-3 — `/manage/overview` Bookings tab. Replaces the Phase 4 stub.
 //
 // Reads `?w=YYYY-MM-DD` (snapped to Monday by parseWeekParam), resolves
 // the host club via getCurrentHostClub, and renders the weekly calendar
-// for that club. super_admin lands without a host club → empty card
-// pointing at /platform/clubs (mirrors the /manage/greens precedent).
+// + recent audit-log panel for that club. super_admin lands without a
+// host club → empty card pointing at /platform/clubs (mirrors the
+// /manage/greens precedent).
 //
-// Future tabs (Members, Audit log) are deferred to 9-3 / Phase 10.
+// The audit panel sits below the calendar so the admin sees their
+// just-cancelled booking appear in the trail without navigating away.
+// Both data fetchers run in parallel (no inter-dependency).
 
 export const metadata = {
   title: "Overview · HandiBowls",
@@ -27,6 +31,9 @@ export default async function ManageOverview({
   const params = await searchParams;
   const mondayIso = parseWeekParam(params.w);
   const data = await getBookingsForWeek(mondayIso);
+  const auditData = data.ok
+    ? await getRecentAuditLogForClub(data.clubId)
+    : null;
 
   if (!data.ok) {
     return (
@@ -75,6 +82,11 @@ export default async function ManageOverview({
         bookings={data.bookings}
         mondayIso={data.mondayIso}
         clubName={data.clubName}
+      />
+
+      <AuditLogPanel
+        rows={auditData?.ok ? auditData.rows : []}
+        errored={auditData ? !auditData.ok : false}
       />
     </div>
   );

@@ -305,6 +305,110 @@ at the moment a phase closed, derived from
 
 ---
 
+## Phase 9 — Admin booking surfaces — closed 2026-04-29
+
+- **Branch tip:** `<tip>` (`rebuild/phase-9-admin-booking`, cut from
+  `4c42ca7` Phase 8 close). Phase 9 carved into four sub-checkpoints
+  driven incrementally — 9-prep / 9-1 / 9-2 / 9-3 — none pre-named in
+  the rebuild plan; the carve mirrored Phase 8's incremental sub-phase
+  pattern.
+- **Sub-checkpoints + headline SHAs:**
+  - **9-prep** `6212098` — migration 031: generic `audit_log` table
+    (table_name + row_id + action + reason + payload + performed_by +
+    performed_at) + `audit_log_visible_to_admin(text, uuid)` SECURITY
+    DEFINER helper (currently dispatches on `table_name='bookings'`,
+    extends per-table via `elsif` branches as future audited paths
+    land) + `admin_force_cancel_booking(uuid, text)` RPC writing the
+    cancel + audit row in one transaction. Decision recorded:
+    skip a `admin_force_book` RPC — admins use the existing
+    `bookings_club_admin_rw` INSERT permission; force-cancel + re-book
+    = two audit rows = clean trail. Single-RPC override that bypassed
+    GIST would have been a footgun.
+  - **9-1** `f8c10e3` — `/manage/greens` weekly availability editor
+    (`WeeklyAvailabilityEditor` 7-col × 16-row grid against
+    `booking_windows`; click-drag bulk-toggle + snapshot-replace save
+    via `replaceWeeklyClosures` action — preserves one-off date-range
+    closures via weekday-only DELETE) + per-rink disable toggle
+    (`RinkDisableToggle` with required maintenance-reason form when
+    flipping active=false; reason stored in success-toast for now,
+    `audit_log` plumbing for table_name='rinks' deferred to Phase 12.5).
+  - **9-2** `4e7fed6` — `/manage/overview` Bookings tab. Replaces the
+    Phase 4 stub with `BookingsCalendarGrid` (7 SAST days × 16 hours,
+    chip-per-booking with rink/purpose/booker, today-column highlight,
+    week-nav `?w=YYYY-MM-DD`) + `BookingDetailSheet` (vaul-portaled
+    BottomSheet showing booking metadata + force-cancel form when
+    status='booked'; "already cancelled" notice otherwise) +
+    `adminForceCancelBooking` server action (Zod-gated booking_id +
+    reason 1-500 chars, distinguishes too_small (`reason_required`) vs
+    too_big (`validation`), maps every SQLSTATE branch to a typed
+    result kind, revalidates `/manage/overview` + `/book` + `/me`).
+    Pure SAST date helpers (`week.ts`) live without the `'server-only'`
+    directive — same poisoning-risk pattern Phase 8e-2 codified for
+    `slots.ts`, since `BookingsCalendarGrid` (Client) imports them at
+    runtime.
+  - **9-3** `<this commit>` — `AuditLogPanel` server-rendered list of
+    recent audit-log rows scoped to the host club. Sits below the
+    bookings calendar so a force-cancel appears in the trail without
+    leaving the page. Data fetcher `getRecentAuditLogForClub` uses a
+    bounded two-step (recent 500 booking IDs of the host club → audit
+    rows IN those IDs) to scope multi-club admins to the currently-
+    viewed club. RLS via `audit_log_visible_to_admin` is the
+    authorisation; the explicit filter just narrows display.
+- **Migrations applied:** 031 (`audit_log` + `audit_log_visible_to_admin`
+  helper + `admin_force_cancel_booking` RPC). One migration this phase;
+  Phase 8e's migrations 026/027/028/029/030 covered the booking and
+  scoring schema needs.
+- **Drift delta:** 43 → 44 open / 17 → 19 closed (closed: Phase 9
+  admin-surfaces parent entry; closed: Phase 8d-followup migration-029
+  RLS Docker-deferred entry, closed during 9-prep when Docker came up;
+  added Phase 9-3: tournament-AuditTab retrofit, audit-fetcher 500-row
+  pre-fetch cap, audit-fetch-error telemetry; the 9-1 / 9-2 commits
+  had no drift movement — both shipped at scope).
+- **Test-suite trajectory:** 610 (Phase 8 close) → 729 (9-2) → **743**
+  (9-3 close). 71 test files / 743 cases / 0 failures. RLS suite
+  trajectory: 49 (Phase 7) → 70 (9-prep, Docker-up first run) →
+  77 (9-2) → **85** (9-3 close). 12 RLS files / 85 cases / 0 failures.
+- **Verification gates at close:** `npm run typecheck` clean; `npm run
+  lint` 0 errors / 16 pre-existing warnings (none in Phase 9 code);
+  `npm run test` 743 passed; `npm run test:integration` 85 passed;
+  `npm run build` clean; branding grep returns zero.
+- **Manual QA verification:** deferred to user's manual walk per the
+  Phase 8 operational convention ("Browser-driven QA is human-side
+  throughout the rebuild"). Surfaces to walk: `/manage/greens` weekly
+  editor + rink toggle (9-1); `/manage/overview` calendar + force-
+  cancel sheet + audit panel (9-2/9-3). Force-cancel flow covers the
+  full audit trail end-to-end (cancel → audit row → panel render).
+- **Operational decisions recorded during Phase 9:**
+  - **Generic `audit_log` over per-table tables.** 031 design note
+    captures the rationale: every audited action has the same shape
+    (table_name + row_id + action + reason + payload + performed_by +
+    performed_at), so per-table audit tables would multiply schema
+    surface for no benefit. Future audited paths plug in by writing
+    the same INSERT shape from their own SECURITY DEFINER RPCs and
+    extending the visibility helper's `elsif` ladder.
+  - **`admin_force_book` skipped, force-cancel + re-book preferred.**
+    Recorded in 9-prep migration 031 design notes: a single-RPC override
+    that bypassed the bookings GIST exclusion would be a footgun (and
+    audit-asymmetric — the original cancel and the new booking would
+    look unrelated). Force-cancel + re-book = two audit rows on
+    different bookings = clean, traceable trail. Admins use the
+    existing `bookings_club_admin_rw` INSERT policy for the re-book.
+  - **Audit panel scope = current host club, not all clubs the admin
+    administers.** Multi-club admins (rare today) see only the host
+    club's audit rows in the panel because the data fetcher pre-filters
+    by `bookings.club_id = clubId`. The RLS policy alone would expose
+    every club's audit rows the admin can see. Explicit filter matches
+    the page's "you're managing club X" framing.
+- **Phase 10 readiness.** T20 schema (migrations 007 `t20_assessments`
+  + `t20_deliveries` + `t20_section_aggregates`; migration 013 rubric
+  v1) already applies to the working DB. Plan section "13. Phase 10
+  — T20 assessment module" specifies migration 016 as a Phase 10 step
+  (`t20_distance_bucket` column), the v1-final-2026 rubric JSON, the
+  CompassPicker component contract, and the `/manage/t20` admin
+  surface tree. No outstanding precondition work.
+
+---
+
 ## Operational conventions
 
 - **Browser-driven QA is human-side throughout the rebuild.** Multi-viewport visual checks and Lighthouse performance audits run on a real browser / device by the human at phase close — Claude Code cannot drive a browser in this WSL container (Playwright + chrome-devtools MCPs both fail to attach). Claude Code's QA scope is limited to code review against the design source + curl-level route checks. Subsequent phase briefs and stop-and-reports drop the "mandatory mobile QA at 4 viewports" item from Claude's gate list. Recorded: 2026-04-29 (post Phase 8 first batch).

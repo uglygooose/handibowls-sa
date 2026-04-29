@@ -135,3 +135,106 @@ function bookerName(
   const composed = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
   return composed || null;
 }
+
+// Phase 9-3 — recent audit_log rows for the admin's club.
+//
+// Why two queries vs one PostgREST embed:
+//   audit_log.row_id is polymorphic (no FK to bookings.id) so PostgREST
+//   can't auto-join. We fetch the club's recent booking IDs (cap 500 —
+//   plenty for a year of admin actions on one club) then `in()` against
+//   them. RLS via `audit_log_visible_to_admin` already enforces club
+//   scope; this explicit filter narrows the *display* list to the
+//   `clubId` the admin is currently viewing (matters for multi-club
+//   admins).
+//
+//   The 500-row cap on the booking pre-fetch is the only edge case to
+//   note: an audit event on a *very* old booking (#501+ down the
+//   created_at list) would not surface. In practice admin force-cancels
+//   target near-future bookings, so this is acceptable. If the cap ever
+//   bites, the right fix is a SECURITY DEFINER `recent_audit_log_for_club`
+//   RPC (Phase 12.5 polish).
+
+export type AuditAction = "force_cancel_booking" | string;
+
+export type AuditLogRow = {
+  id: string;
+  table_name: string;
+  row_id: string;
+  action: AuditAction;
+  reason: string | null;
+  performed_at: string;
+  performer_name: string | null;
+  performer_email: string | null;
+};
+
+export type AuditLogResult =
+  | { ok: true; rows: AuditLogRow[] }
+  | { ok: false; reason: "no-club" | "error"; error?: string };
+
+const AUDIT_LOG_DEFAULT_LIMIT = 20;
+const AUDIT_LOG_BOOKING_PREFETCH_CAP = 500;
+
+export async function getRecentAuditLogForClub(
+  clubId: string,
+  limit: number = AUDIT_LOG_DEFAULT_LIMIT,
+): Promise<AuditLogResult> {
+  const ctx = await getAuthContext();
+  if (!ctx) return { ok: false, reason: "no-club" };
+
+  const supabase = await createClient();
+
+  const { data: clubBookings, error: bookingsErr } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("club_id", clubId)
+    .order("created_at", { ascending: false })
+    .limit(AUDIT_LOG_BOOKING_PREFETCH_CAP);
+
+  if (bookingsErr) {
+    console.error("[overview] audit-log bookings prefetch failed:", bookingsErr);
+    return { ok: false, reason: "error", error: bookingsErr.message };
+  }
+
+  const bookingIds = (clubBookings ?? []).map((b) => b.id);
+  if (bookingIds.length === 0) {
+    return { ok: true, rows: [] };
+  }
+
+  const { data, error } = await supabase
+    .from("audit_log")
+    .select(
+      "id, table_name, row_id, action, reason, performed_at, performer:profiles!performed_by(first_name, last_name, display_name, email)",
+    )
+    .eq("table_name", "bookings")
+    .in("row_id", bookingIds)
+    .order("performed_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[overview] audit-log fetch failed:", error);
+    return { ok: false, reason: "error", error: error.message };
+  }
+
+  const rows: AuditLogRow[] = (data ?? []).map((r) => {
+    const performer = r.performer as
+      | {
+          first_name?: string | null;
+          last_name?: string | null;
+          display_name?: string | null;
+          email?: string | null;
+        }
+      | null;
+    return {
+      id: r.id,
+      table_name: r.table_name,
+      row_id: r.row_id,
+      action: r.action,
+      reason: r.reason,
+      performed_at: r.performed_at,
+      performer_name: bookerName(performer),
+      performer_email: performer?.email ?? null,
+    };
+  });
+
+  return { ok: true, rows };
+}
