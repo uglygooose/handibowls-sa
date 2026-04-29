@@ -407,6 +407,203 @@ at the moment a phase closed, derived from
   CompassPicker component contract, and the `/manage/t20` admin
   surface tree. No outstanding precondition work.
 
+> **Corrective addendum (Phase 10 close, 2026-04-29):** the line above
+> referencing `t20_section_aggregates` (in the schema gloss) is wrong
+> — there is no `t20_section_aggregates` table in migrations 007 / 013.
+> Per-section subtotals are computed at runtime from `t20_deliveries`
+> via `aggregateAssessment` in `lib/t20/score.ts`. Append-only
+> convention preserves the original line; this addendum is the
+> correction.
+
+---
+
+## Phase 10 — Twenty 20 assessment module (production rubric) — closed 2026-04-29
+
+- **Branch tip:** `<tip>` (`rebuild/phase-10-twenty20`, cut from
+  `b41e814` Phase 9 close). Phase 10 carved into nine sub-checkpoints
+  driven incrementally — 10-prep / 10-1 / 10-2 / 10-3 (six commits) /
+  10-4 / 10-5 / 10-6 / 10-7 / 10-8 / 10-close.
+- **Naming convention locked:** "Twenty 20" (with space) is canonical
+  UI / copy spelling — page headings, button labels, breadcrumbs,
+  email subjects, navigation labels, PDF titles, all user-visible
+  strings. `t20_*` is internal code shorthand only — table names,
+  enums, column names, file paths, route segments, TypeScript
+  identifiers, comments. The `bsa-terminology` skill was updated at
+  `~/.claude/skills/bsa-terminology/SKILL.md` to codify this split
+  (filesystem only — not in repo).
+- **Sub-checkpoints + headline SHAs:**
+  - **10-prep** `4fd2bbf` — migration 032: `t20_distance_bucket text`
+    column on `t20_deliveries` with CHECK `('<10cm','10-30cm','30cm+')`
+    or NULL + partial index on non-null. Backwards-compatible with v1
+    (existing rows keep distance_bucket=NULL; grading unchanged).
+    Pushed to cloud via `supabase db push --linked` at the start of
+    10-3 (commit `b089978` cloud-anchored types regen).
+  - **10-1** `c37cb9e` — scoring engine. `lib/t20/rubric.ts` (Zod
+    `RubricSchema` validating uploaded rubric JSON against the seeded
+    v1-final-2026 shape; section/zone/grade type exports;
+    `SECTION_KEYS` / `ZONE_IDS` / `ZONE_META` constants) +
+    `lib/t20/score.ts` (`scoreDelivery` / `sectionMaxes` / `grandMax`
+    / `gradeFor` / `aggregateAssessment`). 37 unit tests covering
+    every section model + plan-locked grading edges (79.9% silver,
+    80.0% gold, 49.9% fail, 50.0% bronze, etc.).
+  - **10-2** `ccaba80` (lint follow-up `5b6e5d0`) — data layer +
+    9 server actions. `_data.ts` ships `getActiveRubric`,
+    `listAssessmentsForClub`, `getAssessmentDetail`,
+    `getT20CandidatesForClub`. `_actions.ts` ships
+    `createAssessment`, `startCapture`, `recordDelivery`,
+    `completeRound`, `finalizeAssessment`, `addSecondMarker`,
+    `createAssessmentFromForm` (form-data wrapper for
+    `useActionState`). `platform/rubrics/_actions.ts` ships
+    `uploadRubricVersion`, `activateRubricVersion`,
+    `deactivateRubricVersion`. All Phase 9-style: Zod gating + typed
+    Result discriminated unions + `revalidatePath`.
+  - **10-3** (six commits, `407923d` → `9d803b0`) — eight shared
+    components in `components/t20/` extracted from the design
+    bundle's `t20-components.jsx`. Each ships its own test file:
+    `GradePill` (sm/md/lg, ★ sigil on lg gold) · `AssessmentCard`
+    (state-branched list-row card) · `SectionStepper` (7×2 grid for
+    capture wizard) · `CompassPicker` + `CompassHeatmap` (iconic SVG
+    rose, geometry verbatim from design) · `HandBalanceChart` /
+    `LengthDistributionChart` (pure-CSS, no recharts dep) ·
+    `RubricDiff` (unified-diff with sigil + tinted rows). 79 cases
+    total. Shipped via 6 atomic commits per surface.
+  - **10-4** `05282a3` — `/manage/t20` assessments list. Server
+    Component composes hero + 4 stat cards + active-rubric pill;
+    Client island (`AssessmentsListClient`) handles search /
+    status / grade filter chips + card grid + 2 empty states
+    (no-data / no-match). 21 cases.
+  - **10-5** `2f0e4cf` — `/manage/t20/new` setup form. 5-section
+    layout (Player picker + history sidebar / Assessor card-grid +
+    accreditation input / Conditions / Rubric reference card with
+    "View details" modal showing 7-section table / Second-marker
+    toggle). Wired via `useActionState` + `createAssessmentFromForm`
+    → `redirect()` to capture wizard on success. 25 cases.
+  - **10-6** `a7e6272` — `/manage/t20/[id]/capture` wizard. The
+    high-stakes UX. Three section bodies branched on rubric model:
+    LineOutcomeBody (S1-2 distance tabs + 8 delivery cards) /
+    ZonesBody (S3-5 CompassPicker + hand toggle + 8 bowl thumbs) /
+    OnLengthBody (S6-7 4 ladder cards × F+B rows). Wake-lock
+    acquired on first `onPointerDown` via existing Phase 8c
+    `lib/scorecard/use-wake-lock.ts` hook. New `SaveIndicator`
+    primitive (3 states: saved / saving / failed). Resume via
+    `hydrateAndSeek` walking SECTION_KEYS×[1,2] for next incomplete
+    (section, round). 28 cases.
+  - **10-7** `930c9fd` — `/manage/t20/[id]` results view. Server
+    Component pre-computes server-side aggregations: `score`
+    (re-derived via `aggregateAssessment`), `zoneCounts` (drive +
+    control + trail combined), `handBalance`, `lengthDistribution`.
+    Six composed sections: ResultsHero (grade-reveal moment with
+    GradePill lg, 500ms animated reveal, per-grade gradient) /
+    SectionBreakdown (animated progress bars cascading 80ms per row)
+    / ChartsRow (CompassHeatmap + HandBalanceChart +
+    LengthDistributionChart) / NotesSection / SecondMarkerSection
+    (inline form wired to `addSecondMarker`) / back-link.
+    `requestPdfExport` placeholder action returns kind='pending'.
+    27 cases.
+  - **10-8** `3eec10d` — `/platform/rubrics` super-admin rubric
+    library. Six composed sections: Hero / UploadZone (drag-drop +
+    client-side `RubricSchema.safeParse` + server-side action) /
+    DraftBanner (amber-tinted when draft exists) / VersionsTable
+    (status pills active / draft / archived mapped from
+    `is_active` boolean + assessment-count) / PendingChangesPanel
+    (permanent inline `RubricDiff` between active + first draft) /
+    3 modals (Diff / Activate with acknowledge checkbox /
+    Deactivate). New helper `lib/t20/diff.ts` —
+    `diffRubrics(active, incoming)` returns domain-aware
+    `RubricChange[]` covering grading bands + passPctTarget +
+    assessor + per-section model/distances/points/zonePoints/
+    pointsPerOnLength. 40 cases (13 diff + 27 client).
+  - **10-close** `<this commit>` — PHASE_LOG entry + DRIFT_LOG
+    sweep + Phase 9 corrective addendum.
+- **Migrations applied:** 032 (`t20_distance_bucket text` column +
+  CHECK + partial index). One migration this phase; the rest of the
+  schema (`t20_assessments`, `t20_deliveries`, `t20_rubric_versions`)
+  was seeded in Phase 2 migrations 007 + 013. Cloud + local in sync
+  (verified via `supabase migration list --linked` at 10-3 start).
+- **Components extracted:** 9 net-new under `components/t20/` —
+  `GradePill`, `AssessmentCard`, `SectionStepper`, `CompassPicker`,
+  `CompassHeatmap`, `HandBalanceChart`, `LengthDistributionChart`,
+  `RubricDiff`, `SaveIndicator`. All consume design-system tokens
+  (`--primary-500`, `--ink`, `--bone`, `--speckle-a`/`--speckle-b`,
+  `--border`/`--border-strong`, `--on-primary`); no new tokens
+  introduced.
+- **Surfaces shipped:** 5 pages — `/manage/t20` (list) ·
+  `/manage/t20/new` (setup form) · `/manage/t20/[id]/capture`
+  (wizard) · `/manage/t20/[id]` (results) · `/platform/rubrics`
+  (super-admin library).
+- **Server actions wired:** 9 from the brief —
+  `createAssessment`, `startCapture`, `recordDelivery`,
+  `completeRound`, `finalizeAssessment`, `addSecondMarker`,
+  `uploadRubricVersion`, `activateRubricVersion`,
+  `deactivateRubricVersion`. Plus 1 placeholder
+  (`requestPdfExport` kind='pending' until template ships) and
+  1 form-data adapter (`createAssessmentFromForm` for
+  `useActionState` on the New form).
+- **Drift delta:** 44 → 60 open / 19 closed unchanged. Across the
+  whole phase: +2 from 10-2 (addSecondMarker composite column +
+  `activateRubricVersion` sequential UPDATE) already in the log
+  before 10-close; +14 added at 10-close (capability gaps from 10-4
+  through 10-8 logged individually for follow-up ownership). No
+  closures — Phase 10 had no parent deferral entry to roll up
+  (the Phase 2 schema 007 + 013 was the implicit carry).
+- **Test-suite trajectory:** 743 (Phase 9 close) → 780 (10-1) →
+  780 (10-2) → 859 (10-3) → 880 (10-4) → 905 (10-5) → 933 (10-6) →
+  960 (10-7) → **1000 (10-8 + 10-close)** ✨ thousand-test milestone
+  reached at 10-8. 85 test files / 1000 cases / 0 failures. RLS
+  integration suite remained 85/85 across the phase (no Phase 10
+  RLS coverage added — the action-layer Zod gating + `getAuthContext`
+  + super-admin role check + the existing migration 010 RLS policies
+  on `t20_assessments` / `t20_deliveries` / `t20_rubric_versions`
+  serve as the authorization story; explicit RPC coverage like
+  Phase 9's audit_log is unnecessary because no SECURITY DEFINER
+  RPCs ship in Phase 10).
+- **Verification gates at close:** `npm run typecheck` clean;
+  `npm run lint` 0 errors / 18 pre-existing warnings (none in
+  Phase 10 code at close); `npm run test` 1000 / 1000 passed;
+  `npm run test:integration` 85 / 85 passed; `npm run build`
+  clean — all 5 Twenty 20 routes ƒ-routed; branding grep
+  (`henselite|choice of champions`) returns 0 hits across
+  `app components lib public`; `T20` user-visible-string grep
+  returns 0 hits (code-shorthand convention preserved).
+- **Manual QA verification:** deferred to user's manual walk per
+  the Phase 8 operational convention. Surfaces to walk: the entire
+  /manage/t20 tree (list + new + capture + results) on a real
+  browser — capture especially needs tablet validation as the
+  high-stakes UX. /platform/rubrics needs a super-admin walk
+  through upload + diff + activate + deactivate flows.
+- **Operational decisions recorded during Phase 10:**
+  - **"Twenty 20" UI / `t20_` code split.** Codified in
+    `bsa-terminology` skill. Table names + file paths + URL
+    segments + identifiers stay `t20_*` (grep + nav stay fast);
+    every user-visible string uses "Twenty 20" with a space.
+  - **"Reassess" vs "Fail" label distinction** (10-4 clarification).
+    `t20_grade` enum + `Grade` type + `gradeFor()` return value
+    stay `'fail'`. The user-visible result label on `GradePill`
+    renders **"Reassess"** (coaching tone, per design source's
+    `gradeMeta.fail.label`). The rubric-reference legend on the
+    New form's Section 4 + the Activate modal's threshold display
+    use **"Fail"** (documentary BSA vocabulary). Both spellings
+    coexist intentionally — different roles on different surfaces.
+  - **Online-only capture per plan §13.** No Dexie outbox for
+    Twenty 20 captures; failed `recordDelivery` returns surface
+    via `SaveIndicator state='failed'` and the coach retries by
+    re-tapping (UPSERT path in the action). Rationale: assessments
+    happen at the club with Wi-Fi; offline complexity isn't worth
+    the carrying cost.
+  - **Activation is one-way.** Existing assessments retain pinned
+    `rubric_version_id` forever (FK `on delete restrict` per
+    migration 007). Activate modal headline emphasises this with
+    a required acknowledge checkbox. Deactivate UI gate prevents
+    sole-active rubric deactivation; full deactivation flow
+    surfaces only when ≥1 other version exists.
+- **Phase 11 readiness.** Plan section "14. Phase 11 — Comms"
+  scope is email + in-app notifications via Resend (Q6-locked: no
+  SMS, no WhatsApp). Schema for `messages` ships in Phase 2
+  migration 008 + RLS in 010. Outstanding v1-blocker drift items
+  (`acceptInviteAction` + JWT club_ids stale-claim from Phase
+  5e) are explicitly owned by Phase 11. No new Phase 10 work
+  blocks Phase 11.
+
 ---
 
 ## Operational conventions
