@@ -17,6 +17,7 @@
     "clean:mojibake": "node scripts/ascii-clean.mjs",
     "clean:mojibake:write": "node scripts/ascii-clean.mjs --write",
     "gen:icons": "node scripts/gen-pwa-icons.mjs",
+    "lighthouse:pwa": "node scripts/lighthouse-pwa.mjs",
     "seed:dev": "tsx scripts/seed-dev-users.ts",
     "seed:dev:tournaments": "tsx scripts/seed-dev-tournaments.ts"
   },

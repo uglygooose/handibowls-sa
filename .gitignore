@@ -52,6 +52,7 @@ next-env.d.ts
 
 # lighthouse audit reports (helper scripts in scripts/, JSON output ignored)
 scripts/lighthouse-*.json
+scripts/lighthouse-pwa/
 
 # chrome-launcher temp profile dirs — under WSL the Windows LOCALAPPDATA env
 # leaks through and a literal "C:\Users\..." directory appears at repo root.
