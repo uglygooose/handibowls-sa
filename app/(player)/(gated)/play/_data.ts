@@ -74,6 +74,15 @@ async function teamIdsForCurrentPlayer(): Promise<string[]> {
 // Earliest non-completed match the player participates in. Order:
 // scheduled (earliest starts_at first) → in_progress → null. Returns
 // null when no upcoming match — surface renders an empty state.
+//
+// Phase 8d Finding 17 — filter on submission_status='pending'. Migration
+// 026 introduced the lifecycle (pending → captain_submitted →
+// opponent_confirmed → completed via verifyMatch); a captain_submitted
+// match is no longer scoreable from the captain's perspective and
+// should drop out of the next-match hero. Per design audit, overview
+// surfaces deliberately treat intermediate lifecycle states as
+// invisible — the scorecard's passive AwaitingOpponentConfirm banner
+// owns the post-submit acknowledgement (Finding 14 / migration 029).
 export async function getNextMatchForCurrentPlayer(): Promise<PlayerNextMatch | null> {
   const teamIds = await teamIdsForCurrentPlayer();
   if (teamIds.length === 0) return null;
@@ -86,6 +95,7 @@ export async function getNextMatchForCurrentPlayer(): Promise<PlayerNextMatch | 
     )
     .or(`home_team_id.in.(${teamIds.join(",")}),away_team_id.in.(${teamIds.join(",")})`)
     .in("status", ["scheduled", "in_progress"])
+    .eq("submission_status", "pending")
     .order("starts_at", { ascending: true, nullsFirst: false })
     .limit(1)
     .maybeSingle();

@@ -132,12 +132,17 @@ async function tournamentsWithOpenMatchForPlayer(
   if (teamIds.length === 0 || tournamentIds.length === 0)
     return new Set<string>();
   const supabase = await createClient();
+  // Phase 8d Finding 17 — filter on submission_status='pending'. A
+  // tournament whose only open match is captain_submitted is not
+  // actionable from the player's overview; the entered-list card
+  // shouldn't render its in-play styling.
   const { data } = await supabase
     .from("matches")
     .select("tournament_id")
     .in("tournament_id", tournamentIds)
     .or(`home_team_id.in.(${teamIds.join(",")}),away_team_id.in.(${teamIds.join(",")})`)
-    .in("status", ["scheduled", "in_progress"]);
+    .in("status", ["scheduled", "in_progress"])
+    .eq("submission_status", "pending");
   return new Set((data ?? []).map((m) => m.tournament_id));
 }
 

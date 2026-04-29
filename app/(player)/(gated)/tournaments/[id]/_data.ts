@@ -226,6 +226,12 @@ function roundLabelFor(
 
 // Player's earliest non-completed match in this tournament. Drives the
 // "Score next match" CTA in the detail hero + the inline notice block.
+//
+// Phase 8d Finding 17 — filter on submission_status='pending'. The hero
+// CTA + inline notice are scoreability cues; once the captain has
+// submitted (submission_status='captain_submitted') the match is
+// awaiting the opponent and isn't actionable here. Bracket pills stay
+// IN_PLAY for the same row per design (4-state enum).
 export async function getPlayerOpenMatchInTournament(
   tournamentId: string,
 ): Promise<PlayerMatchRow | null> {
@@ -243,6 +249,7 @@ export async function getPlayerOpenMatchInTournament(
       `home_team_id.in.(${teamIds.join(",")}),away_team_id.in.(${teamIds.join(",")})`,
     )
     .in("status", ["scheduled", "in_progress"])
+    .eq("submission_status", "pending")
     .order("starts_at", { ascending: true, nullsFirst: false })
     .limit(1)
     .maybeSingle();
