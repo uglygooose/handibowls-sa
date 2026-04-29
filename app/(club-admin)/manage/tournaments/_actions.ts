@@ -443,10 +443,14 @@ export async function submitMatch(
   // post-game score post. It moves the match to in_progress (if it
   // wasn't already) and pins submission_status to 'captain_submitted'.
   // Re-submission while still 'captain_submitted' is allowed (captain
-  // edits before opponent confirms) — captain_submitted_at refreshes
-  // to now() so the audit trail tracks the latest edit. Re-submission
-  // after 'opponent_confirmed' is rejected; admin override via
-  // verifyMatch is the escape hatch for that scenario.
+  // edits before opponent confirms) — scores update on each call but
+  // captain_submitted_at is FROZEN to first-submission time per the
+  // Phase 8d audit-trail contract. Migration 028's
+  // matches_participant_update_guard trigger preserves OLD.captain_submitted_at
+  // on re-submit; this action only seeds the timestamp on the first
+  // transition (pending → captain_submitted) so action and trigger
+  // agree explicitly. Re-submission after 'opponent_confirmed' is
+  // rejected; admin override via verifyMatch is the escape hatch.
   if (match.submission_status === "opponent_confirmed") {
     return {
       ok: false,
@@ -455,6 +459,7 @@ export async function submitMatch(
     };
   }
 
+  const isFirstSubmission = match.submission_status === "pending";
   const { error: upErr } = await supabase
     .from("matches")
     .update({
@@ -462,7 +467,13 @@ export async function submitMatch(
       away_shots: v.away_shots,
       status: "in_progress",
       submission_status: "captain_submitted",
-      captain_submitted_at: new Date().toISOString(),
+      // Only seed the audit timestamp on the first transition. On
+      // re-submit (submission_status already 'captain_submitted'), the
+      // trigger would silently restore OLD anyway — making the action
+      // explicit avoids a misleading write that gets discarded.
+      ...(isFirstSubmission
+        ? { captain_submitted_at: new Date().toISOString() }
+        : {}),
     })
     .eq("id", v.match_id);
 
@@ -519,6 +530,13 @@ export async function confirmMatch(
   // Pre-compute the winner so the DB row already reflects the
   // captains' agreed result. verifyMatch may overwrite this if the
   // admin uses override scores.
+  //
+  // Migration 028's matches_participant_update_guard trigger:
+  //   • Allows winner_team_id writes ONLY on this exact
+  //     captain_submitted → opponent_confirmed transition (carve-out)
+  //   • Preserves opponent_confirmed_at if it's already set — but the
+  //     precondition above guarantees OLD is null when this UPDATE
+  //     runs, so the now() seed is the first-transition value (correct).
   const winnerTeamId = inferWinnerFromScores(match);
 
   const { error: upErr } = await supabase
