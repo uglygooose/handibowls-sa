@@ -93,6 +93,25 @@ export type RubricResult =
   | { ok: true; rubric: Rubric; versionId: string; versionLabel: string }
   | { ok: false; reason: "no-active" | "validation" | "error"; error?: string };
 
+export type T20PersonRow = {
+  profile_id: string;
+  name: string | null;
+  email: string | null;
+  bsa_number: string | null;
+  /** Last submitted assessment for this person (when they're being assessed),
+   *  used by the New form's "Player history" sidebar. Null when first-time. */
+  last_assessment: {
+    id: string;
+    assessed_on: string;
+    grade: "gold" | "silver" | "bronze" | "fail" | null;
+    percentage: number;
+  } | null;
+};
+
+export type CandidatesResult =
+  | { ok: true; clubId: string; clubName: string; rows: T20PersonRow[] }
+  | { ok: false; reason: "no-club" | "error"; error?: string };
+
 export async function getActiveRubric(): Promise<RubricResult> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -312,4 +331,103 @@ function nameOf(
   if (p.display_name) return p.display_name;
   const composed = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
   return composed || null;
+}
+
+// Phase 10 / 10-5 — candidate-list fetcher for the New assessment
+// form. Returns active club members with their most-recent submitted
+// Twenty 20 assessment (when present) so the form's player-history
+// sidebar can render without a second roundtrip.
+//
+// Two queries — one for memberships, one for the latest submitted
+// assessments at the club — joined client-side. The assessments
+// query is scoped to the club + status='submitted' so we don't
+// surface in-progress drafts as "history."
+//
+// One pool serves both the player picker AND the assessor picker.
+// The schema doesn't enforce a separate "is coach" role today; the
+// accreditation ID field is free-text per migration 007 and the
+// action's Zod regex is the gating layer. Future migration can split
+// out an `assessor_accreditations` table if BSA-coach validation
+// needs to be enforced server-side.
+export async function getT20CandidatesForClub(): Promise<CandidatesResult> {
+  const ctx = await getAuthContext();
+  if (!ctx) return { ok: false, reason: "no-club" };
+
+  const club = await getCurrentHostClub();
+  if (!club) return { ok: false, reason: "no-club" };
+
+  const supabase = await createClient();
+
+  const [membersRes, assessmentsRes] = await Promise.all([
+    supabase
+      .from("club_memberships")
+      .select(
+        "profile:profiles!inner(id, first_name, last_name, display_name, email, bsa_number)",
+      )
+      .eq("club_id", club.club_id)
+      .eq("status", "active"),
+    supabase
+      .from("t20_assessments")
+      .select("id, profile_id, assessed_on, grade, percentage, submitted_at")
+      .eq("club_id", club.club_id)
+      .eq("status", "submitted")
+      .order("submitted_at", { ascending: false }),
+  ]);
+
+  if (membersRes.error) {
+    console.error("[t20] candidates fetch failed:", membersRes.error);
+    return { ok: false, reason: "error", error: membersRes.error.message };
+  }
+
+  // Dedupe: latest-submitted assessment per profile_id.
+  const lastByProfile = new Map<
+    string,
+    { id: string; assessed_on: string; grade: T20PersonRow["last_assessment"] extends infer T ? T extends null ? never : T extends { grade: infer G } ? G : never : never; percentage: number }
+  >();
+  for (const row of assessmentsRes.data ?? []) {
+    if (!lastByProfile.has(row.profile_id)) {
+      lastByProfile.set(row.profile_id, {
+        id: row.id,
+        assessed_on: row.assessed_on,
+        grade: row.grade,
+        percentage: Number(row.percentage),
+      });
+    }
+  }
+
+  const rows: T20PersonRow[] = (membersRes.data ?? []).map((m) => {
+    const p = m.profile as {
+      id: string;
+      first_name: string | null;
+      last_name: string | null;
+      display_name: string | null;
+      email: string | null;
+      bsa_number: string | null;
+    };
+    const last = lastByProfile.get(p.id);
+    return {
+      profile_id: p.id,
+      name: nameOf(p),
+      email: p.email,
+      bsa_number: p.bsa_number,
+      last_assessment: last
+        ? {
+            id: last.id,
+            assessed_on: last.assessed_on,
+            grade: last.grade,
+            percentage: last.percentage,
+          }
+        : null,
+    };
+  });
+
+  // Stable sort: name ASC (case-insensitive), nulls last.
+  rows.sort((a, b) => {
+    if (a.name === b.name) return 0;
+    if (!a.name) return 1;
+    if (!b.name) return -1;
+    return a.name.localeCompare(b.name, "en-ZA", { sensitivity: "base" });
+  });
+
+  return { ok: true, clubId: club.club_id, clubName: club.club_name, rows };
 }

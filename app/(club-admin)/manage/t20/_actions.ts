@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { getAuthContext } from "@/lib/auth/role";
@@ -528,4 +529,87 @@ export async function startCapture(
 function firstZodError(err: z.ZodError): string {
   const issue = err.issues[0];
   return issue?.message ?? "Invalid input";
+}
+
+// Phase 10 / 10-5 — useActionState wrapper for the New form.
+//
+// Bridges the form-data world (HTML form inputs) and the structured
+// `createAssessment` input shape. Returns a typed FormState the
+// Client form can render directly:
+//
+//   ok                → never reached by the caller — we redirect()
+//                       inline to /manage/t20/<id>/capture so the
+//                       form submission flow ends on the capture
+//                       wizard.
+//   any other kind    → returned as-is for the Client form to surface.
+//
+// The redirect happens BEFORE the return so the success path never
+// hits the form's render. Next 16's `redirect()` throws an internal
+// signal — useActionState handles it transparently.
+
+export type CreateAssessmentFormState =
+  | { kind: "idle" }
+  | { kind: "ok"; assessmentId: string }
+  | { kind: "no_club" }
+  | { kind: "no_active_rubric" }
+  | { kind: "validation"; error: string }
+  | { kind: "auth"; error: string }
+  | { kind: "error"; error: string };
+
+export const CREATE_ASSESSMENT_INITIAL: CreateAssessmentFormState = {
+  kind: "idle",
+};
+
+export async function createAssessmentFromForm(
+  _prev: CreateAssessmentFormState,
+  formData: FormData,
+): Promise<CreateAssessmentFormState> {
+  const player_id = String(formData.get("player_id") ?? "");
+  const assessor_id = String(formData.get("assessor_id") ?? "");
+  const assessor_accreditation_id = String(
+    formData.get("assessor_accreditation_id") ?? "",
+  );
+  const assessed_on = String(formData.get("assessed_on") ?? "");
+  const greenTypeRaw = String(formData.get("green_type") ?? "");
+  const green_type =
+    greenTypeRaw === "outdoor" ||
+    greenTypeRaw === "indoor" ||
+    greenTypeRaw === "tarred"
+      ? (greenTypeRaw as "outdoor" | "indoor" | "tarred")
+      : undefined;
+  const greenSpeedRaw = String(formData.get("green_speed") ?? "").trim();
+  let green_speed: number | null | undefined;
+  if (greenSpeedRaw === "") {
+    green_speed = null;
+  } else {
+    const n = Number(greenSpeedRaw);
+    if (!Number.isFinite(n)) {
+      return {
+        kind: "validation",
+        error: "Green speed must be a number (e.g. 13.2).",
+      };
+    }
+    green_speed = n;
+  }
+
+  const result = await createAssessment({
+    player_id,
+    assessor_id,
+    assessor_accreditation_id,
+    assessed_on,
+    green_type,
+    green_speed,
+  });
+
+  if (result.kind === "ok") {
+    redirect(`/manage/t20/${result.assessmentId}/capture`);
+  }
+
+  // Optional second-marker fields land separately via addSecondMarker
+  // because the schema requires the assessment to exist first. The
+  // form submits both in one go; we capture them client-side and
+  // dispatch the second action after redirect rehydration. For v1
+  // we only persist the primary fields here — second-marker plumbing
+  // wires through 10-7 results view's `Add second marker` flow.
+  return result;
 }
