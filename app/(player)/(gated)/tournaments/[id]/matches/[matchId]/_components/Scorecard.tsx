@@ -5,6 +5,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Eye,
   Lock,
   MapPin,
   Trophy,
@@ -189,28 +190,20 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
     if (delta > 0) setPendingHome(0);
   }
 
-  // End-shortcut chips: "Win N" sets pendingHome=N (the player's side
-  // wins N), "Lose N" sets pendingAway=N (opponent wins N from the
-  // player's POV). Wires through the same player_is_home swap so the
-  // home/away mapping stays consistent.
-  function applyShortcut(side: "win" | "lose", shots: number) {
+  // Quick-shots row 1-8: tap N to set the player's side to N shots,
+  // zeroing the opponent's. Mirrors the design source's quick-shots
+  // semantics (`setMark({ home: n, away: 0 })` always for YOU) but
+  // adapted to player-is-home/away orientation so an away-side player
+  // taps "5" → opponent's-team-of-the-match `away_shots = 5` from the
+  // schema's POV. Net effect for the player is identical: "I won 5".
+  function applyQuickShot(shots: number) {
     ensureWakeLockOnGesture();
-    if (side === "win") {
-      if (initialMatch.player_is_home) {
-        setPendingHome(shots);
-        setPendingAway(0);
-      } else {
-        setPendingAway(shots);
-        setPendingHome(0);
-      }
+    if (initialMatch.player_is_home) {
+      setPendingHome(shots);
+      setPendingAway(0);
     } else {
-      if (initialMatch.player_is_home) {
-        setPendingAway(shots);
-        setPendingHome(0);
-      } else {
-        setPendingHome(shots);
-        setPendingAway(0);
-      }
+      setPendingAway(shots);
+      setPendingHome(0);
     }
   }
 
@@ -238,6 +231,41 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
 
   async function deleteEnd(endNumber: number) {
     await deleteMatchEnd(initialMatch.match_id, endNumber);
+  }
+
+  // Mark peel — a drawn end where neither team scored. Commits a 0/0
+  // row directly, bypassing the confirm sheet (peels are decisive — no
+  // numeric edit to confirm). Mirrors the design source's outline-button
+  // treatment as a one-tap action.
+  async function commitPeel() {
+    ensureWakeLockOnGesture();
+    setPendingHome(0);
+    setPendingAway(0);
+    await upsertMatchEndLocal({
+      matchId: initialMatch.match_id,
+      endNumber: currentEndNumber,
+      homeShots: 0,
+      awayShots: 0,
+    });
+    void flushNow();
+  }
+
+  // Skip — end abandoned / not played (rare: weather, rink moved,
+  // disputed bowl). Same row shape as peel for now (0/0); future
+  // differentiation via a `notes` flag is logged as Phase 12 polish
+  // drift since the design source's button is a UI-only stub with no
+  // implemented contract.
+  async function commitSkip() {
+    ensureWakeLockOnGesture();
+    setPendingHome(0);
+    setPendingAway(0);
+    await upsertMatchEndLocal({
+      matchId: initialMatch.match_id,
+      endNumber: currentEndNumber,
+      homeShots: 0,
+      awayShots: 0,
+    });
+    void flushNow();
   }
 
   // "Submit final" — calls submitMatch with the local totals (server
@@ -419,8 +447,10 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
               onHomeDecrement={() => bumpHome(-1)}
               onAwayIncrement={() => bumpAway(1)}
               onAwayDecrement={() => bumpAway(-1)}
-              onShortcut={applyShortcut}
+              onQuickShot={applyQuickShot}
               onConfirmEnd={openConfirm}
+              onPeel={commitPeel}
+              onSkip={commitSkip}
               wetHands={wetHands.on}
             />
           )}
@@ -753,7 +783,7 @@ function HandicapNotice({ match, wetHands }: { match: ScorecardMatch; wetHands: 
   );
 }
 
-function LiveScoringControls(props: {
+export function LiveScoringControls(props: {
   currentEndNumber: number;
   pendingHome: number;
   pendingAway: number;
@@ -764,8 +794,10 @@ function LiveScoringControls(props: {
   onHomeDecrement: () => void;
   onAwayIncrement: () => void;
   onAwayDecrement: () => void;
-  onShortcut: (side: "win" | "lose", shots: number) => void;
+  onQuickShot: (shots: number) => void;
   onConfirmEnd: () => void;
+  onPeel: () => void;
+  onSkip: () => void;
   wetHands: boolean;
 }) {
   const { wetHands, pendingHome, pendingAway, playerIsHome } = props;
@@ -799,13 +831,17 @@ function LiveScoringControls(props: {
         />
       </div>
 
-      {/* Quick-shot chips: 1..8 */}
-      <div className="grid grid-cols-8 gap-1">
+      {/* Quick-shot chips: 1..8 — design source's row of 8 buttons that
+          set the player's side to N shots and zero the opponent. */}
+      <div
+        data-slot="quick-shots"
+        className="grid grid-cols-8 gap-1"
+      >
         {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
           <button
             key={n}
             type="button"
-            onClick={() => props.onShortcut("win", n)}
+            onClick={() => props.onQuickShot(n)}
             className={cn(
               "inline-flex h-10 items-center justify-center rounded-lg font-mono text-[14px] font-extrabold tabular-nums",
               wetHands
@@ -818,37 +854,40 @@ function LiveScoringControls(props: {
         ))}
       </div>
 
+      {/* Mark peel + Skip — outline secondary actions per the design
+          source. Both bypass the confirm sheet (decisive single-tap):
+          peel commits a 0/0 row (drawn end); skip records an
+          abandoned end with the same 0/0 shape (Phase 12 polish entry
+          tracks splitting peel vs skipped via match_ends.notes). */}
       <div className="grid grid-cols-2 gap-2">
-        {[1, 2, 3].map((n) => (
-          <button
-            key={`win-${n}`}
-            type="button"
-            onClick={() => props.onShortcut("win", n)}
-            className={cn(
-              "inline-flex h-10 items-center justify-center gap-1 rounded-lg font-mono text-[12px] font-bold uppercase tracking-[0.06em]",
-              wetHands
-                ? "border-2 border-[#f5b700] bg-[#1a1a00] text-[#f5b700]"
-                : "border border-success-500/30 bg-success-500/8 text-success-500",
-            )}
-          >
-            Win {n}
-          </button>
-        ))}
-        {[1, 2, 3].map((n) => (
-          <button
-            key={`lose-${n}`}
-            type="button"
-            onClick={() => props.onShortcut("lose", n)}
-            className={cn(
-              "inline-flex h-10 items-center justify-center gap-1 rounded-lg font-mono text-[12px] font-bold uppercase tracking-[0.06em]",
-              wetHands
-                ? "border-2 border-[#4a3700] bg-[#0A0A0A] text-[#c08f00]"
-                : "border border-danger-500/30 bg-danger-500/8 text-danger-500",
-            )}
-          >
-            Lose {n}
-          </button>
-        ))}
+        <button
+          type="button"
+          data-slot="mark-peel"
+          onClick={props.onPeel}
+          className={cn(
+            "inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border font-mono text-[12px] font-bold uppercase tracking-[0.06em]",
+            wetHands
+              ? "border-2 border-[#f5b700] bg-[#1a1a00] text-[#f5b700]"
+              : "border-border bg-surface text-ink hover:bg-surface-muted",
+          )}
+        >
+          <Eye className="size-3.5" aria-hidden="true" />
+          Mark peel
+        </button>
+        <button
+          type="button"
+          data-slot="skip-end"
+          onClick={props.onSkip}
+          className={cn(
+            "inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border font-mono text-[12px] font-bold uppercase tracking-[0.06em]",
+            wetHands
+              ? "border-2 border-[#4a3700] bg-[#0A0A0A] text-[#c08f00]"
+              : "border-border bg-surface text-ink hover:bg-surface-muted",
+          )}
+        >
+          <X className="size-3.5" aria-hidden="true" />
+          Skip
+        </button>
       </div>
     </section>
   );

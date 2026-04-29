@@ -266,6 +266,7 @@ at the moment a phase closed, derived from
 ## Operational conventions
 
 - **Browser-driven QA is human-side throughout the rebuild.** Multi-viewport visual checks and Lighthouse performance audits run on a real browser / device by the human at phase close — Claude Code cannot drive a browser in this WSL container (Playwright + chrome-devtools MCPs both fail to attach). Claude Code's QA scope is limited to code review against the design source + curl-level route checks. Subsequent phase briefs and stop-and-reports drop the "mandatory mobile QA at 4 viewports" item from Claude's gate list. Recorded: 2026-04-29 (post Phase 8 first batch).
+- **Bot-opponent matches confirm via admin verifyMatch override in dev QA.** Seeded bot opponents (e.g. `bot.opponent@demo.local`) can't drive the OpponentConfirmationCard's "Confirm" tap since no human is logged in to the bot account. Dev QA flow uses club_admin's verifyMatch with `override_home_shots` / `override_away_shots` to advance bot-opponent matches past the captain-submitted state — same path real ops uses for dispute resolution. No seed-side auto-confirm, no dev-only UI. Recorded: 2026-04-29 (Phase 8d).
 
 ---
 
