@@ -98,6 +98,8 @@ vi.mock("@/lib/supabase/server", () => ({
 
 // Dynamic import after mocks are in place.
 const actions = await import("@/app/(club-admin)/manage/tournaments/_actions");
+const cache = await import("next/cache");
+const revalidatePathSpy = vi.mocked(cache.revalidatePath);
 
 // -------------------- shared fixtures --------------------
 
@@ -482,6 +484,23 @@ describe("submitMatch", () => {
       away_shots: 14,
     });
     expect(res.ok).toBe(true);
+
+    // Phase 8d follow-up — Finding 13 integration assertion.
+    // Pre-fix, only `/manage/tournaments/t-1` invalidated, leaving the
+    // player scorecard, /play, and /me serving the old RSC payload
+    // until a tangential rebuild hit those paths. The post-fix
+    // contract is `revalidateMatchSurfaces(tournamentId, matchId)` —
+    // every player surface that derives data from this match is on
+    // the list. Drift here surfaces locally before it ships.
+    const paths = revalidatePathSpy.mock.calls.map((c) => c[0]);
+    expect(paths).toContain("/manage/tournaments/t-1");
+    expect(paths).toContain("/tournaments/t-1");
+    expect(paths).toContain(
+      "/tournaments/t-1/matches/11111111-1111-4111-8111-111111111111",
+    );
+    expect(paths).toContain("/play");
+    expect(paths).toContain("/tournaments");
+    expect(paths).toContain("/me");
   });
 
   it("rejects re-submission once opponent has confirmed", async () => {

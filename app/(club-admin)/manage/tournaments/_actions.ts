@@ -31,6 +31,7 @@ import { generateKnockoutRound1 } from "@/lib/tournaments/brackets/knockout";
 import { generateRoundRobinFixtures } from "@/lib/tournaments/brackets/roundRobin";
 import { generateSectionalFixtures } from "@/lib/tournaments/brackets/sectional";
 import { completeTournamentIfDone } from "@/lib/tournaments/completion";
+import { revalidateMatchSurfaces } from "@/lib/tournaments/revalidate";
 import { advanceRound as advanceRoundPrimitive } from "@/lib/tournaments/rounds";
 import { seedEntries as seedEntriesPrimitive } from "@/lib/tournaments/seeding";
 import {
@@ -311,7 +312,7 @@ export async function generateBracket(
         .eq("id", parsed.data.tournament_id)
         .eq("status", "open");
 
-      revalidatePath(`/manage/tournaments/${parsed.data.tournament_id}`, "page");
+      revalidateMatchSurfaces(parsed.data.tournament_id);
       return {
         ok: true,
         data: { matches_created: (created ?? []).length, bye_team_count: out.byeTeamIds.length },
@@ -385,7 +386,7 @@ export async function advanceRound(
 
   if (result.kind === "tournamentComplete") {
     await completeTournamentIfDone({ supabase, tournamentId: parsed.data.tournament_id });
-    revalidatePath(`/manage/tournaments/${parsed.data.tournament_id}`, "page");
+    revalidateMatchSurfaces(parsed.data.tournament_id);
     return {
       ok: true,
       data: { kind: "tournamentComplete", champion_team_id: result.championTeamId },
@@ -402,7 +403,7 @@ export async function advanceRound(
     .select("id");
   if (insErr) return { ok: false, error: insErr.message };
 
-  revalidatePath(`/manage/tournaments/${parsed.data.tournament_id}`, "page");
+  revalidateMatchSurfaces(parsed.data.tournament_id);
   return {
     ok: true,
     data: {
@@ -479,7 +480,7 @@ export async function submitMatch(
 
   if (upErr) return { ok: false, error: upErr.message };
 
-  revalidatePath(`/manage/tournaments/${match.tournament_id}`, "page");
+  revalidateMatchSurfaces(match.tournament_id, v.match_id);
   return { ok: true, data: { match_id: v.match_id } };
 }
 
@@ -550,7 +551,7 @@ export async function confirmMatch(
 
   if (upErr) return { ok: false, error: upErr.message };
 
-  revalidatePath(`/manage/tournaments/${match.tournament_id}`, "page");
+  revalidateMatchSurfaces(match.tournament_id, parsed.data.match_id);
   return { ok: true, data: { match_id: parsed.data.match_id } };
 }
 
@@ -659,7 +660,7 @@ export async function verifyMatch(
   // Verifying the final match may complete the tournament.
   await completeTournamentIfDone({ supabase, tournamentId: match.tournament_id });
 
-  revalidatePath(`/manage/tournaments/${match.tournament_id}`, "page");
+  revalidateMatchSurfaces(match.tournament_id, v.match_id);
   return { ok: true, data: { match_id: v.match_id } };
 }
 
@@ -689,7 +690,7 @@ export async function completeTournament(
     return { ok: false, error: result.error ?? "Could not complete tournament." };
   }
 
-  revalidatePath(`/manage/tournaments/${parsed.data.tournament_id}`, "page");
+  revalidateMatchSurfaces(parsed.data.tournament_id);
   return {
     ok: true,
     data: {
@@ -724,7 +725,7 @@ export async function bulkSaveMatchScores(
   const result = data as { ok: boolean; updated_count: number } | null;
   if (!result?.ok) return { ok: false, error: "RPC returned no result." };
 
-  revalidatePath(`/manage/tournaments/${parsed.data.tournament_id}`, "page");
+  revalidateMatchSurfaces(parsed.data.tournament_id);
   return { ok: true, data: { updated_count: result.updated_count } };
 }
 
@@ -759,7 +760,7 @@ export async function finalizeMatchesBatch(
     tournamentId: parsed.data.tournament_id,
   });
 
-  revalidatePath(`/manage/tournaments/${parsed.data.tournament_id}`, "page");
+  revalidateMatchSurfaces(parsed.data.tournament_id);
   return { ok: true, data: { updated_count: result.updated_count } };
 }
 
@@ -786,7 +787,7 @@ export async function cancelTournament(
 
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath(`/manage/tournaments/${parsed.data.tournament_id}`, "page");
+  revalidateMatchSurfaces(parsed.data.tournament_id);
   return { ok: true, data: { cancelled: true } };
 }
 

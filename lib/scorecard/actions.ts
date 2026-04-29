@@ -28,6 +28,17 @@ import { createClient } from "@/lib/supabase/server";
 // and the server-action surface gives us cleaner Zod + ActionResult
 // ergonomics for the conflict-shape contract. Two round-trips on
 // conflict — common-path INSERT is one trip.
+//
+// No `revalidatePath` here — by design. Per-end UI is driven by the
+// scorecard's Dexie outbox + client-side aggregation: the local row
+// is already the source of truth for the captain mid-game, and other
+// clients pick up changes via the realtime channel on `match_ends`.
+// Forcing an RSC re-render on every end would defeat the offline-first
+// flow and add latency for nothing the user can see. Match-level
+// surfaces (admin overview, player scorecard meta, /play) are
+// invalidated by the lifecycle actions (`submitMatch`, `confirmMatch`,
+// `verifyMatch`) via `revalidateMatchSurfaces` once the match
+// transitions, which is the only point where the RSC payload changes.
 
 const upsertMatchEndSchema = z.object({
   match_id: z.string().uuid(),
