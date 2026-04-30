@@ -50,7 +50,7 @@ const CLUB_ADMIN_ITEMS: AdminSidebarItem[] = [
   { href: "/manage/members", label: "Members", icon: Users },
   { href: "/manage/greens", label: "Greens", icon: MapPin },
   { href: "/manage/tournaments", label: "Tournaments", icon: Trophy },
-  { href: "/manage/t20", label: "T20", icon: ClipboardList },
+  { href: "/manage/t20", label: "Twenty 20", icon: ClipboardList },
   { href: "/manage/messages", label: "Messages", icon: MessageSquare },
 ];
 
