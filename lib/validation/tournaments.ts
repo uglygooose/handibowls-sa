@@ -57,6 +57,15 @@ export const createTournamentSchema = z
     max_entries: positiveInt.nullable().optional(),
     ends_per_match: positiveInt.nullable().optional(),
     shots_up_target: positiveInt.nullable().optional(),
+    /** Fair-Rink toggle from Section 03 of the create form. Default
+     *  true matches the rendered toggle's default + the helper-text
+     *  recommendation. Migration 039. */
+    fair_rink: z.boolean().default(true),
+    /** Greens scoped to the tournament — populates the
+     *  tournament_greens join table on insert. Migration 039.
+     *  Empty array = "no greens scoped" (rink fairness algorithm
+     *  falls back to all club greens at scheduling time). */
+    green_ids: z.array(uuid).default([]),
   })
   .refine(
     (v) =>

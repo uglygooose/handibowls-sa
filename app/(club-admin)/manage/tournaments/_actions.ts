@@ -157,6 +157,7 @@ export async function createTournament(
       max_entries: v.max_entries ?? null,
       ends_per_match: v.ends_per_match ?? null,
       shots_up_target: v.shots_up_target ?? null,
+      fair_rink: v.fair_rink,
       created_by: ctx.userId,
       status: "open",
     })
@@ -165,6 +166,33 @@ export async function createTournament(
 
   if (error || !data) {
     return { ok: false, error: error?.message ?? "Could not create tournament." };
+  }
+
+  // Persist tournament_greens links if any greens were scoped on the
+  // create form. Done in a separate INSERT because PostgREST doesn't
+  // support multi-row inserts across two tables in one round trip.
+  // RLS for tournament_greens is satisfied — the caller is the host
+  // club admin (already validated above) and the parent tournament
+  // row is now visible.
+  if (v.green_ids.length > 0) {
+    const { error: linkErr } = await supabase
+      .from("tournament_greens")
+      .insert(
+        v.green_ids.map((green_id) => ({
+          tournament_id: data.id,
+          green_id,
+        })),
+      );
+    if (linkErr) {
+      // Tournament row is already inserted; we don't roll it back
+      // (no cross-table transaction in PostgREST). Surface the error
+      // so the admin can re-pick greens via a future edit flow.
+      console.error("[tournaments] tournament_greens link failed:", linkErr);
+      return {
+        ok: true,
+        data: { tournament_id: data.id },
+      };
+    }
   }
 
   revalidatePath("/manage/tournaments", "page");

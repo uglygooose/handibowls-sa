@@ -94,13 +94,10 @@ describe("<NewTournamentForm />", () => {
     expect(createTournamentMock).not.toHaveBeenCalled();
   });
 
-  it("save-as-draft button is disabled with the Phase-12 tooltip", () => {
+  it("save-as-draft button is removed (12-2 user call: REMOVE button — drafts deferred post-v1)", () => {
     render(<NewTournamentForm hostClub={HOST} greens={GREENS} />);
-    const draft = screen.getByRole("button", { name: /save as draft/i });
-    expect(draft).toBeDisabled();
-    expect(draft).toHaveAttribute(
-      "title",
-      expect.stringMatching(/drafts.*audit log.*phase 12/i),
-    );
+    expect(
+      screen.queryByRole("button", { name: /save as draft/i }),
+    ).toBeNull();
   });
 });

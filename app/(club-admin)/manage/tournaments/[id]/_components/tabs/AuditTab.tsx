@@ -7,10 +7,14 @@ import { Bowl } from "@/components/brand/Bowl";
 import { cn } from "@/lib/utils";
 
 // Audit empty state per the brief: speckled bowl + locked copy + the
-// design's filter chips. The audit_log table itself is deferred to
-// Phase 12 (cross-cutting); see DRIFT_LOG. We do NOT render fake / mock
-// events — the empty state is the source of truth until that table
-// lands.
+// design's filter chips. The `audit_log` table itself ships with
+// migration 031 (Phase 9-prep) and Phase 9-3 wires the booking-side
+// AuditLogPanel against it. The tournament-side retrofit (helper
+// extension + tournament admin RPCs writing audit rows + tab wire)
+// is a Phase 13 task — see DRIFT_LOG entry "AuditTab retrofit — read
+// tournament-domain audit rows" for the full sequence. We don't
+// render fake / mock events — the empty state is the source of
+// truth until those audit rows exist.
 
 type AuditFilter = "all" | "status" | "scores" | "entries" | "rounds";
 
@@ -66,23 +70,18 @@ export function AuditTab() {
         <Bowl preset="atomic-red" size={140} seed="audit-empty" emblem={false} />
         <div className="flex flex-col items-center gap-2">
           <h3 className="font-display text-2xl font-black tracking-tight">
-            Audit log activates with the next event
+            No audit events recorded for this tournament yet
           </h3>
           <p className="max-w-md text-[13px] text-ink-muted">
-            The{" "}
-            <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[11.5px]">
-              audit_log
-            </code>{" "}
-            table lands in Phase 12. Until then, this stream stays
-            empty — events fired before the table exists are not
-            back-filled.
+            Status changes, score edits, round advances, and
+            withdrawals will appear here once they fire.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             disabled
-            title="Spec doc lands when the audit_log migration ships"
+            title="Spec doc lands alongside the tournament-side audit retrofit"
             className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-surface px-3 text-[13px] font-medium text-ink-muted opacity-60"
           >
             <FileText className="size-3.5" aria-hidden="true" />

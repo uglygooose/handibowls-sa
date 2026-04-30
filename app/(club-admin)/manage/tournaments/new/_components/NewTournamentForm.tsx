@@ -79,11 +79,19 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
   const [endsAt, setEndsAt] = useState<string>("");
   const [entriesCloseAt, setEntriesCloseAt] = useState<string>("");
   const [maxEntries, setMaxEntries] = useState<string>("32");
-  // Visual-only controls (not yet schema-backed — see drift / phase notes).
+  // Greens picker + Fair-Rink toggle persist as of migration 039.
+  // Default selection is "all active club greens" so the form's empty
+  // submit still results in the rink-fairness algorithm having
+  // candidates to pick from. The toggle's default (true) matches the
+  // schema default — the column is set explicitly anyway in case the
+  // user toggles off.
   const [selectedGreens, setSelectedGreens] = useState<Set<string>>(
     () => new Set(greens.map((g) => g.id)),
   );
   const [fairRink, setFairRink] = useState(true);
+  // Entry fee remains visual-only (a separate Phase 12.5 follow-up
+  // tracks payment collection — entry-fee placeholder card on this
+  // form is the surface).
   const [entryFee, setEntryFee] = useState("80.00");
 
   const [serverError, setServerError] = useState<string | null>(null);
@@ -126,6 +134,8 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
       ends_at: toIsoOrNull(endsAt),
       entries_close_at: toIsoOrNull(entriesCloseAt),
       max_entries: maxEntries ? Number(maxEntries) : null,
+      fair_rink: fairRink,
+      green_ids: Array.from(selectedGreens),
     };
 
     startTransition(async () => {
@@ -416,7 +426,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
 
           <Field
             label="Greens to use"
-            helper="Visual selection only for now — rink assignment happens at match scheduling."
+            helper="Selected greens scope which surfaces the rink-fairness algorithm picks from at match scheduling."
           >
             <ChipRow>
               {greens.length === 0 ? (
@@ -549,14 +559,6 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
           >
             Cancel
           </Link>
-          <button
-            type="button"
-            disabled
-            title="Drafts land alongside the audit log (Phase 12)"
-            className="inline-flex h-11 cursor-not-allowed items-center gap-1.5 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink-muted opacity-60"
-          >
-            Save as draft
-          </button>
           <button
             type="submit"
             disabled={!valid || pending}
