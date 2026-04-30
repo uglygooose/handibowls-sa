@@ -18,6 +18,8 @@ import {
   SECTION_KEYS,
 } from "@/lib/t20/rubric";
 
+import type { CreateAssessmentFormState } from "./_form-state";
+
 // Phase 10 — Twenty 20 server actions for the admin capture flow.
 //
 // Six club-admin actions, locked from the brief:
@@ -546,19 +548,6 @@ function firstZodError(err: z.ZodError): string {
 // The redirect happens BEFORE the return so the success path never
 // hits the form's render. Next 16's `redirect()` throws an internal
 // signal — useActionState handles it transparently.
-
-export type CreateAssessmentFormState =
-  | { kind: "idle" }
-  | { kind: "ok"; assessmentId: string }
-  | { kind: "no_club" }
-  | { kind: "no_active_rubric" }
-  | { kind: "validation"; error: string }
-  | { kind: "auth"; error: string }
-  | { kind: "error"; error: string };
-
-export const CREATE_ASSESSMENT_INITIAL: CreateAssessmentFormState = {
-  kind: "idle",
-};
 
 export async function createAssessmentFromForm(
   _prev: CreateAssessmentFormState,

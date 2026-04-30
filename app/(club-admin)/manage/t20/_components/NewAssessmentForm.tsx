@@ -10,12 +10,12 @@ import { formatDateZA } from "@/lib/format/dates";
 import { SECTION_KEYS, type Grade } from "@/lib/t20/rubric";
 import { sectionMaxes } from "@/lib/t20/score";
 
+import { createAssessmentFromForm } from "../_actions";
+import type { T20PersonRow } from "../_data";
 import {
   CREATE_ASSESSMENT_INITIAL,
   type CreateAssessmentFormState,
-  createAssessmentFromForm,
-} from "../_actions";
-import type { T20PersonRow } from "../_data";
+} from "../_form-state";
 
 // Phase 10 / 10-5 — Twenty 20 New assessment setup form.
 //

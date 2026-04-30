@@ -3,9 +3,15 @@ import { render, fireEvent, act } from "@testing-library/react";
 
 vi.mock("server-only", () => ({}));
 
+// Mock only the Server Action — `CREATE_ASSESSMENT_INITIAL` and the
+// state type live in `_form-state.ts` (no `"use server"` directive)
+// so the Client Component can read the runtime constant directly.
+// Mocking it here would mask the very bug this split fixes: if the
+// constant ever moves back into the `"use server"` file, importers
+// receive `undefined` at runtime and the form crashes on first
+// render at `state.kind.replace(...)`.
 const formActionSpy = vi.fn();
 vi.mock("@/app/(club-admin)/manage/t20/_actions", () => ({
-  CREATE_ASSESSMENT_INITIAL: { kind: "idle" },
   createAssessmentFromForm: (...args: unknown[]) => {
     formActionSpy(...args);
     return { kind: "idle" };
@@ -553,5 +559,94 @@ describe("<NewAssessmentForm /> — empty candidates", () => {
       "[data-slot='start-cta']",
     ) as HTMLButtonElement;
     expect(cta.disabled).toBe(true);
+  });
+});
+
+describe("<NewAssessmentForm /> — empty-assessments-but-has-members path", () => {
+  // Regression for the manual-QA crash on a fresh club: members
+  // exist (so the player picker has rows) but every member has
+  // `last_assessment: null`. The history sidebar must render the
+  // first-time note for every selectable player without throwing.
+  const FIRST_TIME_ROSTER: T20PersonRow[] = [
+    makeCandidate({
+      profile_id: PROFILE_A,
+      name: "James Thomas",
+      bsa_number: "WP-2419",
+      last_assessment: null,
+    }),
+    makeCandidate({
+      profile_id: PROFILE_B,
+      name: "Wessel Coetzee",
+      bsa_number: "WP-1004",
+      last_assessment: null,
+    }),
+    makeCandidate({
+      profile_id: PROFILE_C,
+      name: "Jolene Williams",
+      bsa_number: "WP-3088",
+      last_assessment: null,
+    }),
+  ];
+
+  it("renders without crashing when every candidate has no prior assessment", () => {
+    const { container } = render(
+      <NewAssessmentForm
+        candidates={FIRST_TIME_ROSTER}
+        defaultDate="2026-04-29"
+        activeRubricLabel="v1-final-2026"
+      />,
+    );
+    // Form structure intact.
+    expect(
+      container.querySelectorAll("[data-slot='form-section']"),
+    ).toHaveLength(5);
+    // Default-selected player (first in roster) shows first-time note.
+    const note = container.querySelector("[data-slot='player-first-time']");
+    expect(note?.textContent).toContain("First-time Twenty 20 for this player.");
+  });
+
+  it("switching to another first-time player keeps the history sidebar in the first-time state", () => {
+    const { container } = render(
+      <NewAssessmentForm
+        candidates={FIRST_TIME_ROSTER}
+        defaultDate="2026-04-29"
+        activeRubricLabel="v1-final-2026"
+      />,
+    );
+    fireEvent.click(
+      container.querySelector(
+        "[data-slot='player-change-cta']",
+      ) as HTMLButtonElement,
+    );
+    const rows = container.querySelectorAll("[data-slot='player-picker-row']");
+    fireEvent.click(rows[2] as HTMLButtonElement);
+    const card = container.querySelector("[data-slot='player-card']");
+    expect(card?.textContent).toContain("Jolene Williams");
+    const note = container.querySelector("[data-slot='player-first-time']");
+    expect(note?.textContent).toContain("First-time");
+  });
+});
+
+describe("form-state module boundary", () => {
+  // Regression for the manual-QA crash on /manage/t20/new: when
+  // CREATE_ASSESSMENT_INITIAL and CreateAssessmentFormState lived
+  // inside `_actions.ts` (a `"use server"` module), Client Component
+  // imports of the runtime constant resolved to `undefined` at the
+  // bundler boundary, so `state.kind.replace(...)` threw on first
+  // render. The fix moved both into a neutral `_form-state.ts`. These
+  // assertions lock the split: the constant must NOT re-appear on
+  // the server-actions module, and the neutral module must keep its
+  // documented shape.
+  it("CREATE_ASSESSMENT_INITIAL is exported from _form-state with kind='idle'", async () => {
+    const mod = await import("@/app/(club-admin)/manage/t20/_form-state");
+    expect(mod.CREATE_ASSESSMENT_INITIAL).toEqual({ kind: "idle" });
+  });
+
+  it("_actions does NOT re-export the runtime initial-state constant", async () => {
+    // Bypass the file-level vi.mock so we inspect the real module.
+    const actual = await vi.importActual<Record<string, unknown>>(
+      "@/app/(club-admin)/manage/t20/_actions",
+    );
+    expect(actual.CREATE_ASSESSMENT_INITIAL).toBeUndefined();
   });
 });
