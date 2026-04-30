@@ -51,6 +51,8 @@ export type MessageListRow = {
   sender_name: string | null;
 };
 
+export type MessagesListMode = "inbox" | "sent";
+
 export type ListMessagesResult =
   | {
       ok: true;
@@ -60,7 +62,9 @@ export type ListMessagesResult =
     }
   | { ok: false; reason: "no-club" | "error"; error?: string };
 
-export async function listMessagesForClub(): Promise<ListMessagesResult> {
+export async function listMessagesForClub(
+  mode: MessagesListMode = "inbox",
+): Promise<ListMessagesResult> {
   const ctx = await getAuthContext();
   if (!ctx) return { ok: false, reason: "no-club" };
 
@@ -68,13 +72,25 @@ export async function listMessagesForClub(): Promise<ListMessagesResult> {
   if (!club) return { ok: false, reason: "no-club" };
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  // Inbox vs Sent split (12-3 / B1):
+  //   sent  → messages this admin authored at this club
+  //   inbox → messages at this club authored by SOMEONE ELSE (e.g.
+  //           player-initiated t20 assessment requests fanned out
+  //           via custom audience to club admins). Includes other
+  //           admins' broadcasts at the same club too — they also
+  //           show in this admin's audience when audience='all_members'.
+  let query = supabase
     .from("messages")
     .select(
       "id, club_id, subject, body_md, audience_kind, audience_tournament_id, audience_profile_ids, status, scheduled_at, sent_at, created_at, recipient_count, sender_id, sender:profiles!sender_id(first_name, last_name, display_name), tournament:tournaments!audience_tournament_id(name)",
     )
-    .eq("club_id", club.club_id)
-    .order("created_at", { ascending: false });
+    .eq("club_id", club.club_id);
+  if (mode === "sent") {
+    query = query.eq("sender_id", ctx.userId);
+  } else {
+    query = query.neq("sender_id", ctx.userId);
+  }
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
     console.error("[messages] list fetch failed:", error);

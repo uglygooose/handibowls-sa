@@ -64,6 +64,7 @@ export default async function PlayerLayout({
                   to live INSERT/UPDATE deltas on mount. */}
               <NotificationsBell
                 profileId={ctx?.userId ?? null}
+                role="player"
                 initialUnreadCount={initialNotifications.unreadCount}
                 initialRecent={initialNotifications.recent}
                 variant="light"

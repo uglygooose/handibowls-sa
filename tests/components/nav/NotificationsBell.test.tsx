@@ -61,6 +61,7 @@ describe("<NotificationsBell /> — render gating", () => {
     setRealtime({ unreadCount: 0, recent: [] });
     const { container } = render(
       <NotificationsBell
+        role="player"
         profileId={null}
         initialUnreadCount={0}
         initialRecent={[]}
@@ -75,6 +76,7 @@ describe("<NotificationsBell /> — render gating", () => {
     setRealtime({ unreadCount: 0, recent: [] });
     const { container } = render(
       <NotificationsBell
+        role="player"
         profileId={PROFILE}
         initialUnreadCount={0}
         initialRecent={[]}
@@ -91,6 +93,7 @@ describe("<NotificationsBell /> — unread badge", () => {
     setRealtime({ unreadCount: 0, recent: [] });
     const { container } = render(
       <NotificationsBell
+        role="player"
         profileId={PROFILE}
         initialUnreadCount={0}
         initialRecent={[]}
@@ -103,6 +106,7 @@ describe("<NotificationsBell /> — unread badge", () => {
     setRealtime({ unreadCount: 3, recent: [UNREAD] });
     const { container } = render(
       <NotificationsBell
+        role="player"
         profileId={PROFILE}
         initialUnreadCount={3}
         initialRecent={[UNREAD]}
@@ -117,6 +121,7 @@ describe("<NotificationsBell /> — unread badge", () => {
     setRealtime({ unreadCount: 142, recent: [UNREAD] });
     const { container } = render(
       <NotificationsBell
+        role="player"
         profileId={PROFILE}
         initialUnreadCount={142}
         initialRecent={[UNREAD]}
@@ -131,6 +136,7 @@ describe("<NotificationsBell /> — unread badge", () => {
     setRealtime({ unreadCount: 5, recent: [UNREAD] });
     render(
       <NotificationsBell
+        role="player"
         profileId={PROFILE}
         initialUnreadCount={5}
         initialRecent={[UNREAD]}
@@ -146,6 +152,7 @@ describe("<NotificationsBell /> — dropdown", () => {
     setRealtime({ unreadCount: 0, recent: [] });
     const { container } = render(
       <NotificationsBell
+        role="player"
         profileId={PROFILE}
         initialUnreadCount={0}
         initialRecent={[]}
@@ -158,6 +165,7 @@ describe("<NotificationsBell /> — dropdown", () => {
     setRealtime({ unreadCount: 1, recent: [UNREAD] });
     const { container } = render(
       <NotificationsBell
+        role="player"
         profileId={PROFILE}
         initialUnreadCount={1}
         initialRecent={[UNREAD]}
@@ -175,6 +183,7 @@ describe("<NotificationsBell /> — dropdown", () => {
     setRealtime({ unreadCount: 0, recent: [] });
     const { container } = render(
       <NotificationsBell
+        role="player"
         profileId={PROFILE}
         initialUnreadCount={0}
         initialRecent={[]}
@@ -190,6 +199,7 @@ describe("<NotificationsBell /> — dropdown", () => {
     setRealtime({ unreadCount: 1, recent: [UNREAD, READ] });
     const { container } = render(
       <NotificationsBell
+        role="player"
         profileId={PROFILE}
         initialUnreadCount={1}
         initialRecent={[UNREAD, READ]}
@@ -208,6 +218,7 @@ describe("<NotificationsBell /> — dropdown", () => {
     setRealtime({ unreadCount: 0, recent: [] });
     const { container } = render(
       <NotificationsBell
+        role="player"
         profileId={PROFILE}
         initialUnreadCount={0}
         initialRecent={[]}
@@ -227,6 +238,7 @@ describe("<NotificationsBell /> — row interactions", () => {
     setRealtime({ unreadCount: 1, recent: [UNREAD] });
     const { container } = render(
       <NotificationsBell
+        role="player"
         profileId={PROFILE}
         initialUnreadCount={1}
         initialRecent={[UNREAD]}
@@ -248,6 +260,7 @@ describe("<NotificationsBell /> — row interactions", () => {
     setRealtime({ unreadCount: 1, recent: [UNREAD] });
     const { container } = render(
       <NotificationsBell
+        role="player"
         profileId={PROFILE}
         initialUnreadCount={1}
         initialRecent={[UNREAD]}
@@ -260,5 +273,125 @@ describe("<NotificationsBell /> — row interactions", () => {
       container.querySelector("[data-slot='bell-row']") as HTMLButtonElement,
     );
     expect(container.querySelector("[data-slot='bell-dropdown']")).toBeNull();
+  });
+});
+
+// Phase 12 / 12-3 / B2+B3+B4 — role-branched routing helpers.
+//
+// Pure logic: given a role + a notification's related_kind/_id, the
+// helper returns the correct href. Mirrored from the in-file comment
+// matrix; if the matrix changes the test stays in lockstep.
+
+import {
+  resolveRelatedHref,
+  viewAllHref,
+} from "@/components/nav/NotificationsBell";
+
+function notif(over: Partial<RecentNotification>): RecentNotification {
+  return {
+    id: "n-1",
+    kind: "trophy",
+    title: "T",
+    body: null,
+    related_kind: null,
+    related_id: null,
+    read: false,
+    read_at: null,
+    created_at: "2026-04-30T10:00:00Z",
+    ...over,
+  };
+}
+
+describe("resolveRelatedHref — player role", () => {
+  it("no related_kind → /me/inbox", () => {
+    expect(resolveRelatedHref("player", notif({}))).toBe("/me/inbox");
+  });
+  it("related_kind='message' → /me/inbox?tab=messages", () => {
+    expect(
+      resolveRelatedHref("player", notif({ related_kind: "message", related_id: "m-1" })),
+    ).toBe("/me/inbox?tab=messages");
+  });
+  it("related_kind='booking' → /book", () => {
+    expect(
+      resolveRelatedHref("player", notif({ related_kind: "booking", related_id: "b-1" })),
+    ).toBe("/book");
+  });
+  it("related_kind='t20_assessment' → /t20 (12-3 / B4 — migration 040)", () => {
+    expect(
+      resolveRelatedHref(
+        "player",
+        notif({ related_kind: "t20_assessment", related_id: "b-1" }),
+      ),
+    ).toBe("/t20");
+  });
+  it("related_kind='match' → /tournaments", () => {
+    expect(
+      resolveRelatedHref("player", notif({ related_kind: "match", related_id: "m-1" })),
+    ).toBe("/tournaments");
+  });
+  it("related_kind='tournament' with id → /tournaments/{id}", () => {
+    expect(
+      resolveRelatedHref(
+        "player",
+        notif({ related_kind: "tournament", related_id: "t-9" }),
+      ),
+    ).toBe("/tournaments/t-9");
+  });
+});
+
+describe("resolveRelatedHref — club_admin role", () => {
+  it("no related_kind → /manage/messages?tab=inbox", () => {
+    expect(resolveRelatedHref("club_admin", notif({}))).toBe(
+      "/manage/messages?tab=inbox",
+    );
+  });
+  it("related_kind='message' with id → /manage/messages?tab=inbox#message-{id} (12-3 / B3)", () => {
+    expect(
+      resolveRelatedHref(
+        "club_admin",
+        notif({ related_kind: "message", related_id: "m-1" }),
+      ),
+    ).toBe("/manage/messages?tab=inbox#message-m-1");
+  });
+  it("related_kind='booking' → /manage/overview", () => {
+    expect(
+      resolveRelatedHref(
+        "club_admin",
+        notif({ related_kind: "booking", related_id: "b-1" }),
+      ),
+    ).toBe("/manage/overview");
+  });
+  it("related_kind='t20_assessment' → /manage/overview", () => {
+    expect(
+      resolveRelatedHref(
+        "club_admin",
+        notif({ related_kind: "t20_assessment", related_id: "b-1" }),
+      ),
+    ).toBe("/manage/overview");
+  });
+  it("related_kind='tournament' with id → /manage/tournaments/{id}", () => {
+    expect(
+      resolveRelatedHref(
+        "club_admin",
+        notif({ related_kind: "tournament", related_id: "t-9" }),
+      ),
+    ).toBe("/manage/tournaments/t-9");
+  });
+  it("related_kind='match' → /manage/tournaments", () => {
+    expect(
+      resolveRelatedHref(
+        "club_admin",
+        notif({ related_kind: "match", related_id: "m-1" }),
+      ),
+    ).toBe("/manage/tournaments");
+  });
+});
+
+describe("viewAllHref", () => {
+  it("player → /me/inbox", () => {
+    expect(viewAllHref("player")).toBe("/me/inbox");
+  });
+  it("club_admin → /manage/messages?tab=inbox", () => {
+    expect(viewAllHref("club_admin")).toBe("/manage/messages?tab=inbox");
   });
 });

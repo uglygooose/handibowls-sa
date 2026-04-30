@@ -110,12 +110,38 @@ export async function sendInviteEmail(
     .maybeSingle();
 
   if (inviteErr || !invite) {
+    // No invite row to attribute the failure to — caller's only
+    // option is to surface the error from the result.
     return {
       status: "failed",
       reason: "invite_not_found",
       error: inviteErr?.message ?? "Invite row not found for token.",
     };
   }
+
+  const inviteId = invite.id;
+  const recordStatus = async (result: SendInviteEmailResult): Promise<SendInviteEmailResult> => {
+    // Persist the latest send-attempt outcome onto the invite row
+    // (migration 040). Status codes mirror the discriminated union;
+    // failure error text gets surfaced inline so the admin's Resend
+    // UI can preview the last failure cause without a separate fetch.
+    const status = result.status;
+    const errorText = result.status === "failed" ? result.error : null;
+    const { error: persistErr } = await admin
+      .from("invites")
+      .update({
+        email_status: status,
+        email_error: errorText,
+        email_sent_at: new Date().toISOString(),
+      })
+      .eq("id", inviteId);
+    if (persistErr) {
+      // Persistence failure is non-fatal — the original send result
+      // is still authoritative for the caller. Log and move on.
+      console.error("[invites] email_status persist failed:", persistErr);
+    }
+    return result;
+  };
 
   const club = invite.clubs as
     | {
@@ -126,11 +152,11 @@ export async function sendInviteEmail(
       }
     | null;
   if (!club || !club.name) {
-    return {
+    return recordStatus({
       status: "failed",
       reason: "club_not_found",
       error: "Club row missing for this invite.",
-    };
+    });
   }
 
   // 2. Resolve the inviter's display name (optional; falls through
@@ -147,7 +173,7 @@ export async function sendInviteEmail(
   //    bind the token to invite.id and proceed.
   const recipient = await resolveProfileForRecipient(invite.email);
   if (recipient && recipient.email_opt_in === false) {
-    return { status: "skipped", reason: "opted_out" };
+    return recordStatus({ status: "skipped", reason: "opted_out" });
   }
   const tokenSubjectId = recipient?.id ?? invite.id;
 
@@ -200,11 +226,11 @@ export async function sendInviteEmail(
       ),
     ]);
   } catch (e) {
-    return {
+    return recordStatus({
       status: "failed",
       reason: "render_failed",
       error: e instanceof Error ? e.message : String(e),
-    };
+    });
   }
 
   // 6. Send.
@@ -218,14 +244,14 @@ export async function sendInviteEmail(
   });
 
   if (!result.ok) {
-    return {
+    return recordStatus({
       status: "failed",
       reason: "send_failed",
       error: result.error,
-    };
+    });
   }
 
-  return { status: "sent", emailId: result.id };
+  return recordStatus({ status: "sent", emailId: result.id });
 }
 
 // ---------------------------------------------------------------------

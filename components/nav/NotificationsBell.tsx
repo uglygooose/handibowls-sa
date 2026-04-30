@@ -11,6 +11,7 @@ import { formatRelativeZA } from "@/lib/format/relative";
 import { cn } from "@/lib/utils";
 
 // Phase 11 / 11-5b — top-bar realtime bell.
+// Phase 12 / 12-3 — role-branched relatedHref + Inbox/Sent footer link.
 //
 // Pure-controlled-by-hook island. Server-side layout fetches the
 // initial unread count + recent[5] via getInitialNotifications and
@@ -19,18 +20,25 @@ import { cn } from "@/lib/utils";
 //
 // Click → dropdown showing the latest 5 notifications with title,
 // short body, relative timestamp, unread dot. Tap a row → optimistic
-// mark-read + navigate to related entity; "View all" link hops to
-// /me/inbox.
+// mark-read + navigate to related entity (role-aware); "View all"
+// link hops to the role's canonical inbox surface.
 //
 // Visual treatment matches the existing top-bar primitives — Lucide
 // Bell icon, primary-tinted badge for unread > 0, dropdown panel
 // styled like /manage/messages list rows. No flourishes — admin
 // surface, density wins.
 
+export type BellRole = "player" | "club_admin";
+
 type Props = {
   /** Authenticated user's profile id. The bell renders nothing when
    *  null (e.g. unauth surfaces somehow reaching this slot). */
   profileId: string | null;
+  /** Caller's role — drives where notification clicks land. Player
+   *  notifications route to player surfaces; admin to /manage/* surfaces.
+   *  super_admin currently doesn't mount the bell (deferred to post-v1
+   *  per DRIFT_LOG entry "Super-admin notifications bell missing"). */
+  role: BellRole;
   /** SSR-fetched unread count for paint-stable initial state. */
   initialUnreadCount: number;
   /** SSR-fetched recent 5 notifications. */
@@ -56,6 +64,7 @@ const KIND_ICON: Record<string, typeof Bell> = {
 
 export function NotificationsBell({
   profileId,
+  role,
   initialUnreadCount,
   initialRecent,
   variant = "light",
@@ -100,12 +109,7 @@ export function NotificationsBell({
   const badgeLabel = unreadCount > 99 ? "99+" : String(unreadCount);
 
   function relatedHref(n: RecentNotification): string {
-    if (!n.related_kind || !n.related_id) return "/me/inbox";
-    if (n.related_kind === "message") return "/me/inbox?tab=messages";
-    if (n.related_kind === "booking") return "/book";
-    if (n.related_kind === "match") return `/tournaments`;
-    if (n.related_kind === "tournament") return `/tournaments/${n.related_id}`;
-    return "/me/inbox";
+    return resolveRelatedHref(role, n);
   }
 
   function handleRowClick(n: RecentNotification) {
@@ -254,7 +258,7 @@ export function NotificationsBell({
             className="border-t border-border bg-surface-muted px-4 py-2.5"
           >
             <Link
-              href="/me/inbox"
+              href={viewAllHref(role)}
               onClick={() => setOpen(false)}
               data-slot="bell-view-all"
               className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink hover:text-primary-500"
@@ -266,4 +270,55 @@ export function NotificationsBell({
       )}
     </div>
   );
+}
+
+// ---- pure role-branching helpers ----------------------------------
+//
+// Exported for unit coverage. Both functions are pure: same role +
+// same notification → same href, no Date / fetch / state.
+//
+// Routing matrix (12-3):
+//
+//   role=player + related_kind='message'           → /me/inbox?tab=messages
+//   role=player + related_kind='booking'           → /book              (rink reservations)
+//   role=player + related_kind='t20_assessment'    → /t20               (NEW — migration 040)
+//   role=player + related_kind='match'             → /tournaments
+//   role=player + related_kind='tournament'        → /tournaments/{id}
+//   role=player + no related                       → /me/inbox
+//
+//   role=club_admin + related_kind='message'       → /manage/messages?tab=inbox#message-{id}
+//   role=club_admin + related_kind='booking'       → /manage/overview   (Bookings tab)
+//   role=club_admin + related_kind='t20_assessment'→ /manage/overview
+//   role=club_admin + related_kind='tournament'    → /manage/tournaments/{id}
+//   role=club_admin + related_kind='match'         → /manage/tournaments
+//   role=club_admin + no related                   → /manage/messages?tab=inbox
+
+export function resolveRelatedHref(role: BellRole, n: RecentNotification): string {
+  const rk = n.related_kind ?? null;
+  const rid = n.related_id ?? null;
+
+  if (role === "player") {
+    if (!rk) return "/me/inbox";
+    if (rk === "message") return "/me/inbox?tab=messages";
+    if (rk === "booking") return "/book";
+    if (rk === "t20_assessment") return "/t20";
+    if (rk === "match") return "/tournaments";
+    if (rk === "tournament" && rid) return `/tournaments/${rid}`;
+    return "/me/inbox";
+  }
+  // role === "club_admin"
+  if (!rk) return "/manage/messages?tab=inbox";
+  if (rk === "message") {
+    return rid
+      ? `/manage/messages?tab=inbox#message-${rid}`
+      : "/manage/messages?tab=inbox";
+  }
+  if (rk === "booking" || rk === "t20_assessment") return "/manage/overview";
+  if (rk === "tournament" && rid) return `/manage/tournaments/${rid}`;
+  if (rk === "match") return "/manage/tournaments";
+  return "/manage/messages?tab=inbox";
+}
+
+export function viewAllHref(role: BellRole): string {
+  return role === "player" ? "/me/inbox" : "/manage/messages?tab=inbox";
 }

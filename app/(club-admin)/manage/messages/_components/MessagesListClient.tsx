@@ -46,21 +46,26 @@ function isT20Request(row: MessageListRow): boolean {
 // terminal vs in-flight states; audience scope is rendered inline
 // so an admin can scan recipient targeting at a glance.
 
+// 12-3 / A4: 'queued' status removed alongside the Send-later UI
+// removal. Messages persist as draft or sent only for v1; queued
+// rows haven't been minted from the compose form since this commit.
 const STATUS_OPTIONS: ReadonlyArray<readonly [string, string]> = [
   ["all", "All"],
   ["draft", "Draft"],
-  ["queued", "Queued"],
   ["sent", "Sent"],
   ["failed", "Failed"],
 ] as const;
 
-type StatusFilter = "all" | "draft" | "queued" | "sent" | "failed";
+type StatusFilter = "all" | "draft" | "sent" | "failed";
 
 type Props = {
   rows: MessageListRow[];
+  /** Active folder — drives the "Compose your first message" CTA visibility
+   *  on the inbox-empty state (no compose CTA on inbox; CTA only on sent). */
+  mode?: "inbox" | "sent";
 };
 
-export function MessagesListClient({ rows }: Props) {
+export function MessagesListClient({ rows, mode = "inbox" }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
@@ -84,7 +89,7 @@ export function MessagesListClient({ rows }: Props) {
     search.trim().length > 0 || statusFilter !== "all";
 
   if (!hasData) {
-    return <EmptyDataState />;
+    return <EmptyDataState mode={mode} />;
   }
 
   return (
@@ -168,12 +173,17 @@ function MessageRow({ row }: { row: MessageListRow }) {
         row.sender_id ?? "",
       )}&request_message_id=${encodeURIComponent(row.id)}`
     : null;
+  const editHref = row.status === "draft" ? `/manage/messages/${row.id}/edit` : null;
   return (
     <li
+      // 12-3 / B3: id="message-{row.id}" anchor lets bell click handlers
+      // jump straight to the row when the relatedHref includes `#message-{id}`.
+      // CSS scroll-margin-top handles the sticky-header offset.
+      id={`message-${row.id}`}
       data-slot="message-row"
       data-status={row.status}
       data-t20-request={t20Request ? "true" : undefined}
-      className="rounded-xl border border-border bg-bone px-4 py-3.5 transition-colors hover:border-ink/40"
+      className="scroll-mt-24 rounded-xl border border-border bg-bone px-4 py-3.5 transition-colors hover:border-ink/40 target:ring-2 target:ring-primary-500"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -226,6 +236,15 @@ function MessageRow({ row }: { row: MessageListRow }) {
             >
               <CalendarPlus className="size-3.5" aria-hidden="true" />
               Schedule from this request
+            </Link>
+          )}
+          {editHref && (
+            <Link
+              data-slot="edit-draft"
+              href={editHref}
+              className="mt-2.5 inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-surface px-3 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink hover:bg-surface-muted"
+            >
+              Edit draft
             </Link>
           )}
         </div>
@@ -283,7 +302,12 @@ function primaryDateLabel(row: MessageListRow): string {
 // Empty states
 // ---------------------------------------------------------------------
 
-function EmptyDataState() {
+function EmptyDataState({ mode = "inbox" }: { mode?: "inbox" | "sent" }) {
+  // 12-3 / B1 split: Inbox empty state mentions player requests + admin
+  // broadcasts that may land here from other admins; the Compose CTA
+  // lives only on the Sent tab where the action is "send your first
+  // broadcast." Keeps the inbox-empty state from suggesting the admin
+  // should compose to themselves.
   return (
     <div
       data-slot="messages-empty-data"
@@ -300,20 +324,22 @@ function EmptyDataState() {
           <MessageSquare className="size-6" />
         </span>
         <h2 className="font-display text-[24px] font-black italic tracking-tight">
-          No broadcasts yet.
+          {mode === "inbox" ? "Nothing in the inbox." : "No broadcasts yet."}
         </h2>
         <p className="text-[14px] text-ink-muted">
-          Send your members an in-app broadcast — practice reminders,
-          tournament announcements, or anything you&rsquo;d normally pin to
-          the clubhouse noticeboard.
+          {mode === "inbox"
+            ? "Player Twenty 20 assessment requests and broadcasts from other admins at this club land here."
+            : "Send your members an in-app broadcast — practice reminders, tournament announcements, or anything you'd normally pin to the clubhouse noticeboard."}
         </p>
-        <Link
-          href="/manage/messages/new"
-          data-slot="empty-cta"
-          className="mt-2 inline-flex h-11 items-center gap-1.5 rounded-lg bg-primary-500 px-5 text-sm font-semibold text-on-primary hover:bg-primary-600"
-        >
-          Compose your first message
-        </Link>
+        {mode === "sent" && (
+          <Link
+            href="/manage/messages/new"
+            data-slot="empty-cta"
+            className="mt-2 inline-flex h-11 items-center gap-1.5 rounded-lg bg-primary-500 px-5 text-sm font-semibold text-on-primary hover:bg-primary-600"
+          >
+            Compose your first message
+          </Link>
+        )}
       </div>
     </div>
   );

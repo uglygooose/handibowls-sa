@@ -54,6 +54,7 @@ export default async function ClubAdminLayout({
             // mounts here for the same realtime contract as players.
             <NotificationsBell
               profileId={ctx?.userId ?? null}
+              role="club_admin"
               initialUnreadCount={initialNotifications.unreadCount}
               initialRecent={initialNotifications.recent}
               variant="light"

@@ -7,7 +7,7 @@ import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { requireRole } from "@/lib/auth/role";
 
 import { MessagesListClient } from "./_components/MessagesListClient";
-import { listMessagesForClub } from "./_data";
+import { listMessagesForClub, type MessagesListMode } from "./_data";
 
 // Phase 11 / 11-3a — `/manage/messages` admin broadcast list.
 //
@@ -30,12 +30,21 @@ export const metadata = {
   title: "Messages · HandiBowls",
 };
 
-export default async function ManageMessagesPage() {
+type SearchParams = Promise<{ tab?: string }>;
+
+export default async function ManageMessagesPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   await requireRole(["club_admin", "super_admin"]);
+
+  const params = await searchParams;
+  const mode: MessagesListMode = params.tab === "sent" ? "sent" : "inbox";
 
   const [hostClub, listResult] = await Promise.all([
     getCurrentHostClub(),
-    listMessagesForClub(),
+    listMessagesForClub(mode),
   ]);
 
   if (!listResult.ok) {
@@ -155,8 +164,41 @@ export default async function ManageMessagesPage() {
         </div>
       </div>
 
+      {/* INBOX / SENT TABS — URL-driven so notification deep links can target a tab */}
+      <nav
+        aria-label="Message folders"
+        className="flex items-center gap-1 border-b border-border"
+      >
+        <Link
+          href="/manage/messages?tab=inbox"
+          data-slot="messages-tab"
+          data-tab="inbox"
+          aria-current={mode === "inbox" ? "page" : undefined}
+          className={
+            mode === "inbox"
+              ? "inline-flex h-10 items-center border-b-2 border-primary-500 px-4 font-mono text-[12px] font-bold uppercase tracking-[0.08em] text-ink"
+              : "inline-flex h-10 items-center px-4 font-mono text-[12px] font-bold uppercase tracking-[0.08em] text-ink-muted hover:text-ink"
+          }
+        >
+          Inbox
+        </Link>
+        <Link
+          href="/manage/messages?tab=sent"
+          data-slot="messages-tab"
+          data-tab="sent"
+          aria-current={mode === "sent" ? "page" : undefined}
+          className={
+            mode === "sent"
+              ? "inline-flex h-10 items-center border-b-2 border-primary-500 px-4 font-mono text-[12px] font-bold uppercase tracking-[0.08em] text-ink"
+              : "inline-flex h-10 items-center px-4 font-mono text-[12px] font-bold uppercase tracking-[0.08em] text-ink-muted hover:text-ink"
+          }
+        >
+          Sent
+        </Link>
+      </nav>
+
       {/* CLIENT ISLAND — filter chips + rows + empty state */}
-      <MessagesListClient rows={rows} />
+      <MessagesListClient rows={rows} mode={mode} />
     </div>
   );
 }

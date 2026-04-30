@@ -13,7 +13,9 @@
 // and the form Client Component import from this neutral module
 // so the shape is single-sourced.
 
-export type ComposeAction = "save_draft" | "send_now" | "schedule";
+// 12-3 / A4: 'schedule' removed alongside the Send-later UI. Compose
+// form only emits 'save_draft' or 'send_now'.
+export type ComposeAction = "save_draft" | "send_now";
 
 export type ComposeFormState =
   | { kind: "idle" }

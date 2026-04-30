@@ -9,6 +9,8 @@ type PlayerPosition = Database["public"]["Enums"]["player_position"];
 
 export type MemberStatus = "active" | "pending" | "expired";
 
+export type InviteEmailStatus = "sent" | "skipped" | "failed" | null;
+
 export type MemberRow = {
   // 'member' for an accepted club_membership; 'invite' for a pending /
   // expired invite the admin has sent. Same column shape so the table
@@ -24,6 +26,12 @@ export type MemberRow = {
   status: MemberStatus;
   novice_until: string | null;
   last_active: string | null;
+  /** Invite-only fields. Null on member rows. Populated on invite rows
+   *  to drive the Resend button visibility (12-3 / A2). The token is
+   *  passed back to the resendInviteEmail action; email_status drives
+   *  whether the button renders + what its label says. */
+  invite_token: string | null;
+  invite_email_status: InviteEmailStatus;
 };
 
 export type MembersData =
@@ -64,7 +72,9 @@ export async function getMembersData(): Promise<MembersData> {
       .eq("status", "active"),
     supabase
       .from("invites")
-      .select("id, email, first_name, last_name, status, expires_at, created_at")
+      .select(
+        "id, token, email, first_name, last_name, status, expires_at, created_at, email_status",
+      )
       .eq("club_id", clubId)
       .eq("role", "player")
       .eq("status", "pending"),
@@ -86,6 +96,8 @@ export async function getMembersData(): Promise<MembersData> {
       // profiles.updated_at fires on every row mutation — it's the closest
       // safe proxy for "last active" without exposing auth.users to PostgREST.
       last_active: p.updated_at,
+      invite_token: null,
+      invite_email_status: null,
     };
   });
 
@@ -102,6 +114,8 @@ export async function getMembersData(): Promise<MembersData> {
     status: new Date(i.expires_at).getTime() < now ? "expired" : "pending",
     novice_until: null,
     last_active: i.created_at,
+    invite_token: i.token,
+    invite_email_status: (i.email_status ?? null) as InviteEmailStatus,
   }));
 
   // Sort: pending invites first (admin's open work), then active members

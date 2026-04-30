@@ -52,19 +52,20 @@ const PROPS = {
 // integration test (action layer + RPC) covers the wire-up.
 
 describe("<ComposeForm /> — initial render", () => {
-  it("renders 5 numbered form sections", () => {
+  it("renders 4 numbered form sections (12-3 / A4: Schedule section removed)", () => {
     const { container } = render(<ComposeForm {...PROPS} />);
     const sections = container.querySelectorAll("[data-slot='form-section']");
-    expect(sections).toHaveLength(5);
+    expect(sections).toHaveLength(4);
     const text = container.textContent ?? "";
     expect(text).toContain("1. Subject");
     expect(text).toContain("2. Body");
     expect(text).toContain("3. Audience");
-    expect(text).toContain("4. Schedule");
-    expect(text).toContain("5. Channel");
+    expect(text).toContain("4. Channel");
+    // Send-later UI removed — Schedule heading should NOT appear.
+    expect(text).not.toContain("Schedule");
   });
 
-  it("Section 5 channel card is locked to in-app, no toggle", () => {
+  it("Section 4 channel card is locked to in-app, no toggle", () => {
     const { container } = render(<ComposeForm {...PROPS} />);
     const channelCard = container.querySelector(
       "[data-slot='channel-locked-card']",
@@ -102,16 +103,13 @@ describe("<ComposeForm /> — initial render", () => {
     expect(container.querySelector("[data-slot='schedule-input']")).toBeNull();
   });
 
-  it("toggling schedule to 'later' reveals the datetime input and swaps CTA to 'Schedule'", () => {
+  it("Schedule UI is removed (12-3 / A4: Send-later affordance gone)", () => {
     const { container } = render(<ComposeForm {...PROPS} />);
-    fireEvent.click(
-      container.querySelector(
-        "[data-slot='schedule-radio'][data-value='later']",
-      ) as HTMLButtonElement,
-    );
-    expect(container.querySelector("[data-slot='schedule-input']")).not.toBeNull();
-    expect(container.querySelector("[data-slot='schedule-cta']")).not.toBeNull();
-    expect(container.querySelector("[data-slot='send-now-cta']")).toBeNull();
+    expect(
+      container.querySelector("[data-slot='schedule-radio']"),
+    ).toBeNull();
+    expect(container.querySelector("[data-slot='schedule-cta']")).toBeNull();
+    expect(container.querySelector("[data-slot='schedule-input']")).toBeNull();
   });
 });
 
@@ -167,81 +165,10 @@ describe("<ComposeForm /> — submit gating + missing hints", () => {
     expect(cta.disabled).toBe(false);
   });
 
-  it("Schedule disabled when 'later' is selected but no datetime entered", () => {
-    const { container } = render(<ComposeForm {...PROPS} />);
-    fireEvent.change(
-      container.querySelector("[data-slot='subject-input']") as HTMLInputElement,
-      { target: { value: "Hi" } },
-    );
-    fireEvent.change(
-      container.querySelector("[data-slot='body-input']") as HTMLTextAreaElement,
-      { target: { value: "Body" } },
-    );
-    fireEvent.click(
-      container.querySelector(
-        "[data-slot='schedule-radio'][data-value='later']",
-      ) as HTMLButtonElement,
-    );
-    const cta = container.querySelector(
-      "[data-slot='schedule-cta']",
-    ) as HTMLButtonElement;
-    expect(cta.disabled).toBe(true);
-    const hint = container.querySelector("[data-slot='missing-hints']");
-    expect(hint?.textContent).toContain("future schedule time");
-  });
-
-  it("Schedule enables with a future datetime", () => {
-    const { container } = render(<ComposeForm {...PROPS} />);
-    fireEvent.change(
-      container.querySelector("[data-slot='subject-input']") as HTMLInputElement,
-      { target: { value: "Hi" } },
-    );
-    fireEvent.change(
-      container.querySelector("[data-slot='body-input']") as HTMLTextAreaElement,
-      { target: { value: "Body" } },
-    );
-    fireEvent.click(
-      container.querySelector(
-        "[data-slot='schedule-radio'][data-value='later']",
-      ) as HTMLButtonElement,
-    );
-    const future = new Date(Date.now() + 86_400_000)
-      .toISOString()
-      .slice(0, 16); // "YYYY-MM-DDTHH:MM"
-    fireEvent.change(
-      container.querySelector("[data-slot='schedule-input']") as HTMLInputElement,
-      { target: { value: future } },
-    );
-    const cta = container.querySelector(
-      "[data-slot='schedule-cta']",
-    ) as HTMLButtonElement;
-    expect(cta.disabled).toBe(false);
-  });
-
-  it("Schedule stays disabled with a past datetime", () => {
-    const { container } = render(<ComposeForm {...PROPS} />);
-    fireEvent.change(
-      container.querySelector("[data-slot='subject-input']") as HTMLInputElement,
-      { target: { value: "Hi" } },
-    );
-    fireEvent.change(
-      container.querySelector("[data-slot='body-input']") as HTMLTextAreaElement,
-      { target: { value: "Body" } },
-    );
-    fireEvent.click(
-      container.querySelector(
-        "[data-slot='schedule-radio'][data-value='later']",
-      ) as HTMLButtonElement,
-    );
-    fireEvent.change(
-      container.querySelector("[data-slot='schedule-input']") as HTMLInputElement,
-      { target: { value: "2020-01-01T00:00" } },
-    );
-    const cta = container.querySelector(
-      "[data-slot='schedule-cta']",
-    ) as HTMLButtonElement;
-    expect(cta.disabled).toBe(true);
-  });
+  // 12-3 / A4: three "Schedule disabled / enabled with future / past
+  // datetime" cases removed alongside the Send-later UI. The dispatcher
+  // itself is post-v1 work tracked in DRIFT_LOG entry "Scheduled-send
+  // dispatcher (messaging — deferred)".
 });
 
 describe("<ComposeForm /> — char counts", () => {
@@ -323,43 +250,10 @@ describe("<ComposeForm /> — submit action wiring", () => {
     expect(fd.get("compose_action")).toBe("save_draft");
   });
 
-  it("Schedule submits with compose_action='schedule' and the chosen scheduled_at", async () => {
-    const { container } = render(<ComposeForm {...PROPS} />);
-    fireEvent.change(
-      container.querySelector("[data-slot='subject-input']") as HTMLInputElement,
-      { target: { value: "Subject" } },
-    );
-    fireEvent.change(
-      container.querySelector("[data-slot='body-input']") as HTMLTextAreaElement,
-      { target: { value: "Body" } },
-    );
-    fireEvent.click(
-      container.querySelector(
-        "[data-slot='schedule-radio'][data-value='later']",
-      ) as HTMLButtonElement,
-    );
-    const future = new Date(Date.now() + 86_400_000)
-      .toISOString()
-      .slice(0, 16);
-    fireEvent.change(
-      container.querySelector("[data-slot='schedule-input']") as HTMLInputElement,
-      { target: { value: future } },
-    );
-
-    const form = container.querySelector(
-      "[data-slot='compose-form']",
-    ) as HTMLFormElement;
-    const submitter = container.querySelector(
-      "[data-slot='schedule-cta']",
-    ) as HTMLButtonElement;
-    form.requestSubmit(submitter);
-    await new Promise((r) => setTimeout(r, 0));
-
-    expect(formActionSpy).toHaveBeenCalled();
-    const fd = formActionSpy.mock.calls[0][1] as FormData;
-    expect(fd.get("compose_action")).toBe("schedule");
-    expect(fd.get("scheduled_at")).toBe(future);
-  });
+  // 12-3 / A4: "Schedule submits with compose_action='schedule'" case
+  // removed — Schedule submitter no longer exists. The
+  // composeMessageFromForm action's scheduled_at branch was deleted in
+  // the same commit; only 'save_draft' and 'send_now' reach the action.
 });
 
 describe("form-state module boundary", () => {

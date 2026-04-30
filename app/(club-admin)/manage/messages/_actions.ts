@@ -9,6 +9,8 @@ import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { sendMessage } from "@/lib/messages/actions";
 import { createClient } from "@/lib/supabase/server";
 
+import { resolveAudienceCount, type AudiencePreview } from "./_data";
+
 import type { ComposeAction, ComposeFormState } from "./_form-state";
 
 // Phase 11 / 11-3b — admin Messages server actions.
@@ -349,7 +351,12 @@ export async function composeMessageFromForm(
   _prev: ComposeFormState,
   formData: FormData,
 ): Promise<ComposeFormState> {
+  // 12-3 / A4: 'schedule' compose_action removed alongside the
+  // Send-later UI. Only 'save_draft' and 'send_now' reach this action.
+  // 12-3 / A3: optional `message_id` hidden field switches the create
+  // path to update — same form serves /new and /[id]/edit.
   const action = (formData.get("compose_action") ?? "save_draft") as ComposeAction;
+  const messageId = (formData.get("message_id") as string | null) ?? null;
   const subject = String(formData.get("subject") ?? "");
   const body_md = String(formData.get("body_md") ?? "");
   const audience_kind = String(formData.get("audience_kind") ?? "all_members");
@@ -360,10 +367,8 @@ export async function composeMessageFromForm(
     typeof audience_profile_ids_raw === "string" && audience_profile_ids_raw
       ? audience_profile_ids_raw.split(",").filter(Boolean)
       : [];
-  const scheduled_at =
-    (formData.get("scheduled_at") as string | null) ?? null;
 
-  const draft = await createMessageDraft({
+  const inputShape = {
     subject,
     body_md,
     audience_kind: audience_kind as
@@ -372,39 +377,48 @@ export async function composeMessageFromForm(
       | "custom",
     audience_tournament_id: audience_tournament_id || null,
     audience_profile_ids,
-  });
+  };
 
-  if (draft.kind !== "ok") {
-    return draft as ComposeFormState;
+  let resolvedId: string;
+  if (messageId) {
+    const updated = await updateMessageDraft(messageId, inputShape);
+    if (updated.kind !== "ok") return updated as ComposeFormState;
+    resolvedId = messageId;
+  } else {
+    const draft = await createMessageDraft(inputShape);
+    if (draft.kind !== "ok") return draft as ComposeFormState;
+    resolvedId = draft.messageId;
   }
-
-  const messageId = draft.messageId;
 
   if (action === "save_draft") {
     redirect("/manage/messages");
   }
 
-  if (action === "schedule") {
-    if (!scheduled_at) {
-      return {
-        kind: "validation",
-        error: "scheduled_at is required for schedule action.",
-      };
-    }
-    // Convert datetime-local (no offset) to ISO string with current
-    // local-zone offset baked in. The browser submits a value like
-    // "2026-05-01T18:00" — Date() parses as local time and toISOString
-    // produces the UTC-Z form Zod validates as a datetime with offset.
-    const iso = new Date(scheduled_at).toISOString();
-    const result = await scheduleMessage(messageId, { scheduled_at: iso });
-    if (result.kind !== "ok") return result as ComposeFormState;
-    redirect("/manage/messages");
-  }
-
   // action === "send_now"
-  const result = await sendMessageNow(messageId);
+  const result = await sendMessageNow(resolvedId);
   if (result.kind !== "ok") return result as ComposeFormState;
   redirect("/manage/messages");
+}
+
+// ---------------------------------------------------------------------
+// 12-3 / A1 — live recipient-count preview for the compose form
+// ---------------------------------------------------------------------
+//
+// Server Action wrapper around the server-only resolveAudienceCount
+// fetcher. The compose form's Client island debounces audience
+// changes and calls this wrapper; it returns the same AudiencePreview
+// shape the fetcher emits.
+//
+// Authorization is delegated to the fetcher (which itself relies on
+// RLS for club_memberships / tournament_entries / etc.). No
+// revalidatePath — the preview is read-only and doesn't mutate state.
+
+export async function previewAudienceCount(input: {
+  audience_kind: "all_members" | "tournament_entrants" | "custom";
+  audience_tournament_id?: string | null;
+  audience_profile_ids?: string[];
+}): Promise<AudiencePreview | null> {
+  return resolveAudienceCount(input);
 }
 
 // ---------------------------------------------------------------------

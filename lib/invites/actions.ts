@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { getAuthContext } from "@/lib/auth/role";
 import { sendInviteEmail } from "@/lib/invites/email";
 import { createClient } from "@/lib/supabase/server";
@@ -221,4 +223,64 @@ function emailResultToError(
   if (result.status === "failed") return result.error;
   // skipped — surface the reason as a stable marker the UI can branch on.
   return `opted_out:${result.reason}`;
+}
+
+// ---------------------------------------------------------------------
+// 12-3 / A2 — Resend invite email
+// ---------------------------------------------------------------------
+//
+// Caller: members table renders a "Resend invite" button on rows where
+// invite.email_status is null / 'failed' / 'skipped'. Click invokes
+// this action, which is a thin wrapper over sendInviteEmail(token) —
+// sendInviteEmail persists the new status onto the invite row
+// (migration 040). revalidatePath surfaces the updated row with a
+// fresh status without a manual refresh.
+//
+// Authorization: club_admin must own the invite's club; super_admin
+// bypasses the club check.
+
+export type ResendInviteEmailResult =
+  | { kind: "ok"; status: "sent" | "skipped" | "failed"; error: string | null }
+  | { kind: "not_authenticated" }
+  | { kind: "wrong_role" }
+  | { kind: "wrong_club" }
+  | { kind: "not_found" }
+  | { kind: "error"; message: string };
+
+export async function resendInviteEmail(
+  token: string,
+): Promise<ResendInviteEmailResult> {
+  const ctx = await getAuthContext();
+  if (!ctx) return { kind: "not_authenticated" };
+  if (ctx.role !== "club_admin" && ctx.role !== "super_admin") {
+    return { kind: "wrong_role" };
+  }
+  if (typeof token !== "string" || token.length < 8) {
+    return { kind: "error", message: "Invalid token." };
+  }
+
+  const admin = createServiceClient();
+  const { data: invite, error: lookupErr } = await admin
+    .from("invites")
+    .select("id, club_id")
+    .eq("token", token)
+    .maybeSingle();
+  if (lookupErr || !invite) {
+    return { kind: "not_found" };
+  }
+  if (
+    ctx.role === "club_admin" &&
+    !ctx.clubIds.includes(invite.club_id)
+  ) {
+    return { kind: "wrong_club" };
+  }
+
+  const result = await sendInviteEmail({ token });
+  revalidatePath("/manage/members");
+
+  return {
+    kind: "ok",
+    status: result.status,
+    error: result.status === "failed" ? result.error : null,
+  };
 }

@@ -44,14 +44,29 @@ function row(over: Partial<MessageListRow>): MessageListRow {
 }
 
 describe("<MessagesListClient /> — empty data", () => {
-  it("renders the empty-data card and CTA when no rows exist", () => {
-    const { container } = render(<MessagesListClient rows={[]} />);
+  it("renders the empty-data card and CTA on the Sent tab when no rows exist (12-3 / B1)", () => {
+    // The Compose CTA only renders on the Sent tab — the Inbox tab's
+    // empty state suggests no compose action since the inbox is for
+    // messages received from players + other admins.
+    const { container } = render(
+      <MessagesListClient rows={[]} mode="sent" />,
+    );
     expect(
       container.querySelector("[data-slot='messages-empty-data']"),
     ).not.toBeNull();
     const cta = container.querySelector("[data-slot='empty-cta']");
     expect(cta).not.toBeNull();
     expect(cta?.getAttribute("href")).toBe("/manage/messages/new");
+  });
+
+  it("renders the empty-data card WITHOUT CTA on the Inbox tab (12-3 / B1)", () => {
+    const { container } = render(
+      <MessagesListClient rows={[]} mode="inbox" />,
+    );
+    expect(
+      container.querySelector("[data-slot='messages-empty-data']"),
+    ).not.toBeNull();
+    expect(container.querySelector("[data-slot='empty-cta']")).toBeNull();
   });
 
   it("does NOT render filter chips or search when no data", () => {
@@ -74,10 +89,10 @@ describe("<MessagesListClient /> — filter chips", () => {
     row({ id: "e", subject: "Sent E too", status: "sent" }),
   ];
 
-  it("renders all five status chips with 'all' active by default", () => {
+  it("renders four status chips with 'all' active by default (12-3 / A4: 'queued' chip removed)", () => {
     const { container } = render(<MessagesListClient rows={SAMPLE} />);
     const chips = container.querySelectorAll("[data-slot='status-chip']");
-    expect(chips).toHaveLength(5);
+    expect(chips).toHaveLength(4);
     const active = container.querySelector(
       "[data-slot='status-chip'][data-active='true']",
     );

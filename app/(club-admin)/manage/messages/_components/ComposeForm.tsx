@@ -1,13 +1,22 @@
 "use client";
 
-import { Inbox, Send, Sparkles, X } from "lucide-react";
+import { Inbox, Send, X } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useMemo, useState } from "react";
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 
 import { cn } from "@/lib/utils";
 
-import { composeMessageFromForm } from "../_actions";
-import type { MemberOption, TournamentOption } from "../_data";
+import {
+  composeMessageFromForm,
+  previewAudienceCount,
+} from "../_actions";
+import type { AudiencePreview, MemberOption, TournamentOption } from "../_data";
 import { COMPOSE_INITIAL, type ComposeFormState } from "../_form-state";
 import {
   AudiencePicker,
@@ -15,17 +24,19 @@ import {
 } from "./AudiencePicker";
 
 // Phase 11 / 11-3 — admin Messages compose form (Client island).
+// Phase 12 / 12-3 — Send-later UI removed (A4); live recipient-count
+// preview wired (A1).
 //
-// 5 numbered sections matching /manage/t20/new's rhythm:
+// 4 numbered sections (was 5 before A4 dropped Section 4 Schedule):
 //   1. Subject       single text input, required, max 120 chars
 //   2. Body          markdown textarea, required, max 5000 chars,
 //                    live char count
 //   3. Audience      Full picker via <AudiencePicker> — all_members
 //                    / tournament_entrants (with dropdown) / custom
 //                    (with searchable multi-select). 11-3c upgrade.
-//   4. Schedule      radio group: Send now / Send later. Later
-//                    reveals a datetime-local input.
-//   5. Channel       read-only "In-app only" pill — locked
+//                    12-3 / A1: live "Estimated recipients: N"
+//                    preview rendered below the picker.
+//   4. Channel       read-only "In-app only" pill — locked
 //                    decision #1, no toggle.
 //
 // Footer:
@@ -33,8 +44,6 @@ import {
 //   • Save as draft       writes status='draft', redirect to list
 //   • Send now            writes status='draft', queues, calls
 //                         send_message RPC, redirect to list
-//   • Schedule            writes status='queued' + scheduled_at,
-//                         redirect to list
 //
 // Per the Phase 10 manual-QA learning, helper text under the
 // disabled submit button explicitly lists what's missing — admin
@@ -43,8 +52,6 @@ import {
 const MAX_SUBJECT = 120;
 const MAX_BODY = 5000;
 
-type ScheduleMode = "now" | "later";
-
 type ComposeFormProps = {
   /** Tournament dropdown source for the audience_kind=tournament_entrants
    *  branch. Server-fetched + RLS-scoped at the new-page render. */
@@ -52,30 +59,35 @@ type ComposeFormProps = {
   /** Active member roster for the audience_kind=custom multi-select.
    *  Server-fetched + RLS-scoped at the new-page render. */
   members: MemberOption[];
+  /** When set, the form is in edit mode for an existing draft. The
+   *  message_id hidden input switches `composeMessageFromForm` into
+   *  the update path; initial state pre-populates from the draft.
+   *  When undefined, the form is in create mode (the /new path). */
+  edit?: {
+    messageId: string;
+    initial: {
+      subject: string;
+      body_md: string;
+      audience_kind: AudiencePickerValue["audience_kind"];
+      audience_tournament_id: string | null;
+      audience_profile_ids: string[];
+    };
+  };
 };
 
-export function ComposeForm({ tournaments, members }: ComposeFormProps) {
+export function ComposeForm({ tournaments, members, edit }: ComposeFormProps) {
   const [state, formAction, pending] = useActionState<
     ComposeFormState,
     FormData
   >(composeMessageFromForm, COMPOSE_INITIAL);
 
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+  const [subject, setSubject] = useState(edit?.initial.subject ?? "");
+  const [body, setBody] = useState(edit?.initial.body_md ?? "");
   const [audience, setAudience] = useState<AudiencePickerValue>({
-    audience_kind: "all_members",
-    audience_tournament_id: null,
-    audience_profile_ids: [],
+    audience_kind: edit?.initial.audience_kind ?? "all_members",
+    audience_tournament_id: edit?.initial.audience_tournament_id ?? null,
+    audience_profile_ids: edit?.initial.audience_profile_ids ?? [],
   });
-  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("now");
-  const [scheduledAt, setScheduledAt] = useState("");
-  // Snapshot "now" once at mount via lazy useState — keeps the
-  // render pure (React Compiler doesn't trip on Date.now() inside a
-  // useState initialiser). The value drifts slightly across the
-  // form's lifetime; the server-side Zod .refine() enforces the
-  // strict future check at submit. The render-time gate is
-  // UX-friendly disable, not the authoritative validator.
-  const [mountedNowMs] = useState(() => Date.now());
 
   // ---------- validation ----------
   const subjectTrimmed = subject.trim();
@@ -93,14 +105,9 @@ export function ComposeForm({ tournaments, members }: ComposeFormProps) {
       Boolean(audience.audience_tournament_id)) ||
     (audience.audience_kind === "custom" &&
       audience.audience_profile_ids.length > 0);
-  const scheduleValid =
-    scheduleMode === "now" ||
-    (scheduledAt.length > 0 &&
-      new Date(scheduledAt).getTime() > mountedNowMs);
 
   const baseValid = subjectValid && bodyValid && audienceValid;
-  const sendNowValid = baseValid && scheduleMode === "now";
-  const scheduleSubmitValid = baseValid && scheduleMode === "later" && scheduleValid;
+  const sendNowValid = baseValid;
   const draftValid = subjectValid && bodyValid; // can save partial audience as draft
 
   const missingHints = useMemo(() => {
@@ -119,7 +126,6 @@ export function ComposeForm({ tournaments, members }: ComposeFormProps) {
     ) {
       out.push("at least one member");
     }
-    if (scheduleMode === "later" && !scheduleValid) out.push("future schedule time");
     return out;
   }, [
     subjectValid,
@@ -127,8 +133,6 @@ export function ComposeForm({ tournaments, members }: ComposeFormProps) {
     audience.audience_kind,
     audience.audience_tournament_id,
     audience.audience_profile_ids.length,
-    scheduleMode,
-    scheduleValid,
   ]);
 
   const errorBanner =
@@ -143,6 +147,7 @@ export function ComposeForm({ tournaments, members }: ComposeFormProps) {
       {/* Hidden mirrors. compose_action is NOT mirrored from state —
           each submit button carries its own name/value (`compose_action=...`)
           so the chosen action survives React's state batching at click time. */}
+      {edit && <input type="hidden" name="message_id" value={edit.messageId} />}
       <input type="hidden" name="audience_kind" value={audience.audience_kind} />
       <input
         type="hidden"
@@ -154,10 +159,6 @@ export function ComposeForm({ tournaments, members }: ComposeFormProps) {
         name="audience_profile_ids"
         value={audience.audience_profile_ids.join(",")}
       />
-      {scheduleMode === "later" && (
-        <input type="hidden" name="scheduled_at" value={scheduledAt} />
-      )}
-
       {errorBanner}
 
       {/* Section 1 — Subject */}
@@ -236,55 +237,17 @@ export function ComposeForm({ tournaments, members }: ComposeFormProps) {
           tournaments={tournaments}
           members={members}
         />
+        <AudienceCountPreview audience={audience} />
       </FormSection>
 
-      {/* Section 4 — Schedule */}
+      {/* Section 4 — Channel (read-only)
+          12-3 / A4: original Section 4 (Schedule, with Send-now / Send-later
+          radios) removed. Send-later affordance was a v1 lie — no dispatcher
+          fires elapsed scheduled_at rows. Messages persist as draft or sent
+          only for v1. The dispatcher itself is post-v1 work tracked in
+          DRIFT_LOG entry "Scheduled-send dispatcher (messaging — deferred)". */}
       <FormSection
         index={4}
-        title="Schedule"
-        desc="Send right now, or schedule for later."
-      >
-        <div data-slot="schedule-radios" className="flex flex-col gap-2">
-          <ScheduleRadio
-            value="now"
-            current={scheduleMode}
-            onChange={setScheduleMode}
-            label="Send now"
-            sub="Fan out the broadcast as soon as you tap Send."
-          />
-          <ScheduleRadio
-            value="later"
-            current={scheduleMode}
-            onChange={setScheduleMode}
-            label="Send later"
-            sub="Pick a future date / time. Dispatch worker is a future phase."
-          />
-        </div>
-        {scheduleMode === "later" && (
-          <div className="mt-3" data-slot="schedule-input-row">
-            <FieldLabel htmlFor="scheduled-at">Schedule for</FieldLabel>
-            <input
-              id="scheduled-at"
-              type="datetime-local"
-              required
-              value={scheduledAt}
-              onChange={(e) => setScheduledAt(e.target.value)}
-              data-slot="schedule-input"
-              className={cn(
-                "h-11 w-full max-w-sm rounded-lg border border-border bg-bone px-3.5 text-[14px]",
-                "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
-              )}
-            />
-            <p className="mt-1 font-mono text-[11px] text-ink-muted">
-              Local time. Must be in the future.
-            </p>
-          </div>
-        )}
-      </FormSection>
-
-      {/* Section 5 — Channel (read-only) */}
-      <FormSection
-        index={5}
         title="Channel"
         desc="Locked to in-app for v1."
       >
@@ -328,7 +291,7 @@ export function ComposeForm({ tournaments, members }: ComposeFormProps) {
               role="status"
               className="font-mono text-[11px] text-ink-muted"
             >
-              Add {missingHints.join(", ")} to enable Send / Schedule.
+              Add {missingHints.join(", ")} to enable Send.
             </p>
           )}
           <button
@@ -345,39 +308,21 @@ export function ComposeForm({ tournaments, members }: ComposeFormProps) {
           >
             Save as draft
           </button>
-          {scheduleMode === "later" ? (
-            <button
-              type="submit"
-              name="compose_action"
-              value="schedule"
-              disabled={!scheduleSubmitValid || pending}
-              data-slot="schedule-cta"
-              className={cn(
-                "inline-flex h-12 cursor-pointer items-center gap-2 rounded-lg bg-primary-500 px-6 text-[14px] font-semibold text-on-primary shadow-sm",
-                "hover:bg-primary-600",
-                "disabled:cursor-not-allowed disabled:opacity-50",
-              )}
-            >
-              <Sparkles className="size-4" aria-hidden="true" />
-              {pending ? "Scheduling…" : "Schedule"}
-            </button>
-          ) : (
-            <button
-              type="submit"
-              name="compose_action"
-              value="send_now"
-              disabled={!sendNowValid || pending}
-              data-slot="send-now-cta"
-              className={cn(
-                "inline-flex h-12 cursor-pointer items-center gap-2 rounded-lg bg-primary-500 px-6 text-[14px] font-semibold text-on-primary shadow-sm",
-                "hover:bg-primary-600",
-                "disabled:cursor-not-allowed disabled:opacity-50",
-              )}
-            >
-              <Send className="size-4" aria-hidden="true" />
-              {pending ? "Sending…" : "Send now"}
-            </button>
-          )}
+          <button
+            type="submit"
+            name="compose_action"
+            value="send_now"
+            disabled={!sendNowValid || pending}
+            data-slot="send-now-cta"
+            className={cn(
+              "inline-flex h-12 cursor-pointer items-center gap-2 rounded-lg bg-primary-500 px-6 text-[14px] font-semibold text-on-primary shadow-sm",
+              "hover:bg-primary-600",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+            )}
+          >
+            <Send className="size-4" aria-hidden="true" />
+            {pending ? "Sending…" : "Send now"}
+          </button>
         </div>
       </div>
     </form>
@@ -448,52 +393,9 @@ function FieldLabel({
   );
 }
 
-function ScheduleRadio({
-  value,
-  current,
-  onChange,
-  label,
-  sub,
-}: {
-  value: ScheduleMode;
-  current: ScheduleMode;
-  onChange: (v: ScheduleMode) => void;
-  label: string;
-  sub: string;
-}) {
-  const active = current === value;
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(value)}
-      data-slot="schedule-radio"
-      data-value={value}
-      data-active={active}
-      className={cn(
-        "flex w-full cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 text-left transition-colors",
-        active
-          ? "border-ink bg-ink/4 ring-2 ring-ink/10"
-          : "border-border bg-bone hover:border-ink/40",
-      )}
-    >
-      <span
-        aria-hidden="true"
-        className={cn(
-          "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2",
-          active ? "border-ink bg-ink" : "border-border bg-bone",
-        )}
-      >
-        {active && <span className="size-2 rounded-full bg-bone" />}
-      </span>
-      <span className="min-w-0">
-        <span className="block font-display text-[15px] font-bold tracking-tight">
-          {label}
-        </span>
-        <span className="block text-[12.5px] text-ink-muted">{sub}</span>
-      </span>
-    </button>
-  );
-}
+// ScheduleRadio (12-3 / A4): removed alongside the Send-later UI.
+// Original component lived here; deleted to keep the form file
+// dead-code-free.
 
 // ---------------------------------------------------------------------
 // Error banner
@@ -537,6 +439,77 @@ function renderError(state: ComposeFormState): React.ReactNode {
           <div className="text-[13px]">{detail}</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
+// 12-3 / A1 — live recipient-count preview
+// ---------------------------------------------------------------------
+//
+// Debounced server-action call (300ms) that fires whenever the
+// audience changes (kind / tournament_id / custom-list). Result
+// caches in component state and renders below the picker.
+//
+// Loading state during in-flight fetch; null result hides the line.
+
+const PREVIEW_DEBOUNCE_MS = 300;
+
+function AudienceCountPreview({ audience }: { audience: AudiencePickerValue }) {
+  const [preview, setPreview] = useState<AudiencePreview | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  // Stable key that changes whenever any audience field changes.
+  const audienceKey = useMemo(
+    () =>
+      `${audience.audience_kind}|${audience.audience_tournament_id ?? ""}|${audience.audience_profile_ids.slice().sort().join(",")}`,
+    [
+      audience.audience_kind,
+      audience.audience_tournament_id,
+      audience.audience_profile_ids,
+    ],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      startTransition(async () => {
+        const result = await previewAudienceCount({
+          audience_kind: audience.audience_kind,
+          audience_tournament_id: audience.audience_tournament_id,
+          audience_profile_ids: audience.audience_profile_ids,
+        });
+        if (!cancelled) setPreview(result);
+      });
+    }, PREVIEW_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // audienceKey is the canonical "did anything change" signal; the
+    // individual fields are read inside the effect off the latest
+    // closure, so we don't need them in the deps array.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audienceKey]);
+
+  return (
+    <div
+      data-slot="audience-count-preview"
+      className="mt-3 inline-flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted"
+    >
+      <span>Estimated recipients:</span>
+      {pending && preview === null ? (
+        <span data-slot="preview-loading">…</span>
+      ) : preview === null ? (
+        <span data-slot="preview-unknown">—</span>
+      ) : (
+        <span
+          data-slot="preview-count"
+          className={preview.count === 0 ? "text-danger-500" : "text-primary-600"}
+        >
+          {preview.count}
+        </span>
+      )}
     </div>
   );
 }

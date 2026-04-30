@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 import type { MemberRow, MemberStatus } from "../_data";
+import { ResendInviteButton } from "./ResendInviteButton";
 
 type Props = { rows: MemberRow[] };
 
@@ -113,9 +114,24 @@ export function MembersTable({ rows }: Props) {
       {
         accessorKey: "status",
         header: "Status",
-        cell: ({ getValue }) => {
+        cell: ({ row, getValue }) => {
           const s = getValue() as MemberStatus;
-          return <Badge variant={STATUS_VARIANT[s]}>{STATUS_LABEL[s]}</Badge>;
+          const r = row.original;
+          // 12-3 / A2: invite rows surface a Resend button next to the
+          // status badge. Hidden on email_status='sent' (handled inside
+          // the button); visible on null / 'failed' / 'skipped'.
+          return (
+            <span className="inline-flex items-center">
+              <Badge variant={STATUS_VARIANT[s]}>{STATUS_LABEL[s]}</Badge>
+              {r.kind === "invite" && r.invite_token && (
+                <ResendInviteButton
+                  token={r.invite_token}
+                  emailStatus={r.invite_email_status}
+                  recipientLabel={r.name ?? r.email}
+                />
+              )}
+            </span>
+          );
         },
       },
       {
