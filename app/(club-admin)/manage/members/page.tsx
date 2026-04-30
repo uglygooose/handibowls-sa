@@ -1,12 +1,5 @@
 import Link from "next/link";
 
-// DevInviteBanner is parameterised via storageKey/label and serves both the
-// super-admin admin-invite surface and this player-invite surface. Lives in
-// (super-admin) for now because that's where it was first introduced; if a
-// third caller appears, promote it to components/admin/.
-import { DevInviteBanner } from "@/app/(super-admin)/platform/clubs/[id]/_components/DevInviteBanner";
-import { DEV_PLAYER_INVITE_BANNER_KEY } from "@/lib/dev-banner";
-
 import { BulkInvitePlayersModal } from "./_components/BulkInvitePlayersModal";
 import { InvitePlayerModal } from "./_components/InvitePlayerModal";
 import { MembersTable } from "./_components/MembersTable";
@@ -69,12 +62,6 @@ export default async function ManageMembers() {
           <InvitePlayerModal clubId={data.clubId} />
         </div>
       </header>
-
-      <DevInviteBanner
-        clubId={data.clubId}
-        storageKey={DEV_PLAYER_INVITE_BANNER_KEY}
-        label="Player invite link (valid for 60 minutes):"
-      />
 
       <div className="mt-6">
         <MembersTable rows={data.rows} />
