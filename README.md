@@ -6,7 +6,7 @@ HandiBowls is a Bowls South Africa–native platform for running club, district,
 
 ## Status
 
-**Rebuild in progress — Phase 10 closed (2026-04-29), awaiting manual QA.** This repository is being rebuilt from a fresh Supabase project, fresh routing, a fresh design system, and a three-role architecture. See [`HANDIBOWLS_REBUILD_PLAN.md`](HANDIBOWLS_REBUILD_PLAN.md) for the phase-gated plan and [`PHASE_LOG.md`](PHASE_LOG.md) for the canonical progress tracker.
+**Rebuild in progress — Phase 11 closed (2026-04-30).** This repository is being rebuilt from a fresh Supabase project, fresh routing, a fresh design system, and a three-role architecture. See [`HANDIBOWLS_REBUILD_PLAN.md`](HANDIBOWLS_REBUILD_PLAN.md) for the phase-gated plan and [`PHASE_LOG.md`](PHASE_LOG.md) for the canonical progress tracker.
 
 Phases shipped to date:
 
@@ -14,8 +14,11 @@ Phases shipped to date:
 - **Phase 5–7** — player onboarding · tournament engine · admin tournament UI
 - **Phase 8–9** — player tournament + booking surfaces · admin booking + audit log
 - **Phase 10** — Twenty 20 assessment module (production rubric)
+- **Phase 11** — in-app messaging + system-triggered InviteEmail (revised mid-phase from "email + in-app" to in-app primary; clubs handle their own member email externally in v1)
 
-Pending: comms via Resend (Phase 11) · stakeholder polish (Phase 12) · technical polish (Phase 13). Open drift items tracked in [`DRIFT_LOG.md`](DRIFT_LOG.md).
+Pending: stakeholder polish (Phase 12) · technical polish (Phase 13). Open drift items tracked in [`DRIFT_LOG.md`](DRIFT_LOG.md).
+
+**Operator-side prerequisites for Phase 11 production deployment:** Resend domain verification on the dashboard · production env vars (`RESEND_API_KEY`, `RESEND_FROM`, `EMAIL_UNSUBSCRIBE_SIGNING_SECRET`) · Supabase Realtime publication on `public.notifications`. Until the Resend domain is verified, invite rows still persist but the email send fails cleanly (toast surfaces a "resend later" hint).
 
 Preserved from the previous iteration: tournament primitives (`lib/tournaments/`). Everything else is being rebuilt.
 
@@ -32,7 +35,7 @@ Preserved from the previous iteration: tournament primitives (`lib/tournaments/`
 - Supabase (Postgres + Auth + Storage + Edge Functions + Realtime)
 - Vitest, ESLint 9
 
-Shipped through Phase 10: TanStack Query/Table (Phase 4d/7), React Hook Form + Zod (Phase 5b), Dexie outbox (Phase 8c), Serwist PWA (Phase 8d–8f), React PDF for tournament exports (Phase 7). Pending: Resend (email, Phase 11) and the Twenty 20 PDF template (Phase 10 follow-up).
+Shipped through Phase 11: TanStack Query/Table (Phase 4d/7), React Hook Form + Zod (Phase 5b), Dexie outbox (Phase 8c), Serwist PWA (Phase 8d–8f), React PDF for tournament exports (Phase 7), Resend + @react-email/components for system-triggered InviteEmail + Supabase Realtime for the notifications bell (Phase 11). Pending: the Twenty 20 PDF template (Phase 10 follow-up).
 
 ## Getting started
 

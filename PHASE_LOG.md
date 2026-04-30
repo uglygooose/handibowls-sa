@@ -606,6 +606,317 @@ at the moment a phase closed, derived from
 
 ---
 
+## Phase 11 — Comms (in-app messaging + system-triggered InviteEmail) — closed 2026-04-30
+
+- **Branch tip:** `d2190b4` (`rebuild/phase-11-comms`, cut from
+  `0c49a48` Phase 10 follow-up tip — the Twenty 20 manual-QA
+  branding sweep). Phase 11 carved into seven sub-checkpoints
+  driven incrementally over a single working day —
+  11-prep / 11-1 / 11-2 / 11-3 / 11-4 / 11-5 / 11-6 / 11-close.
+  22 atomic commits across the phase (excluding this close
+  commit).
+- **Scope revision mid-phase.** Plan §14 framed the scope as
+  "email + in-app broadcasts" with five Resend templates
+  (InviteEmail, TournamentAnnouncement, MatchReminder,
+  BookingReminder, GenericBroadcast), a fan-out edge function,
+  Resend webhook handler, and per-club daily broadcast cap.
+  After 11-prep landed the user revised the scope: clubs handle
+  their own member email externally; HandiBowls v1 ships in-app
+  broadcasts only and a single system-triggered email template
+  (InviteEmail). Four templates dropped, webhook handler
+  dropped, daily-cap column kept but unused. Rationale captured
+  inline in the 11-1 brief; the migration 033 column comment
+  was updated in migration 034 to reflect the v1-unused state
+  (handibowls-standards: never edit a prod-applied migration —
+  write a new one).
+- **Sub-checkpoints + headline SHAs:**
+  - **11-prep** (3 commits, `8541718` → `2a09594`) — foundation.
+    Migration 033 (`clubs.daily_broadcast_cap int not null
+    default 2` + non-negative CHECK), `npm run types:gen`,
+    `npm i resend @react-email/components @react-email/render`,
+    `.env.example` documenting `RESEND_API_KEY`, `RESEND_FROM`,
+    `EMAIL_UNSUBSCRIBE_SIGNING_SECRET`, `RESEND_WEBHOOK_SECRET`.
+    Two-commit rule honoured (migration → push → verify → commit
+    1, types regen → commit 2, deps → commit 3).
+  - **11-1** (4 commits, `a0ecd68` → `ae7e81a`) — Resend
+    foundation + InviteEmail + unsubscribe path. Migration 034
+    (`clubs.daily_broadcast_cap` comment update noting v1-unused
+    state). `lib/email/{client,render,unsubscribe}.ts` + shared
+    `_BaseLayout` (POPIA footer with mandatory sender + speckle
+    accent + theme-tracked header strip; Web Crypto HMAC
+    unsubscribe tokens with 30-day TTL). `InviteEmail` template
+    + golden-HTML snapshot test (6,437 bytes pinned).
+    `app/(public)/email/unsubscribe` Server Component + Server
+    Action `unsubscribeFromEmails` flipping
+    `profiles.email_opt_in` via service-role.
+  - **11-2** (3 commits, `1f9133e` → `1b5647f`) — `send_message`
+    RPC for in-app fan-out. Migration 035 — SECURITY DEFINER
+    `public.send_message(p_message_id uuid)` that resolves
+    audience kinds (all_members / tournament_entrants / custom)
+    and writes one `message_recipients` row + one `notifications`
+    row per profile, then transitions `messages.status` from
+    queued → sent (or failed on validation error). Atomic
+    transaction; idempotent on terminal states. RPC chosen over
+    Deno Edge Function — without Resend in scope, an HTTP runtime
+    adds cold-start tax without giving anything back. Mirrors the
+    Phase 9 `cancel_own_booking` pattern. TS wrapper at
+    `lib/messages/actions.ts` + 7 RLS-mode integration cases
+    proving fan-out shapes against the local Supabase stack.
+  - **11-3** (3 commits, `557ae10` → `d3f84bb`) — admin
+    `/manage/messages` list + compose. Replaces the Phase 3
+    StubPage. Five-section compose form (subject / body /
+    audience / schedule / channel) with helper-text-on-disabled-
+    submit (Phase 10 manual-QA learning applied from the start),
+    hard-coded in-app-only channel pill, save-as-draft / send-
+    now / schedule-for-later actions. Audience picker covers all
+    three kinds: all_members, tournament_entrants (dropdown
+    sourced from club's tournaments), custom (searchable
+    multi-select with name/email/BSA# search). `_form-state.ts`
+    extracted from the start to dodge the bundler-boundary trap
+    (Phase 10 fix `cd6d068` precedent).
+  - **11-4** (5 commits, `5e7ef8c` → `ea3147c`) — InviteEmail
+    wire-up + DRIFT 160/161/162 closures. Three v1-blocker
+    drifts retired in lockstep:
+    - **DRIFT 160** (Dev-only invite banner) — `lib/invites/email.ts`
+      shared `sendInviteEmail` helper wires all three invite-
+      creation paths (`createInvite`, `createPlayerInvitesBatch`,
+      `createClub`) to render + send via Resend. Toast surfacing
+      of `email_status` replaces the sessionStorage stash.
+      `DevInviteBanner.tsx` + `DevInviteBanner.test.tsx` +
+      `lib/dev-banner.ts` deleted; mounts in `clubs/[id]/page.tsx`
+      + `manage/members/page.tsx` removed; zero residual
+      references confirmed via grep.
+    - **DRIFT 161** (`acceptInviteAction` returning-user) +
+      **DRIFT 162** (JWT club_ids stale claim) — closed together
+      because both touch the same function. `acceptInviteAction`
+      splits into `acceptForExistingUser` (profile lookup by
+      email; idempotent membership / admin-assignment insert;
+      invite revoke; `audit_log` row; server-side `signOut()` +
+      redirect to `/login?invited_to=<club>&next=<role-home>`)
+      and `acceptForNewUser` (original happy path + audit row).
+      Server-side `signOut()` chosen over client-side
+      `auth.refreshSession()` — full re-auth fires the
+      `custom_access_token_hook` against the post-membership
+      state; refresh-token round-trip mints a new access token
+      but its cached `app_metadata` is from the original
+      session's user query. Login page reads `?invited_to=` and
+      surfaces a confirmation banner so re-auth feels
+      intentional. Pinned by `tests/integration/auth/accept-
+      invite-{existing,new}-user.test.ts` (4 cases).
+  - **11-5** (3 commits, `a5de843` → `83d75c4`) — realtime bell +
+    inbox tap-to-mark-read. `useNotificationsRealtime` hook
+    subscribes to `notifications:profile_id=eq.<id>` Supabase
+    Realtime channel; `postgres_changes` INSERT/UPDATE handlers
+    adjust unreadCount + recent dropdown. Optimistic
+    `markAsRead` with rollback on server-side failure.
+    `NotificationsBell` Client component mounts in player +
+    club-admin TopBar `right` slots (super-admin layout
+    deliberately skipped — super-admins don't receive
+    broadcasts). Inbox `/me/inbox` lists extracted to Client
+    island for tap-to-mark-read with `useTransition`-driven
+    optimistic UI; closes the long-standing TODO from
+    Phase 8a's inbox _data.ts.
+  - **11-6** (1 commit, `d2190b4`) — compliance sweep + POPIA
+    opt-out gate. `sendInviteEmail` now reads `email_opt_in`
+    alongside the profile-by-email lookup; existing profile
+    with `email_opt_in=false` returns `{ status: "skipped",
+    reason: "opted_out" }` without rendering or sending.
+    Three-branch toast (sent / skipped / failed) in
+    `InvitePlayerModal` + `NewClubWizard`. POPIA audit
+    documented every line item with file:line evidence.
+    SMS bundle gate (strict, file-extension scoped) returns 0
+    hits across `app/components/lib/supabase/scripts`. 6 new
+    Phase 12 follow-up DRIFT entries documented (player-side
+    /t20 build, resend invite button, live recipient-count
+    preview, draft edit page, scheduled-send dispatcher,
+    PlayerBottomNav "20/20" exception note).
+  - **11-close** (this commit) — PHASE_LOG entry + DRIFT_LOG
+    sweep + README status block update.
+- **Migrations applied:** 3 — 033 (`clubs.daily_broadcast_cap`),
+  034 (column comment update reflecting v1-unused state — the
+  cap stays in schema for a future phase that re-introduces
+  admin email broadcasts), 035 (`send_message` SECURITY DEFINER
+  RPC for in-app fan-out). Cloud + local in sync (verified via
+  Supabase MCP `list_migrations` after each push).
+- **Surfaces shipped:**
+  - `/manage/messages` (admin list page, replaces StubPage —
+    status filter chips, subject search, empty states)
+  - `/manage/messages/new` (admin compose, 5-section form with
+    full audience picker)
+  - `/me/inbox` upgrades — tap-to-mark-read on both notifications
+    and message_recipients rows, optimistic UI
+  - Top-bar `<NotificationsBell />` on player + club-admin
+    layouts — Lucide Bell + numeric badge (caps at "99+") +
+    dropdown with last 5 notifications + tap-to-navigate
+  - `app/(public)/email/unsubscribe` (POPIA-compliant unsub
+    page, public-no-auth — HMAC IS the auth)
+  - `InviteEmail` template (production — actual sends pending
+    operator-side Resend domain verification)
+- **Server actions wired:** 13 — `unsubscribeFromEmails`
+  (11-1c) · `sendMessage` (11-2 wrapper around
+  `send_message` RPC) · `createMessageDraft`,
+  `updateMessageDraft`, `sendMessageNow`, `scheduleMessage`,
+  `deleteMessageDraft`, `composeMessageFromForm` (11-3) ·
+  `markNotificationRead`, `markMessageRecipientRead` (11-5).
+  Plus rewrites of `acceptInviteAction`, `createInvite`,
+  `createPlayerInvitesBatch`, `createClub` to thread
+  `email_status` through the result shapes.
+- **Plan deviations from §14 — captured for the audit trail:**
+  - Email broadcast channel **dropped**. Plan called for an
+    optional in_app + email channel toggle in compose; revised
+    plan locked admin compose to in-app only. Clubs handle
+    their own member email externally via existing tools (own
+    SMTP / mailing lists / WhatsApp groups). Reasoning: scope
+    reduction to ship the Phase 11 essentials inside one
+    working day; admin email is a stakeholder-polish concern.
+  - **Four of five Resend templates dropped.**
+    `TournamentAnnouncement`, `MatchReminder`, `BookingReminder`,
+    `GenericBroadcast` would have been useful but each requires
+    a triggering surface (compose UI + scheduler / event
+    listener). Scope-reducing them out lets the InviteEmail —
+    the only template with a clear v1 trigger surface
+    (`createInvite`) — ship cleanly with all the foundation
+    code (`_BaseLayout`, render helper, HMAC unsubscribe) intact
+    for a future phase to re-add the remaining four.
+  - **Resend webhook handler dropped.** `email_status`
+    transitions from sent → delivered/bounced/complained were
+    going to update `message_recipients`, but with admin
+    broadcasts in-app-only and the only outbound being a
+    one-shot transactional invite, the value of webhook-side
+    delivery telemetry is marginal in v1.
+  - **Daily broadcast cap column kept but unused.** Migration
+    033 added `clubs.daily_broadcast_cap int not null default 2`
+    with non-negative CHECK; migration 034 updated the column
+    comment to note the v1-unused state. The cap policy is
+    correct as written — when a future phase re-introduces an
+    admin email channel, the SECURITY DEFINER `send_message`
+    RPC reads this column at that time.
+- **v1-blocker drift retirements (3):**
+  - DRIFT 160 — Dev-only invite banner → closed by `5e7ef8c`
+    (sendInviteEmail wiring) + `a7965af` (DevInviteBanner
+    deletion).
+  - DRIFT 161 — `acceptInviteAction` returning-user path →
+    closed by `1b9d470`.
+  - DRIFT 162 — JWT `club_ids` stale claim → closed by
+    `1b9d470` (server-side `signOut()` + redirect pattern).
+- **Phase 12 follow-ups documented (6):** Player-side `/t20`
+  page never built (stub still in place; design exists from
+  earlier player pass) · Resend invite button missing in admin
+  UI (no "resend on failure" affordance) · Live recipient-
+  count preview missing on `/manage/messages/new`
+  (`resolveAudienceCount` exists, not called) · No edit page
+  for existing message drafts (server foundation in place) ·
+  Scheduled-send dispatcher not built (`scheduled_at` persists
+  but no worker fires) · PlayerBottomNav "20/20" compact-form
+  exception (documentation; bsa-terminology skill codified).
+- **Drift delta:** 60 → 63 open / 19 → 22 closed. Three
+  v1-blockers retired (160 / 161 / 162); six Phase 12 follow-
+  ups added in 11-6.
+- **Test-suite trajectory:** 1004 (Phase 10 close after
+  branding sweep) → 1004 (11-prep, no test changes) → 1004
+  (11-1a, foundation tests included in commit) → ... → 1162
+  (11-5 close) → **1163 (11-6 + 11-close)**. RLS / RPC
+  integration suite: 85 (Phase 10 close) → 92 (11-2 added 7
+  send_message fan-out cases) → **96 (11-4 added 4
+  acceptInviteAction integration cases)**. 98 unit test files
+  / 1163 cases / 0 failures · 15 integration test files /
+  96 cases / 0 failures.
+- **Verification gates at close:** `npx tsc --noEmit` clean ·
+  `npm run lint` 0 errors / 18 pre-existing warnings (zero
+  new in Phase 11 code) · `npm test` 1163 / 1163 passed ·
+  `npm run test:integration` 96 / 96 passed · `npm run build`
+  clean — all new comms routes ƒ-routed (`/manage/messages`,
+  `/manage/messages/new`, `/email/unsubscribe`,
+  `/api/email/webhook` placeholder NOT in build since handler
+  was dropped) · branding grep (`henselite|choice of
+  champions`) returns 0 hits · T20 user-visible-string grep
+  returns 0 hits (code-shorthand convention preserved) · SMS
+  bundle gate (strict, TS/TSX/SQL/MJS scoped) returns 0 hits
+  across app/components/lib/supabase/scripts.
+  `supabase/config.toml` matches the wide grep at six lines —
+  benign Supabase CLI scaffold defaults with `enabled = false`
+  everywhere, never reaches the application bundle. Documented
+  in 11-6 commit body.
+- **Manual QA verification:** user confirmed all Phase 11
+  surfaces walked + the bell-update perf check (plan §14
+  success criterion "bell updates within 1s") confirmed prior
+  to 11-close greenlight. Cloud Supabase Realtime publication
+  for the `notifications` table verified during the manual
+  pass.
+- **Operational decisions recorded during Phase 11:**
+  - **In-app first, email transactional only (v1).** Admin
+    broadcasts ship via the `send_message` RPC's atomic in-app
+    fan-out into `message_recipients` + `notifications`. The
+    only outbound email path is `InviteEmail`, fired
+    synchronously inside `createInvite` /
+    `createPlayerInvitesBatch` / `createClub`. No fan-out
+    worker, no Resend webhook telemetry, no batched email
+    sends in v1.
+  - **POPIA opt-out at the fan-out boundary, not the message
+    fan-out.** Admin in-app messages bypass the email-channel
+    `email_opt_in` filter because they don't email. The
+    `InviteEmail` send path checks `profiles.email_opt_in` for
+    existing recipients and skips the send (returning
+    `status='skipped'`, reason `'opted_out'`) when the flag is
+    false; the invite row still persists so the admin can
+    copy/share the URL manually. New recipients (no profile
+    yet) bypass the gate — POPIA's opt-out applies to existing
+    profiles, not pre-relationship invitations.
+  - **Server-side `signOut()` over client-side
+    `refreshSession()` for new-club JWT rotation.** When an
+    existing user accepts a second invite, we forcibly
+    re-auth them (sign out + redirect to `/login?invited_to=`)
+    so the `custom_access_token_hook` runs against the
+    post-membership state. Refresh-token round-trip mints a
+    new access token but caches `app_metadata` from the
+    original session's user query. Net cost is one re-auth
+    dialog; net gain is a guaranteed-correct token for every
+    subsequent request. DRIFT 162 closure.
+  - **DevInviteBanner pattern fully retired.** sessionStorage
+    stash + 60-min TTL + custom-event re-read are gone. Toast
+    surfacing of `email_status` covers the "did the email
+    actually go?" UX without persisting credentials in
+    client-side storage.
+  - **PlayerBottomNav "20/20" compact-form exception.** Tab-
+    width constraint (76px on a 5-tab bottom nav) makes
+    canonical "Twenty 20" overflow. Compact "20/20" is the
+    sole sanctioned exception to the locked spelling rule;
+    annotated inline + pinned by test + codified in the
+    bsa-terminology skill.
+- **Operator-side prerequisites for production deployment:**
+  - **Resend domain verification.** `handibowls.co.za`
+    (or whichever sender domain the operator settles on) must
+    be verified on the Resend dashboard. Until verified,
+    `sendInviteEmail` returns `status='failed'` with reason
+    `send_failed` and the toast surfaces the failure with a
+    "resend later" hint. Invite rows still persist; admin can
+    copy/share the URL via the existing accept link.
+  - **Production env vars.** `RESEND_API_KEY` (Resend
+    dashboard), `RESEND_FROM` (e.g. `'HandiBowls
+    <no-reply@handibowls.co.za>'`),
+    `EMAIL_UNSUBSCRIBE_SIGNING_SECRET` (operator-generated
+    via `openssl rand -hex 32`). All four documented in
+    `.env.example`.
+  - **Supabase Realtime publication.** Cloud Supabase project
+    must include `public.notifications` in the
+    `supabase_realtime` publication for the bell to receive
+    INSERT/UPDATE deltas. Verified during the user's manual
+    11-5 walkthrough.
+- **Phase 12 readiness.** Plan §15 scope is cross-cutting
+  stats / history / calendar / optional handicap. Phase 12
+  inherits 6 fresh follow-up entries from 11-6, plus the
+  pre-existing Phase-12-owned drift items (tournament greens
+  link, Fair Rink column, tournament drafts, BSA seeding
+  algorithm verification, telemetry sweep). The
+  `audit_log_visible_to_admin` helper extension to cover
+  `'club_memberships'` / `'club_admin_assignments'` rows
+  written in 11-4 is a Phase 12 task — super-admins can read
+  them today via the `super_admin_all` policy; club-admin
+  visibility into membership audits requires the helper
+  extension. No new Phase 11 work blocks Phase 12.
+
+---
+
 ## Operational conventions
 
 - **Browser-driven QA is human-side throughout the rebuild.** Multi-viewport visual checks and Lighthouse performance audits run on a real browser / device by the human at phase close — Claude Code cannot drive a browser in this WSL container (Playwright + chrome-devtools MCPs both fail to attach). Claude Code's QA scope is limited to code review against the design source + curl-level route checks. Subsequent phase briefs and stop-and-reports drop the "mandatory mobile QA at 4 viewports" item from Claude's gate list. Recorded: 2026-04-29 (post Phase 8 first batch).
