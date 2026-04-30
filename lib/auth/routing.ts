@@ -10,7 +10,7 @@ export type PathKind = "platform" | "manage" | "player";
 
 const PLATFORM_PREFIX = "/platform";
 const MANAGE_PREFIX = "/manage";
-const PLAYER_PREFIXES = ["/play", "/book", "/tournaments", "/me"] as const;
+const PLAYER_PREFIXES = ["/play", "/book", "/tournaments", "/t20", "/me"] as const;
 
 export function isPublicPath(pathname: string): boolean {
   if (pathname === "/") return true;

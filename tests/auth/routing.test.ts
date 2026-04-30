@@ -61,6 +61,7 @@ describe("pathKind", () => {
     expect(pathKind("/book")).toBe("player");
     expect(pathKind("/tournaments")).toBe("player");
     expect(pathKind("/tournaments/abc-123")).toBe("player");
+    expect(pathKind("/t20")).toBe("player");
     expect(pathKind("/me")).toBe("player");
     expect(pathKind("/me/setup")).toBe("player");
   });
