@@ -943,6 +943,107 @@ stakeholder call — Phase 12 ships when work ships.
   from consolidations net of splits (R3 +1 / R4 0 / R7 +1 vs four
   consolidation strikes).
 
+### 12-3 — Messaging admin polish + notification system fixes — closed 2026-04-30
+
+- **Branch tip:** `31fb77f` (`rebuild/phase-12-stakeholder-polish`).
+- **Two atomic commits:**
+  - `050f881` (12-3 step 1) — Migration 040. Two changes bundled:
+    (a) `invites.email_status / email_error / email_sent_at`
+    columns + CHECK constraint pinning the allowed status values
+    so Resend-invite UI can render conditionally on the
+    persisted state; (b) CREATE OR REPLACE
+    `admin_schedule_t20_assessment` so the notification INSERT
+    writes `related_kind='t20_assessment'` (was 'booking') —
+    lets the bell route to /t20 directly without a booking-
+    purpose lookup. Cloud + local in sync at 40 migrations.
+  - `31fb77f` (12-3 step 2) — Application code for both Block A
+    (messaging admin polish) and Block B (notification system
+    fixes). Single commit — the two blocks share the
+    NotificationsBell change set and the messages list/edit
+    plumbing (B1 Inbox/Sent split + A3 edit-draft button on
+    list rows). Splitting would have left interdependencies
+    awkward.
+- **Block A — messaging admin polish (4 closures):**
+  - **A1 Live recipient-count preview** — new
+    `previewAudienceCount` Server Action wraps the existing
+    `resolveAudienceCount` fetcher; new `<AudienceCountPreview>`
+    Client island below the audience picker debounces (300ms)
+    on audience changes, renders `Estimated recipients: N` via
+    useTransition.
+  - **A2 Resend invite button** — `sendInviteEmail` persists
+    each attempt's outcome onto the invite row via the new
+    migration 040 columns. New `resendInviteEmail(token)` Server
+    Action; `<ResendInviteButton>` Client island in
+    MembersTable rendered next to the Status badge for invite
+    rows. Visible on `email_status` ∈ {null, 'failed',
+    'skipped'}; hidden on 'sent'.
+  - **A3 Edit page for message drafts** — new
+    `/manage/messages/[id]/edit/page.tsx` Server Component
+    loads the draft via `getMessageDetail`, renders
+    `<ComposeForm edit={...}>` with subject / body / audience
+    pre-populated. Optional hidden `message_id` field switches
+    `composeMessageFromForm` between create and update paths.
+    wrong_state guard redirects non-draft rows back to the
+    list. List-row "Edit draft" button on draft rows.
+  - **A4 Remove Send-later UI** — ComposeForm Section 4
+    (Schedule with Send-now / Send-later radios) deleted. Form
+    now has 4 sections + two CTAs (Save as draft / Send now).
+    `compose_action='schedule'` branch removed from the action;
+    `ComposeAction` type narrowed to `'save_draft' | 'send_now'`.
+    MessagesListClient status chips dropped 'queued' (5 → 4).
+- **Block B — notification system fixes (4 closures + 1 deferral):**
+  - **B1 Inbox / Sent tabs on /manage/messages** —
+    `listMessagesForClub` takes a `mode` param (default 'inbox');
+    page reads `?tab=inbox|sent` from search params, applies
+    sender_id filter. URL-driven tabs strip rendered server-side.
+    EmptyDataState branches on mode (Inbox = no compose CTA;
+    Sent = retains compose CTA).
+  - **B2 Bell role-branched relatedHref** — `<NotificationsBell>`
+    takes a `role: BellRole` prop. Layouts pass role per chrome.
+    Pure helpers `resolveRelatedHref(role, n)` and
+    `viewAllHref(role)` extracted + exported. 14 new test cases
+    pin every cell of the (player|club_admin) × related_kind
+    routing matrix.
+  - **B3 t20_assessment_request deep link** — covered by B2's
+    club_admin + 'message' branch. MessageRow renders
+    `id="message-{row.id}"` with scroll-mt-24 + target:ring-2;
+    bell click on a t20-request notification routes to
+    `/manage/messages?tab=inbox#message-{id}`.
+  - **B4 t20_assessment_scheduled deep link** — migration 040
+    changed the RPC's notification INSERT to write
+    `related_kind='t20_assessment'`; resolveRelatedHref's
+    player branch routes that kind to `/t20`. Pre-existing rows
+    fired since 12-1 followup carry the old 'booking' literal
+    and continue to route to /book; no backfill.
+  - **B5 "View all" link** — covered by B2.
+  - **B6 Super-admin bell** — DEFERRED per locked user call.
+    Drift entry "Super-admin notifications bell missing"
+    opened under Cross-cutting + post-v1.
+- **Drift entries closed (5):**
+  - Resend invite button missing in admin UI (L167)
+  - Live recipient-count preview missing on /manage/messages/new (L168)
+  - Notification bell role-leak (12-1 followup entry)
+  - No edit page for existing message drafts (L169)
+  - Remove "Send later" option from message compose form (R7a)
+- **Drift entries opened (2):**
+  - "Super-admin notifications bell missing" — Cross-cutting +
+    post-v1 / v2. Deferred per locked user call at 12-3 open.
+  - "Personal theme override (post-v1 / v2)" — Cross-cutting.
+    Profile-level override of club default theme preset; data
+    + UI plumbing only.
+- **Test deltas:** 1184 → 1181 unit (net −3: +14 in
+  NotificationsBell.test.tsx for the resolveRelatedHref +
+  viewAllHref matrix; −12 obsoleted in messages-compose.test.tsx
+  for Send-later UI; −5 from 12-1 followup ctaCopyFor that
+  already cleared; +1 split in messages-list for empty-state
+  CTA visibility per mode; −1 status-chip count adjustment).
+  106 → 111 integration (no new this checkpoint — Block B is
+  pure helpers; Block A wraps already-tested infrastructure).
+- **Migrations applied:** 040.
+- **Verification gates at close:** tsc clean / lint 0 errors
+  (19 pre-existing warnings) / 1181 unit / 111 integration /
+  build green.
+
 ### 12-2 — Tournament admin gaps — closed 2026-04-30
 
 - **Branch tip:** `3263cb1` (`rebuild/phase-12-stakeholder-polish`).
