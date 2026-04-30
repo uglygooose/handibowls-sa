@@ -1568,6 +1568,13 @@ export type Database = {
         Args: { p_fixtures: Json; p_round: number; p_tournament_id: string }
         Returns: Json
       }
+      send_message: {
+        Args: { p_message_id: string }
+        Returns: {
+          recipient_count: number
+          status: string
+        }[]
+      }
       set_primary_membership: {
         Args: { p_membership_id: string }
         Returns: undefined
