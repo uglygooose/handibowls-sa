@@ -1,7 +1,8 @@
 "use server";
 
 import { getAuthContext } from "@/lib/auth/role";
-import { createInvite } from "@/lib/invites/actions";
+import { createInvite, type InviteEmailStatus } from "@/lib/invites/actions";
+import { sendInviteEmail } from "@/lib/invites/email";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
@@ -29,7 +30,14 @@ async function requireSuperAdmin(): Promise<ActionResult<true>> {
 // payload shape with Zod so the UI gets field-keyed errors without a round-trip.
 export async function createClub(
   input: CreateClubInput,
-): Promise<ActionResult<{ club_id: string; admin_invite_token: string | null }>> {
+): Promise<
+  ActionResult<{
+    club_id: string;
+    admin_invite_token: string | null;
+    admin_invite_email_status: InviteEmailStatus;
+    admin_invite_email_error?: string;
+  }>
+> {
   const gate = await requireSuperAdmin();
   if (!gate.ok) return gate;
 
@@ -67,10 +75,9 @@ export async function createClub(
 
   const clubId = data as string;
 
-  // Surface the admin invite token back to the wizard so the dev-only
-  // banner on the new detail page can render the invite URL. Uses the
-  // service client because RLS on `invites` is scoped to the invitee —
-  // the super-admin creating the club isn't the recipient, so authed
+  // Pull the freshly-created admin invite token. Uses the service
+  // client because RLS on `invites` is scoped to the invitee — the
+  // super-admin creating the club isn't the recipient, so authed
   // select would return an empty set.
   const admin = createServiceClient();
   const { data: invite } = await admin
@@ -83,9 +90,35 @@ export async function createClub(
     .limit(1)
     .maybeSingle();
 
+  // Phase 11 / 11-4a — fire the InviteEmail for the new club's
+  // admin invite. Failure is non-blocking: the club + invite row
+  // are already written, so the super-admin can resend later. The
+  // wizard surfaces the email status as a toast on the detail
+  // page (replaced the dev banner pattern in 11-4d).
+  let emailStatus: InviteEmailStatus = "skipped";
+  let emailError: string | undefined;
+  if (invite?.token) {
+    const ctx = await getAuthContext();
+    const result = await sendInviteEmail({
+      token: invite.token,
+      invitedByDisplayName: ctx?.email ?? null,
+    });
+    if (result.status === "sent") {
+      emailStatus = "sent";
+    } else {
+      emailStatus = "failed";
+      emailError = result.error;
+    }
+  }
+
   return {
     ok: true,
-    data: { club_id: clubId, admin_invite_token: invite?.token ?? null },
+    data: {
+      club_id: clubId,
+      admin_invite_token: invite?.token ?? null,
+      admin_invite_email_status: emailStatus,
+      admin_invite_email_error: emailError,
+    },
   };
 }
 

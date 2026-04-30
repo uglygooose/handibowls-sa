@@ -18,13 +18,6 @@ import {
 } from "@/components/ui/dialog";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 
-import {
-  DEV_INVITE_BANNER_KEY,
-  DEV_INVITE_TTL_MS,
-  isDevBannerEnabled,
-  type DevInviteBannerPayload,
-} from "@/lib/dev-banner";
-
 import { createClub } from "../../_actions";
 import type { DistrictRow } from "../../_data";
 import { clearDraft, readDraft, writeDraft } from "../_draft";
@@ -253,23 +246,23 @@ export function NewClubWizard({ districts }: Props) {
         return;
       }
 
-      // Dev-only: stash the admin invite token so the freshly-loaded club
-      // detail page can render a copy-link banner. Gated on both env flags
-      // so production never sees this path. See lib/dev-banner.ts.
-      if (isDevBannerEnabled() && result.data.admin_invite_token) {
-        try {
-          const payload: DevInviteBannerPayload = {
-            clubId: result.data.club_id,
-            inviteToken: result.data.admin_invite_token,
-            expiresAt: Date.now() + DEV_INVITE_TTL_MS,
-          };
-          window.sessionStorage.setItem(
-            DEV_INVITE_BANNER_KEY,
-            JSON.stringify(payload),
-          );
-        } catch {
-          // Non-fatal — banner is dev-only and best-effort.
-        }
+      // Phase 11 / 11-4a — surface the admin invite email status to
+      // the super-admin. The email is fired by createClub on the
+      // server; here we just toast the outcome so the operator knows
+      // whether to resend manually. Replaces the dev-only sessionStorage
+      // banner pattern (DRIFT 160 closure).
+      if (result.data.admin_invite_email_status === "sent") {
+        toast.success(
+          `Club created. Admin invite emailed to ${values.adminInvite.admin_email}.`,
+        );
+      } else if (result.data.admin_invite_email_status === "failed") {
+        toast.error(
+          `Club created, but the admin invite email failed to send: ${
+            result.data.admin_invite_email_error ?? "unknown error"
+          }. Resend from /platform/clubs/${result.data.club_id}.`,
+        );
+      } else {
+        toast.success("Club created.");
       }
 
       clearDraft();

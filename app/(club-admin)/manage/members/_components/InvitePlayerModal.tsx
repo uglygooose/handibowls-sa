@@ -27,13 +27,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  DEV_INVITE_BANNER_EVENT,
-  DEV_INVITE_TTL_MS,
-  DEV_PLAYER_INVITE_BANNER_KEY,
-  isDevBannerEnabled,
-  type DevInviteBannerPayload,
-} from "@/lib/dev-banner";
 import { createInvite } from "@/lib/invites/actions";
 import { createInviteSchema } from "@/lib/validation/invites";
 
@@ -74,26 +67,20 @@ export function InvitePlayerModal({ clubId }: Props) {
         return;
       }
 
-      if (isDevBannerEnabled()) {
-        try {
-          const payload: DevInviteBannerPayload = {
-            clubId,
-            inviteToken: result.data.token,
-            expiresAt: Date.now() + DEV_INVITE_TTL_MS,
-          };
-          window.sessionStorage.setItem(
-            DEV_PLAYER_INVITE_BANNER_KEY,
-            JSON.stringify(payload),
-          );
-          // Tell the on-page banner to re-read its snapshot. Same-tab
-          // sessionStorage writes don't fire StorageEvent.
-          window.dispatchEvent(new Event(DEV_INVITE_BANNER_EVENT));
-        } catch {
-          // Non-fatal — banner is dev-only and best-effort.
-        }
+      // Phase 11 / 11-4a — surface the invite email status. The
+      // server-side createInvite fires the InviteEmail; this UI just
+      // toasts the outcome so the admin knows whether to resend
+      // manually. Replaced the dev-only sessionStorage banner pattern
+      // (DRIFT 160 closure).
+      if (result.data.email_status === "sent") {
+        toast.success(`Invite emailed to ${values.email}`);
+      } else {
+        toast.error(
+          `Invite saved but email failed to send: ${
+            result.data.email_error ?? "unknown error"
+          }. Resend from the members list.`,
+        );
       }
-
-      toast.success(`Invite sent to ${values.email}`);
       form.reset();
       setOpen(false);
       // Refresh the server-rendered page so the new pending-invite row

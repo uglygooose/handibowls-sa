@@ -1,6 +1,7 @@
 "use server";
 
 import { getAuthContext } from "@/lib/auth/role";
+import { sendInviteEmail } from "@/lib/invites/email";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
@@ -10,8 +11,21 @@ import {
   type CreatePlayerInvitesBatchInput,
 } from "@/lib/validation/invites";
 
+/** Email-side outcome of an invite-creation flow. The invite row is
+ *  always written; the email send is best-effort. Callers surface
+ *  this in the UI so admins know whether they need to resend. */
+export type InviteEmailStatus = "sent" | "failed" | "skipped";
+
 export type CreateInviteResult =
-  | { ok: true; data: { invite_id: string; token: string } }
+  | {
+      ok: true;
+      data: {
+        invite_id: string;
+        token: string;
+        email_status: InviteEmailStatus;
+        email_error?: string;
+      };
+    }
   | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
 
 export type BatchInviteResultRow = {
@@ -19,6 +33,10 @@ export type BatchInviteResultRow = {
   status: "created" | "duplicate";
   invite_id: string | null;
   token: string | null;
+  /** Only populated when status='created'. Duplicates don't re-trigger
+   *  email sends — the original invite already covered them. */
+  email_status: InviteEmailStatus;
+  email_error?: string;
 };
 
 export type CreatePlayerInvitesBatchResult =
@@ -73,7 +91,26 @@ export async function createInvite(
   if (error || !data) {
     return { ok: false, error: error?.message ?? "Could not create invite." };
   }
-  return { ok: true, data: { invite_id: data.id, token: data.token } };
+
+  // Phase 11 / 11-4a — fire the InviteEmail. Failures are
+  // non-blocking: the invite row is already written, so the admin
+  // can resend later from the membership UI. Pass the inviter's
+  // email as a stable identity hint; the helper resolves the full
+  // display name itself.
+  const emailResult = await sendInviteEmail({
+    token: data.token,
+    invitedByDisplayName: ctx.email,
+  });
+  return {
+    ok: true,
+    data: {
+      invite_id: data.id,
+      token: data.token,
+      email_status: emailResult.status === "sent" ? "sent" : "failed",
+      email_error:
+        emailResult.status === "sent" ? undefined : emailResult.error,
+    },
+  };
 }
 
 // Batch player-invite creation. Defense-in-depth: re-check the role-aware gate
@@ -114,11 +151,39 @@ export async function createPlayerInvitesBatch(
 
   if (error) return { ok: false, error: error.message };
 
-  const rows: BatchInviteResultRow[] = (data ?? []).map((r) => ({
-    email: r.email ?? "",
-    status: (r.status as "created" | "duplicate") ?? "duplicate",
-    invite_id: r.invite_id,
-    token: r.token,
-  }));
+  // Phase 11 / 11-4a — fan out InviteEmails for the freshly
+  // CREATED rows only. Duplicates don't re-trigger sends — the
+  // original invite already covered them. Sequential sends keep
+  // ordering predictable; if an admin imports a 200-row CSV the
+  // last user shouldn't get their email before the first. Resend's
+  // SDK supports concurrent calls but the action layer doesn't
+  // need that throughput in v1.
+  const rows: BatchInviteResultRow[] = [];
+  for (const r of data ?? []) {
+    const status = (r.status as "created" | "duplicate") ?? "duplicate";
+    if (status === "duplicate" || !r.token) {
+      rows.push({
+        email: r.email ?? "",
+        status,
+        invite_id: r.invite_id,
+        token: r.token,
+        email_status: "skipped",
+      });
+      continue;
+    }
+    const emailResult = await sendInviteEmail({
+      token: r.token,
+      invitedByDisplayName: ctx.email,
+    });
+    rows.push({
+      email: r.email ?? "",
+      status,
+      invite_id: r.invite_id,
+      token: r.token,
+      email_status: emailResult.status === "sent" ? "sent" : "failed",
+      email_error:
+        emailResult.status === "sent" ? undefined : emailResult.error,
+    });
+  }
   return { ok: true, data: rows };
 }
