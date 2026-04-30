@@ -943,6 +943,72 @@ stakeholder call — Phase 12 ships when work ships.
   from consolidations net of splits (R3 +1 / R4 0 / R7 +1 vs four
   consolidation strikes).
 
+### 12-4 — T20 admin polish — closed 2026-05-01
+
+- **Branch tip:** `8049cbf` (`rebuild/phase-12-stakeholder-polish`).
+- **Three atomic commits:**
+  - `5d21e9d` (12-4 step 1) — M2 (editable notes inline) + M10
+    (R1/R2 round split engine-derived) + M8 (remove draft button
+    on T20 New form) + N7 (remove Export CSV button on T20 list).
+    No migration. SectionTotal type extended with r1/r2;
+    aggregateAssessment buckets per (section, round). NotesSection
+    became a Client island with single-text inline edit
+    (provisional shape — replaced in step 3). Both button
+    removals per locked user override at Phase 12 triage.
+  - `f3151e7` (12-4 step 2) — Migration 041. Reshapes
+    t20_assessments.notes from text to jsonb with optional keys
+    (strengths / watch / focus / legacy). CHECK constraint pinned
+    via IMMUTABLE helper t20_notes_keys_valid(jsonb). Pre-migration
+    cloud check confirmed 0 rows had notes (109 total) so the
+    USING clause maps every row to NULL — no data preservation
+    needed. Two-commit rule honoured: schema → push → verify
+    → commit, then UI rework on top.
+  - `8049cbf` (12-4 step 3) — N8 categorised UI. T20Notes type
+    in _data.ts; parseNotes helper at the read boundary;
+    editAssessmentNotes action accepts categorised payload (Zod-
+    validated, sparse-object semantics, all-empty → NULL);
+    NotesSection rewritten as 3-tile grid (Strengths / Watch /
+    Coach focus) with independent inline edit per tile + legacy
+    read-only banner. Replaces the step-1 single-text edit
+    (no zombie code).
+- **Drift entries closed (5):**
+  - **M2 / L151** — Results view: notes are read-only. Inline
+    edit shipped in step 1; reshaped to categorised editor in
+    step 3.
+  - **M10 / L150** — Results view: R1/R2 round splits are even-
+    half presentation. SectionTotal extended with r1/r2;
+    buildBreakdown reads real values straight through. 5 new
+    test cases pin the (r1+r2 === earned) invariant.
+  - **M8 / L146** — New form: remove disabled Save-as-draft
+    button. Locked user override at triage; button removed,
+    no `saveAssessmentDraft` action wired.
+  - **N7 / L145** — List page: remove unwired Export CSV
+    button. Locked user override at triage; button + Download
+    icon import removed, no CSV endpoint built.
+  - **N8 / L152** — Results view: coach-categorised notes.
+    Migration 041 + 3-tile editor closed end-to-end. Legacy key
+    reserved for future imports.
+- **Drift entries opened:** none. All five 12-4 surface items
+  closed in scope.
+- **Test deltas:** 1181 → 1203 unit (+22 net): +5 new in
+  `tests/lib/t20/score.test.ts` (R1/R2 round-split coverage:
+  empty / single-R1 / single-R2 / mixed / cross-section
+  invariant); +5 new in `tests/app/club-admin/t20-results.test.tsx`
+  for the 3-tile categorised editor (tiles render, populated/
+  empty branches, edit CTA copy, edit-mode reveal, legacy
+  banner); +5 obsoleted from the step-1 single-text edit cases
+  (replaced by the tile cases); existing fixture's SectionTotal
+  rows extended with r1/r2 to satisfy the new TypeScript shape;
+  +12 from prior phase reconciliation. 111 → 111 integration
+  (no new — N8's RLS write path is already covered by migration
+  010's existing t20_assessments_club_admin_rw + assessor_rw
+  policies; the categorised payload doesn't introduce new RLS
+  surfaces).
+- **Migrations applied:** 041.
+- **Verification gates at close:** tsc clean / lint 0 errors
+  (18 pre-existing warnings) / 1203 unit / 111 integration /
+  build green.
+
 ### 12-3 — Messaging admin polish + notification system fixes — closed 2026-04-30
 
 - **Branch tip:** `31fb77f` (`rebuild/phase-12-stakeholder-polish`).
