@@ -1,86 +1,288 @@
-import { ChevronLeft, Mail, Target } from "lucide-react";
+import { ArrowRight, Calendar, Target, Trophy } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
+import { SpeckleField } from "@/components/brand/SpeckleField";
+import { SplatterAccent } from "@/components/brand/SplatterAccent";
+import { getAuthContext } from "@/lib/auth/role";
+import { formatDateZA } from "@/lib/format/dates";
 
-// /t20 — Phase 10 stub. The PlayerBottomNav surfaces a T20 tab in
-// Phase 8 because the design source ships 5 tabs in the final
-// treatment, but the T20 module (assessments, grade ladder, club
-// hosts) lands in Phase 10. Mirrors the /payments stub pattern from
-// Phase 7d: a public, themed roadmap card so the tab navigates
-// somewhere intentional rather than 404-ing.
+import { getCurrentPlayerT20Profile } from "./_data";
 
-export default function T20Page() {
+// Phase 12 / 12-1 — Player-side Twenty 20 hub. Replaces the Phase 10
+// roadmap stub. Sections (per design source PageT20 in
+// player-pages.jsx:182):
+//   1. Hero — primary-club themed band with current grade pill +
+//      tier ladder + "Book gold assessment" CTA
+//   2. "What is Twenty 20?" explainer card (3 grid items)
+//   3. Upcoming assessments — empty state until the scheduled-send
+//      infrastructure ships (DRIFT_LOG: Scheduled-send infrastructure
+//      (deferred))
+//   4. Past assessments — history list of submitted assessments
+//      (additive over the design source per L166 entry text)
+
+export const metadata = {
+  title: "Twenty 20 · HandiBowls",
+};
+
+const TIER_ORDER = ["bronze", "silver", "gold", "platinum"] as const;
+type Tier = (typeof TIER_ORDER)[number];
+type TierStepState = "done" | "active" | "future";
+
+const TIER_LABEL: Record<Tier, string> = {
+  bronze: "Bronze",
+  silver: "Silver",
+  gold: "Gold",
+  platinum: "Platinum",
+};
+
+export default async function T20Page() {
+  const ctx = await getAuthContext();
+  if (!ctx) redirect("/login");
+
+  const profile = await getCurrentPlayerT20Profile();
+  const heroTheme = profile.latest?.club_theme ?? profile.primary_club_theme;
+  const ladder = computeLadder(profile.latest?.grade ?? null);
+  const heroCopy = heroCopyFor(profile.latest);
+  const ctaCopy = ctaCopyFor(profile.latest?.grade ?? null);
+
   return (
-    <div className="relative min-h-dvh bg-bone">
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-48">
-        <SpeckleLayer seed="t20-hero" density="med" opacity={0.06} />
-      </div>
-
-      <div className="relative z-10 mx-auto flex max-w-3xl flex-col gap-8 px-5 py-10">
-        <Link
-          href="/play"
-          className="inline-flex h-7 w-fit items-center gap-1 rounded-md px-1.5 text-[13px] font-medium text-ink-muted hover:bg-surface-muted hover:text-ink"
-        >
-          <ChevronLeft className="size-3.5" aria-hidden="true" />
-          Back home
-        </Link>
-
-        <div className="flex flex-col gap-3">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
-            Twenty 20 grading · Phase 10 roadmap
-          </span>
-          <h1 className="font-display text-[40px] font-black italic leading-[0.95] tracking-tight">
-            Twenty 20 hub coming soon.
-          </h1>
-          <p className="max-w-[60ch] text-[14px] text-ink-muted">
-            The Twenty 20 module is the official Bowls South Africa handicap
-            and grading system — Bronze, Silver, Gold, Platinum — with seasonal
-            re-assessments hosted by clubs. v1 ships with the tournament
-            engine + player surfaces; Twenty 20 lands alongside a dedicated
-            assessment workflow and the historical grading view.
-          </p>
+    <div className="pb-24">
+      {/* Hero — primary-club themed band */}
+      <section className="relative isolate mx-auto max-w-3xl overflow-hidden rounded-[20px] bg-primary-500 px-5 py-6 sm:mx-5 sm:my-5">
+        <div className="pointer-events-none absolute inset-0 z-0">
+          <SpeckleField
+            preset={heroTheme}
+            density={1.3}
+            opacityScale={1.4}
+            borderRadius={20}
+          />
+        </div>
+        <div className="pointer-events-none absolute -right-6 -bottom-6 z-0 opacity-45">
+          <SplatterAccent preset={heroTheme} variant={1} size={130} />
         </div>
 
-        <div className="rounded-2xl border border-border bg-surface px-6 py-6">
-          <h2 className="flex items-center gap-2 font-display text-xl font-black tracking-tight">
-            <Target className="size-4 text-primary-500" aria-hidden="true" />
-            What lands in Phase 10
-          </h2>
-          <ul className="mt-4 flex flex-col gap-3 text-[14px]">
-            <Item title="Your grade ladder" body="Track Bronze → Platinum progression with the date earned and 12-month validity window." />
-            <Item title="Upcoming assessments" body="See open assessment slots at your primary club + cross-club bookings via Twenty 20–host clubs in the same district." />
-            <Item title="Compass capture" body="The 8-zone, 4-grade Twenty 20 assessment compass — the same rubric your club admin uses." />
+        <div className="relative z-10 flex flex-col gap-3 text-[color:var(--color-on-primary)]">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-white/85">
+            {heroCopy.eyebrow}
+          </span>
+          <span className="font-display text-[56px] font-black italic leading-none tracking-[-0.01em]">
+            {heroCopy.gradeText}
+          </span>
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white/85">
+            {heroCopy.subline}
+          </span>
+
+          <div className="mt-1 grid grid-cols-4 gap-1.5">
+            {ladder.map(({ tier, state }) => (
+              <TierStep key={tier} tier={tier} state={state} />
+            ))}
+          </div>
+
+          <Link
+            href="/me"
+            className="mt-2 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-white font-mono text-[12px] font-bold uppercase tracking-[0.08em] text-primary-600 hover:bg-white/95"
+          >
+            {ctaCopy} <ArrowRight className="size-3.5" aria-hidden="true" />
+          </Link>
+          <span className="text-center font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white/70">
+            Talk to your club to schedule the next assessment
+          </span>
+        </div>
+      </section>
+
+      <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-5">
+        {/* "What is Twenty 20?" explainer */}
+        <SectionHead title="What is Twenty 20?" />
+        <div className="rounded-xl border border-border bg-surface px-5 py-5">
+          <p className="m-0 mb-3 text-[13.5px] leading-[1.5] text-ink-muted">
+            Twenty 20 is the official handicap and grading system for South
+            African bowls. Your grade affects which tournaments you can enter
+            and how handicap points are applied.
+          </p>
+          <ul className="m-0 grid list-none gap-2.5 p-0">
+            <ExplainItem
+              icon={<Trophy className="size-4 text-primary-500" aria-hidden="true" />}
+              title="Better matchmaking"
+              body="Even pairings, fewer mismatches"
+            />
+            <ExplainItem
+              icon={<Target className="size-4 text-primary-500" aria-hidden="true" />}
+              title="Track progress"
+              body="Watch your grade improve over time"
+            />
+            <ExplainItem
+              icon={<Calendar className="size-4 text-primary-500" aria-hidden="true" />}
+              title="Re-assess yearly"
+              body="Your club hosts assessments seasonally"
+            />
           </ul>
         </div>
 
-        <div className="rounded-2xl border border-dashed border-border bg-surface px-6 py-5 text-[13px] text-ink-muted">
-          <p className="mb-3">
-            Want to be told when the Twenty 20 module lands? Email us and
-            we&apos;ll ping you when assessments open at your club.
+        {/* Upcoming assessments — empty state until scheduling backend lands */}
+        <SectionHead title="Upcoming assessments" />
+        <div className="rounded-xl border border-dashed border-border bg-surface px-5 py-5 text-[13px] text-ink-muted">
+          <p className="m-0 mb-1 font-display text-[15px] font-bold tracking-tight text-ink">
+            No assessments scheduled.
           </p>
-          <a
-            href="mailto:hello@handibowls.app"
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-surface px-3 font-medium text-ink hover:bg-surface-muted"
-          >
-            <Mail className="size-3.5" aria-hidden="true" />
-            hello@handibowls.app
-          </a>
+          <p className="m-0">
+            Twenty 20 assessment scheduling lands with the messaging
+            infrastructure follow-up. Until then, contact your club admin to
+            book the next slot.
+          </p>
         </div>
 
-        <p className="text-center font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-subtle">
-          v1 ships without Twenty 20 — by design.
-        </p>
+        {/* Past assessments — additive over design source per L166 */}
+        {profile.history.length > 0 && (
+          <>
+            <SectionHead title="Past assessments" />
+            <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+              {profile.history.map((a) => (
+                <li
+                  key={a.id}
+                  className="rounded-xl border border-border bg-bone px-4 py-3"
+                >
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-primary-600">
+                      {formatDateZA(a.assessed_on)}
+                    </span>
+                    {a.grade && (
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.06em] ${gradePillClass(a.grade)}`}
+                      >
+                        {a.grade}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 font-display text-[15px] font-bold tracking-tight">
+                    {a.club_name ?? "Unknown club"}
+                  </div>
+                  <div className="font-mono text-[11px] uppercase tracking-[0.06em] text-ink-muted">
+                    {a.percentage.toFixed(1)}%
+                    {a.assessor_name ? ` · ${a.assessor_name}` : ""}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-function Item({ title, body }: { title: string; body: string }) {
+function TierStep({ tier, state }: { tier: Tier; state: TierStepState }) {
+  const wrap =
+    state === "active"
+      ? "rounded-lg bg-white px-1 py-2 text-center text-primary-600"
+      : "rounded-lg bg-white/10 px-1 py-2 text-center";
+  const dot =
+    state === "active"
+      ? "mx-auto mb-1 size-2.5 rounded-full bg-primary-500"
+      : state === "done"
+        ? "mx-auto mb-1 size-2.5 rounded-full bg-white/70"
+        : "mx-auto mb-1 size-2.5 rounded-full bg-white/30";
   return (
-    <li className="flex flex-col gap-0.5 rounded-lg border border-border bg-surface px-4 py-3">
-      <strong className="font-display text-[15px] tracking-tight">{title}</strong>
-      <span className="text-[13px] text-ink-muted">{body}</span>
+    <div className={wrap}>
+      <span aria-hidden="true" className={`block ${dot}`} />
+      <span className="block font-mono text-[10px] font-bold uppercase tracking-[0.06em]">
+        {TIER_LABEL[tier]}
+      </span>
+    </div>
+  );
+}
+
+function ExplainItem({
+  icon,
+  title,
+  body,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <li className="flex items-start gap-2.5">
+      <span className="mt-0.5 shrink-0">{icon}</span>
+      <span className="flex flex-col gap-0.5">
+        <span className="text-[13px] font-bold tracking-tight">{title}</span>
+        <span className="text-[12px] text-ink-muted">{body}</span>
+      </span>
     </li>
   );
+}
+
+function SectionHead({ title }: { title: string }) {
+  return (
+    <h2 className="m-0 pt-1 font-display text-[18px] font-black italic uppercase tracking-tight">
+      {title}
+    </h2>
+  );
+}
+
+// ---- pure logic helpers (covered by tests/app/player/t20-page.test.tsx) ----
+
+export function computeLadder(
+  grade: "gold" | "silver" | "bronze" | "fail" | null,
+): ReadonlyArray<{ tier: Tier; state: TierStepState }> {
+  // No grade yet, or fail → ladder shows nothing achieved; bronze is the
+  // next aspirational step.
+  if (grade === null || grade === "fail") {
+    return TIER_ORDER.map((tier) => ({ tier, state: "future" as const }));
+  }
+  // Active grade in {bronze, silver, gold}. Lower tiers render `done`,
+  // the matched tier renders `active`, higher tiers render `future`.
+  // Platinum is always `future` (aspirational — see DRIFT_LOG: Player
+  // /t20 ladder Platinum tier is aspirational).
+  const activeIdx = TIER_ORDER.indexOf(grade as Tier);
+  return TIER_ORDER.map((tier, idx) => ({
+    tier,
+    state:
+      idx < activeIdx ? "done" : idx === activeIdx ? "active" : "future",
+  }));
+}
+
+export function heroCopyFor(latest: { grade: "gold" | "silver" | "bronze" | "fail" | null; assessed_on: string } | null): {
+  eyebrow: string;
+  gradeText: string;
+  subline: string;
+} {
+  if (!latest || latest.grade === null) {
+    return {
+      eyebrow: "Your Twenty 20 grade",
+      gradeText: "UNGRADED",
+      subline: "No assessment recorded · book your first",
+    };
+  }
+  if (latest.grade === "fail") {
+    return {
+      eyebrow: "Your Twenty 20 grade",
+      gradeText: "RETRY",
+      subline: `Last assessed ${formatDateZA(latest.assessed_on)} · book a retry`,
+    };
+  }
+  return {
+    eyebrow: "Your Twenty 20 grade",
+    gradeText: latest.grade.toUpperCase(),
+    subline: `Earned ${formatDateZA(latest.assessed_on)} · valid 12 mo`,
+  };
+}
+
+export function ctaCopyFor(
+  grade: "gold" | "silver" | "bronze" | "fail" | null,
+): string {
+  if (grade === null) return "Book first assessment";
+  if (grade === "fail") return "Book retry assessment";
+  if (grade === "gold") return "Book platinum assessment";
+  if (grade === "silver") return "Book gold assessment";
+  return "Book silver assessment";
+}
+
+function gradePillClass(grade: "gold" | "silver" | "bronze" | "fail"): string {
+  if (grade === "gold") return "bg-[#F5B700] text-ink border border-[#F5B700]/60";
+  if (grade === "silver")
+    return "bg-surface-muted text-ink border border-border";
+  if (grade === "bronze")
+    return "bg-[#B45309]/10 text-[#7C2D12] border border-[#B45309]/30";
+  return "bg-danger-500/10 text-danger-500 border border-danger-500/30";
 }
