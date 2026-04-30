@@ -322,23 +322,26 @@ export async function completeRound(
   return { kind: "ok", sectionRoundEarned, sectionEarned };
 }
 
-// 12-4 hotfix: notes shape aligned with migration 041's jsonb column
-// + editAssessmentNotesSchema (defined later in this file). The
-// previous `z.string().optional()` was a pre-migration leftover —
-// any caller passing notes-as-string would hit the
-// t20_assessments_notes_shape CHECK constraint at SQL time. The
-// wizard never exercises this path today, but the type mismatch
-// is a real latent bug.
+// 12-4 hotfix: notes payload is jsonb (migration 041) with a
+// CHECK constraint pinning it to {strengths, watch, focus, legacy}
+// keys — any caller that submits notes-as-string trips the
+// t20_assessments_notes_shape constraint at SQL time. Both
+// finalizeAssessment and editAssessmentNotes accept notes; share
+// one schema so the two paths can't drift again.
+const NOTES_CATEGORY_MAX = 2500;
+
+const notesPayloadSchema = z
+  .object({
+    strengths: z.string().max(NOTES_CATEGORY_MAX).optional(),
+    watch: z.string().max(NOTES_CATEGORY_MAX).optional(),
+    focus: z.string().max(NOTES_CATEGORY_MAX).optional(),
+    legacy: z.string().max(NOTES_CATEGORY_MAX).optional(),
+  })
+  .optional();
+
 const finalizeSchema = z.object({
   assessment_id: z.string().uuid(),
-  notes: z
-    .object({
-      strengths: z.string().max(2500).optional(),
-      watch: z.string().max(2500).optional(),
-      focus: z.string().max(2500).optional(),
-      legacy: z.string().max(2500).optional(),
-    })
-    .optional(),
+  notes: notesPayloadSchema,
 });
 
 export type FinalizeAssessmentInput = z.input<typeof finalizeSchema>;
@@ -697,18 +700,9 @@ export async function requestPdfExport(
 // but the action accepts it via the schema for completeness — the
 // UI never submits it.
 
-const NOTES_CATEGORY_MAX = 2500;
-
 const editAssessmentNotesSchema = z.object({
   assessment_id: z.string().uuid(),
-  notes: z
-    .object({
-      strengths: z.string().max(NOTES_CATEGORY_MAX).optional(),
-      watch: z.string().max(NOTES_CATEGORY_MAX).optional(),
-      focus: z.string().max(NOTES_CATEGORY_MAX).optional(),
-      legacy: z.string().max(NOTES_CATEGORY_MAX).optional(),
-    })
-    .optional(),
+  notes: notesPayloadSchema,
 });
 
 export type T20NotesInput = z.input<typeof editAssessmentNotesSchema>["notes"];
