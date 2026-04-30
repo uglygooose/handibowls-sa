@@ -2,10 +2,12 @@ import type { ReactNode } from "react";
 
 import { CommandPaletteMount } from "@/components/command/CommandPaletteMount";
 import { AdminSidebar } from "@/components/nav/AdminSidebar";
+import { NotificationsBell } from "@/components/nav/NotificationsBell";
 import { TopBar } from "@/components/nav/TopBar";
 import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { getCurrentProfile } from "@/lib/auth/profile";
-import { requireRole } from "@/lib/auth/role";
+import { getAuthContext, requireRole } from "@/lib/auth/role";
+import { getInitialNotifications } from "@/lib/notifications/_data";
 
 export default async function ClubAdminLayout({
   children,
@@ -20,9 +22,11 @@ export default async function ClubAdminLayout({
   // club_admin_assignments row for club_admins). super_admins fall through
   // to deriveDisplayName(profile) — they have no canonical host club, so
   // the foot card shows their user identity instead.
-  const [hostClub, profile] = await Promise.all([
+  const [hostClub, profile, ctx, initialNotifications] = await Promise.all([
     getCurrentHostClub(),
     getCurrentProfile(),
+    getAuthContext(),
+    getInitialNotifications(),
   ]);
 
   const identity = {
@@ -41,7 +45,21 @@ export default async function ClubAdminLayout({
         <AdminSidebar variant="club_admin" identity={identity} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar variant="light" />
+        <TopBar
+          variant="light"
+          right={
+            // Phase 11 / 11-5b: club admins are also club members and
+            // receive their own broadcasts (a club admin who broadcasts
+            // appears in their own audience under all_members). Bell
+            // mounts here for the same realtime contract as players.
+            <NotificationsBell
+              profileId={ctx?.userId ?? null}
+              initialUnreadCount={initialNotifications.unreadCount}
+              initialRecent={initialNotifications.recent}
+              variant="light"
+            />
+          }
+        />
         <div className="bg-surface-muted px-4 py-2 text-xs text-ink-muted lg:hidden">
           Admin features are optimised for desktop.
         </div>

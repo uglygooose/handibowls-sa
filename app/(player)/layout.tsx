@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { MobileShell } from "@/components/layout/MobileShell";
+import { NotificationsBell } from "@/components/nav/NotificationsBell";
 import { PlayerBottomNav } from "@/components/nav/PlayerBottomNav";
 import { TopBar } from "@/components/nav/TopBar";
 import { ClubSwitcher } from "@/components/player/ClubSwitcher";
@@ -9,7 +10,7 @@ import { NoviceBadge } from "@/components/player/NoviceBadge";
 import { getCurrentMemberships } from "@/lib/auth/memberships";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { getAuthContext, requireRole } from "@/lib/auth/role";
-import { createClient } from "@/lib/supabase/server";
+import { getInitialNotifications } from "@/lib/notifications/_data";
 
 export default async function PlayerLayout({
   children,
@@ -23,10 +24,14 @@ export default async function PlayerLayout({
   // Both fetchers are React.cache-wrapped so any nested page reading the
   // same data shares this render's queries. NoviceBadge + ClubSwitcher
   // both render conditionally on their own data, so render unconditionally.
-  const [profile, memberships, unreadCount] = await Promise.all([
+  // Phase 11 / 11-5b: getInitialNotifications produces both the
+  // PlayerBottomNav unread-dot count and the bell's SSR snapshot in a
+  // single round-trip — no separate countUnreadNotifications helper.
+  const [profile, memberships, ctx, initialNotifications] = await Promise.all([
     getCurrentProfile(),
     getCurrentMemberships(),
-    countUnreadNotifications(),
+    getAuthContext(),
+    getInitialNotifications(),
   ]);
 
   return (
@@ -54,28 +59,26 @@ export default async function PlayerLayout({
                   player surface gets live sync state without each surface
                   re-wiring the hook. */}
               <DynamicSyncBadge />
+              {/* Phase 11 / 11-5b: realtime notifications bell. SSR
+                  snapshot keeps initial paint stable; the hook subscribes
+                  to live INSERT/UPDATE deltas on mount. */}
+              <NotificationsBell
+                profileId={ctx?.userId ?? null}
+                initialUnreadCount={initialNotifications.unreadCount}
+                initialRecent={initialNotifications.recent}
+                variant="light"
+              />
             </div>
           }
         />
       }
-      nav={<PlayerBottomNav unreadNotifications={unreadCount} />}
+      nav={
+        <PlayerBottomNav
+          unreadNotifications={initialNotifications.unreadCount}
+        />
+      }
     >
       {children}
     </MobileShell>
   );
-}
-
-// Lightweight count for the bottom-nav unread dot. Lives here rather
-// than in /play/_data.ts so the layout doesn't import a route-scoped
-// file. Same RLS path; same SSR Supabase client.
-async function countUnreadNotifications(): Promise<number> {
-  const ctx = await getAuthContext();
-  if (!ctx) return 0;
-  const supabase = await createClient();
-  const { count } = await supabase
-    .from("notifications")
-    .select("*", { count: "exact", head: true })
-    .eq("profile_id", ctx.userId)
-    .eq("read", false);
-  return count ?? 0;
 }
