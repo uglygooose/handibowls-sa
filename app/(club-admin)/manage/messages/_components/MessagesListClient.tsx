@@ -1,6 +1,6 @@
 "use client";
 
-import { Filter, Inbox, MessageSquare } from "lucide-react";
+import { CalendarPlus, Filter, Inbox, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -9,6 +9,24 @@ import { formatDateTimeZA, formatDateZA } from "@/lib/format/dates";
 import { cn } from "@/lib/utils";
 
 import type { MessageListRow } from "../_data";
+
+// Phase 12 / 12-1 followup — request-row detection.
+//
+// Player-initiated Twenty 20 assessment requests are messages
+// composed by request_t20_assessment (migration 037) with a locked
+// subject prefix. The list-row keys off the prefix to render a
+// "Schedule from this request" CTA that deep-links to
+// /manage/bookings/new with the player + request_message_id
+// pre-filled. Subject-prefix detection was the user-approved
+// mechanism (no metadata jsonb on messages).
+const T20_REQUEST_SUBJECT_PREFIX = "Twenty 20 assessment request — ";
+
+function isT20Request(row: MessageListRow): boolean {
+  return (
+    row.subject.startsWith(T20_REQUEST_SUBJECT_PREFIX) &&
+    row.sender_id != null
+  );
+}
 
 // Phase 11 / 11-3a — Client island for the /manage/messages list.
 //
@@ -144,10 +162,17 @@ export function MessagesListClient({ rows }: Props) {
 function MessageRow({ row }: { row: MessageListRow }) {
   const audience = audienceLabel(row);
   const dateLabel = primaryDateLabel(row);
+  const t20Request = isT20Request(row);
+  const scheduleHref = t20Request
+    ? `/manage/bookings/new?player_id=${encodeURIComponent(
+        row.sender_id ?? "",
+      )}&request_message_id=${encodeURIComponent(row.id)}`
+    : null;
   return (
     <li
       data-slot="message-row"
       data-status={row.status}
+      data-t20-request={t20Request ? "true" : undefined}
       className="rounded-xl border border-border bg-bone px-4 py-3.5 transition-colors hover:border-ink/40"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -164,6 +189,14 @@ function MessageRow({ row }: { row: MessageListRow }) {
               · {row.recipient_count}{" "}
               {row.recipient_count === 1 ? "recipient" : "recipients"}
             </span>
+            {t20Request && (
+              <span
+                data-slot="t20-request-pill"
+                className="inline-flex h-5 items-center rounded-full bg-primary-500/10 px-2 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-primary-600"
+              >
+                Twenty 20 request
+              </span>
+            )}
           </div>
           <h3
             data-slot="message-subject"
@@ -185,6 +218,16 @@ function MessageRow({ row }: { row: MessageListRow }) {
               <span>· by {row.sender_name}</span>
             )}
           </div>
+          {scheduleHref && (
+            <Link
+              data-slot="schedule-from-request"
+              href={scheduleHref}
+              className="mt-2.5 inline-flex h-9 items-center gap-1.5 rounded-md bg-primary-500 px-3 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-[color:var(--color-on-primary)] hover:bg-primary-600"
+            >
+              <CalendarPlus className="size-3.5" aria-hidden="true" />
+              Schedule from this request
+            </Link>
+          )}
         </div>
       </div>
     </li>

@@ -45,6 +45,7 @@ const PURPOSE_LABEL: Record<BookingCalendarRow["purpose"], string> = {
   coaching: "Coaching",
   match: "Match",
   social: "Social",
+  t20_assessment: "Twenty 20 assessment",
 };
 
 export function BookingsCalendarGrid({

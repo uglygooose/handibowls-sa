@@ -9,14 +9,18 @@ import type { Database } from "@/types/database.types";
 
 // Phase 12 / 12-1 — Player-side Twenty 20 hub data layer.
 //
-// Single fetcher: getCurrentPlayerT20Profile() reads the current
-// player's submitted t20_assessments rows (newest first), with the
-// host-club name + theme preset embed for the hero band, and returns
-// { latest, history, primary_club_theme }.
+// Two fetchers, both cached per-request via React.cache:
 //
-// Cached per-request (React.cache) so the page can call it from the
-// page body without forcing duplicate roundtrips when add a stats
-// block / breadcrumb / etc. later.
+//   getCurrentPlayerT20Profile()
+//     Reads the player's submitted t20_assessments rows (newest first)
+//     with host-club embed for the hero band → { latest, history,
+//     primary_club_theme }.
+//
+//   getUpcomingT20Assessments()           [12-1 followup]
+//     Reads booked rows from `bookings` filtered by
+//     for_profile_id = current player + purpose = 't20_assessment' +
+//     ends_at > now(). Fans out the rink + green + booker (admin)
+//     embeds the upcoming-assessments cards need.
 
 type DbT20Grade = Database["public"]["Enums"]["t20_grade"];
 type DbThemePreset = Database["public"]["Enums"]["club_theme_preset"];
@@ -121,3 +125,72 @@ function nameOf(
   const composed = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
   return composed || null;
 }
+
+// ---------------------------------------------------------------------
+// Upcoming assessments (12-1 followup)
+// ---------------------------------------------------------------------
+
+export type UpcomingT20Assessment = {
+  id: string;
+  club_id: string;
+  club_name: string | null;
+  green_name: string | null;
+  rink_number: number | null;
+  starts_at: string;
+  ends_at: string;
+  notes: string | null;
+  scheduler_name: string | null;
+};
+
+export const getUpcomingT20Assessments = cache(
+  async (): Promise<UpcomingT20Assessment[]> => {
+    const ctx = await getAuthContext();
+    if (!ctx) return [];
+
+    const supabase = await createClient();
+    const nowIso = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("bookings")
+      .select(
+        "id, club_id, starts_at, ends_at, notes, club:clubs!club_id(name), rink:rinks!inner(number, green:greens!inner(name)), scheduler:profiles!booked_by(first_name, last_name, display_name)",
+      )
+      .eq("for_profile_id", ctx.userId)
+      .eq("purpose", "t20_assessment")
+      .eq("status", "booked")
+      .gt("ends_at", nowIso)
+      .order("starts_at", { ascending: true });
+
+    if (error) {
+      console.error("[t20-player] upcoming assessments fetch failed:", error);
+      return [];
+    }
+
+    return (data ?? []).map((r) => {
+      const club = r.club as { name?: string | null } | null;
+      const rink = r.rink as
+        | {
+            number?: number | null;
+            green?: { name?: string | null } | null;
+          }
+        | null;
+      const scheduler = r.scheduler as
+        | {
+            first_name?: string | null;
+            last_name?: string | null;
+            display_name?: string | null;
+          }
+        | null;
+      return {
+        id: r.id,
+        club_id: r.club_id,
+        club_name: club?.name ?? null,
+        green_name: rink?.green?.name ?? null,
+        rink_number: rink?.number ?? null,
+        starts_at: r.starts_at,
+        ends_at: r.ends_at,
+        notes: r.notes ?? null,
+        scheduler_name: nameOf(scheduler),
+      };
+    });
+  },
+);

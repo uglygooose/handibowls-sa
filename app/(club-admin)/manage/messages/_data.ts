@@ -44,6 +44,10 @@ export type MessageListRow = {
   sent_at: string | null;
   created_at: string;
   recipient_count: number;
+  /** Profile id of the sender. Surfaces alongside sender_name so the
+   *  list-row can render a "Schedule from this request" CTA against
+   *  player-initiated Twenty 20 assessment requests (12-1 followup). */
+  sender_id: string | null;
   sender_name: string | null;
 };
 
@@ -67,7 +71,7 @@ export async function listMessagesForClub(): Promise<ListMessagesResult> {
   const { data, error } = await supabase
     .from("messages")
     .select(
-      "id, club_id, subject, body_md, audience_kind, audience_tournament_id, audience_profile_ids, status, scheduled_at, sent_at, created_at, recipient_count, sender:profiles!sender_id(first_name, last_name, display_name), tournament:tournaments!audience_tournament_id(name)",
+      "id, club_id, subject, body_md, audience_kind, audience_tournament_id, audience_profile_ids, status, scheduled_at, sent_at, created_at, recipient_count, sender_id, sender:profiles!sender_id(first_name, last_name, display_name), tournament:tournaments!audience_tournament_id(name)",
     )
     .eq("club_id", club.club_id)
     .order("created_at", { ascending: false });
@@ -104,6 +108,7 @@ export async function listMessagesForClub(): Promise<ListMessagesResult> {
       sent_at: r.sent_at,
       created_at: r.created_at,
       recipient_count: r.recipient_count ?? 0,
+      sender_id: r.sender_id ?? null,
       sender_name: senderName(sender),
     };
   });
@@ -137,7 +142,7 @@ export async function getMessageDetail(id: string): Promise<DetailResult> {
   const { data, error } = await supabase
     .from("messages")
     .select(
-      "id, club_id, subject, body_md, audience_kind, audience_tournament_id, audience_profile_ids, status, scheduled_at, sent_at, created_at, recipient_count, sender:profiles!sender_id(first_name, last_name, display_name), tournament:tournaments!audience_tournament_id(name)",
+      "id, club_id, subject, body_md, audience_kind, audience_tournament_id, audience_profile_ids, status, scheduled_at, sent_at, created_at, recipient_count, sender_id, sender:profiles!sender_id(first_name, last_name, display_name), tournament:tournaments!audience_tournament_id(name)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -179,6 +184,7 @@ export async function getMessageDetail(id: string): Promise<DetailResult> {
       sent_at: data.sent_at,
       created_at: data.created_at,
       recipient_count: data.recipient_count ?? 0,
+      sender_id: data.sender_id ?? null,
       sender_name: senderName(sender),
     },
   };

@@ -123,6 +123,7 @@ const PURPOSE_LABEL_MAP: Record<DbBookingPurpose, string> = {
   coaching: "Coaching",
   match: "Match",
   social: "Social",
+  t20_assessment: "Twenty 20 assessment",
 };
 
 export function purposeLabel(p: DbBookingPurpose): string {

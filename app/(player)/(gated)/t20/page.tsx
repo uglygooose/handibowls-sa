@@ -1,23 +1,29 @@
-import { ArrowRight, Calendar, Target, Trophy } from "lucide-react";
-import Link from "next/link";
+import { Calendar, Target, Trophy } from "lucide-react";
 import { redirect } from "next/navigation";
 
 import { SpeckleField } from "@/components/brand/SpeckleField";
 import { SplatterAccent } from "@/components/brand/SplatterAccent";
 import { getAuthContext } from "@/lib/auth/role";
-import { formatDateZA } from "@/lib/format/dates";
+import { formatDateZA, formatTimeZA } from "@/lib/format/dates";
 
-import { getCurrentPlayerT20Profile } from "./_data";
+import { RequestAssessmentButton } from "./_components/RequestAssessmentButton";
+import {
+  getCurrentPlayerT20Profile,
+  getUpcomingT20Assessments,
+} from "./_data";
 
 // Phase 12 / 12-1 — Player-side Twenty 20 hub. Replaces the Phase 10
 // roadmap stub. Sections (per design source PageT20 in
 // player-pages.jsx:182):
 //   1. Hero — primary-club themed band with current grade pill +
-//      tier ladder + "Book gold assessment" CTA
+//      tier ladder + "Request assessment" CTA (12-1 followup —
+//      replaced the original 5-state Book-X-assessment CTA with a
+//      single tier-agnostic request action wired to the
+//      requestT20Assessment server action)
 //   2. "What is Twenty 20?" explainer card (3 grid items)
-//   3. Upcoming assessments — empty state until the scheduled-send
-//      infrastructure ships (DRIFT_LOG: Scheduled-send infrastructure
-//      (deferred))
+//   3. Upcoming assessments — booked rows from `bookings` filtered
+//      by for_profile_id = current player + purpose='t20_assessment'
+//      + ends_at > now (12-1 followup migration 037)
 //   4. Past assessments — history list of submitted assessments
 //      (additive over the design source per L166 entry text)
 
@@ -40,11 +46,13 @@ export default async function T20Page() {
   const ctx = await getAuthContext();
   if (!ctx) redirect("/login");
 
-  const profile = await getCurrentPlayerT20Profile();
+  const [profile, upcoming] = await Promise.all([
+    getCurrentPlayerT20Profile(),
+    getUpcomingT20Assessments(),
+  ]);
   const heroTheme = profile.latest?.club_theme ?? profile.primary_club_theme;
   const ladder = computeLadder(profile.latest?.grade ?? null);
   const heroCopy = heroCopyFor(profile.latest);
-  const ctaCopy = ctaCopyFor(profile.latest?.grade ?? null);
 
   return (
     <div className="pb-24">
@@ -79,14 +87,9 @@ export default async function T20Page() {
             ))}
           </div>
 
-          <Link
-            href="/me"
-            className="mt-2 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-white font-mono text-[12px] font-bold uppercase tracking-[0.08em] text-primary-600 hover:bg-white/95"
-          >
-            {ctaCopy} <ArrowRight className="size-3.5" aria-hidden="true" />
-          </Link>
+          <RequestAssessmentButton />
           <span className="text-center font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white/70">
-            Talk to your club to schedule the next assessment
+            Sends an in-app message to your club admins
           </span>
         </div>
       </section>
@@ -119,18 +122,53 @@ export default async function T20Page() {
           </ul>
         </div>
 
-        {/* Upcoming assessments — empty state until scheduling backend lands */}
+        {/* Upcoming assessments — booked rows or empty state */}
         <SectionHead title="Upcoming assessments" />
-        <div className="rounded-xl border border-dashed border-border bg-surface px-5 py-5 text-[13px] text-ink-muted">
-          <p className="m-0 mb-1 font-display text-[15px] font-bold tracking-tight text-ink">
-            No assessments scheduled.
-          </p>
-          <p className="m-0">
-            Twenty 20 assessment scheduling lands with the messaging
-            infrastructure follow-up. Until then, contact your club admin to
-            book the next slot.
-          </p>
-        </div>
+        {upcoming.length > 0 ? (
+          <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+            {upcoming.map((u) => (
+              <li
+                key={u.id}
+                className="rounded-xl border border-border bg-bone px-4 py-3"
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-primary-600">
+                    {formatDateZA(u.starts_at)} · {formatTimeZA(u.starts_at)}
+                  </span>
+                  <span className="rounded-full bg-primary-500/10 px-2.5 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.06em] text-primary-600">
+                    Twenty 20
+                  </span>
+                </div>
+                <div className="mt-1 font-display text-[15px] font-bold tracking-tight">
+                  {u.club_name ?? "Your club"}
+                </div>
+                <div className="font-mono text-[11px] uppercase tracking-[0.06em] text-ink-muted">
+                  {[
+                    u.green_name && u.rink_number != null
+                      ? `${u.green_name} · Rink ${u.rink_number}`
+                      : u.green_name,
+                    u.scheduler_name && `Scheduled by ${u.scheduler_name}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </div>
+                {u.notes && (
+                  <p className="mt-2 m-0 text-[13px] text-ink-muted">{u.notes}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="rounded-xl border border-dashed border-border bg-surface px-5 py-5 text-[13px] text-ink-muted">
+            <p className="m-0 mb-1 font-display text-[15px] font-bold tracking-tight text-ink">
+              No assessments scheduled.
+            </p>
+            <p className="m-0">
+              Tap &ldquo;Request assessment&rdquo; above and a club admin will
+              schedule your next slot.
+            </p>
+          </div>
+        )}
 
         {/* Past assessments — additive over design source per L166 */}
         {profile.history.length > 0 && (
@@ -220,7 +258,7 @@ function SectionHead({ title }: { title: string }) {
   );
 }
 
-// ---- pure logic helpers (covered by tests/app/player/t20-page.test.tsx) ----
+// ---- pure logic helpers (covered by tests/app/player/t20-page.test.ts) ----
 
 export function computeLadder(
   grade: "gold" | "silver" | "bronze" | "fail" | null,
@@ -242,7 +280,12 @@ export function computeLadder(
   }));
 }
 
-export function heroCopyFor(latest: { grade: "gold" | "silver" | "bronze" | "fail" | null; assessed_on: string } | null): {
+export function heroCopyFor(
+  latest: {
+    grade: "gold" | "silver" | "bronze" | "fail" | null;
+    assessed_on: string;
+  } | null,
+): {
   eyebrow: string;
   gradeText: string;
   subline: string;
@@ -251,14 +294,14 @@ export function heroCopyFor(latest: { grade: "gold" | "silver" | "bronze" | "fai
     return {
       eyebrow: "Your Twenty 20 grade",
       gradeText: "UNGRADED",
-      subline: "No assessment recorded · book your first",
+      subline: "No assessment recorded · request your first",
     };
   }
   if (latest.grade === "fail") {
     return {
       eyebrow: "Your Twenty 20 grade",
       gradeText: "RETRY",
-      subline: `Last assessed ${formatDateZA(latest.assessed_on)} · book a retry`,
+      subline: `Last assessed ${formatDateZA(latest.assessed_on)} · request a retry`,
     };
   }
   return {
@@ -266,16 +309,6 @@ export function heroCopyFor(latest: { grade: "gold" | "silver" | "bronze" | "fai
     gradeText: latest.grade.toUpperCase(),
     subline: `Earned ${formatDateZA(latest.assessed_on)} · valid 12 mo`,
   };
-}
-
-export function ctaCopyFor(
-  grade: "gold" | "silver" | "bronze" | "fail" | null,
-): string {
-  if (grade === null) return "Book first assessment";
-  if (grade === "fail") return "Book retry assessment";
-  if (grade === "gold") return "Book platinum assessment";
-  if (grade === "silver") return "Book gold assessment";
-  return "Book silver assessment";
 }
 
 function gradePillClass(grade: "gold" | "silver" | "bronze" | "fail"): string {

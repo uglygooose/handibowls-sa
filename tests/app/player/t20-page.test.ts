@@ -4,17 +4,24 @@ vi.mock("server-only", () => ({}));
 
 import {
   computeLadder,
-  ctaCopyFor,
   heroCopyFor,
 } from "@/app/(player)/(gated)/t20/page";
 
-// Phase 12 / 12-1 — pure-helper coverage for the player Twenty 20 hub.
+// Phase 12 / 12-1 + 12-1 followup — pure-helper coverage for the
+// player Twenty 20 hub.
 //
 // The page itself is a Server Component (no DOM-render harness needed
 // — the surface's behaviour is all data → text rendering against the
-// helpers exercised below). Helpers are pure: ladder state mapping,
+// helpers exercised below). Helpers are pure: ladder state mapping and
 // hero copy branching across the {null, fail, bronze, silver, gold}
-// grade matrix, and CTA copy for the next-tier-up booking pattern.
+// grade matrix.
+//
+// 12-1 followup removed the per-tier ctaCopyFor — the hero CTA is now
+// a single tier-agnostic "Request assessment" button that posts to
+// the requestT20Assessment server action regardless of current grade.
+// The action itself targets the right club (latest-assessed club, or
+// the player's primary). Subline copy still references "request" so
+// the visual message stays coherent across the matrix.
 
 describe("computeLadder", () => {
   it("renders every step as future when the player has no grade yet", () => {
@@ -66,6 +73,7 @@ describe("heroCopyFor", () => {
     const copy = heroCopyFor(null);
     expect(copy.gradeText).toBe("UNGRADED");
     expect(copy.subline).toMatch(/no assessment recorded/i);
+    expect(copy.subline).toMatch(/request your first/i);
   });
 
   it("returns ungraded copy when latest.grade is null", () => {
@@ -78,7 +86,7 @@ describe("heroCopyFor", () => {
     expect(copy.gradeText).toBe("RETRY");
     // Africa/Johannesburg en-ZA renders this as "12 Feb 2026".
     expect(copy.subline).toMatch(/12 Feb 2026/);
-    expect(copy.subline).toMatch(/book a retry/i);
+    expect(copy.subline).toMatch(/request a retry/i);
   });
 
   it("returns uppercase grade text + earned/valid copy on bronze", () => {
@@ -96,27 +104,5 @@ describe("heroCopyFor", () => {
   it("returns uppercase grade text + earned/valid copy on gold", () => {
     const copy = heroCopyFor({ grade: "gold", assessed_on: "2026-02-12" });
     expect(copy.gradeText).toBe("GOLD");
-  });
-});
-
-describe("ctaCopyFor", () => {
-  it("offers a first assessment when no grade exists yet", () => {
-    expect(ctaCopyFor(null)).toMatch(/book first assessment/i);
-  });
-
-  it("offers a retry when the latest grade is fail", () => {
-    expect(ctaCopyFor("fail")).toMatch(/book retry assessment/i);
-  });
-
-  it("offers the next tier up: bronze → silver", () => {
-    expect(ctaCopyFor("bronze")).toMatch(/book silver assessment/i);
-  });
-
-  it("offers the next tier up: silver → gold", () => {
-    expect(ctaCopyFor("silver")).toMatch(/book gold assessment/i);
-  });
-
-  it("offers the aspirational platinum CTA at gold", () => {
-    expect(ctaCopyFor("gold")).toMatch(/book platinum assessment/i);
   });
 });

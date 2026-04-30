@@ -35,6 +35,7 @@ const BASE_ROW: MessageListRow = {
   sent_at: "2026-04-29T15:00:00Z",
   created_at: "2026-04-29T14:50:00Z",
   recipient_count: 12,
+  sender_id: null,
   sender_name: "Andrew Els",
 };
 
@@ -271,5 +272,74 @@ describe("<MessagesListClient /> — row chrome", () => {
     const text = container.textContent ?? "";
     expect(text).toContain("1 recipient");
     expect(text).toContain("12 recipients");
+  });
+});
+
+describe("<MessagesListClient /> — Twenty 20 request detection (12-1 followup)", () => {
+  it("renders the 'Schedule from this request' link on rows whose subject prefix matches", () => {
+    const player_id = "22222222-2222-2222-2222-222222222222";
+    const message_id = "33333333-3333-3333-3333-333333333333";
+    const { container } = render(
+      <MessagesListClient
+        rows={[
+          row({
+            id: message_id,
+            subject: "Twenty 20 assessment request — Andrew Els",
+            sender_id: player_id,
+            sender_name: "Andrew Els",
+            audience_kind: "custom",
+            audience_custom_count: 2,
+          }),
+        ]}
+      />,
+    );
+    const cta = container.querySelector(
+      "[data-slot='schedule-from-request']",
+    );
+    expect(cta).not.toBeNull();
+    const href = cta?.getAttribute("href");
+    expect(href).toContain("/manage/bookings/new");
+    expect(href).toContain(`player_id=${player_id}`);
+    expect(href).toContain(`request_message_id=${message_id}`);
+    expect(
+      container.querySelector("[data-slot='t20-request-pill']"),
+    ).not.toBeNull();
+  });
+
+  it("does NOT render the CTA on regular admin broadcasts", () => {
+    const { container } = render(
+      <MessagesListClient
+        rows={[
+          row({
+            id: "11111111-1111-1111-1111-111111111111",
+            subject: "Practice reminder",
+            sender_id: "44444444-4444-4444-4444-444444444444",
+          }),
+        ]}
+      />,
+    );
+    expect(
+      container.querySelector("[data-slot='schedule-from-request']"),
+    ).toBeNull();
+    expect(
+      container.querySelector("[data-slot='t20-request-pill']"),
+    ).toBeNull();
+  });
+
+  it("does NOT render the CTA when sender_id is null even with the matching subject prefix", () => {
+    const { container } = render(
+      <MessagesListClient
+        rows={[
+          row({
+            id: "55555555-5555-5555-5555-555555555555",
+            subject: "Twenty 20 assessment request — Anonymous",
+            sender_id: null,
+          }),
+        ]}
+      />,
+    );
+    expect(
+      container.querySelector("[data-slot='schedule-from-request']"),
+    ).toBeNull();
   });
 });
