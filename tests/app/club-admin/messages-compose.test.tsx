@@ -16,6 +16,22 @@ afterEach(() => {
 });
 
 import { ComposeForm } from "@/app/(club-admin)/manage/messages/_components/ComposeForm";
+import type {
+  MemberOption,
+  TournamentOption,
+} from "@/app/(club-admin)/manage/messages/_data";
+
+// 11-3c upgrade: ComposeForm now requires tournaments + members
+// for the AudiencePicker. Empty arrays are valid — they exercise
+// the picker's "no tournaments / no members at this club" empty
+// states. Suite-wide default keeps each test focused on the field
+// it's actually exercising.
+const EMPTY_TOURNAMENTS: TournamentOption[] = [];
+const EMPTY_MEMBERS: MemberOption[] = [];
+const PROPS = {
+  tournaments: EMPTY_TOURNAMENTS,
+  members: EMPTY_MEMBERS,
+};
 
 // Phase 11 / 11-3b — admin compose form contract.
 //
@@ -37,7 +53,7 @@ import { ComposeForm } from "@/app/(club-admin)/manage/messages/_components/Comp
 
 describe("<ComposeForm /> — initial render", () => {
   it("renders 5 numbered form sections", () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     const sections = container.querySelectorAll("[data-slot='form-section']");
     expect(sections).toHaveLength(5);
     const text = container.textContent ?? "";
@@ -49,7 +65,7 @@ describe("<ComposeForm /> — initial render", () => {
   });
 
   it("Section 5 channel card is locked to in-app, no toggle", () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     const channelCard = container.querySelector(
       "[data-slot='channel-locked-card']",
     );
@@ -59,26 +75,27 @@ describe("<ComposeForm /> — initial render", () => {
     expect(container.querySelector("input[type='checkbox']")).toBeNull();
   });
 
-  it("audience defaults to all_members; tournament + custom radios are disabled", () => {
-    const { container } = render(<ComposeForm />);
+  it("audience defaults to all_members; all three radios are enabled (11-3c picker)", () => {
+    const { container } = render(<ComposeForm {...PROPS} />);
     const allMembers = container.querySelector(
       "[data-slot='audience-radio'][data-value='all_members']",
     );
     expect(allMembers?.getAttribute("data-active")).toBe("true");
+    // After 11-3c, tournament_entrants + custom are real options.
     const tournament = container.querySelector(
       "[data-slot='audience-radio'][data-value='tournament_entrants']",
     );
-    expect(tournament?.getAttribute("data-disabled")).toBe("true");
-    expect(tournament?.hasAttribute("disabled")).toBe(true);
+    expect(tournament?.getAttribute("data-disabled")).toBe("false");
+    expect(tournament?.hasAttribute("disabled")).toBe(false);
     const custom = container.querySelector(
       "[data-slot='audience-radio'][data-value='custom']",
     );
-    expect(custom?.getAttribute("data-disabled")).toBe("true");
-    expect(custom?.hasAttribute("disabled")).toBe(true);
+    expect(custom?.getAttribute("data-disabled")).toBe("false");
+    expect(custom?.hasAttribute("disabled")).toBe(false);
   });
 
   it("schedule mode defaults to 'now'; primary CTA is 'Send now'", () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     const sendNow = container.querySelector("[data-slot='send-now-cta']");
     expect(sendNow).not.toBeNull();
     expect(container.querySelector("[data-slot='schedule-cta']")).toBeNull();
@@ -86,7 +103,7 @@ describe("<ComposeForm /> — initial render", () => {
   });
 
   it("toggling schedule to 'later' reveals the datetime input and swaps CTA to 'Schedule'", () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     fireEvent.click(
       container.querySelector(
         "[data-slot='schedule-radio'][data-value='later']",
@@ -100,7 +117,7 @@ describe("<ComposeForm /> — initial render", () => {
 
 describe("<ComposeForm /> — submit gating + missing hints", () => {
   it("Send now is disabled with empty subject + body, helper hint lists both", () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     const cta = container.querySelector(
       "[data-slot='send-now-cta']",
     ) as HTMLButtonElement;
@@ -111,7 +128,7 @@ describe("<ComposeForm /> — submit gating + missing hints", () => {
   });
 
   it("Save as draft is disabled with empty subject + body", () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     const cta = container.querySelector(
       "[data-slot='save-draft-cta']",
     ) as HTMLButtonElement;
@@ -119,7 +136,7 @@ describe("<ComposeForm /> — submit gating + missing hints", () => {
   });
 
   it("Save as draft enables once subject + body are populated (audience can stay default)", () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     const subject = container.querySelector(
       "[data-slot='subject-input']",
     ) as HTMLInputElement;
@@ -135,7 +152,7 @@ describe("<ComposeForm /> — submit gating + missing hints", () => {
   });
 
   it("Send now enables once subject + body are populated (audience=all_members default)", () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     fireEvent.change(
       container.querySelector("[data-slot='subject-input']") as HTMLInputElement,
       { target: { value: "Practice tomorrow" } },
@@ -151,7 +168,7 @@ describe("<ComposeForm /> — submit gating + missing hints", () => {
   });
 
   it("Schedule disabled when 'later' is selected but no datetime entered", () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     fireEvent.change(
       container.querySelector("[data-slot='subject-input']") as HTMLInputElement,
       { target: { value: "Hi" } },
@@ -174,7 +191,7 @@ describe("<ComposeForm /> — submit gating + missing hints", () => {
   });
 
   it("Schedule enables with a future datetime", () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     fireEvent.change(
       container.querySelector("[data-slot='subject-input']") as HTMLInputElement,
       { target: { value: "Hi" } },
@@ -202,7 +219,7 @@ describe("<ComposeForm /> — submit gating + missing hints", () => {
   });
 
   it("Schedule stays disabled with a past datetime", () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     fireEvent.change(
       container.querySelector("[data-slot='subject-input']") as HTMLInputElement,
       { target: { value: "Hi" } },
@@ -229,7 +246,7 @@ describe("<ComposeForm /> — submit gating + missing hints", () => {
 
 describe("<ComposeForm /> — char counts", () => {
   it("subject count tracks the trimmed length", () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     fireEvent.change(
       container.querySelector("[data-slot='subject-input']") as HTMLInputElement,
       { target: { value: "Hello world" } },
@@ -239,7 +256,7 @@ describe("<ComposeForm /> — char counts", () => {
   });
 
   it("body count tracks the trimmed length", () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     fireEvent.change(
       container.querySelector("[data-slot='body-input']") as HTMLTextAreaElement,
       { target: { value: "abcde fghij" } },
@@ -251,7 +268,7 @@ describe("<ComposeForm /> — char counts", () => {
 
 describe("<ComposeForm /> — submit action wiring", () => {
   it("Send now submits via the button's name/value carrying compose_action='send_now'", async () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     fireEvent.change(
       container.querySelector("[data-slot='subject-input']") as HTMLInputElement,
       { target: { value: "Subject" } },
@@ -283,7 +300,7 @@ describe("<ComposeForm /> — submit action wiring", () => {
   });
 
   it("Save as draft submits with compose_action='save_draft'", async () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     fireEvent.change(
       container.querySelector("[data-slot='subject-input']") as HTMLInputElement,
       { target: { value: "Subject" } },
@@ -307,7 +324,7 @@ describe("<ComposeForm /> — submit action wiring", () => {
   });
 
   it("Schedule submits with compose_action='schedule' and the chosen scheduled_at", async () => {
-    const { container } = render(<ComposeForm />);
+    const { container } = render(<ComposeForm {...PROPS} />);
     fireEvent.change(
       container.querySelector("[data-slot='subject-input']") as HTMLInputElement,
       { target: { value: "Subject" } },

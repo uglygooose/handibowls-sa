@@ -6,6 +6,7 @@ import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { requireRole } from "@/lib/auth/role";
 
 import { ComposeForm } from "../_components/ComposeForm";
+import { listMembersForClub, listTournamentsForClub } from "../_data";
 
 // Phase 11 / 11-3b — `/manage/messages/new` admin compose surface.
 //
@@ -27,7 +28,11 @@ export const metadata = {
 export default async function ManageMessagesNewPage() {
   await requireRole(["club_admin", "super_admin"]);
 
-  const hostClub = await getCurrentHostClub();
+  const [hostClub, tournamentsResult, membersResult] = await Promise.all([
+    getCurrentHostClub(),
+    listTournamentsForClub(),
+    listMembersForClub(),
+  ]);
   if (!hostClub) {
     return (
       <div className="mx-auto max-w-5xl px-6 py-10">
@@ -56,6 +61,8 @@ export default async function ManageMessagesNewPage() {
   }
 
   const splatterPreset = hostClub.club_theme_preset ?? "atomic-red";
+  const tournaments = tournamentsResult.ok ? tournamentsResult.rows : [];
+  const members = membersResult.ok ? membersResult.rows : [];
 
   return (
     <div className="mx-auto flex max-w-[1100px] flex-col gap-6 px-6 py-8 pb-24">
@@ -96,7 +103,7 @@ export default async function ManageMessagesNewPage() {
       </div>
 
       {/* FORM ISLAND */}
-      <ComposeForm />
+      <ComposeForm tournaments={tournaments} members={members} />
     </div>
   );
 }

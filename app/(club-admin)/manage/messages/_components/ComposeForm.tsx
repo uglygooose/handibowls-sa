@@ -7,20 +7,22 @@ import { useActionState, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
 import { composeMessageFromForm } from "../_actions";
+import type { MemberOption, TournamentOption } from "../_data";
 import { COMPOSE_INITIAL, type ComposeFormState } from "../_form-state";
+import {
+  AudiencePicker,
+  type AudiencePickerValue,
+} from "./AudiencePicker";
 
-// Phase 11 / 11-3b — admin Messages compose form (Client island).
+// Phase 11 / 11-3 — admin Messages compose form (Client island).
 //
 // 5 numbered sections matching /manage/t20/new's rhythm:
 //   1. Subject       single text input, required, max 120 chars
 //   2. Body          markdown textarea, required, max 5000 chars,
 //                    live char count
-//   3. Audience      radio group: All members / Tournament entrants
-//                    / Custom selection. The full picker (tournament
-//                    dropdown + custom multi-select) lands in 11-3c;
-//                    11-3b ships with all_members fully wired and
-//                    the other two radios disabled with a "coming
-//                    soon" hint so the form structure is stable.
+//   3. Audience      Full picker via <AudiencePicker> — all_members
+//                    / tournament_entrants (with dropdown) / custom
+//                    (with searchable multi-select). 11-3c upgrade.
 //   4. Schedule      radio group: Send now / Send later. Later
 //                    reveals a datetime-local input.
 //   5. Channel       read-only "In-app only" pill — locked
@@ -41,10 +43,18 @@ import { COMPOSE_INITIAL, type ComposeFormState } from "../_form-state";
 const MAX_SUBJECT = 120;
 const MAX_BODY = 5000;
 
-type AudienceKind = "all_members" | "tournament_entrants" | "custom";
 type ScheduleMode = "now" | "later";
 
-export function ComposeForm() {
+type ComposeFormProps = {
+  /** Tournament dropdown source for the audience_kind=tournament_entrants
+   *  branch. Server-fetched + RLS-scoped at the new-page render. */
+  tournaments: TournamentOption[];
+  /** Active member roster for the audience_kind=custom multi-select.
+   *  Server-fetched + RLS-scoped at the new-page render. */
+  members: MemberOption[];
+};
+
+export function ComposeForm({ tournaments, members }: ComposeFormProps) {
   const [state, formAction, pending] = useActionState<
     ComposeFormState,
     FormData
@@ -52,7 +62,11 @@ export function ComposeForm() {
 
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [audienceKind, setAudienceKind] = useState<AudienceKind>("all_members");
+  const [audience, setAudience] = useState<AudiencePickerValue>({
+    audience_kind: "all_members",
+    audience_tournament_id: null,
+    audience_profile_ids: [],
+  });
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("now");
   const [scheduledAt, setScheduledAt] = useState("");
   // Snapshot "now" once at mount via lazy useState — keeps the
@@ -69,7 +83,16 @@ export function ComposeForm() {
   const subjectValid =
     subjectTrimmed.length > 0 && subjectTrimmed.length <= MAX_SUBJECT;
   const bodyValid = bodyTrimmed.length > 0 && bodyTrimmed.length <= MAX_BODY;
-  const audienceValid = audienceKind === "all_members"; // 11-3b limits to all_members
+  // Audience validity rules:
+  //   all_members         always valid
+  //   tournament_entrants requires a tournament_id
+  //   custom              requires at least one selected member
+  const audienceValid =
+    (audience.audience_kind === "all_members") ||
+    (audience.audience_kind === "tournament_entrants" &&
+      Boolean(audience.audience_tournament_id)) ||
+    (audience.audience_kind === "custom" &&
+      audience.audience_profile_ids.length > 0);
   const scheduleValid =
     scheduleMode === "now" ||
     (scheduledAt.length > 0 &&
@@ -84,10 +107,29 @@ export function ComposeForm() {
     const out: string[] = [];
     if (!subjectValid) out.push("subject");
     if (!bodyValid) out.push("body");
-    if (audienceKind !== "all_members") out.push("audience (11-3c upgrade lands the picker)");
+    if (
+      audience.audience_kind === "tournament_entrants" &&
+      !audience.audience_tournament_id
+    ) {
+      out.push("tournament");
+    }
+    if (
+      audience.audience_kind === "custom" &&
+      audience.audience_profile_ids.length === 0
+    ) {
+      out.push("at least one member");
+    }
     if (scheduleMode === "later" && !scheduleValid) out.push("future schedule time");
     return out;
-  }, [subjectValid, bodyValid, audienceKind, scheduleMode, scheduleValid]);
+  }, [
+    subjectValid,
+    bodyValid,
+    audience.audience_kind,
+    audience.audience_tournament_id,
+    audience.audience_profile_ids.length,
+    scheduleMode,
+    scheduleValid,
+  ]);
 
   const errorBanner =
     state.kind !== "idle" && state.kind !== "ok" ? renderError(state) : null;
@@ -101,7 +143,17 @@ export function ComposeForm() {
       {/* Hidden mirrors. compose_action is NOT mirrored from state —
           each submit button carries its own name/value (`compose_action=...`)
           so the chosen action survives React's state batching at click time. */}
-      <input type="hidden" name="audience_kind" value={audienceKind} />
+      <input type="hidden" name="audience_kind" value={audience.audience_kind} />
+      <input
+        type="hidden"
+        name="audience_tournament_id"
+        value={audience.audience_tournament_id ?? ""}
+      />
+      <input
+        type="hidden"
+        name="audience_profile_ids"
+        value={audience.audience_profile_ids.join(",")}
+      />
       {scheduleMode === "later" && (
         <input type="hidden" name="scheduled_at" value={scheduledAt} />
       )}
@@ -178,31 +230,12 @@ export function ComposeForm() {
         desc="Who receives this broadcast."
         required
       >
-        <div data-slot="audience-radios" className="flex flex-col gap-2">
-          <AudienceRadio
-            value="all_members"
-            current={audienceKind}
-            onChange={setAudienceKind}
-            label="All members"
-            sub="Every active member of this club."
-          />
-          <AudienceRadio
-            value="tournament_entrants"
-            current={audienceKind}
-            onChange={setAudienceKind}
-            label="Tournament entrants"
-            sub="Players entered in a specific tournament. Picker lands in the 11-3c upgrade."
-            disabled
-          />
-          <AudienceRadio
-            value="custom"
-            current={audienceKind}
-            onChange={setAudienceKind}
-            label="Custom selection"
-            sub="Pick a subset of members. Picker lands in the 11-3c upgrade."
-            disabled
-          />
-        </div>
+        <AudiencePicker
+          value={audience}
+          onChange={setAudience}
+          tournaments={tournaments}
+          members={members}
+        />
       </FormSection>
 
       {/* Section 4 — Schedule */}
@@ -412,59 +445,6 @@ function FieldLabel({
     >
       {children}
     </label>
-  );
-}
-
-function AudienceRadio({
-  value,
-  current,
-  onChange,
-  label,
-  sub,
-  disabled,
-}: {
-  value: AudienceKind;
-  current: AudienceKind;
-  onChange: (v: AudienceKind) => void;
-  label: string;
-  sub: string;
-  disabled?: boolean;
-}) {
-  const active = current === value;
-  return (
-    <button
-      type="button"
-      onClick={() => !disabled && onChange(value)}
-      data-slot="audience-radio"
-      data-value={value}
-      data-active={active}
-      data-disabled={disabled ?? false}
-      disabled={disabled}
-      className={cn(
-        "flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-left transition-colors",
-        active && !disabled
-          ? "border-ink bg-ink/4 ring-2 ring-ink/10"
-          : "border-border bg-bone hover:border-ink/40",
-        disabled && "cursor-not-allowed opacity-50",
-        !disabled && "cursor-pointer",
-      )}
-    >
-      <span
-        aria-hidden="true"
-        className={cn(
-          "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2",
-          active ? "border-ink bg-ink" : "border-border bg-bone",
-        )}
-      >
-        {active && <span className="size-2 rounded-full bg-bone" />}
-      </span>
-      <span className="min-w-0">
-        <span className="block font-display text-[15px] font-bold tracking-tight">
-          {label}
-        </span>
-        <span className="block text-[12.5px] text-ink-muted">{sub}</span>
-      </span>
-    </button>
   );
 }
 
