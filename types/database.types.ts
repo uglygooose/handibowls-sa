@@ -121,6 +121,7 @@ export type Database = {
           club_id: string
           created_at: string
           ends_at: string
+          for_profile_id: string | null
           id: string
           match_id: string | null
           notes: string | null
@@ -136,6 +137,7 @@ export type Database = {
           club_id: string
           created_at?: string
           ends_at: string
+          for_profile_id?: string | null
           id?: string
           match_id?: string | null
           notes?: string | null
@@ -151,6 +153,7 @@ export type Database = {
           club_id?: string
           created_at?: string
           ends_at?: string
+          for_profile_id?: string | null
           id?: string
           match_id?: string | null
           notes?: string | null
@@ -174,6 +177,13 @@ export type Database = {
             columns: ["club_id"]
             isOneToOne: false
             referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_for_profile_id_fkey"
+            columns: ["for_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1486,6 +1496,19 @@ export type Database = {
         Args: { p_booking_id: string; p_reason: string }
         Returns: undefined
       }
+      admin_schedule_t20_assessment: {
+        Args: {
+          p_ends_at: string
+          p_notes?: string
+          p_player_id: string
+          p_rink_id: string
+          p_starts_at: string
+        }
+        Returns: {
+          booking_id: string
+          kind: string
+        }[]
+      }
       audit_log_visible_to_admin: {
         Args: { p_row_id: string; p_table_name: string }
         Returns: boolean
@@ -1564,6 +1587,14 @@ export type Database = {
       }
       match_tournament_id: { Args: { p_match: string }; Returns: string }
       message_club_id: { Args: { p_message: string }; Returns: string }
+      request_t20_assessment: {
+        Args: { p_club_id: string }
+        Returns: {
+          kind: string
+          message_id: string
+          recipient_count: number
+        }[]
+      }
       save_round_fixtures_batch: {
         Args: { p_fixtures: Json; p_round: number; p_tournament_id: string }
         Returns: Json
@@ -1584,7 +1615,13 @@ export type Database = {
     }
     Enums: {
       age_group: "open" | "veteran" | "junior" | "u35"
-      booking_purpose: "roll_up" | "practice" | "coaching" | "match" | "social"
+      booking_purpose:
+        | "roll_up"
+        | "practice"
+        | "coaching"
+        | "match"
+        | "social"
+        | "t20_assessment"
       booking_status: "booked" | "cancelled"
       category: "men" | "women" | "mixed" | "open"
       club_theme_preset:
@@ -1776,7 +1813,14 @@ export const Constants = {
   public: {
     Enums: {
       age_group: ["open", "veteran", "junior", "u35"],
-      booking_purpose: ["roll_up", "practice", "coaching", "match", "social"],
+      booking_purpose: [
+        "roll_up",
+        "practice",
+        "coaching",
+        "match",
+        "social",
+        "t20_assessment",
+      ],
       booking_status: ["booked", "cancelled"],
       category: ["men", "women", "mixed", "open"],
       club_theme_preset: [
@@ -1844,3 +1888,4 @@ export const Constants = {
     },
   },
 } as const
+

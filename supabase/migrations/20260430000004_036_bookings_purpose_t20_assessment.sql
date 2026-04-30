@@ -1,0 +1,27 @@
+-- Phase 12 / 12-1 followup / Migration 036 — bookings.purpose: add 't20_assessment'
+--
+-- Extends the booking_purpose enum so admin-scheduled Twenty 20
+-- assessments can use the same bookings table as roll-ups, practice,
+-- coaching, matches, and social events. Per DRIFT_LOG entry L153 (2026-04-29):
+--   "Either repurpose the bookings table with a new
+--    purpose='t20_assessment' enum value (low-cost — fits within
+--    existing booking RLS) OR add a dedicated t20_scheduled_assessments
+--    table."
+-- Repurposing wins on RLS reuse + the existing rink-overlap exclusion
+-- constraint already covers assessment slots.
+--
+-- Why this migration is alone in its file
+--
+--   `ALTER TYPE ... ADD VALUE` in a transaction block produces a value
+--   that cannot be USED until the transaction commits (Postgres docs).
+--   Migration 037 references 't20_assessment' as a literal in a CHECK
+--   constraint and inside SECURITY DEFINER RPCs, so it MUST land in a
+--   separate transaction (= separate migration file).
+--
+-- RLS impact: none. The existing bookings_super_admin_all /
+-- bookings_club_admin_rw / bookings_member_read / bookings_self_insert /
+-- bookings_self_update policies (migration 010) all key on club_id +
+-- booked_by, not on purpose. New rows with purpose='t20_assessment'
+-- inherit the same authorization model.
+
+alter type public.booking_purpose add value if not exists 't20_assessment';
