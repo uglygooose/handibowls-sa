@@ -30,7 +30,7 @@ import {
   editAssessmentNotes,
   requestPdfExport,
 } from "../_actions";
-import type { AssessmentDetail } from "../_data";
+import type { AssessmentDetail, T20Notes } from "../_data";
 
 // Phase 10 / 10-7 — Twenty 20 results view client island.
 //
@@ -632,42 +632,150 @@ function ChartsRow({
 // Notes
 // ---------------------------------------------------------------------
 
+// 12-4 / N8: 3-tile categorised note editor (Strengths / Watch /
+// Focus). Each tile is independently editable inline. The Save
+// button on a tile submits the FULL notes object (merging the
+// other tiles' current persisted values) so partial state never
+// reaches the DB. Empty values per category are dropped server-side;
+// all-empty collapses to NULL.
+//
+// Legacy tile renders read-only when a 'legacy' key is present in
+// the persisted notes (reserved for future imports of pre-12-4
+// notes; no current writer).
+
+const CATEGORIES = ["strengths", "watch", "focus"] as const;
+type Category = (typeof CATEGORIES)[number];
+
+const CATEGORY_META: Record<
+  Category,
+  { label: string; helper: string; placeholder: string }
+> = {
+  strengths: {
+    label: "Strengths",
+    helper: "What the player does well.",
+    placeholder: "e.g. Strong forehand on draw shots; consistent line at 26m.",
+  },
+  watch: {
+    label: "Watch",
+    helper: "Areas to monitor over the next training block.",
+    placeholder:
+      "e.g. Drive control on Section 3 wedges out under wind; revisit at next assessment.",
+  },
+  focus: {
+    label: "Coach focus",
+    helper: "Recommendations for the next training block.",
+    placeholder:
+      "e.g. 30 min/week of Section 6 ascending speedhumps; pair with senior skip on Saturdays.",
+  },
+};
+
 function NotesSection({
   assessmentId,
   notes,
   clubName,
 }: {
   assessmentId: string;
-  notes: string | null;
+  notes: T20Notes | null;
   clubName: string;
 }) {
+  const [persisted, setPersisted] = useState<T20Notes | null>(notes);
+
+  const hasAny =
+    persisted != null &&
+    (persisted.strengths || persisted.watch || persisted.focus);
+
+  return (
+    <section
+      data-slot="notes-section"
+      className="rounded-2xl border border-border bg-bone px-7 py-6"
+    >
+      <header className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
+            Coach notes
+          </div>
+          <h4 className="mt-1 font-display text-[18px] font-extrabold tracking-tight">
+            {hasAny
+              ? "Recommendations on file"
+              : `No notes captured yet for ${clubName}`}
+          </h4>
+        </div>
+      </header>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        {CATEGORIES.map((cat) => (
+          <NoteCategoryTile
+            key={cat}
+            assessmentId={assessmentId}
+            category={cat}
+            value={persisted?.[cat] ?? null}
+            persisted={persisted}
+            onPersist={setPersisted}
+          />
+        ))}
+      </div>
+
+      {persisted?.legacy && (
+        <div
+          data-slot="notes-legacy"
+          className="mt-4 rounded-xl border border-border bg-surface-muted px-4 py-3 text-[13px] text-ink-muted"
+        >
+          <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-subtle">
+            Legacy notes (pre-12-4 import)
+          </div>
+          <p className="mt-1 whitespace-pre-line leading-[1.55]">
+            {persisted.legacy}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function NoteCategoryTile({
+  assessmentId,
+  category,
+  value,
+  persisted,
+  onPersist,
+}: {
+  assessmentId: string;
+  category: Category;
+  value: string | null;
+  persisted: T20Notes | null;
+  onPersist: (notes: T20Notes | null) => void;
+}) {
+  const meta = CATEGORY_META[category];
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(notes ?? "");
-  const [persistedNotes, setPersistedNotes] = useState<string | null>(notes);
+  const [draft, setDraft] = useState(value ?? "");
   const [pending, startTransition] = useTransition();
 
   function handleEnterEdit() {
-    setDraft(persistedNotes ?? "");
+    setDraft(value ?? "");
     setEditing(true);
   }
 
   function handleCancel() {
-    setDraft(persistedNotes ?? "");
+    setDraft(value ?? "");
     setEditing(false);
   }
 
   function handleSave() {
     if (pending) return;
     startTransition(async () => {
+      // Merge the local draft into the rest of the persisted notes
+      // so the action receives the full desired state. Categories
+      // not touched here keep their persisted value.
+      const next = { ...(persisted ?? {}), [category]: draft };
       const result = await editAssessmentNotes({
         assessment_id: assessmentId,
-        notes: draft,
+        notes: next,
       });
       switch (result.kind) {
         case "ok":
-          setPersistedNotes(result.notes);
+          onPersist(result.notes ?? null);
           setEditing(false);
-          toast.success("Notes saved");
+          toast.success(`${meta.label} saved`);
           return;
         case "validation":
           toast.error("Couldn't save — invalid input", {
@@ -690,59 +798,57 @@ function NotesSection({
     });
   }
 
-  const hasNotes = persistedNotes != null && persistedNotes.length > 0;
+  const hasValue = value != null && value.length > 0;
 
   return (
-    <section
-      data-slot="notes-section"
+    <div
+      data-slot="notes-tile"
+      data-category={category}
       data-editing={editing ? "true" : undefined}
-      className="rounded-2xl border border-border bg-bone px-7 py-6"
+      data-has-value={hasValue ? "true" : "false"}
+      className="flex min-h-[160px] flex-col rounded-xl border border-border bg-surface px-4 py-3"
     >
-      <header className="mb-3.5 flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
-            Assessor notes
+          <div className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-primary-600">
+            {meta.label}
           </div>
-          <h4 className="mt-1 font-display text-[18px] font-extrabold tracking-tight">
-            {hasNotes
-              ? `Recommendations on file`
-              : `No notes captured yet`}
-          </h4>
+          <p className="mt-0.5 text-[11.5px] text-ink-muted">{meta.helper}</p>
         </div>
         {!editing && (
           <button
             type="button"
             onClick={handleEnterEdit}
-            data-slot="notes-edit-cta"
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-surface px-3 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-ink hover:bg-surface-muted"
+            data-slot="notes-tile-edit-cta"
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-bone px-2 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-ink hover:bg-surface-muted"
           >
-            {hasNotes ? "Edit notes" : "Add notes"}
+            {hasValue ? "Edit" : "+ Add"}
           </button>
         )}
-      </header>
+      </div>
 
       {editing ? (
-        <div className="flex flex-col gap-3">
+        <div className="mt-3 flex flex-1 flex-col gap-2">
           <textarea
-            data-slot="notes-textarea"
+            data-slot="notes-tile-textarea"
             value={draft}
-            onChange={(e) => setDraft(e.target.value.slice(0, 5000))}
+            onChange={(e) => setDraft(e.target.value.slice(0, 2500))}
             rows={6}
-            maxLength={5000}
-            placeholder={`Coach recommendations for the player at ${clubName}…`}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-[14px] leading-[1.55]"
+            maxLength={2500}
+            placeholder={meta.placeholder}
+            className="w-full flex-1 rounded-md border border-border bg-bone px-2.5 py-2 text-[13px] leading-[1.5]"
           />
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-mono text-[11px] text-ink-muted">
-              {draft.length} / 5000
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-mono text-[10px] text-ink-muted">
+              {draft.length} / 2500
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={handleCancel}
                 disabled={pending}
-                data-slot="notes-cancel-cta"
-                className="inline-flex h-9 items-center rounded-md px-3 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60"
+                data-slot="notes-tile-cancel-cta"
+                className="inline-flex h-7 items-center rounded-md px-2 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-ink-muted hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -750,28 +856,30 @@ function NotesSection({
                 type="button"
                 onClick={handleSave}
                 disabled={pending}
-                data-slot="notes-save-cta"
-                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary-500 px-3 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-on-primary hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
+                data-slot="notes-tile-save-cta"
+                className="inline-flex h-7 items-center gap-1 rounded-md bg-primary-500 px-2 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-on-primary hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {pending ? "Saving…" : "Save notes"}
+                {pending ? "Saving…" : "Save"}
               </button>
             </div>
           </div>
         </div>
-      ) : hasNotes ? (
+      ) : hasValue ? (
         <p
-          data-slot="notes-body"
-          className="whitespace-pre-line text-[14px] leading-[1.55] text-ink"
+          data-slot="notes-tile-body"
+          className="mt-3 whitespace-pre-line text-[13px] leading-[1.5] text-ink"
         >
-          {persistedNotes}
+          {value}
         </p>
       ) : (
-        <p data-slot="notes-empty" className="text-[13px] text-ink-muted">
-          Click <strong>Add notes</strong> to capture recommendations the
-          player can read on the results view.
+        <p
+          data-slot="notes-tile-empty"
+          className="mt-3 text-[12px] text-ink-muted"
+        >
+          No {meta.label.toLowerCase()} notes yet.
         </p>
       )}
-    </section>
+    </div>
   );
 }
 

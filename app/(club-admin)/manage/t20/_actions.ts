@@ -644,33 +644,42 @@ export async function requestPdfExport(
 }
 
 // ---------------------------------------------------------------------
-// 12-4 / M2 — editAssessmentNotes
+// 12-4 / M2 + N8 — editAssessmentNotes (categorised)
 // ---------------------------------------------------------------------
 //
-// Coach-side write path for `t20_assessments.notes`. Authorization
-// flows through RLS (migration 010 ships
-// t20_assessments_club_admin_rw + t20_assessments_assessor_rw, so
-// the host club's admins AND the assessor who created the row can
-// update). We don't re-check ownership here; RLS rejects foreign
-// rows with a 42501 surfaced as result.kind='error' below.
+// Coach-side write path for `t20_assessments.notes`. Migration 041
+// reshaped the column to jsonb with optional keys (strengths /
+// watch / focus / legacy). Authorization flows through RLS (migration
+// 010 ships t20_assessments_club_admin_rw + t20_assessments_assessor_rw)
+// so the host club's admins AND the assessor who created the row
+// can update. We don't re-check ownership here; RLS rejects foreign
+// rows with a 42501 surfaced as result.kind='forbidden' below.
 //
-// Notes are free-text up to 5000 chars (matching the messages body
-// limit — same human-typed-prose ceiling). Empty string is stored
-// as NULL so the read-side empty-state branches naturally.
-//
-// 12-4 / N8 follow-up will reshape the column to jsonb with three
-// known keys (strengths / watch / focus). This action's signature
-// stays text-shaped for v1; the N8 commit will replace the body
-// with a categorised payload + UPDATE.
+// Each category is free-text up to 2500 chars. Empty string per
+// category is stored as the key absent from the jsonb (sparse).
+// All categories empty → notes set to NULL so the read-side empty
+// state renders cleanly. The 'legacy' key is read-only from the UI
+// but the action accepts it via the schema for completeness — the
+// UI never submits it.
+
+const NOTES_CATEGORY_MAX = 2500;
 
 const editAssessmentNotesSchema = z.object({
   assessment_id: z.string().uuid(),
-  notes: z.string().max(5000),
+  notes: z
+    .object({
+      strengths: z.string().max(NOTES_CATEGORY_MAX).optional(),
+      watch: z.string().max(NOTES_CATEGORY_MAX).optional(),
+      focus: z.string().max(NOTES_CATEGORY_MAX).optional(),
+      legacy: z.string().max(NOTES_CATEGORY_MAX).optional(),
+    })
+    .optional(),
 });
 
+export type T20NotesInput = z.input<typeof editAssessmentNotesSchema>["notes"];
 export type EditAssessmentNotesInput = z.input<typeof editAssessmentNotesSchema>;
 export type EditAssessmentNotesResult =
-  | { kind: "ok"; notes: string | null }
+  | { kind: "ok"; notes: T20NotesInput | null }
   | { kind: "auth"; error: string }
   | { kind: "validation"; error: string }
   | { kind: "not_found" }
@@ -688,8 +697,20 @@ export async function editAssessmentNotes(
     return { kind: "validation", error: firstZodError(parsed.error) };
   }
 
-  const trimmed = parsed.data.notes.trim();
-  const persistValue: string | null = trimmed.length > 0 ? trimmed : null;
+  // Build the persist value: trim each category, drop empty strings,
+  // collapse to NULL when no category remains. Sparse object means
+  // category-absent === "no notes for that category."
+  const incoming = parsed.data.notes ?? {};
+  const cleaned: Record<string, string> = {};
+  for (const k of ["strengths", "watch", "focus", "legacy"] as const) {
+    const v = incoming[k];
+    if (typeof v === "string") {
+      const trimmed = v.trim();
+      if (trimmed.length > 0) cleaned[k] = trimmed;
+    }
+  }
+  const persistValue: Record<string, string> | null =
+    Object.keys(cleaned).length > 0 ? cleaned : null;
 
   const supabase = await createClient();
   const { error, data } = await supabase
@@ -700,10 +721,6 @@ export async function editAssessmentNotes(
     .single();
 
   if (error) {
-    // PostgREST surfaces an RLS denial as PGRST116 / no rows. We
-    // can't distinguish "row doesn't exist" from "row exists but
-    // RLS denies" without a service-role read; surface as forbidden
-    // when the error code looks RLS-shaped, otherwise plain error.
     if (error.code === "PGRST116" || /Row Level Security|RLS/i.test(error.message)) {
       return { kind: "forbidden", error: "Not authorized to edit this assessment." };
     }
@@ -713,5 +730,8 @@ export async function editAssessmentNotes(
 
   revalidatePath("/manage/t20");
   revalidatePath(`/manage/t20/${parsed.data.assessment_id}`);
-  return { kind: "ok", notes: data.notes };
+  return {
+    kind: "ok",
+    notes: data.notes as T20NotesInput | null,
+  };
 }

@@ -360,66 +360,91 @@ describe("<AssessmentResults /> — charts row", () => {
   });
 });
 
-describe("<AssessmentResults /> — notes section", () => {
-  it("renders captured notes verbatim with whitespace preserved", () => {
+describe("<AssessmentResults /> — notes section (12-4 / N8 categorised)", () => {
+  it("renders three category tiles (Strengths / Watch / Focus)", () => {
+    const { container } = renderResults({
+      assessment: makeAssessment({ notes: null }),
+    });
+    const tiles = container.querySelectorAll("[data-slot='notes-tile']");
+    expect(tiles).toHaveLength(3);
+    const cats = Array.from(tiles).map((t) => t.getAttribute("data-category"));
+    expect(cats).toEqual(["strengths", "watch", "focus"]);
+  });
+
+  it("populated category renders body; empty category renders empty-state", () => {
     const { container } = renderResults({
       assessment: makeAssessment({
-        notes:
-          "Strong forehand control.\nBack-end tendency on the trails — recommend speedhump drills.",
+        notes: {
+          strengths: "Strong forehand control on Section 1.",
+        },
       }),
     });
-    const body = container.querySelector("[data-slot='notes-body']");
-    expect(body).not.toBeNull();
-    expect(body?.textContent).toContain("Strong forehand control.");
-    expect(body?.textContent).toContain("recommend speedhump drills.");
-  });
-
-  it("renders empty-state copy when notes is null", () => {
-    const { container } = renderResults({
-      assessment: makeAssessment({ notes: null }),
-    });
+    const strengthsTile = container.querySelector(
+      "[data-slot='notes-tile'][data-category='strengths']",
+    );
+    expect(strengthsTile?.getAttribute("data-has-value")).toBe("true");
     expect(
-      container.querySelector("[data-slot='notes-empty']"),
+      strengthsTile?.querySelector("[data-slot='notes-tile-body']")?.textContent,
+    ).toMatch(/strong forehand control/i);
+
+    const watchTile = container.querySelector(
+      "[data-slot='notes-tile'][data-category='watch']",
+    );
+    expect(watchTile?.getAttribute("data-has-value")).toBe("false");
+    expect(
+      watchTile?.querySelector("[data-slot='notes-tile-empty']"),
     ).not.toBeNull();
-    expect(container.querySelector("[data-slot='notes-body']")).toBeNull();
   });
 
-  it("renders 'Add notes' CTA when notes is null (12-4 / M2)", () => {
+  it("'+ Add' CTA renders on empty tiles; 'Edit' on populated tiles", () => {
+    const { container } = renderResults({
+      assessment: makeAssessment({
+        notes: { strengths: "Existing copy." },
+      }),
+    });
+    const strengthsCta = container
+      .querySelector("[data-slot='notes-tile'][data-category='strengths']")
+      ?.querySelector("[data-slot='notes-tile-edit-cta']");
+    expect(strengthsCta?.textContent).toMatch(/edit/i);
+
+    const watchCta = container
+      .querySelector("[data-slot='notes-tile'][data-category='watch']")
+      ?.querySelector("[data-slot='notes-tile-edit-cta']");
+    expect(watchCta?.textContent).toMatch(/\+ ?add/i);
+  });
+
+  it("clicking Edit reveals the tile's textarea + Save / Cancel", async () => {
     const { container } = renderResults({
       assessment: makeAssessment({ notes: null }),
     });
-    const cta = container.querySelector("[data-slot='notes-edit-cta']");
-    expect(cta).not.toBeNull();
-    expect(cta?.textContent).toMatch(/add notes/i);
-  });
-
-  it("renders 'Edit notes' CTA when notes are populated (12-4 / M2)", () => {
-    const { container } = renderResults({
-      assessment: makeAssessment({ notes: "Existing recommendation copy." }),
-    });
-    const cta = container.querySelector("[data-slot='notes-edit-cta']");
-    expect(cta).not.toBeNull();
-    expect(cta?.textContent).toMatch(/edit notes/i);
-  });
-
-  it("clicking the edit CTA reveals the textarea + Save / Cancel buttons (12-4 / M2)", async () => {
-    const { container } = renderResults({
-      assessment: makeAssessment({ notes: null }),
-    });
-    const cta = container.querySelector(
-      "[data-slot='notes-edit-cta']",
+    const strengthsTile = container.querySelector(
+      "[data-slot='notes-tile'][data-category='strengths']",
+    );
+    const cta = strengthsTile?.querySelector(
+      "[data-slot='notes-tile-edit-cta']",
     ) as HTMLButtonElement;
     cta.click();
     await new Promise((r) => setTimeout(r, 0));
     expect(
-      container.querySelector("[data-slot='notes-textarea']"),
+      strengthsTile?.querySelector("[data-slot='notes-tile-textarea']"),
     ).not.toBeNull();
     expect(
-      container.querySelector("[data-slot='notes-save-cta']"),
+      strengthsTile?.querySelector("[data-slot='notes-tile-save-cta']"),
     ).not.toBeNull();
     expect(
-      container.querySelector("[data-slot='notes-cancel-cta']"),
+      strengthsTile?.querySelector("[data-slot='notes-tile-cancel-cta']"),
     ).not.toBeNull();
+  });
+
+  it("legacy notes render in a read-only banner when present", () => {
+    const { container } = renderResults({
+      assessment: makeAssessment({
+        notes: { legacy: "Pre-12-4 uncategorised note." },
+      }),
+    });
+    const legacy = container.querySelector("[data-slot='notes-legacy']");
+    expect(legacy).not.toBeNull();
+    expect(legacy?.textContent).toMatch(/pre-12-4 uncategorised note/i);
   });
 });
 

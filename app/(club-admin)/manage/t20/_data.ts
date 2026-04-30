@@ -71,9 +71,21 @@ export type DeliveryRow = {
   distance_bucket: "<10cm" | "10-30cm" | "30cm+" | null;
 };
 
+/** 12-4 / N8: coach-categorised notes (migration 041). The jsonb
+ *  column carries any subset of these keys; the UI renders one
+ *  tile per known category. NULL = no notes captured. */
+export type T20Notes = {
+  strengths?: string;
+  watch?: string;
+  focus?: string;
+  /** Reserved for future imports of pre-12-4 uncategorised notes —
+   *  surfaces as a read-only tile in the UI when present. */
+  legacy?: string;
+};
+
 export type AssessmentDetail = {
   assessment: AssessmentListRow & {
-    notes: string | null;
+    notes: T20Notes | null;
     pdf_url: string | null;
     submitted_at: string | null;
   };
@@ -310,7 +322,7 @@ export async function getAssessmentDetail(
         rubric_version_id: a.rubric_version_id,
         rubric_version_label: rubricRow?.version ?? null,
         second_marker_name: a.second_marker_name,
-        notes: a.notes,
+        notes: parseNotes(a.notes),
         pdf_url: a.pdf_url,
         submitted_at: a.submitted_at,
       },
@@ -331,6 +343,32 @@ function nameOf(
   if (p.display_name) return p.display_name;
   const composed = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
   return composed || null;
+}
+
+// 12-4 / N8: parse jsonb notes into the typed T20Notes shape.
+// PostgREST returns jsonb columns as JS objects; the CHECK
+// constraint t20_assessments_notes_shape pins keys to a known
+// subset, so a defensive read here just narrows + guards against
+// non-object values (shouldn't happen post-migration but cheap to
+// gate at the boundary).
+function parseNotes(raw: unknown): T20Notes | null {
+  if (raw == null) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) return null;
+  const obj = raw as Record<string, unknown>;
+  const result: T20Notes = {};
+  if (typeof obj.strengths === "string" && obj.strengths.length > 0) {
+    result.strengths = obj.strengths;
+  }
+  if (typeof obj.watch === "string" && obj.watch.length > 0) {
+    result.watch = obj.watch;
+  }
+  if (typeof obj.focus === "string" && obj.focus.length > 0) {
+    result.focus = obj.focus;
+  }
+  if (typeof obj.legacy === "string" && obj.legacy.length > 0) {
+    result.legacy = obj.legacy;
+  }
+  return Object.keys(result).length > 0 ? result : null;
 }
 
 // Phase 10 / 10-5 — candidate-list fetcher for the New assessment
