@@ -6,7 +6,7 @@ HandiBowls is a Bowls South Africa–native platform for running club, district,
 
 ## Status
 
-**Rebuild in progress — Phase 11 closed (2026-04-30).** This repository is being rebuilt from a fresh Supabase project, fresh routing, a fresh design system, and a three-role architecture. See [`HANDIBOWLS_REBUILD_PLAN.md`](HANDIBOWLS_REBUILD_PLAN.md) for the phase-gated plan and [`PHASE_LOG.md`](PHASE_LOG.md) for the canonical progress tracker.
+**Rebuild in progress — Phase 12 in progress. 12-1 closed (player-side completeness shipped — `/t20` read surface + request → schedule → notify loop).** This repository is being rebuilt from a fresh Supabase project, fresh routing, a fresh design system, and a three-role architecture. See [`HANDIBOWLS_REBUILD_PLAN.md`](HANDIBOWLS_REBUILD_PLAN.md) for the phase-gated plan and [`PHASE_LOG.md`](PHASE_LOG.md) for the canonical progress tracker.
 
 Phases shipped to date:
 
@@ -15,8 +15,9 @@ Phases shipped to date:
 - **Phase 8–9** — player tournament + booking surfaces · admin booking + audit log
 - **Phase 10** — Twenty 20 assessment module (production rubric)
 - **Phase 11** — in-app messaging + system-triggered InviteEmail (revised mid-phase from "email + in-app" to in-app primary; clubs handle their own member email externally in v1)
+- **Phase 12** _(in progress)_ — stakeholder polish, sub-checkpoints landing per `DRIFT_TRIAGE_PHASE12.md`. **12-1 closed:** player Twenty 20 hub at `/t20` with grade ladder + tier-aware copy; player-initiated assessment requests fan out to club admins as in-app messages + notifications; admin one-click schedule from `/manage/messages` deep-links to a t20-assessment booking form that fires a player notification on save.
 
-Pending: stakeholder polish (Phase 12) · technical polish (Phase 13). Open drift items tracked in [`DRIFT_LOG.md`](DRIFT_LOG.md).
+Pending: rest of Phase 12 stakeholder polish (12-2 onward) · technical polish (Phase 13). Open drift items tracked in [`DRIFT_LOG.md`](DRIFT_LOG.md).
 
 **Operator-side prerequisites for Phase 11 production deployment:** Resend domain verification on the dashboard · production env vars (`RESEND_API_KEY`, `RESEND_FROM`, `EMAIL_UNSUBSCRIBE_SIGNING_SECRET`) · Supabase Realtime publication on `public.notifications`. Until the Resend domain is verified, invite rows still persist but the email send fails cleanly (toast surfaces a "resend later" hint).
 

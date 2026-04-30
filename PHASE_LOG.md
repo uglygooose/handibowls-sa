@@ -917,6 +917,127 @@ at the moment a phase closed, derived from
 
 ---
 
+## Phase 12 — Stakeholder polish — in progress
+
+The phase opens against a triage artefact (`DRIFT_TRIAGE_PHASE12.md`)
+classifying the 63 open drift entries at the Phase 12 boundary into
+12 MUST / 8 NICE / 18 DEFER → Phase 13 / 15 DEFER → future / 9 REWORD
+/ 1 PARKED. Sub-checkpoints land MUST + NICE entries grouped by
+surface; DEFER entries roll forward. Effort framing dropped per
+stakeholder call — Phase 12 ships when work ships.
+
+### 12-prep — branch cut + DRIFT triage application — closed 2026-04-30
+
+- **Branch tip:** `1b20559` (`rebuild/phase-12-stakeholder-polish`,
+  cut from `005b8af` Phase 11 close).
+- **Two atomic commits:** `9f77b73` (12-prep-1, triage artefact frozen)
+  + `1b20559` (12-prep-2, DRIFT_LOG sweep applying R1-R9 rewrites,
+  consolidations, re-owners, user-call updates, and the new
+  top-level `## Decisions` sub-section between `## Other phases` and
+  `## Closed items`). 9 REWORD entries became MUST / NICE /
+  DEFER → 13 / DEFER → future / DROP / RECLASSIFIED-as-Decision per
+  triage. Three Decision-doc entries promoted out of the nested
+  Phase 12.5 / Admin chrome sub-section.
+- **Drift delta at 12-prep close:** 63 → 58 open / 22 → 30 closed.
+  Net −5 open: −2 from L171 + L182 reclassify-to-Decisions + −3
+  from consolidations net of splits (R3 +1 / R4 0 / R7 +1 vs four
+  consolidation strikes).
+
+### 12-1 — Player-side completeness — closed 2026-04-30
+
+- **Branch tip:** `6f67b45` (`rebuild/phase-12-stakeholder-polish`).
+- **Four atomic commits:**
+  - `7beb570` (12-1) — player `/t20` read surface per design source
+    `handibowls/project/player-pages.jsx:182` `PageT20`. Server
+    Component hero (primary-club themed band with SpeckleField +
+    SplatterAccent), grade pill ladder (Bronze → Silver → Gold →
+    Platinum), tier-aware copy via `computeLadder` + `heroCopyFor`
+    pure helpers, "What is Twenty 20?" explainer, upcoming-empty-
+    state, past-assessments list. Initial CTA routed to `/me`
+    pending the scheduling backend; replaced in the followup.
+  - `db9b95e` (12-1 followup) — `lib/auth/routing.ts:13`
+    `PLAYER_PREFIXES` extended with `/t20`. Manual-QA-discovered
+    silent regression: clicking the bottom-nav "20/20" tab
+    redirected back to `/play` because the proxy classified `/t20`
+    as an unknown route and bounced authenticated players to
+    `homeFor("player")`. Test added at `tests/auth/routing.test.ts`.
+  - `d19e09b` (12-1 followup) — migrations 036 + 037. Migration 036
+    extends `booking_purpose` enum with `'t20_assessment'` (alone
+    in its file because ALTER TYPE ... ADD VALUE values can't be
+    USED in the same transaction). Migration 037 ships the
+    `bookings.for_profile_id` column + check constraint enforcing
+    `purpose='t20_assessment' iff for_profile_id IS NOT NULL`,
+    plus the two SECURITY DEFINER RPCs `request_t20_assessment`
+    (player-callable; mirrors `send_message` fan-out logic
+    inlined to permit player callers; soft 24h cooldown via
+    duplicate-subject lookup) and `admin_schedule_t20_assessment`
+    (admin-callable; inserts booking + fires player notification
+    atomically; surfaces `slot_taken` on overlap).
+  - `6f67b45` (12-1 followup) — request → schedule → notify loop
+    end-to-end. Player CTA replaced with single tier-agnostic
+    "Request assessment" wired to `requestT20Assessment` Server
+    Action. `/manage/messages` detects request rows by subject
+    prefix `"Twenty 20 assessment request — "`; renders a
+    "Schedule from this request" CTA that deep-links to
+    `/manage/bookings/new?player_id=...&request_message_id=...`.
+    New `/manage/bookings/new` route shipped t20-assessment-only
+    (general-purpose admin booking creation deferred per drift
+    entry). Form calls `adminScheduleT20Assessment` action
+    wrapping the RPC; success → redirect to `/manage/overview`,
+    player notification fires automatically via the RPC's
+    in-transaction insert. `/t20` upcoming-assessments section
+    populated from `bookings` filtered by `for_profile_id =
+    auth.uid() + purpose='t20_assessment' + ends_at > now`.
+    Bundled with this commit: migration 038 fixing two latent
+    bugs in 037 surfaced by the integration suite — ambiguous
+    `message_id`/`recipient_count` references (RETURNS TABLE
+    columns shadow column names of the same name in pl/pgsql) and
+    `r.club_id` referenced rinks.club_id which doesn't exist
+    (FK chain is rinks → greens → club_id). DROP + CREATE for
+    both functions; signatures preserved.
+- **Drift entries closed:**
+  - L166 (Player-side `/t20` page never built) — read-only at
+    7beb570, action surface at 6f67b45.
+  - 12-1 close entry "Player /t20 hero CTA scheduling-backend
+    deferred" — replaced by the loop.
+- **Drift entries narrowed:**
+  - "Scheduled-send infrastructure (deferred)" — was bundled with
+    the T20 Schedule-next button at Phase 12 triage on the
+    assumption they shared a dispatcher dependency. After 12-1
+    followup landed the request → schedule loop (admin-driven,
+    not scheduler-driven), the T20 portion is satisfied
+    independently. Entry now scopes to messaging dispatcher only.
+- **Drift entries opened:**
+  - "Notification bell role-leak" (12-3, Messaging admin polish)
+    — manual-QA-discovered bug pre-dating 12-1; bell fetches
+    profile-scoped (not role-scoped) notifications and routes to
+    `/me/inbox` regardless of role.
+  - "Admin general booking creation form is t20_assessment-only"
+    (Phase 12.5) — `/manage/bookings/new` was created as a
+    t20-only form; logs the right-fix shape for general-purpose
+    admin booking creation when needed.
+  - "tests/lib/email/unsubscribe.test.ts base64url tamper-rejection
+    flake" (Phase 13) — pre-existing test design flaw surfaced
+    once during 12-prep full-suite run; passes cleanly on isolated
+    re-runs and full re-runs.
+- **Test deltas:** 1163 → 1177 unit (+14 net: −5 ctaCopyFor cases
+  obsoleted by the single-CTA model, +16 in the new
+  `tests/app/player/t20-page.test.ts`, +3 t20-request-detection
+  cases on `MessagesListClient`); 96 → 106 integration (+10 in
+  `tests/rpc/t20-assessment-loop.test.ts` covering the four
+  request_t20_assessment kinds + six admin_schedule_t20_assessment
+  kinds). Third gate stayed clean: lint 0 errors / 18 pre-existing
+  warnings; tsc clean; build green; cloud + local in sync at 38
+  migrations.
+- **What 12-1 closes for v1:** marketing landing page promise
+  satisfied — the public `ShowcaseT20` section advertised the
+  player Twenty 20 hub view; `/t20` now ships with grade history,
+  tier ladder, and a real request → schedule → notify loop. The
+  underlying capability for "Schedule next" (T20 results view) is
+  in place; UI affordance is a Phase 12.5 question.
+
+---
+
 ## Operational conventions
 
 - **Browser-driven QA is human-side throughout the rebuild.** Multi-viewport visual checks and Lighthouse performance audits run on a real browser / device by the human at phase close — Claude Code cannot drive a browser in this WSL container (Playwright + chrome-devtools MCPs both fail to attach). Claude Code's QA scope is limited to code review against the design source + curl-level route checks. Subsequent phase briefs and stop-and-reports drop the "mandatory mobile QA at 4 viewports" item from Claude's gate list. Recorded: 2026-04-29 (post Phase 8 first batch).
