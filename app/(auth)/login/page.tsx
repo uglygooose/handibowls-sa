@@ -20,9 +20,9 @@ const BOWL_ROTATION: ThemePreset[] = [
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; sent?: string }>;
+  searchParams: Promise<{ next?: string; sent?: string; invited_to?: string }>;
 }) {
-  const { next, sent } = await searchParams;
+  const { next, sent, invited_to: invitedTo } = await searchParams;
   // Rotate the aside bowl by day-of-year so the preview feels alive without
   // breaking SSR hydration.
   const now = new Date();
@@ -60,6 +60,22 @@ export default async function LoginPage({
             ← Back
           </Link>
         </header>
+
+        {invitedTo && (
+          <div
+            data-slot="login-invited-banner"
+            role="status"
+            className="mb-6 rounded-xl border border-primary-500/30 bg-primary-500/8 px-4 py-3 text-sm"
+          >
+            <div className="font-display text-[13px] font-extrabold uppercase tracking-[0.06em] text-primary-500">
+              Invite accepted
+            </div>
+            <p className="mt-0.5 text-[13px] text-ink">
+              You&rsquo;ve been added to <strong>{invitedTo}</strong>. Sign in
+              with your existing HandiBowls credentials to access the new club.
+            </p>
+          </div>
+        )}
 
         <LoginForm next={next ?? ""} initialMagicLinkSent={sent === "1"} />
 

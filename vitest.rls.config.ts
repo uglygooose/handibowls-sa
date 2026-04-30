@@ -19,7 +19,11 @@ export default defineConfig({
     alias: { "@": path.resolve(__dirname, ".") },
   },
   test: {
-    include: ["tests/rls/**/*.test.ts", "tests/rpc/**/*.test.ts"],
+    include: [
+      "tests/rls/**/*.test.ts",
+      "tests/rpc/**/*.test.ts",
+      "tests/integration/**/*.test.ts",
+    ],
     environment: "node",
     globals: true,
     env,
