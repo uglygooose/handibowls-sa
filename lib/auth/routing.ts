@@ -25,6 +25,11 @@ export function isPublicPath(pathname: string): boolean {
   // the entry-fee link from a logged-out player surface lands here, and
   // logged-in admins also need it without bouncing through /manage.
   if (pathname === "/payments" || pathname.startsWith("/payments/")) return true;
+  // Phase 11 / 11-1c — POPIA unsubscribe path. Anyone clicking the
+  // unsubscribe link from an inbox must be able to opt out without
+  // signing in. The HMAC token on `?t=` IS the auth (verified
+  // server-side in lib/email/actions.ts).
+  if (pathname === "/email/unsubscribe") return true;
   return false;
 }
 
