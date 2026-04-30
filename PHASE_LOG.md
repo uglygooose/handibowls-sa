@@ -943,6 +943,60 @@ stakeholder call — Phase 12 ships when work ships.
   from consolidations net of splits (R3 +1 / R4 0 / R7 +1 vs four
   consolidation strikes).
 
+### 12-2 — Tournament admin gaps — closed 2026-04-30
+
+- **Branch tip:** `3263cb1` (`rebuild/phase-12-stakeholder-polish`).
+- **Two atomic commits:**
+  - `a71c350` (12-2 step 1) — Migration 039. Schema only, two-commit
+    rule. Adds `tournaments.fair_rink boolean not null default true`
+    and the `tournament_greens` join table (composite PK on
+    (tournament_id, green_id) + indexes on both columns + ON DELETE
+    CASCADE on tournament_id, RESTRICT on green_id). RLS mirrors
+    tournaments — super_admin all / club_admin (host) rw via
+    EXISTS-join to tournaments.host_club_id / member-or-participant
+    SELECT via the same is_tournament_participant helper. Cloud +
+    local in sync at 39 migrations.
+  - `3263cb1` (12-2 step 2) — Application code. createTournamentSchema
+    accepts fair_rink (default true) + green_ids (default []);
+    createTournament action persists fair_rink on the tournaments row
+    and fans out green_ids to tournament_greens. Greens picker helper
+    text rewritten ("Selected greens scope which surfaces the rink-
+    fairness algorithm picks from at match scheduling"). Disabled
+    "Save as draft" button removed per locked user override. AuditTab
+    empty-state copy replaced with neutral "No audit events recorded
+    for this tournament yet" + an event-kind explainer. closeEntries
+    gate verified — canonical helper at
+    `components/tournament/EntriesGatePill.tsx:24-37` already
+    implements `(status='open' AND (entries_close_at IS NULL OR
+    entries_close_at > now()))` exactly per spec; no code change
+    needed.
+- **Drift entries closed:**
+  - "Phase 7b cross-cutting tournament migration" (L174 + L175
+    consolidated — tournament_greens join table + fair_rink column).
+  - "AuditTab empty-state copy fix" (R3a / L61 split).
+  - "closeEntries gate semantics — Phase 7 mirror verification"
+    (R5 / L136 — verified shipped, no code change).
+  - "Tournament drafts: remove disabled Save-as-draft button"
+    (L176 — button removed; saveTournamentDraft not wired;
+    `tournament_status='draft'` enum value retained for any
+    future post-v1 reintroduction).
+- **Drift entries opened (1):**
+  - "Tournament edit page missing" (Phase 12.5) — no
+    `/manage/tournaments/[id]/edit` route exists; `updateTournament`
+    action doesn't exist. 12-2 wiring of green_ids + fair_rink
+    therefore covers create only. Foundation in place; right fix is
+    documented in the entry (copy /new structure to /edit, add
+    updateTournament, handle tournament_greens add/remove diff).
+- **Test deltas:** 1177 → 1184 unit (+7: +3 createTournament cases
+  on the new fields + 4 AuditTab copy assertion cases + 1 rewrite
+  of the existing draft-button case in place); 106 → 111
+  integration (+5 in `tests/rls/tournament-greens.test.ts` covering
+  the host-admin rw / cross-club denial / member read / non-member
+  empty-result branches).
+- **Migrations applied:** 039.
+- **Verification gates at close:** tsc clean / lint 0 errors (18
+  pre-existing warnings) / 1184 unit / 111 integration / build green.
+
 ### 12-1 — Player-side completeness — closed 2026-04-30
 
 - **Branch tip:** `6f67b45` (`rebuild/phase-12-stakeholder-polish`).
