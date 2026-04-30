@@ -1073,7 +1073,7 @@ export type Database = {
           green_speed: number | null
           green_type: string | null
           id: string
-          notes: string | null
+          notes: Json | null
           pdf_url: string | null
           percentage: number
           profile_id: string
@@ -1094,7 +1094,7 @@ export type Database = {
           green_speed?: number | null
           green_type?: string | null
           id?: string
-          notes?: string | null
+          notes?: Json | null
           pdf_url?: string | null
           percentage?: number
           profile_id: string
@@ -1115,7 +1115,7 @@ export type Database = {
           green_speed?: number | null
           green_type?: string | null
           id?: string
-          notes?: string | null
+          notes?: Json | null
           pdf_url?: string | null
           percentage?: number
           profile_id?: string
@@ -1655,6 +1655,7 @@ export type Database = {
         Args: { p_membership_id: string }
         Returns: undefined
       }
+      t20_notes_keys_valid: { Args: { notes: Json }; Returns: boolean }
       team_tournament_id: { Args: { p_team: string }; Returns: string }
       tournament_host_club: { Args: { p_tournament: string }; Returns: string }
     }
