@@ -357,26 +357,10 @@ export type FinalizeAssessmentResult =
 export async function finalizeAssessment(
   input: FinalizeAssessmentInput,
 ): Promise<FinalizeAssessmentResult> {
-  // ====== TEMPORARY DIAGNOSTIC LOGGING — Phase 12 / 12-4 hotfix =====
-  // Captures the root cause of the live finalize failure surfaced
-  // during 12-4 manual QA. Every error-returning branch logs a tagged
-  // line so the dev server console shows exactly where the action
-  // bails. REVERT after the fix lands.
-  const dlog = (where: string, payload: unknown) =>
-    console.error(`[t20.finalize:${where}]`, payload);
-  // ==================================================================
-
   const ctx = await getAuthContext();
-  if (!ctx) {
-    dlog("auth", { reason: "no auth context", input });
-    return { kind: "auth", error: "Not authenticated" };
-  }
+  if (!ctx) return { kind: "auth", error: "Not authenticated" };
   const parsed = finalizeSchema.safeParse(input);
   if (!parsed.success) {
-    dlog("validation", {
-      issues: parsed.error.issues,
-      input,
-    });
     return { kind: "validation", error: firstZodError(parsed.error) };
   }
   const supabase = await createClient();
@@ -386,51 +370,27 @@ export async function finalizeAssessment(
     .select("id, rubric:t20_rubric_versions!rubric_version_id(rubric)")
     .eq("id", parsed.data.assessment_id)
     .maybeSingle();
-  if (aErr || !a) {
-    dlog("assessment_fetch", {
-      reason: aErr ? "supabase error" : "no row (RLS-denied or missing)",
-      aErr,
-      assessment_id: parsed.data.assessment_id,
-      ctx_userId: ctx.userId,
-      ctx_role: ctx.role,
-    });
-    return { kind: "error", error: aErr?.message ?? "Assessment not found" };
-  }
+  if (aErr || !a) return { kind: "error", error: aErr?.message ?? "Assessment not found" };
 
   const rubricRow = a.rubric as { rubric?: unknown } | null;
   const rubricParsed = RubricSchema.safeParse(rubricRow?.rubric);
   if (!rubricParsed.success) {
-    dlog("rubric_parse", {
-      issues: rubricParsed.error.issues,
-      rubricRow_present: rubricRow != null,
-      rubric_present: rubricRow?.rubric != null,
-      rubric_typeof: typeof rubricRow?.rubric,
-    });
     return { kind: "error", error: "Rubric not loadable for this assessment." };
   }
   const rubric = rubricParsed.data;
 
+  // 12-4 hotfix: capture the deliveries fetch error explicitly. The
+  // pre-hotfix shape `const { data: rows } = ...` silently swallowed
+  // PostgREST errors and surfaced them as no_deliveries (misleading
+  // the admin into thinking they hadn't captured anything).
   const { data: rows, error: rowsErr } = await supabase
     .from("t20_deliveries")
     .select("section, round, delivery_index, distance_m, outcome, hand")
     .eq("assessment_id", parsed.data.assessment_id);
   if (rowsErr) {
-    dlog("deliveries_fetch", {
-      rowsErr,
-      assessment_id: parsed.data.assessment_id,
-    });
-    // Drop through to no_deliveries / process so the existing return
-    // shape stays stable; the log captures the cause.
+    return { kind: "error", error: rowsErr.message };
   }
-  if (!rows || rows.length === 0) {
-    dlog("no_deliveries", {
-      rowsErr,
-      rows_value: rows,
-      rows_length: rows?.length ?? null,
-      assessment_id: parsed.data.assessment_id,
-    });
-    return { kind: "no_deliveries" };
-  }
+  if (!rows || rows.length === 0) return { kind: "no_deliveries" };
 
   const deliveries: Delivery[] = rows.map((r) => {
     const outcome = (r.outcome ?? {}) as Record<string, unknown>;
@@ -489,49 +449,26 @@ export async function finalizeAssessment(
 
   const result = aggregateAssessment(rubric, deliveries);
 
-  const updatePayload = {
-    total_score: result.earned,
-    percentage: Number(result.percentage.toFixed(2)),
-    grade: result.grade,
-    status: "submitted",
-    submitted_at: new Date().toISOString(),
-    notes: parsed.data.notes ?? null,
-  };
-  dlog("update_attempt", {
-    assessment_id: parsed.data.assessment_id,
-    payload: updatePayload,
-    notes_typeof: typeof updatePayload.notes,
-  });
-
-  const { error: upErr, data: upData, count: upCount } = await supabase
+  // 12-4 hotfix: `.select(...)` chain + 0-rows guard. The pre-hotfix
+  // shape ran the UPDATE without reading rows back, so a silent RLS
+  // denial (UPDATE matched no rows but returned no error) made the
+  // action return kind='ok' and the wizard navigated to an unchanged
+  // results page. Now silent denial surfaces as kind='error' with a
+  // hint pointing at the most likely cause.
+  const { error: upErr, data: upData } = await supabase
     .from("t20_assessments")
-    .update(updatePayload)
+    .update({
+      total_score: result.earned,
+      percentage: Number(result.percentage.toFixed(2)),
+      grade: result.grade,
+      status: "submitted",
+      submitted_at: new Date().toISOString(),
+      notes: parsed.data.notes ?? null,
+    })
     .eq("id", parsed.data.assessment_id)
-    .select("id, status, percentage, grade, submitted_at");
-  if (upErr) {
-    dlog("update_error", {
-      upErr,
-      // Postgres-level details if PostgREST surfaced them
-      code: (upErr as { code?: string }).code ?? null,
-      details: (upErr as { details?: string }).details ?? null,
-      hint: (upErr as { hint?: string }).hint ?? null,
-      message: upErr.message,
-      payload: updatePayload,
-    });
-    return { kind: "error", error: upErr.message };
-  }
+    .select("id");
+  if (upErr) return { kind: "error", error: upErr.message };
   if (!upData || upData.length === 0) {
-    // Silent RLS denial — UPDATE matched no rows. Surface as error
-    // so the wizard's "Save failed" state actually fires (otherwise
-    // we'd return ok and the user would see no progress).
-    dlog("update_silent_rls", {
-      upData,
-      upCount,
-      assessment_id: parsed.data.assessment_id,
-      ctx_userId: ctx.userId,
-      ctx_role: ctx.role,
-      ctx_clubIds: ctx.clubIds,
-    });
     return {
       kind: "error",
       error:
