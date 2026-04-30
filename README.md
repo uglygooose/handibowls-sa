@@ -6,7 +6,7 @@ HandiBowls is a Bowls South Africa–native platform for running club, district,
 
 ## Status
 
-**Rebuild in progress — Phase 12 in progress. 12-1 + 12-2 + 12-3 + 12-4 closed (player Twenty 20 hub with request → schedule → notify loop; tournament admin gaps closed; messaging admin polish + notification bell role-branching; coach-categorised T20 notes editor with R1/R2 round splits).** This repository is being rebuilt from a fresh Supabase project, fresh routing, a fresh design system, and a three-role architecture. See [`HANDIBOWLS_REBUILD_PLAN.md`](HANDIBOWLS_REBUILD_PLAN.md) for the phase-gated plan and [`PHASE_LOG.md`](PHASE_LOG.md) for the canonical progress tracker.
+**Rebuild in progress — Phase 12 in progress. 12-1 + 12-2 + 12-3 closed; 12-4 closed with finalize-hotfix follow-up landed and pending live-capture QA confirmation (player Twenty 20 hub with request → schedule → notify loop; tournament admin gaps closed; messaging admin polish + notification bell role-branching; coach-categorised T20 notes editor with R1/R2 round splits).** This repository is being rebuilt from a fresh Supabase project, fresh routing, a fresh design system, and a three-role architecture. See [`HANDIBOWLS_REBUILD_PLAN.md`](HANDIBOWLS_REBUILD_PLAN.md) for the phase-gated plan and [`PHASE_LOG.md`](PHASE_LOG.md) for the canonical progress tracker.
 
 Phases shipped to date:
 

@@ -943,7 +943,7 @@ stakeholder call — Phase 12 ships when work ships.
   from consolidations net of splits (R3 +1 / R4 0 / R7 +1 vs four
   consolidation strikes).
 
-### 12-4 — T20 admin polish — closed 2026-05-01
+### 12-4 — T20 admin polish — closed 2026-05-01 (with finalize-hotfix follow-up below — premature close)
 
 - **Branch tip:** `8049cbf` (`rebuild/phase-12-stakeholder-polish`).
 - **Three atomic commits:**
@@ -1008,6 +1008,101 @@ stakeholder call — Phase 12 ships when work ships.
 - **Verification gates at close:** tsc clean / lint 0 errors
   (18 pre-existing warnings) / 1203 unit / 111 integration /
   build green.
+
+#### 12-4 follow-up — finalize hotfix (post-1aad798)
+
+The 12-4 close at `1aad798` was **premature** — manual QA on a
+real capture immediately after close surfaced a hard production
+bug that all five gates had passed:
+
+> `code: '23514'` — `t20_assessments_percentage_range`
+> CHECK violation, `total_score: 410, percentage: 128.13`
+
+`aggregateAssessment` divided `earned` (raw points) by
+`grandMax` (320, a calibration target — not a theoretical
+ceiling) and produced `percentage > 100`, which the DB CHECK
+constraint pinning percentage to `[0, 100]` correctly rejected.
+The wizard surfaced "Save failed" with no further detail.
+
+**Why every gate passed yet the bug shipped:**
+
+- 1203 unit tests ran the rubric / aggregate engine but only on
+  fixtures whose section sums stayed inside grandMax. None
+  exercised an over-target capture.
+- 111 integration tests covered `t20_assessments` RLS but not
+  the finalize path's clamp behaviour against the DB CHECK.
+- The `tsc + lint + build` gates can't catch a math error.
+
+This is a verification-gate-coverage gap, not just a unit-test
+gap. Captured as a Phase 13 backlog entry (DRIFT_LOG entry
+"Verification gates miss live-wizard end-to-end paths") with a
+scoped audit of the four highest-blast-radius Server Actions
+(`finalizeAssessment`, `admin_schedule_t20_assessment`,
+`send_message`, `acceptInvite`).
+
+**Hotfix branch tip:** `017a3be` (`rebuild/phase-12-stakeholder-polish`).
+
+**Three hotfix commits on top of `1aad798`:**
+
+  - `1162f1f` (Step 1) — TEMPORARY diagnostic instrumentation:
+    `dlog` helper + `[t20.finalize:*]` console.error tags at
+    every error branch of `finalizeAssessment`. Goal was to
+    let the next live capture surface the actual error code +
+    message rather than the wizard's generic "Save failed"
+    string. Reverted in Step 4 once the root cause was
+    identified.
+  - `2312a70` (Step 3) — Real fix. Three changes:
+    1. `lib/t20/score.ts` — clamp `percentage` at 100:
+       `const percentage = max > 0 ? Math.min(100, (earned / max) * 100) : 0;`
+       The 320 grandMax is a calibration target, not a ceiling
+       — players can earn raw points above grandMax. The DB
+       CHECK pins `[0, 100]` and the grading bands are
+       calibrated against a 0-100 scale anyway. Raw `earned`
+       is preserved separately on `total_score` so coaches can
+       see the over-target absolute.
+    2. `app/(club-admin)/manage/t20/_actions.ts` — reshape
+       `finalizeSchema.notes` from `z.string().optional()` to
+       `z.object({ strengths, watch, focus, legacy }).optional()`
+       matching the migration-041 jsonb shape + the
+       `editAssessmentNotesSchema` for `editAssessmentNotes`.
+       The pre-hotfix `z.string()` shape was a stale leftover
+       from before migration 041 and would have tripped the
+       `t20_assessments_notes_shape` CHECK constraint for any
+       caller passing notes-as-string.
+    3. `app/(club-admin)/manage/t20/_actions.ts` — fix two
+       silent error paths uncovered during diagnosis:
+       - Deliveries fetch: previously `const { data: rows } = ...`
+         swallowed PostgREST errors and surfaced them as
+         `kind: "no_deliveries"` (misleading the admin into
+         thinking they hadn't captured anything). Now captures
+         `rowsErr` and returns `kind: "error"`.
+       - UPDATE: previously ran without `.select(...)`, so a
+         silent RLS denial (UPDATE matched no rows but returned
+         no error) made the action return `kind: "ok"` and the
+         wizard navigated to an unchanged results page. Now
+         `.select("id")` chain + 0-rows guard returns
+         `kind: "error"` with a hint pointing at the most likely
+         cause ("UPDATE matched no rows — likely RLS denial.
+         Verify your club admin assignment is current.").
+  - `017a3be` (Step 4) — Revert the diagnostic logging from
+    Step 1. Production shouldn't ship debug logs. The two
+    structural fixes from Step 3 (deliveries-fetch error
+    capture + UPDATE select-and-guard) are kept as real fixes,
+    not diagnostic.
+
+**Test deltas (hotfix only):** 1203 → 1206 unit (+3 net) in
+`tests/lib/t20/score.test.ts` — pin the percentage clamp
+behaviour with a 384pt over-target fixture (drive + control +
+trail × zone-1 only): "clamps percentage to 100 when raw
+earned exceeds grandMax", "preserves raw earned alongside the
+clamped percentage", "does NOT clamp when raw earned is at or
+below grandMax".
+
+**Verification gates at hotfix close:** tsc clean / lint 0
+errors (18 pre-existing warnings) / 1206 unit / build green.
+Live-wizard finalize on a real over-target capture **awaits
+user QA confirmation** before 12-4 is genuinely closed and
+12-5 opens.
 
 ### 12-3 — Messaging admin polish + notification system fixes — closed 2026-04-30
 
