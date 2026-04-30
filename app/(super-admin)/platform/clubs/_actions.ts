@@ -95,6 +95,11 @@ export async function createClub(
   // are already written, so the super-admin can resend later. The
   // wizard surfaces the email status as a toast on the detail
   // page (replaced the dev banner pattern in 11-4d).
+  // 11-6: 'skipped:opted_out' covers the POPIA gate when an
+  // existing profile already opted out — rare for the wizard's
+  // new-admin path (the invitee is typically brand-new) but
+  // possible if the super-admin invites someone who once held a
+  // club_admin role at another club and has since opted out.
   let emailStatus: InviteEmailStatus = "skipped";
   let emailError: string | undefined;
   if (invite?.token) {
@@ -103,11 +108,11 @@ export async function createClub(
       token: invite.token,
       invitedByDisplayName: ctx?.email ?? null,
     });
-    if (result.status === "sent") {
-      emailStatus = "sent";
-    } else {
-      emailStatus = "failed";
+    emailStatus = result.status;
+    if (result.status === "failed") {
       emailError = result.error;
+    } else if (result.status === "skipped") {
+      emailError = `opted_out:${result.reason}`;
     }
   }
 

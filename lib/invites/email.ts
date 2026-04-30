@@ -10,7 +10,7 @@ import { formatDateZA } from "@/lib/format/dates";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { Database } from "@/types/database.types";
 
-// Phase 11 / 11-4a — sendInviteEmail helper.
+// Phase 11 / 11-4a — sendInviteEmail helper (opt-out gate added 11-6).
 //
 // Single source of truth for "an invite row was just written →
 // render + send the InviteEmail." Three invite-creation surfaces
@@ -30,18 +30,29 @@ import type { Database } from "@/types/database.types";
 //   resend" without the admin losing the row. Mirrors the locked
 //   decision in 11-4 brief.
 //
+// POPIA opt-out gate (11-6)
+//
+//   When the recipient has an existing HandiBowls profile AND
+//   profiles.email_opt_in === false, the email is NOT sent — the
+//   invite row still persists so the admin can copy/share the URL
+//   manually. The action result surfaces { status: 'skipped',
+//   reason: 'opted_out' } so the UI can render an actionable
+//   "this user has opted out" message rather than a misleading
+//   "sent" or "failed". For new emails (no profile yet), opt-out
+//   doesn't apply — the recipient hasn't had a chance to opt out
+//   of anything, and an invite is a one-shot pre-relationship
+//   communication that POPIA permits.
+//
 // Unsubscribe token binding
 //
-//   POPIA-safe: every outbound email carries an unsubscribe link
-//   per the 11-1 BaseLayout contract. For invite recipients we look
-//   up an existing profile by email and bind the token to that
+//   Every outbound email carries an unsubscribe link per the 11-1
+//   BaseLayout contract. For invite recipients we look up an
+//   existing profile by email and bind the token to that
 //   profileId when present. When the recipient has no profile yet
 //   (the typical first-invite case), we bind to the invite_id —
 //   the token is HMAC-valid but `verifyUnsubscribeToken` will
 //   resolve to no profile, so the unsubscribe page falls through
-//   to the generic invalid-link card. POPIA's unsubscribe
-//   requirement applies to a profile's preferences; a recipient
-//   without an account has nothing to opt out of.
+//   to the generic invalid-link card.
 //
 // Out of scope (for 11-4a)
 //
@@ -68,6 +79,7 @@ export type SendInviteEmailInput = {
 
 export type SendInviteEmailResult =
   | { status: "sent"; emailId: string }
+  | { status: "skipped"; reason: SendInviteEmailSkipReason }
   | { status: "failed"; reason: SendInviteEmailFailureReason; error: string };
 
 export type SendInviteEmailFailureReason =
@@ -75,6 +87,12 @@ export type SendInviteEmailFailureReason =
   | "club_not_found"
   | "render_failed"
   | "send_failed";
+
+export type SendInviteEmailSkipReason =
+  /** Existing HandiBowls profile has email_opt_in=false. POPIA
+   *  honoured: invite row persists, email send skipped, admin can
+   *  copy/share the accept URL manually. */
+  | "opted_out";
 
 export async function sendInviteEmail(
   input: SendInviteEmailInput,
@@ -122,10 +140,16 @@ export async function sendInviteEmail(
     invitedByName = await resolveInviterName(invite.invited_by);
   }
 
-  // 3. Resolve unsubscribe token's profileId. Existing profile by
-  //    email when available; invite.id as a sentinel otherwise.
-  const recipientProfileId = await resolveProfileIdByEmail(invite.email);
-  const tokenSubjectId = recipientProfileId ?? invite.id;
+  // 3. Resolve unsubscribe token's profileId AND opt-out state in
+  //    one round-trip. Existing profile + email_opt_in=false →
+  //    skip the send entirely (POPIA opt-out honoured at fan-out
+  //    per 11-6 compliance sweep). New email (no profile) →
+  //    bind the token to invite.id and proceed.
+  const recipient = await resolveProfileForRecipient(invite.email);
+  if (recipient && recipient.email_opt_in === false) {
+    return { status: "skipped", reason: "opted_out" };
+  }
+  const tokenSubjectId = recipient?.id ?? invite.id;
 
   // 4. Build URLs.
   const baseUrl = input.baseUrl ?? (await resolveBaseUrl());
@@ -221,14 +245,17 @@ async function resolveInviterName(invitedBy: string | null): Promise<string | nu
   return composeName(data.first_name, data.last_name);
 }
 
-async function resolveProfileIdByEmail(email: string): Promise<string | null> {
+async function resolveProfileForRecipient(
+  email: string,
+): Promise<{ id: string; email_opt_in: boolean } | null> {
   const admin = createServiceClient();
   const { data } = await admin
     .from("profiles")
-    .select("id")
+    .select("id, email_opt_in")
     .eq("email", email.toLowerCase())
     .maybeSingle();
-  return data?.id ?? null;
+  if (!data) return null;
+  return { id: data.id, email_opt_in: data.email_opt_in };
 }
 
 function composeName(

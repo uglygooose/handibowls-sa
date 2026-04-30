@@ -13,7 +13,22 @@ import {
 
 /** Email-side outcome of an invite-creation flow. The invite row is
  *  always written; the email send is best-effort. Callers surface
- *  this in the UI so admins know whether they need to resend. */
+ *  this in the UI so admins know whether they need to resend.
+ *
+ *  Variants:
+ *    sent      Resend accepted the email; recipient should receive it.
+ *    failed    Resend rejected the send (domain not verified,
+ *              transient outage, validation error, etc.). Admin
+ *              should copy the URL or retry later.
+ *    skipped   Email send was deliberately not attempted. Two
+ *              reasons share this status today:
+ *                opted_out: existing profile has email_opt_in=false
+ *                           (11-6 POPIA gate)
+ *                duplicate: createPlayerInvitesBatch row was a
+ *                           duplicate of an existing invite — the
+ *                           original already covered the recipient
+ *  Drilling into the reason requires reading the action's email_error
+ *  prefix (it carries either an opt-out marker or a Resend error). */
 export type InviteEmailStatus = "sent" | "failed" | "skipped";
 
 export type CreateInviteResult =
@@ -97,6 +112,9 @@ export async function createInvite(
   // can resend later from the membership UI. Pass the inviter's
   // email as a stable identity hint; the helper resolves the full
   // display name itself.
+  // 11-6: 'skipped' covers the POPIA opt-out path (existing profile
+  // with email_opt_in=false). The row still persists; UI surfaces
+  // a "this user has opted out" message rather than "failed".
   const emailResult = await sendInviteEmail({
     token: data.token,
     invitedByDisplayName: ctx.email,
@@ -106,9 +124,8 @@ export async function createInvite(
     data: {
       invite_id: data.id,
       token: data.token,
-      email_status: emailResult.status === "sent" ? "sent" : "failed",
-      email_error:
-        emailResult.status === "sent" ? undefined : emailResult.error,
+      email_status: emailResult.status,
+      email_error: emailResultToError(emailResult),
     },
   };
 }
@@ -180,10 +197,28 @@ export async function createPlayerInvitesBatch(
       status,
       invite_id: r.invite_id,
       token: r.token,
-      email_status: emailResult.status === "sent" ? "sent" : "failed",
-      email_error:
-        emailResult.status === "sent" ? undefined : emailResult.error,
+      email_status: emailResult.status,
+      email_error: emailResultToError(emailResult),
     });
   }
   return { ok: true, data: rows };
+}
+
+// ---------------------------------------------------------------------
+// Result mapping helpers
+// ---------------------------------------------------------------------
+//
+// Surfaces a one-line marker for the UI's email_error field that
+// distinguishes "opted out" from a real Resend failure. Skipped
+// results are not errors per se but the field is the cheapest place
+// to thread the reason through the action boundary without expanding
+// the result-row shape.
+
+function emailResultToError(
+  result: Awaited<ReturnType<typeof sendInviteEmail>>,
+): string | undefined {
+  if (result.status === "sent") return undefined;
+  if (result.status === "failed") return result.error;
+  // skipped — surface the reason as a stable marker the UI can branch on.
+  return `opted_out:${result.reason}`;
 }

@@ -67,13 +67,20 @@ export function InvitePlayerModal({ clubId }: Props) {
         return;
       }
 
-      // Phase 11 / 11-4a — surface the invite email status. The
-      // server-side createInvite fires the InviteEmail; this UI just
-      // toasts the outcome so the admin knows whether to resend
-      // manually. Replaced the dev-only sessionStorage banner pattern
-      // (DRIFT 160 closure).
+      // Phase 11 / 11-4a + 11-6 — surface the invite email status.
+      // The server-side createInvite fires the InviteEmail; this UI
+      // just toasts the outcome.
+      //   sent     → success toast
+      //   skipped  → POPIA opt-out (existing profile email_opt_in=false)
+      //              — invite row exists but no email was sent
+      //   failed   → real Resend rejection (domain not verified,
+      //              transient outage, validation error)
       if (result.data.email_status === "sent") {
         toast.success(`Invite emailed to ${values.email}`);
+      } else if (result.data.email_status === "skipped") {
+        toast.info(
+          `Invite saved. ${values.email} has opted out of HandiBowls emails — copy the link from the members list to share manually.`,
+        );
       } else {
         toast.error(
           `Invite saved but email failed to send: ${

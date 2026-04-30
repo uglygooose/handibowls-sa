@@ -98,6 +98,34 @@ describe("createInvite — email wiring", () => {
     });
   });
 
+  it("POPIA opt-out: existing profile with email_opt_in=false → email_status='skipped' (11-6)", async () => {
+    mockInsertSingle.mockResolvedValueOnce({
+      data: { id: NEW_INVITE_ID, token: NEW_INVITE_TOKEN },
+      error: null,
+    });
+    mockSendInviteEmail.mockResolvedValueOnce({
+      status: "skipped",
+      reason: "opted_out",
+    });
+
+    const result = await createInvite({
+      club_id: CLUB,
+      email: "opted-out@example.com",
+      role: "player",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      // Invite row written.
+      expect(result.data.invite_id).toBe(NEW_INVITE_ID);
+      expect(result.data.token).toBe(NEW_INVITE_TOKEN);
+      // Email skipped per POPIA opt-out gate.
+      expect(result.data.email_status).toBe("skipped");
+      // Reason marker thread through error field for UI branching.
+      expect(result.data.email_error).toBe("opted_out:opted_out");
+    }
+  });
+
   it("non-blocking on email failure: row stays, status='failed', error surfaced", async () => {
     mockInsertSingle.mockResolvedValueOnce({
       data: { id: NEW_INVITE_ID, token: NEW_INVITE_TOKEN },

@@ -246,14 +246,20 @@ export function NewClubWizard({ districts }: Props) {
         return;
       }
 
-      // Phase 11 / 11-4a — surface the admin invite email status to
-      // the super-admin. The email is fired by createClub on the
-      // server; here we just toast the outcome so the operator knows
-      // whether to resend manually. Replaces the dev-only sessionStorage
-      // banner pattern (DRIFT 160 closure).
+      // Phase 11 / 11-4a + 11-6 — surface the admin invite email
+      // status. Three branches:
+      //   sent     → club + email both happy
+      //   skipped  → POPIA opt-out (existing profile opted out — rare
+      //              for the wizard but possible for a former
+      //              club_admin re-invited at a different club)
+      //   failed   → real Resend rejection
       if (result.data.admin_invite_email_status === "sent") {
         toast.success(
           `Club created. Admin invite emailed to ${values.adminInvite.admin_email}.`,
+        );
+      } else if (result.data.admin_invite_email_status === "skipped") {
+        toast.info(
+          `Club created. ${values.adminInvite.admin_email} has opted out of HandiBowls emails — copy the invite link from /platform/clubs/${result.data.club_id} to share manually.`,
         );
       } else if (result.data.admin_invite_email_status === "failed") {
         toast.error(
