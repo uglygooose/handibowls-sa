@@ -445,6 +445,72 @@ describe("aggregateAssessment — R1 / R2 round split (12-4 / M10)", () => {
   });
 });
 
+// Phase 12 / 12-4 hotfix — percentage clamp at 100.
+//
+// grandMax (320) is a calibration target, not a theoretical ceiling.
+// A player CAN earn raw points above 320 (e.g. zones_8 sections sum
+// to 256+ × 5 sections theoretically). Pre-hotfix, percentage
+// computed as raw earned/grandMax × 100 could exceed 100 — which
+// (a) makes no UI sense as a "percentage" and (b) violates the
+// `t20_assessments_percentage_range` CHECK constraint at finalize.
+// Clamp preserves band semantics + protects the DB invariant.
+
+describe("aggregateAssessment — percentage clamp at 100 (12-4 hotfix)", () => {
+  it("clamps percentage to 100 when raw earned exceeds grandMax", () => {
+    // Synthesize ~410pt: drive section ≈ 91, control ≈ 99, trail ≈ 71,
+    // jacks ≈ 50, targets ≈ 48, speedhumps ≈ 24+28 — matches the live
+    // capture that exposed the bug.
+    const deliveries: Delivery[] = [];
+    // 8 drive deliveries × 2 rounds × zone-1 (8pt each) → 128pt
+    for (let r = 1 as 1 | 2; r <= 2; r = (r + 1) as 1 | 2) {
+      for (let i = 1; i <= 8; i++) deliveries.push(zone("drive", 1, i, r));
+    }
+    // 8 control deliveries × 2 rounds × zone-1 → 128pt
+    for (let r = 1 as 1 | 2; r <= 2; r = (r + 1) as 1 | 2) {
+      for (let i = 1; i <= 8; i++) deliveries.push(zone("control", 1, i, r));
+    }
+    // 8 trail deliveries × 2 rounds × zone-1 → 128pt = 384 total — over 320.
+    for (let r = 1 as 1 | 2; r <= 2; r = (r + 1) as 1 | 2) {
+      for (let i = 1; i <= 8; i++) deliveries.push(zone("trail", 1, i, r));
+    }
+    const result = aggregateAssessment(RUBRIC_V1, deliveries);
+    expect(result.earned).toBe(384);
+    expect(result.max).toBe(320);
+    // Pre-hotfix would have been 120%. Now clamped to 100%.
+    expect(result.percentage).toBe(100);
+    // Grade for 100% is gold (≥ 80% threshold).
+    expect(result.grade).toBe("gold");
+  });
+
+  it("preserves raw earned alongside the clamped percentage", () => {
+    // Same fixture as above — earned should remain the raw 384, only
+    // percentage gets clamped. Coaches reading total_score on a
+    // submitted assessment can still see the over-target absolute.
+    const deliveries: Delivery[] = [];
+    for (let r = 1 as 1 | 2; r <= 2; r = (r + 1) as 1 | 2) {
+      for (let i = 1; i <= 8; i++) deliveries.push(zone("drive", 1, i, r));
+      for (let i = 1; i <= 8; i++) deliveries.push(zone("control", 1, i, r));
+      for (let i = 1; i <= 8; i++) deliveries.push(zone("trail", 1, i, r));
+    }
+    const result = aggregateAssessment(RUBRIC_V1, deliveries);
+    expect(result.earned).toBe(384);
+    expect(result.percentage).toBe(100);
+  });
+
+  it("does NOT clamp when raw earned is at or below grandMax (existing band semantics preserved)", () => {
+    // 256pt = 80% gold edge from existing tests; ensure clamp doesn't
+    // alter anything below the 320 mark.
+    const deliveries: Delivery[] = [];
+    for (let r = 1 as 1 | 2; r <= 2; r = (r + 1) as 1 | 2) {
+      for (let i = 1; i <= 16; i++) deliveries.push(zone("drive", 1, i, r));
+    }
+    const result = aggregateAssessment(RUBRIC_V1, deliveries);
+    expect(result.earned).toBe(256);
+    expect(result.percentage).toBeCloseTo(80, 4);
+    expect(result.grade).toBe("gold");
+  });
+});
+
 describe("RubricSchema — Zod validation", () => {
   it("rejects rubric with missing required section", () => {
     const broken = JSON.parse(JSON.stringify(RUBRIC_V1)) as Record<

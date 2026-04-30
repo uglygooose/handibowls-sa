@@ -201,7 +201,19 @@ export function aggregateAssessment(
   });
   const earned = sectionTotals.reduce((s, t) => s + t.earned, 0);
   const max = grandMax(rubric);
-  const percentage = max > 0 ? (earned / max) * 100 : 0;
+  // 12-4 hotfix: clamp percentage at 100. grandMax (320) is a
+  // calibration target, not a theoretical ceiling — players can
+  // earn raw points above grandMax (e.g. zones_8 maxes per section
+  // sum to 256+ × 5 sections; 410/320 = 128.13% is mathematically
+  // correct given the formula). The DB CHECK constraint
+  // t20_assessments_percentage_range pins percentage to [0, 100],
+  // and the grading bands (Gold ≥ 80%, Silver 65-79%, etc.) are
+  // calibrated against a 0-100 scale anyway. Clamping preserves
+  // band semantics + protects the constraint; raw `earned` is
+  // stored separately on t20_assessments.total_score so coaches
+  // can still see the over-target absolute. Discovered Phase 12 /
+  // 12-4 manual QA via a live capture exceeding 320pt.
+  const percentage = max > 0 ? Math.min(100, (earned / max) * 100) : 0;
   const grade = gradeFor(rubric, percentage);
   return { sectionTotals, earned, max, percentage, grade };
 }

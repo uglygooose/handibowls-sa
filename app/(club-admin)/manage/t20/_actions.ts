@@ -322,9 +322,23 @@ export async function completeRound(
   return { kind: "ok", sectionRoundEarned, sectionEarned };
 }
 
+// 12-4 hotfix: notes shape aligned with migration 041's jsonb column
+// + editAssessmentNotesSchema (defined later in this file). The
+// previous `z.string().optional()` was a pre-migration leftover —
+// any caller passing notes-as-string would hit the
+// t20_assessments_notes_shape CHECK constraint at SQL time. The
+// wizard never exercises this path today, but the type mismatch
+// is a real latent bug.
 const finalizeSchema = z.object({
   assessment_id: z.string().uuid(),
-  notes: z.string().trim().max(2000).optional(),
+  notes: z
+    .object({
+      strengths: z.string().max(2500).optional(),
+      watch: z.string().max(2500).optional(),
+      focus: z.string().max(2500).optional(),
+      legacy: z.string().max(2500).optional(),
+    })
+    .optional(),
 });
 
 export type FinalizeAssessmentInput = z.input<typeof finalizeSchema>;
