@@ -25,7 +25,11 @@ import {
 import { type AssessmentScore } from "@/lib/t20/score";
 
 import type { HandBalance } from "../[id]/page";
-import { addSecondMarker, requestPdfExport } from "../_actions";
+import {
+  addSecondMarker,
+  editAssessmentNotes,
+  requestPdfExport,
+} from "../_actions";
 import type { AssessmentDetail } from "../_data";
 
 // Phase 10 / 10-7 — Twenty 20 results view client island.
@@ -187,7 +191,11 @@ export function AssessmentResults({
         lengthDistribution={lengthDistribution}
       />
 
-      <NotesSection notes={assessment.notes} clubName={clubName} />
+      <NotesSection
+        assessmentId={assessment.id}
+        notes={assessment.notes}
+        clubName={clubName}
+      />
 
       <SecondMarkerSection assessment={assessment} />
     </div>
@@ -625,15 +633,69 @@ function ChartsRow({
 // ---------------------------------------------------------------------
 
 function NotesSection({
+  assessmentId,
   notes,
   clubName,
 }: {
+  assessmentId: string;
   notes: string | null;
   clubName: string;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(notes ?? "");
+  const [persistedNotes, setPersistedNotes] = useState<string | null>(notes);
+  const [pending, startTransition] = useTransition();
+
+  function handleEnterEdit() {
+    setDraft(persistedNotes ?? "");
+    setEditing(true);
+  }
+
+  function handleCancel() {
+    setDraft(persistedNotes ?? "");
+    setEditing(false);
+  }
+
+  function handleSave() {
+    if (pending) return;
+    startTransition(async () => {
+      const result = await editAssessmentNotes({
+        assessment_id: assessmentId,
+        notes: draft,
+      });
+      switch (result.kind) {
+        case "ok":
+          setPersistedNotes(result.notes);
+          setEditing(false);
+          toast.success("Notes saved");
+          return;
+        case "validation":
+          toast.error("Couldn't save — invalid input", {
+            description: result.error,
+          });
+          return;
+        case "forbidden":
+          toast.error("Permission denied", { description: result.error });
+          return;
+        case "not_found":
+          toast.error("Assessment not found");
+          return;
+        case "auth":
+          toast.error("Sign in again", { description: result.error });
+          return;
+        case "error":
+          toast.error("Couldn't save notes", { description: result.error });
+          return;
+      }
+    });
+  }
+
+  const hasNotes = persistedNotes != null && persistedNotes.length > 0;
+
   return (
     <section
       data-slot="notes-section"
+      data-editing={editing ? "true" : undefined}
       className="rounded-2xl border border-border bg-bone px-7 py-6"
     >
       <header className="mb-3.5 flex items-start justify-between gap-3">
@@ -642,28 +704,71 @@ function NotesSection({
             Assessor notes
           </div>
           <h4 className="mt-1 font-display text-[18px] font-extrabold tracking-tight">
-            {notes
+            {hasNotes
               ? `Recommendations on file`
-              : `No notes captured for this assessment`}
+              : `No notes captured yet`}
           </h4>
         </div>
+        {!editing && (
+          <button
+            type="button"
+            onClick={handleEnterEdit}
+            data-slot="notes-edit-cta"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-surface px-3 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-ink hover:bg-surface-muted"
+          >
+            {hasNotes ? "Edit notes" : "Add notes"}
+          </button>
+        )}
       </header>
-      {notes ? (
+
+      {editing ? (
+        <div className="flex flex-col gap-3">
+          <textarea
+            data-slot="notes-textarea"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value.slice(0, 5000))}
+            rows={6}
+            maxLength={5000}
+            placeholder={`Coach recommendations for the player at ${clubName}…`}
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-[14px] leading-[1.55]"
+          />
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-mono text-[11px] text-ink-muted">
+              {draft.length} / 5000
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={pending}
+                data-slot="notes-cancel-cta"
+                className="inline-flex h-9 items-center rounded-md px-3 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={pending}
+                data-slot="notes-save-cta"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary-500 px-3 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-on-primary hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {pending ? "Saving…" : "Save notes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : hasNotes ? (
         <p
           data-slot="notes-body"
           className="whitespace-pre-line text-[14px] leading-[1.55] text-ink"
         >
-          {notes}
+          {persistedNotes}
         </p>
       ) : (
-        <p
-          data-slot="notes-empty"
-          className="text-[13px] text-ink-muted"
-        >
-          Notes were not captured at finalize time. {clubName} can append
-          coach-recommendation copy in a future schema migration that adds
-          a notes-edit surface; until then the field is read-only on this
-          view.
+        <p data-slot="notes-empty" className="text-[13px] text-ink-muted">
+          Click <strong>Add notes</strong> to capture recommendations the
+          player can read on the results view.
         </p>
       )}
     </section>
@@ -893,29 +998,24 @@ function buildBreakdown(
   rubric: Rubric,
   score: AssessmentScore,
 ): SectionBreakdownRow[] {
-  // The aggregateAssessment result gives sectionTotals (R1+R2 sum
-  // per section + max). We don't currently re-derive R1 vs R2 split
-  // because the engine doesn't separate by round — splitting the
-  // total proportionally by 60/40 (the design source's mock split)
-  // would lie. Render R1=R2=null markers as the total/2 estimate
-  // when we lack ground truth; future polish can plumb the round
-  // breakdown through aggregateAssessment.
+  // 12-4 / M10: aggregateAssessment now returns r1 + r2 per section
+  // derived from delivery.round (1 or 2). buildBreakdown reads the
+  // real values straight through — no presentation stand-ins, no
+  // even-half guess. Coaches reading R1 vs R2 in the breakdown table
+  // see the actual round-by-round shape.
   return SECTION_KEYS.map((key, i) => {
     const total = score.sectionTotals.find((t) => t.section === key);
-    const earned = total?.earned ?? 0;
+    const r1 = total?.r1 ?? 0;
+    const r2 = total?.r2 ?? 0;
+    const earned = total?.earned ?? r1 + r2;
     const max = total?.max ?? 0;
-    // Even split as a presentation stand-in. The footer renders the
-    // honest grand total so this approximation only affects the
-    // R1/R2 columns — flag for follow-up alongside the engine's
-    // round breakdown.
-    const half = Math.round(earned / 2);
     return {
       index: i + 1,
       key,
       name: SECTION_LABELS[key],
       model: rubric.sections[key].model,
-      r1: half,
-      r2: earned - half,
+      r1,
+      r2,
       total: earned,
       max,
       pct: max > 0 ? (earned / max) * 100 : 0,

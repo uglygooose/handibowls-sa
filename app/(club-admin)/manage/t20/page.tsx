@@ -1,4 +1,4 @@
-import { Award, Download, Sparkles } from "lucide-react";
+import { Award, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
@@ -160,13 +160,6 @@ export default async function ManageT20() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink hover:bg-surface-muted"
-            >
-              <Download className="size-4" aria-hidden="true" />
-              Export CSV
-            </button>
             <Link
               href="/manage/t20/new"
               data-slot="new-assessment-cta"

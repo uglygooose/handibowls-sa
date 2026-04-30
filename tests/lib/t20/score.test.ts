@@ -378,6 +378,73 @@ describe("aggregateAssessment — full roll-up", () => {
   });
 });
 
+// Phase 12 / 12-4 / M10 — round-split (R1 / R2) sub-totals on
+// SectionTotal. Pre-12-4 the breakdown table rendered Math.round(
+// earned/2) per row as a presentation stand-in. The aggregate now
+// returns the real per-round split so the table can render honest
+// values that reflect whether a player improved between rounds.
+
+describe("aggregateAssessment — R1 / R2 round split (12-4 / M10)", () => {
+  it("empty deliveries → r1=r2=0 across every section", () => {
+    const r = aggregateAssessment(RUBRIC_V1, []);
+    for (const t of r.sectionTotals) {
+      expect(t.r1).toBe(0);
+      expect(t.r2).toBe(0);
+      expect(t.earned).toBe(0);
+    }
+  });
+
+  it("a single R1 zone-1 delivery on Drive → r1=8, r2=0", () => {
+    const r = aggregateAssessment(RUBRIC_V1, [zone("drive", 1, 1, 1)]);
+    const drive = r.sectionTotals.find((s) => s.section === "drive");
+    expect(drive?.r1).toBe(8);
+    expect(drive?.r2).toBe(0);
+    expect(drive?.earned).toBe(8);
+  });
+
+  it("a single R2 zone-1 delivery on Drive → r1=0, r2=8", () => {
+    const r = aggregateAssessment(RUBRIC_V1, [zone("drive", 1, 1, 2)]);
+    const drive = r.sectionTotals.find((s) => s.section === "drive");
+    expect(drive?.r1).toBe(0);
+    expect(drive?.r2).toBe(8);
+    expect(drive?.earned).toBe(8);
+  });
+
+  it("mixed R1+R2 deliveries on a section sum to .earned (r1+r2 invariant)", () => {
+    const deliveries: Delivery[] = [
+      zone("drive", 1, 1, 1), // R1: 8pt
+      zone("drive", 2, 2, 1), // R1: 5pt
+      zone("drive", 1, 1, 2), // R2: 8pt
+      zone("drive", 4, 2, 2), // R2: 4pt
+    ];
+    const r = aggregateAssessment(RUBRIC_V1, deliveries);
+    const drive = r.sectionTotals.find((s) => s.section === "drive");
+    expect(drive?.r1).toBe(13);
+    expect(drive?.r2).toBe(12);
+    expect(drive?.earned).toBe(25);
+    expect(drive!.r1 + drive!.r2).toBe(drive!.earned);
+  });
+
+  it("section R1+R2 invariant holds across every section in a mixed assessment", () => {
+    const deliveries: Delivery[] = [
+      lineOutcome("jacks", "on_line", 23, 1, 1),
+      lineOutcome("jacks", "narrow", 26, 2, 2),
+      lineOutcome("targets", "on_line", 23, 1, 1),
+      zone("drive", 1, 1, 1),
+      zone("drive", 5, 2, 2),
+      zone("control", 8, 1, 1),
+      zone("trail", 3, 1, 2),
+      onLength("speedhumps_asc", true, 23, 1, 1),
+      onLength("speedhumps_asc", false, 26, 2, 2),
+      onLength("speedhumps_desc", true, 32, 1, 1),
+    ];
+    const r = aggregateAssessment(RUBRIC_V1, deliveries);
+    for (const t of r.sectionTotals) {
+      expect(t.r1 + t.r2).toBe(t.earned);
+    }
+  });
+});
+
 describe("RubricSchema — Zod validation", () => {
   it("rejects rubric with missing required section", () => {
     const broken = JSON.parse(JSON.stringify(RUBRIC_V1)) as Record<

@@ -16,9 +16,11 @@ vi.mock("sonner", () => ({
 
 const addSecondMarkerSpy = vi.fn();
 const requestPdfExportSpy = vi.fn();
+const editAssessmentNotesSpy = vi.fn();
 vi.mock("@/app/(club-admin)/manage/t20/_actions", () => ({
   addSecondMarker: (...a: unknown[]) => addSecondMarkerSpy(...a),
   requestPdfExport: (...a: unknown[]) => requestPdfExportSpy(...a),
+  editAssessmentNotes: (...a: unknown[]) => editAssessmentNotesSpy(...a),
 }));
 
 import { AssessmentResults } from "@/app/(club-admin)/manage/t20/_components/AssessmentResults";
@@ -122,13 +124,13 @@ function makeScore(
 ): AssessmentScore {
   return {
     sectionTotals: [
-      { section: "jacks", model: "line_outcome", earned: 27, max: 64 },
-      { section: "targets", model: "line_outcome", earned: 27, max: 64 },
-      { section: "drive", model: "zones_8", earned: 48, max: 256 },
-      { section: "control", model: "zones_8", earned: 47, max: 256 },
-      { section: "trail", model: "zones_8", earned: 48, max: 256 },
-      { section: "speedhumps_asc", model: "on_length", earned: 27, max: 32 },
-      { section: "speedhumps_desc", model: "on_length", earned: 23, max: 32 },
+      { section: "jacks", model: "line_outcome", earned: 27, max: 64, r1: 14, r2: 13 },
+      { section: "targets", model: "line_outcome", earned: 27, max: 64, r1: 12, r2: 15 },
+      { section: "drive", model: "zones_8", earned: 48, max: 256, r1: 22, r2: 26 },
+      { section: "control", model: "zones_8", earned: 47, max: 256, r1: 24, r2: 23 },
+      { section: "trail", model: "zones_8", earned: 48, max: 256, r1: 25, r2: 23 },
+      { section: "speedhumps_asc", model: "on_length", earned: 27, max: 32, r1: 13, r2: 14 },
+      { section: "speedhumps_desc", model: "on_length", earned: 23, max: 32, r1: 11, r2: 12 },
     ],
     earned: 247,
     max: 320,
@@ -380,6 +382,44 @@ describe("<AssessmentResults /> — notes section", () => {
       container.querySelector("[data-slot='notes-empty']"),
     ).not.toBeNull();
     expect(container.querySelector("[data-slot='notes-body']")).toBeNull();
+  });
+
+  it("renders 'Add notes' CTA when notes is null (12-4 / M2)", () => {
+    const { container } = renderResults({
+      assessment: makeAssessment({ notes: null }),
+    });
+    const cta = container.querySelector("[data-slot='notes-edit-cta']");
+    expect(cta).not.toBeNull();
+    expect(cta?.textContent).toMatch(/add notes/i);
+  });
+
+  it("renders 'Edit notes' CTA when notes are populated (12-4 / M2)", () => {
+    const { container } = renderResults({
+      assessment: makeAssessment({ notes: "Existing recommendation copy." }),
+    });
+    const cta = container.querySelector("[data-slot='notes-edit-cta']");
+    expect(cta).not.toBeNull();
+    expect(cta?.textContent).toMatch(/edit notes/i);
+  });
+
+  it("clicking the edit CTA reveals the textarea + Save / Cancel buttons (12-4 / M2)", async () => {
+    const { container } = renderResults({
+      assessment: makeAssessment({ notes: null }),
+    });
+    const cta = container.querySelector(
+      "[data-slot='notes-edit-cta']",
+    ) as HTMLButtonElement;
+    cta.click();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(
+      container.querySelector("[data-slot='notes-textarea']"),
+    ).not.toBeNull();
+    expect(
+      container.querySelector("[data-slot='notes-save-cta']"),
+    ).not.toBeNull();
+    expect(
+      container.querySelector("[data-slot='notes-cancel-cta']"),
+    ).not.toBeNull();
   });
 });
 

@@ -467,15 +467,6 @@ export function NewAssessmentForm({
         </Link>
         <div className="flex flex-wrap items-center gap-3">
           <button
-            type="button"
-            disabled
-            data-slot="draft-cta"
-            title="Draft persistence ships with the capture wizard"
-            className="inline-flex h-11 items-center rounded-lg border border-border bg-bone px-4 text-[13px] font-medium text-ink-muted opacity-60"
-          >
-            Save as draft
-          </button>
-          <button
             type="submit"
             disabled={!valid || pending}
             data-slot="start-cta"

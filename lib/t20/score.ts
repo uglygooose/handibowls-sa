@@ -79,6 +79,11 @@ export type SectionTotal = {
   earned: number;
   /** Maximum points possible for this section across both rounds. */
   max: number;
+  /** R1 sub-total — Phase 12 / 12-4 (M10): real round-split values
+   *  derived from delivery.round, not Math.round(earned/2). */
+  r1: number;
+  /** R2 sub-total — Phase 12 / 12-4 (M10). */
+  r2: number;
 };
 
 /** Compute every section's max possible score for the given rubric.
@@ -163,24 +168,37 @@ export function aggregateAssessment(
   deliveries: Delivery[],
 ): AssessmentScore {
   const maxes = sectionMaxes(rubric);
-  const buckets: Record<SectionKey, number> = {
-    jacks: 0,
-    targets: 0,
-    drive: 0,
-    control: 0,
-    trail: 0,
-    speedhumps_asc: 0,
-    speedhumps_desc: 0,
+  // 12-4 / M10: split per (section, round) so the SectionBreakdown
+  // table can render real R1 vs R2 sub-totals instead of the
+  // Math.round(earned/2) presentation stand-in. Existing callers
+  // (capture-completion, finalize) still read .earned which is the
+  // R1+R2 sum — backwards-compatible.
+  const buckets: Record<SectionKey, { r1: number; r2: number }> = {
+    jacks: { r1: 0, r2: 0 },
+    targets: { r1: 0, r2: 0 },
+    drive: { r1: 0, r2: 0 },
+    control: { r1: 0, r2: 0 },
+    trail: { r1: 0, r2: 0 },
+    speedhumps_asc: { r1: 0, r2: 0 },
+    speedhumps_desc: { r1: 0, r2: 0 },
   };
   for (const d of deliveries) {
-    buckets[d.section] += scoreDelivery(rubric, d);
+    const points = scoreDelivery(rubric, d);
+    if (d.round === 1) buckets[d.section].r1 += points;
+    else buckets[d.section].r2 += points;
   }
-  const sectionTotals: SectionTotal[] = SECTION_KEYS.map((k) => ({
-    section: k,
-    model: rubric.sections[k].model,
-    earned: buckets[k],
-    max: maxes[k],
-  }));
+  const sectionTotals: SectionTotal[] = SECTION_KEYS.map((k) => {
+    const r1 = buckets[k].r1;
+    const r2 = buckets[k].r2;
+    return {
+      section: k,
+      model: rubric.sections[k].model,
+      earned: r1 + r2,
+      max: maxes[k],
+      r1,
+      r2,
+    };
+  });
   const earned = sectionTotals.reduce((s, t) => s + t.earned, 0);
   const max = grandMax(rubric);
   const percentage = max > 0 ? (earned / max) * 100 : 0;
