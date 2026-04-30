@@ -305,6 +305,7 @@ export type Database = {
           contact_email: string | null
           contact_phone: string | null
           created_at: string
+          daily_broadcast_cap: number
           district_id: string
           handicap_enabled: boolean
           id: string
@@ -321,6 +322,7 @@ export type Database = {
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
+          daily_broadcast_cap?: number
           district_id: string
           handicap_enabled?: boolean
           id?: string
@@ -337,6 +339,7 @@ export type Database = {
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
+          daily_broadcast_cap?: number
           district_id?: string
           handicap_enabled?: boolean
           id?: string
