@@ -1300,6 +1300,39 @@ export type Database = {
           },
         ]
       }
+      tournament_greens: {
+        Row: {
+          created_at: string
+          green_id: string
+          tournament_id: string
+        }
+        Insert: {
+          created_at?: string
+          green_id: string
+          tournament_id: string
+        }
+        Update: {
+          created_at?: string
+          green_id?: string
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_greens_green_id_fkey"
+            columns: ["green_id"]
+            isOneToOne: false
+            referencedRelation: "greens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_greens_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tournament_team_members: {
         Row: {
           bowl_order: number | null
@@ -1408,6 +1441,7 @@ export type Database = {
           ends_at: string | null
           ends_per_match: number | null
           entries_close_at: string | null
+          fair_rink: boolean
           format: Database["public"]["Enums"]["tournament_format"]
           handicap_rule: Database["public"]["Enums"]["handicap_rule"]
           host_club_id: string
@@ -1430,6 +1464,7 @@ export type Database = {
           ends_at?: string | null
           ends_per_match?: number | null
           entries_close_at?: string | null
+          fair_rink?: boolean
           format: Database["public"]["Enums"]["tournament_format"]
           handicap_rule?: Database["public"]["Enums"]["handicap_rule"]
           host_club_id: string
@@ -1452,6 +1487,7 @@ export type Database = {
           ends_at?: string | null
           ends_per_match?: number | null
           entries_close_at?: string | null
+          fair_rink?: boolean
           format?: Database["public"]["Enums"]["tournament_format"]
           handicap_rule?: Database["public"]["Enums"]["handicap_rule"]
           host_club_id?: string
