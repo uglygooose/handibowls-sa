@@ -11,9 +11,9 @@ export function Quote() {
         &ldquo;
       </div>
       <blockquote className="m-0 mb-7 font-display text-[clamp(26px,2.8vw,40px)] font-bold italic leading-[1.15] tracking-[-0.01em] text-balance">
-        HandiBowls is the first time our tournament, our ladder, and our T20
-        cards all lived in the same place — and the only time the secretary
-        went home before 8pm.
+        HandiBowls is the first time our tournament, our ladder, and our
+        Twenty 20 cards all lived in the same place — and the only time the
+        secretary went home before 8pm.
       </blockquote>
       <div className="flex items-center justify-center gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-full bg-ink font-display text-[18px] font-extrabold text-ink-inverse">

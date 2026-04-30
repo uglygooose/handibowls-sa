@@ -11,7 +11,7 @@ import { SocialProof } from "./(marketing)/_sections/SocialProof";
 export const metadata = {
   title: "HandiBowls — Tournaments, scores, and skills in your pocket",
   description:
-    "HandiBowls is the bowls-first operating system for South African clubs. Tournaments, live scoring, and T20 skills — in one place.",
+    "HandiBowls is the bowls-first operating system for South African clubs. Tournaments, live scoring, and Twenty 20 skills — in one place.",
 };
 
 // Landing is pinned to the Atomic Red preset so the hero reads consistently

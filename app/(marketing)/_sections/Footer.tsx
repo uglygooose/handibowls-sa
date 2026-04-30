@@ -14,7 +14,7 @@ const FOOTER_CHIPS: ThemePreset[] = [
 
 const PRODUCT = [
   { href: "#tournaments", label: "Tournaments" },
-  { href: "#t20", label: "T20", tag: "NEW" },
+  { href: "#t20", label: "Twenty 20", tag: "NEW" },
   { href: "#features", label: "Scoring" },
   { href: "#clubs", label: "Ladder leagues" },
 ];

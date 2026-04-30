@@ -37,7 +37,12 @@ const PLAYER_NAV_ITEMS: PlayerNavItem[] = [
   { href: "/play", label: "Home", icon: Home },
   { href: "/tournaments", label: "Play", icon: Trophy },
   { href: "/book", label: "Book", icon: Calendar },
-  { href: "/t20", label: "T20", icon: Target },
+  // Compact label "20/20" used here due to 76px tab-width constraint.
+  // Canonical "Twenty 20" is used everywhere else per bsa-terminology
+  // skill — this is the single documented exception, sized to fit
+  // alongside the other 4 short tab labels (Home/Play/Book/Me) without
+  // wrapping or overflowing.
+  { href: "/t20", label: "20/20", icon: Target },
   { href: "/me", label: "Me", icon: User, badgeKey: "notifications" },
 ];
 

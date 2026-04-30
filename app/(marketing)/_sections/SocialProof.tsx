@@ -34,8 +34,8 @@ export function SocialProof() {
           </h2>
           <p className="mt-5 max-w-[480px] text-[17px] leading-[1.5] text-white/75">
             HandiBowls started with the Western Province pilot and now runs
-            knockouts, T20 cards, and ladder leagues at 20+ clubs across five
-            districts.
+            knockouts, Twenty 20 cards, and ladder leagues at 20+ clubs across
+            five districts.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-x-10 gap-y-8">

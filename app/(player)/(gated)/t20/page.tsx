@@ -28,16 +28,16 @@ export default function T20Page() {
 
         <div className="flex flex-col gap-3">
           <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
-            T20 grading · Phase 10 roadmap
+            Twenty 20 grading · Phase 10 roadmap
           </span>
           <h1 className="font-display text-[40px] font-black italic leading-[0.95] tracking-tight">
-            T20 hub coming soon.
+            Twenty 20 hub coming soon.
           </h1>
           <p className="max-w-[60ch] text-[14px] text-ink-muted">
-            The T20 module is the official Bowls South Africa handicap and
-            grading system — Bronze, Silver, Gold, Platinum — with seasonal
+            The Twenty 20 module is the official Bowls South Africa handicap
+            and grading system — Bronze, Silver, Gold, Platinum — with seasonal
             re-assessments hosted by clubs. v1 ships with the tournament
-            engine + player surfaces; T20 lands alongside a dedicated
+            engine + player surfaces; Twenty 20 lands alongside a dedicated
             assessment workflow and the historical grading view.
           </p>
         </div>
@@ -49,15 +49,15 @@ export default function T20Page() {
           </h2>
           <ul className="mt-4 flex flex-col gap-3 text-[14px]">
             <Item title="Your grade ladder" body="Track Bronze → Platinum progression with the date earned and 12-month validity window." />
-            <Item title="Upcoming assessments" body="See open assessment slots at your primary club + cross-club bookings via T20-host clubs in the same district." />
-            <Item title="Compass capture" body="The 8-zone, 4-grade T20 assessment compass — the same rubric your club admin uses." />
+            <Item title="Upcoming assessments" body="See open assessment slots at your primary club + cross-club bookings via Twenty 20–host clubs in the same district." />
+            <Item title="Compass capture" body="The 8-zone, 4-grade Twenty 20 assessment compass — the same rubric your club admin uses." />
           </ul>
         </div>
 
         <div className="rounded-2xl border border-dashed border-border bg-surface px-6 py-5 text-[13px] text-ink-muted">
           <p className="mb-3">
-            Want to be told when the T20 module lands? Email us and we&apos;ll
-            ping you when assessments open at your club.
+            Want to be told when the Twenty 20 module lands? Email us and
+            we&apos;ll ping you when assessments open at your club.
           </p>
           <a
             href="mailto:hello@handibowls.app"
@@ -69,7 +69,7 @@ export default function T20Page() {
         </div>
 
         <p className="text-center font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-subtle">
-          v1 ships without T20 — by design.
+          v1 ships without Twenty 20 — by design.
         </p>
       </div>
     </div>

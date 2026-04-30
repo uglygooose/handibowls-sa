@@ -54,7 +54,7 @@ export function QuickActions({ counts }: Props) {
           <>
             My
             <br />
-            T20
+            Twenty 20
           </>
         }
         meta={counts.t20Grade ?? "Phase 10"}

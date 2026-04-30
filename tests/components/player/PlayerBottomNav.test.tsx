@@ -10,13 +10,18 @@ let mockPathname = "/play";
 import { PlayerBottomNav } from "@/components/nav/PlayerBottomNav";
 
 describe("<PlayerBottomNav />", () => {
-  it("renders all 5 design-spec'd tabs in order: Home, Play, Book, T20, Me", () => {
+  it("renders all 5 design-spec'd tabs in order: Home, Play, Book, 20/20, Me", () => {
+    // The Twenty 20 tab label uses the compact "20/20" form due to
+    // the 76px tab-width constraint of the bottom nav. Canonical
+    // "Twenty 20" copy is used on every other surface — see the
+    // documented exception in PlayerBottomNav.tsx and the
+    // bsa-terminology skill.
     mockPathname = "/play";
     render(<PlayerBottomNav />);
     const labels = screen
       .getAllByRole("link")
       .map((a) => a.textContent?.trim());
-    expect(labels).toEqual(["Home", "Play", "Book", "T20", "Me"]);
+    expect(labels).toEqual(["Home", "Play", "Book", "20/20", "Me"]);
   });
 
   it("marks the Home tab active on /play", () => {

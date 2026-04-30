@@ -81,7 +81,7 @@ export function ShowcaseT20() {
       <div className="md:order-1">
         <div className="mb-4 inline-flex items-center gap-2 font-mono text-[12px] font-bold tracking-[0.16em] uppercase text-ink-muted">
           <span className="h-1.5 w-1.5 rounded-full bg-primary-500" />
-          T20 skills
+          Twenty 20 skills
         </div>
         <h2 className="m-0 mb-5 font-display text-[clamp(36px,4.5vw,60px)] font-black italic leading-[0.95] tracking-[-0.02em] uppercase">
           Eight zones.{" "}
@@ -90,8 +90,8 @@ export function ShowcaseT20() {
         </h2>
         <p className="max-w-[480px] text-[17px] leading-[1.5] text-ink-muted">
           The compass grades every delivery from A to D against the jack. Drop
-          the rubric once at the district level and every T20 card at every
-          club lines up on the same axis.
+          the rubric once at the district level and every Twenty 20 card at
+          every club lines up on the same axis.
         </p>
         <ul className="mt-8 grid grid-cols-2 gap-2 text-sm">
           {[

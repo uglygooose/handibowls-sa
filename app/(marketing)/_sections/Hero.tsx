@@ -76,7 +76,7 @@ const MARQUEE_ITEMS = [
   "Triples",
   "Fours",
   "Singles",
-  "T20",
+  "Twenty 20",
   "Ladder league",
   "Drawn pairs",
 ];
@@ -129,9 +129,9 @@ export function Hero() {
           </h1>
 
           <p className="mb-9 max-w-[560px] text-[20px] leading-[1.45] text-ink-muted">
-            Run a knockout, score a T20, post a ladder, DM the skip. HandiBowls
-            is the bowls-first operating system for South African clubs —
-            fluid, fast, and made for the green.
+            Run a knockout, score a Twenty 20, post a ladder, DM the skip.
+            HandiBowls is the bowls-first operating system for South African
+            clubs — fluid, fast, and made for the green.
           </p>
 
           <div className="flex flex-wrap gap-3">

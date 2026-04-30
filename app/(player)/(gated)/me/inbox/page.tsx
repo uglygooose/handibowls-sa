@@ -95,8 +95,8 @@ function NotificationsList({ rows }: { rows: InboxNotification[] }) {
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-8 text-center text-[13px] text-ink-muted">
-        No notifications yet. Match reminders, draws, T20 prompts, and
-        booking confirmations land here.
+        No notifications yet. Match reminders, draws, Twenty 20 prompts,
+        and booking confirmations land here.
       </div>
     );
   }

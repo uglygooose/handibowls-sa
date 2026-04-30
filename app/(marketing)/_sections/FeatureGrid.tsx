@@ -37,7 +37,7 @@ const FEATURES: Feature[] = [
     preset: "sunburst",
     icon: Target,
     kicker: "03 · Improve",
-    title: "T20 skills",
+    title: "Twenty 20 skills",
     number: "03",
     body: "Eight-zone compass, graded jacks, rubrics locked by district. Players see where they land; coaches see who's progressing.",
     cta: "Explore the compass",
