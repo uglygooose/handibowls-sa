@@ -489,6 +489,9 @@ export type Database = {
           club_id: string
           created_at: string
           email: string
+          email_error: string | null
+          email_sent_at: string | null
+          email_status: string | null
           expires_at: string
           first_name: string | null
           id: string
@@ -506,6 +509,9 @@ export type Database = {
           club_id: string
           created_at?: string
           email: string
+          email_error?: string | null
+          email_sent_at?: string | null
+          email_status?: string | null
           expires_at?: string
           first_name?: string | null
           id?: string
@@ -523,6 +529,9 @@ export type Database = {
           club_id?: string
           created_at?: string
           email?: string
+          email_error?: string | null
+          email_sent_at?: string | null
+          email_status?: string | null
           expires_at?: string
           first_name?: string | null
           id?: string
