@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
+
 import { AuditLogPanel } from "./_components/AuditLogPanel";
 import { BookingsCalendarGrid } from "./_components/BookingsCalendarGrid";
 import { getBookingsForWeek, getRecentAuditLogForClub } from "./_data";
@@ -37,15 +39,8 @@ export default async function ManageOverview({
 
   if (!data.ok) {
     return (
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        <header className="mb-6">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-subtle">
-            Club admin
-          </span>
-          <h1 className="mt-1 font-display text-3xl font-extrabold italic tracking-tight">
-            Overview
-          </h1>
-        </header>
+      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-8 pb-24">
+        <AdminPageHero eyebrow="Club admin" title="Overview" containerWidth="none" />
         <div className="rounded-xl border border-dashed border-border p-8 text-center">
           <p className="text-sm text-ink-muted">
             No club is in scope for this account. Use{" "}
@@ -63,20 +58,13 @@ export default async function ManageOverview({
   }
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-10 pb-24">
-      <header className="flex flex-col gap-1">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-subtle">
-          Club admin · {data.clubName}
-        </span>
-        <h1 className="mt-1 font-display text-3xl font-extrabold italic tracking-tight">
-          Overview
-        </h1>
-        <p className="text-[13px] text-ink-muted">
-          Weekly bookings calendar. Tap a chip to view details or
-          force-cancel on a member&apos;s behalf — every cancel writes an
-          audit-log entry.
-        </p>
-      </header>
+    <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-8 pb-24">
+      <AdminPageHero
+        eyebrow={`Club admin · ${data.clubName}`}
+        title="Overview"
+        description="Weekly bookings calendar. Tap a chip to view details or force-cancel on a member's behalf — every cancel writes an audit-log entry."
+        containerWidth="none"
+      />
 
       <BookingsCalendarGrid
         bookings={data.bookings}

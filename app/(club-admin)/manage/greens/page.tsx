@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
+
 import { getGreensData } from "./_data";
 import { RinkDisableToggle } from "./_components/RinkDisableToggle";
 import { WeeklyAvailabilityEditor } from "./_components/WeeklyAvailabilityEditor";
@@ -26,15 +28,8 @@ export default async function ManageGreens() {
 
   if (!data.ok) {
     return (
-      <div className="mx-auto max-w-5xl px-6 py-10">
-        <header className="mb-6">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-subtle">
-            Club admin
-          </span>
-          <h1 className="mt-1 font-display text-3xl font-extrabold italic tracking-tight">
-            Greens
-          </h1>
-        </header>
+      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-8 pb-24">
+        <AdminPageHero eyebrow="Club admin" title="Greens" containerWidth="none" />
         <div className="rounded-xl border border-dashed border-border p-8 text-center">
           <p className="text-sm text-ink-muted">
             No club is in scope for this account. Use{" "}
@@ -52,21 +47,13 @@ export default async function ManageGreens() {
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10 pb-24">
-      <header className="flex flex-col gap-1">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-subtle">
-          Club admin · {data.clubName}
-        </span>
-        <h1 className="mt-1 font-display text-3xl font-extrabold italic tracking-tight">
-          Greens
-        </h1>
-        <p className="text-[13px] text-ink-muted">
-          Manage the weekly availability schedule and individual rink
-          status. Player surfaces respect both — closed weekday hours hide
-          from the slot grid, and disabled rinks drop out of the
-          available-rinks list per slot.
-        </p>
-      </header>
+    <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-8 pb-24">
+      <AdminPageHero
+        eyebrow={`Club admin · ${data.clubName}`}
+        title="Greens"
+        description="Manage the weekly availability schedule and individual rink status. Player surfaces respect both — closed weekday hours hide from the slot grid, and disabled rinks drop out of the available-rinks list per slot."
+        containerWidth="none"
+      />
 
       <WeeklyAvailabilityEditor
         clubId={data.clubId}
