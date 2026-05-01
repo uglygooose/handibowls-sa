@@ -5,6 +5,7 @@ import {
   Flag,
   Lock,
   MoreHorizontal,
+  Pencil,
   Printer,
   Shield,
 } from "lucide-react";
@@ -132,9 +133,21 @@ export function TournamentHero({ tournament: t }: Props) {
           </div>
         </div>
 
-        {/* Right rail: action stack */}
+        {/* Right rail: action stack. The detail page is role-gated to
+            club_admin (host) + super_admin via the parent page's
+            `requireRole` + `getTournamentDetail`'s host-club filter,
+            so every viewer of this hero is authorised to edit — the
+            Edit CTA renders unconditionally inside this gated route. */}
         <div className="relative z-10 flex flex-col items-end gap-3">
           <div className="flex items-center gap-2">
+            <Link
+              href={`/manage/tournaments/${t.id}/edit`}
+              data-slot="tournament-edit-cta"
+              className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-[13px] font-medium text-ink hover:bg-surface-muted"
+            >
+              <Pencil className="size-3.5" aria-hidden="true" />
+              Edit
+            </Link>
             <button
               type="button"
               className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-[13px] font-medium text-ink hover:bg-surface-muted"
