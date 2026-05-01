@@ -43,7 +43,12 @@ export type PlayerT20Profile = {
    *  every club they are a member of. Null when they have never been
    *  assessed (or every assessment is still in_progress / archived). */
   latest: PlayerT20Assessment | null;
-  /** Past submitted assessments excluding `latest`, newest first. */
+  /** All submitted assessments, newest first. Includes the row that is
+   *  also surfaced in `latest` — the hero is the visual focal point,
+   *  the list is the tap target into the per-assessment detail view at
+   *  `/t20/[assessmentId]` (12.5-4). Pre-12.5-4-hotfix this excluded
+   *  the latest via rows.slice(1), which made the detail view
+   *  unreachable for players with exactly 1 submitted assessment. */
   history: PlayerT20Assessment[];
   /** Theme preset for the hero band. Falls back to the player's primary
    *  club preset when there is no assessment yet, and to "atomic-red"
@@ -107,7 +112,7 @@ export const getCurrentPlayerT20Profile = cache(
 
     return {
       latest: rows[0] ?? null,
-      history: rows.slice(1),
+      history: rows,
       primary_club_theme,
     };
   },

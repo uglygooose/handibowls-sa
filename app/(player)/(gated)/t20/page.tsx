@@ -25,8 +25,12 @@ import {
 //   3. Upcoming assessments — booked rows from `bookings` filtered
 //      by for_profile_id = current player + purpose='t20_assessment'
 //      + ends_at > now (12-1 followup migration 037)
-//   4. Past assessments — history list of submitted assessments
-//      (additive over the design source per L166 entry text)
+//   4. All assessments — submitted-assessments list including the
+//      latest (also surfaced in the hero); the list is the tap
+//      target into /t20/[assessmentId] (additive over the design
+//      source per L166 entry text). Pre-12.5-4-hotfix this list
+//      excluded the latest via rows.slice(1) which made the new
+//      detail view unreachable for 1-assessment players.
 
 export const metadata = {
   title: "Twenty 20 · HandiBowls",
@@ -171,15 +175,18 @@ export default async function T20Page() {
           </div>
         )}
 
-        {/* Past assessments — additive over design source per L166.
+        {/* All assessments — additive over design source per L166.
             12.5-4: row tap navigates to the player results detail
             view at `/t20/[assessmentId]` (audit id
-            `player-t20-results-detail`). Pre-12.5-4 the rows were
-            dead taps — the past-list itself stays additive over
-            design, only the tap target is wired now. */}
+            `player-t20-results-detail`).
+            12.5-4 hotfix: list now includes the latest assessment
+            (previously excluded via rows.slice(1)) so players with
+            exactly 1 submitted assessment have a tap target into
+            the detail view. Heading renamed "Past" → "All" since
+            the latest is no longer past. */}
         {profile.history.length > 0 && (
           <>
-            <SectionHead title="Past assessments" />
+            <SectionHead title="All assessments" />
             <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
               {profile.history.map((a) => (
                 <li key={a.id}>
