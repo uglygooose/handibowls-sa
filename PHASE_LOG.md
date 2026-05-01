@@ -938,6 +938,143 @@ at Phase 12 / 12-6; the remaining 15 active entries land across
 - **Drift counts:** 45 → 54 open (+9 new audit findings); closed
   unchanged at 57.
 
+### 12.5-6 — Visual unification (Option 2) + responsive / loading / icon docket — closed 2026-05-01
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-12.5-design-unification`).
+- **Three-stage execution** spanning 13 atomic commits on top of
+  the 12.5-5 close `71406d6`:
+
+  **Stage A — design source fetch + AdminPageHero extraction:**
+  - `5c9a130` (12.5-6 Stage A) — `<AdminPageHero>` primitive at
+    `components/layout/AdminPageHero.tsx` with slot model (eyebrow
+    / title / subtitle / description / actions / speckle /
+    splatter / containerWidth) + `SPLATTER_SIZE = { S: 130, M: 180,
+    L: 300 }` tier constants in `lib/brand/presets.ts`. All values
+    lifted from the design source bundle's `.page-hero` rules in
+    `admin-styles.css:313-323`. 11 conflicts between the prompt
+    and the bundle were resolved in favour of the bundle per the
+    "bundle wins" rule (border-radius 18 not 20, bg-bone not
+    bg-surface, h1 56px font-display font-black NOT italic, mono
+    eyebrow → font-display Barlow Condensed 11px, padding 32x36
+    not px-8 py-7, min-h-[156px] not 128px, items-end not
+    items-start, SpeckleLayer with density+opacity not SpeckleField
+    with intensity tokens — admin primitive per design). 16 → 19
+    test cases on the primitive across Stage A + B (added meta /
+    prefix / titleSize slots during migration).
+
+  **Stage B — 18-surface migration + PageHeader retirement
+  (6 commits):**
+  - `099f0e7` — Pattern-A → AdminPageHero (3 club-admin sidebar:
+    Overview / Members / Greens). Highest-visibility win.
+  - `334c972` — Pattern-B already-aligned (3 club-admin lists:
+    Tournaments / T20 / Messages) + AdminPageHero `meta` slot
+    + splatter `bottom`/`left` insets for the secondary
+    bottom-left splatter on /t20 + /messages.
+  - `9035da0` — Form/new pages (5 club-admin: T20-new,
+    Messages-new, Messages-edit, Tournaments-NewForm,
+    Tournaments-EditForm). max-w-[1100px] form-tier wrapper.
+  - `e779dfd` — TournamentHero adapter (1 detail page bespoke;
+    keeps breadcrumb prefix + pill row meta + multi-element
+    action stack but consumes AdminPageHero internally) +
+    AdminPageHero `prefix` slot + `titleSize: "hero" | "detail"`
+    tier (56 / 48 px per design source).
+  - `825d059` — Super-admin migration (8 page surfaces + 10
+    loading/error files + StubPage; 21 files total). One
+    primitive across both admin roles.
+  - `ad7588c` — `<PageHeader>` retirement. Pre-deletion grep
+    verified zero remaining imports.
+
+  **Stage C — Track 2 docket (6 commits + close):**
+  - `caf9c36` (Item I) — admin t20 charts grid breakpoint
+    `lg:` → `md:` so 768-1023 viewports get the 3-column row.
+  - `42939ca` (Item J) — MobileShell main padding from `pb-20`
+    (static 80px) to `pb-[calc(env(safe-area-inset-bottom)+80px)]`.
+  - `01ac45a` (Item K) — role-level loading.tsx Skeleton trees
+    shaped like their dominant page (admin = AdminPageHero shell
+    + 3-row list, player = mobile shape, auth = form shape).
+  - `42a6e81` (Item L) — `lib/brand/icon-scale.ts` documents
+    5-tier size (12/14/16/20/24) + stroke (2 / 2.5 active);
+    AdminSidebar + PlayerBottomNav nav icons snap to size-5;
+    grep guard test fails on arbitrary `size-[Npx]` literals on
+    PascalCase JSX in admin / super-admin / player / components
+    (marketing exempted).
+  - `7d3c8ac` (Item M) — `<LengthDistributionChart>` brand
+    decoration: per-bar `<SpeckleLayer density="low" opacity={0.18}>`
+    behind the existing white-to-transparent gradient. Decorates
+    both admin + player surfaces simultaneously via the shared
+    primitive.
+  - **Item N** — responsive sweep (audit + minimal fix).
+    Static analysis at 360/414/768/1024/1280 found no critical
+    bugs. Single visible delta: `/tournaments/[id]` player hero
+    h1 snapped from text-[32px] to text-[28px] to align with
+    `/me` profile-hero pattern (closes
+    `player-title-size-scale-drift` at the same time).
+  - **Close commit** — DRIFT close-out + PHASE_LOG entry.
+
+- **Locked-decisions applied:**
+  - Option 2 — go wide. One primitive across all admin roles;
+    super-admin's `<PageHeader>` retired; player A/C split kept
+    (intentional — functional lists vs themed personal heroes).
+  - Bundle wins on all 11 conflicts including italic h1 / mono
+    eyebrow (the shipped italic-h1 + mono-eyebrow was inherited
+    drift, not a deliberate brand decision).
+  - Brand decoration on `<LengthDistributionChart>` applied
+    (LOCKED), not deferred.
+  - Player title-size drift fixed in this pass (one outlier).
+
+- **Drift entries closed (10):**
+  - `admin-page-hero-primitive-missing` ✓
+  - `super-admin-vs-club-admin-page-header-divergence` ✓
+  - `splatter-accent-size-tier-missing` ✓
+  - `player-title-size-scale-drift` ✓
+  - `responsive-admin-t20-charts` ✓
+  - `player-bottom-padding` ✓
+  - `loading-spinner-only` ✓
+  - `icon-stroke-scale` ✓
+  - `length-distribution-chart-brand-decoration` ✓
+  - `responsive-sweep` ✓
+
+- **Drift entries opened:**
+  - `speckle-layer-vs-speckle-field-primitive-duplication` —
+    deferred to post-v1. Two working primitives, consolidation
+    would touch every consumer; not in v1 scope.
+
+- **Test deltas:** unit 1322 (post-Stage-B baseline) → ~1349
+  (+27: 19 AdminPageHero / 1 t20-results / 3 MobileShell / 4
+  loading-states / 4 icon-scale / 4 length-distribution).
+  Integration unchanged at 119.
+
+- **What 12.5-6 closes for v1:** every admin-side page-header
+  pattern is now one primitive; player surfaces have the
+  safe-area-aware bottom padding; admin t20 results charts
+  collapse cleanly at md+ instead of lg+; loading states
+  approximate page shape; icon scale is locked + grep-guarded;
+  the length-distribution chart reads as a brand-decorated
+  surface; player surfaces statically pass a 5-viewport
+  responsive audit.
+
+- **Manual QA (post-restart `npm run dev`):**
+  - Click through every club_admin sidebar surface — all
+    consume AdminPageHero, 56px upright Barlow Condensed h1,
+    11px font-display eyebrow (NOT mono, NOT italic). Visible
+    cross-surface consistency.
+  - Click through every super_admin sidebar surface — same
+    pattern.
+  - `/platform/tournaments` — real hero with EmptyState body
+    (was StubPage).
+  - `/manage/tournaments/[id]` — back-link breadcrumb above
+    eyebrow, 48px title, action stack on right.
+  - `/manage/t20/[id]` — resize browser <768px → charts stack
+    single-column; ≥768px → 3-column grid.
+  - Player surfaces: scroll any list to bottom, no clip behind
+    bottom-nav at any of 360 / 414 / 768 / 1024 / 1280px.
+  - Loading states — navigate between routes, observe
+    Skeleton trees matching page shape.
+  - Icon spot-check across 4-step + pill scale.
+  - LengthDistributionChart on admin AND player views — brand
+    decoration applied, no flat red bars.
+
 ### 12.5-5 — Tournament edit page (NEW route) — closed 2026-05-01
 
 - **Branch tip at close:** `<filled in commit message>`

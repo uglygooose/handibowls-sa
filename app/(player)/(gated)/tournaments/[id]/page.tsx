@@ -103,7 +103,12 @@ export default async function PlayerTournamentDetailPage({ params }: Props) {
             {STRUCTURE_LABEL[tournament.structure]} · {tournament.entries_count}{" "}
             entries
           </span>
-          <h1 className="font-display text-[32px] font-black uppercase italic leading-none tracking-tight">
+          {/* Player themed-hero h1 tier — 28px italic uppercase, per
+              design source `.detail-hero h1` (player-styles.css:425)
+              + `.profile-hero .name` (player-styles.css:728). Snapped
+              from a previous 32px to align with the /me hero pattern
+              (12.5-6 / `player-title-size-scale-drift` close). */}
+          <h1 className="font-display text-[28px] font-black uppercase italic leading-none tracking-tight">
             {tournament.name}
           </h1>
 
