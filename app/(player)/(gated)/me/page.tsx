@@ -55,7 +55,12 @@ export default async function MePage() {
       {/* Profile hero */}
       <section className="relative isolate overflow-hidden bg-primary-500 text-[color:var(--color-on-primary)]">
         <div className="pointer-events-none absolute inset-0 z-0 opacity-90">
-          <SpeckleField preset={primaryThemePreset} density={1.1} opacityScale={1.2} />
+          <SpeckleField
+            preset={primaryThemePreset}
+            density={1.1}
+            opacityScale={1.2}
+            seedKey="me-profile-hero"
+          />
         </div>
         <div className="relative z-10 mx-auto flex max-w-3xl items-center gap-4 px-5 py-7">
           <span

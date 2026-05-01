@@ -77,6 +77,7 @@ export function TournamentCard({ tournament: t, variant }: Props) {
           preset="atomic-red"
           density={0.9}
           opacityScale={1.1}
+          seedKey={`tournament-card-${t.id}`}
         />
       </div>
 

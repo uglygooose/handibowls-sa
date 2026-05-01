@@ -79,8 +79,8 @@ export default async function PlayerTournamentDetailPage({ params }: Props) {
         <div className="pointer-events-none absolute inset-0 z-0">
           <SpeckleField
             preset={tournament.host_club_theme}
-            density={1.3}
-            opacityScale={1.4}
+            intensity="bold"
+            seedKey={`tournament-${tournament.id}`}
           />
         </div>
         <div className="pointer-events-none absolute -right-8 -top-8 z-0 opacity-55">

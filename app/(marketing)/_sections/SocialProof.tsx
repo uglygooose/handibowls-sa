@@ -19,6 +19,7 @@ export function SocialProof() {
         height="100%"
         density={1.4}
         opacityScale={0.35}
+        seedKey="social-proof"
         borderRadius={0}
         className="pointer-events-none absolute inset-0 h-full w-full"
       />

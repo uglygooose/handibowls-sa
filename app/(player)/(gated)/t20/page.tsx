@@ -61,8 +61,8 @@ export default async function T20Page() {
         <div className="pointer-events-none absolute inset-0 z-0">
           <SpeckleField
             preset={heroTheme}
-            density={1.3}
-            opacityScale={1.4}
+            intensity="bold"
+            seedKey={`t20-hero-${ctx.userId}`}
             borderRadius={20}
           />
         </div>

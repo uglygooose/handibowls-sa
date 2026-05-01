@@ -53,8 +53,8 @@ function FeatureCard({ feature }: { feature: Feature }) {
           preset={feature.preset}
           width="100%"
           height="100%"
-          density={1.1}
-          opacityScale={1}
+          intensity="medium"
+          seedKey={`feature-${feature.preset}`}
           borderRadius={0}
           className="absolute inset-0"
         />

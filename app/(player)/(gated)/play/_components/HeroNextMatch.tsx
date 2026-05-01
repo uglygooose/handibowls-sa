@@ -58,6 +58,7 @@ export function HeroNextMatch({ match, scorecardHref }: Props) {
           preset={match.tournament.host_club_theme}
           density={1.4}
           opacityScale={1.6}
+          seedKey={`hero-next-match-${match.match_id}`}
         />
       </div>
       <div className="pointer-events-none absolute -right-6 -top-6 z-0 opacity-55">

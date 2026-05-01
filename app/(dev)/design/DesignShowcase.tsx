@@ -818,8 +818,8 @@ function SpeckleCard({
           width="100%"
           height={small ? 88 : 130}
           borderRadius={0}
-          density={1.2}
-          opacityScale={1}
+          intensity="medium"
+          seedKey={`design-showcase-${preset}-${small ? "sm" : "lg"}`}
         />
         <div
           style={{
@@ -1265,6 +1265,7 @@ function TextureDemo({ accentPreset }: { accentPreset: ThemePreset }) {
                 opacityScale={s.opacity}
                 density={s.density}
                 borderRadius={20}
+                seedKey={`speckle-step-${s.label}-${i}`}
               />
               <div
                 style={{
