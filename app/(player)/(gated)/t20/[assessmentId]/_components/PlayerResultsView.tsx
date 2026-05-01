@@ -280,11 +280,16 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
       </section>
 
       {/* Charts — heatmap + length-distribution side-by-side at
-          ≥900px, stacked at <900px (12.5-4 amendment).
-          Hand-balance stays out per the locked decision. */}
+          md+ (≥768px), stacked below (12.5-4 amendment Stage 2).
+          Hand-balance stays out per the locked decision. The
+          shared `<LengthDistributionChart>` uses `bg-primary-500`
+          (theme-token-driven via the cascade); brand decoration
+          on the chart bars is deferred to 12.5-6 — see
+          `length-distribution-chart-brand-decoration` in
+          DRIFT_LOG. */}
       <section
         data-slot="player-results-charts"
-        className="mx-auto mt-6 grid max-w-3xl grid-cols-1 gap-4 px-5 min-[900px]:grid-cols-2"
+        className="mx-auto mt-6 grid max-w-3xl grid-cols-1 gap-4 px-5 md:grid-cols-2"
       >
         <div data-slot="player-results-heatmap">
           <SectionHead title="Where your bowls landed" />

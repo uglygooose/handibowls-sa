@@ -365,18 +365,28 @@ describe("<PlayerResultsView /> — read-only contract", () => {
     expect(cols).toHaveLength(2);
   });
 
-  it("places heatmap + length-distribution side-by-side under the same charts grid", () => {
+  it("places heatmap + length-distribution side-by-side under the same charts grid (responsive at md+)", () => {
     const { container } = render(
       <PlayerResultsView detail={SAMPLE_DETAIL} hasClubMembership={true} />,
     );
     const grid = container.querySelector("[data-slot='player-results-charts']");
     expect(grid).not.toBeNull();
-    // Both children render under the grid container.
-    expect(grid?.querySelector("[data-slot='player-results-heatmap']")).not.toBeNull();
-    expect(grid?.querySelector("[data-slot='player-results-length']")).not.toBeNull();
-    // 2-column at ≥900px, 1-column at <900px (Tailwind responsive
-    // breakpoint pinned in the className).
-    expect(grid?.className).toMatch(/min-\[900px\]:grid-cols-2/);
+    // Contract — both chart blocks render as siblings under the
+    // same grid container (the rendered DOM, not just the class).
+    const heatmap = grid?.querySelector("[data-slot='player-results-heatmap']");
+    const length = grid?.querySelector("[data-slot='player-results-length']");
+    expect(heatmap).not.toBeNull();
+    expect(length).not.toBeNull();
+    expect(heatmap?.parentElement).toBe(grid);
+    expect(length?.parentElement).toBe(grid);
+    // Convention — responsive 2-column uses a standard Tailwind
+    // breakpoint (sm/md/lg/xl), never an arbitrary `min-[Npx]:`
+    // (12.5-4 amendment Stage 2 — repo convention is sm/md/lg/xl
+    // only; pin so a future drift back to arbitrary breakpoints
+    // is caught at the test layer rather than at QA).
+    const cls = grid?.className ?? "";
+    expect(cls).toMatch(/(sm|md|lg|xl):grid-cols-2/);
+    expect(cls).not.toMatch(/min-\[\d+px\]:/);
   });
 
   it("renders the Request re-assessment CTA with the correct copy + enabled state when the player has a club", () => {
