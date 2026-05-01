@@ -1,4 +1,5 @@
-import { Calendar, Target, Trophy } from "lucide-react";
+import { Calendar, ChevronRight, Target, Trophy } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { SpeckleField } from "@/components/brand/SpeckleField";
@@ -170,35 +171,50 @@ export default async function T20Page() {
           </div>
         )}
 
-        {/* Past assessments — additive over design source per L166 */}
+        {/* Past assessments — additive over design source per L166.
+            12.5-4: row tap navigates to the player results detail
+            view at `/t20/[assessmentId]` (audit id
+            `player-t20-results-detail`). Pre-12.5-4 the rows were
+            dead taps — the past-list itself stays additive over
+            design, only the tap target is wired now. */}
         {profile.history.length > 0 && (
           <>
             <SectionHead title="Past assessments" />
             <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
               {profile.history.map((a) => (
-                <li
-                  key={a.id}
-                  className="rounded-xl border border-border bg-bone px-4 py-3"
-                >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-primary-600">
-                      {formatDateZA(a.assessed_on)}
-                    </span>
-                    {a.grade && (
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.06em] ${gradePillClass(a.grade)}`}
-                      >
-                        {a.grade}
+                <li key={a.id}>
+                  <Link
+                    href={`/t20/${a.id}`}
+                    data-slot="past-assessment-row"
+                    data-assessment-id={a.id}
+                    className="block rounded-xl border border-border bg-bone px-4 py-3 transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
+                  >
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-primary-600">
+                        {formatDateZA(a.assessed_on)}
                       </span>
-                    )}
-                  </div>
-                  <div className="mt-1 font-display text-[15px] font-bold tracking-tight">
-                    {a.club_name ?? "Unknown club"}
-                  </div>
-                  <div className="font-mono text-[11px] uppercase tracking-[0.06em] text-ink-muted">
-                    {a.percentage.toFixed(1)}%
-                    {a.assessor_name ? ` · ${a.assessor_name}` : ""}
-                  </div>
+                      {a.grade && (
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.06em] ${gradePillClass(a.grade)}`}
+                        >
+                          {a.grade}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <div className="font-display text-[15px] font-bold tracking-tight">
+                        {a.club_name ?? "Unknown club"}
+                      </div>
+                      <ChevronRight
+                        aria-hidden="true"
+                        className="size-4 text-ink-muted"
+                      />
+                    </div>
+                    <div className="font-mono text-[11px] uppercase tracking-[0.06em] text-ink-muted">
+                      {a.percentage.toFixed(1)}%
+                      {a.assessor_name ? ` · ${a.assessor_name}` : ""}
+                    </div>
+                  </Link>
                 </li>
               ))}
             </ul>

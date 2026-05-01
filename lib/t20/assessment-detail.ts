@@ -3,9 +3,12 @@ import "server-only";
 import { getAuthContext } from "@/lib/auth/role";
 import { createClient } from "@/lib/supabase/server";
 import {
+  type LineOutcome,
   type Rubric,
   RubricSchema,
+  type ZoneOutcome,
 } from "@/lib/t20/rubric";
+import type { Delivery } from "@/lib/t20/score";
 import type { Database } from "@/types/database.types";
 
 // Phase 12.5 / 12.5-4: shared assessment-detail data layer.
@@ -210,6 +213,84 @@ function nameOf(
   if (p.display_name) return p.display_name;
   const composed = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
   return composed || null;
+}
+
+/** Transform persisted DeliveryRow[] (PostgREST shape) into the
+ *  scoring engine's Delivery[] shape. Used by both the admin
+ *  results view (`/manage/t20/[id]`) and the player results
+ *  detail view (`/t20/[assessmentId]`) to call
+ *  `aggregateAssessment` on the loaded rows. Discriminator on
+ *  `outcome.line` / `outcome.zone` / `outcome.on_length` mirrors
+ *  the recordDelivery action's persistence shape (see
+ *  `app/(club-admin)/manage/t20/_actions.ts:130`). */
+export function rowsToDeliveries(rows: DeliveryRow[]): Delivery[] {
+  return rows.map((r) => {
+    const o = r.outcome ?? {};
+    if (typeof o.line === "string") {
+      return {
+        section: r.section,
+        round: r.round as 1 | 2,
+        delivery_index: r.delivery_index,
+        distance_m: r.distance_m,
+        outcome: {
+          section_model: "line_outcome",
+          value: o.line as LineOutcome,
+        },
+      } satisfies Delivery;
+    }
+    if (typeof o.zone === "number") {
+      return {
+        section: r.section,
+        round: r.round as 1 | 2,
+        delivery_index: r.delivery_index,
+        distance_m: r.distance_m,
+        outcome: {
+          section_model: "zones_8",
+          value: o.zone as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8,
+        },
+      } satisfies Delivery;
+    }
+    if (o.zone === "miss") {
+      return {
+        section: r.section,
+        round: r.round as 1 | 2,
+        delivery_index: r.delivery_index,
+        distance_m: r.distance_m,
+        outcome: { section_model: "zones_8", value: "miss" },
+      } satisfies Delivery;
+    }
+    return {
+      section: r.section,
+      round: r.round as 1 | 2,
+      delivery_index: r.delivery_index,
+      distance_m: r.distance_m,
+      outcome: {
+        section_model: "on_length",
+        value: typeof o.on_length === "boolean" ? o.on_length : null,
+      },
+    } satisfies Delivery;
+  });
+}
+
+/** Aggregate Drive / Control / Trail zone hits across all
+ *  deliveries. Used by both the admin results view's heatmap
+ *  card and the player /t20/[assessmentId] results detail view's
+ *  heatmap. */
+export function computeZoneCounts(
+  rows: DeliveryRow[],
+): Partial<Record<Exclude<ZoneOutcome, "miss">, number>> {
+  const counts: Partial<Record<Exclude<ZoneOutcome, "miss">, number>> = {};
+  for (const r of rows) {
+    if (r.section !== "drive" && r.section !== "control" && r.section !== "trail") {
+      continue;
+    }
+    const z = (r.outcome ?? {}).zone;
+    if (typeof z === "number") {
+      const k = z as Exclude<ZoneOutcome, "miss">;
+      counts[k] = (counts[k] ?? 0) + 1;
+    }
+  }
+  return counts;
 }
 
 /** 12-4 / N8: parse jsonb notes into the typed T20Notes shape.

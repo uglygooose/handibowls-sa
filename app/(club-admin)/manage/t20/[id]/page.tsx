@@ -3,21 +3,21 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { requireRole } from "@/lib/auth/role";
 import {
-  type Delivery,
+  computeZoneCounts,
+  type DeliveryRow,
+  getAssessmentDetail,
+  rowsToDeliveries,
+} from "@/lib/t20/assessment-detail";
+import {
   aggregateAssessment,
   type AssessmentScore,
 } from "@/lib/t20/score";
 import {
-  type LineOutcome,
   type SectionKey,
   type ZoneOutcome,
 } from "@/lib/t20/rubric";
 
 import { AssessmentResults } from "../_components/AssessmentResults";
-import {
-  type DeliveryRow,
-  getAssessmentDetail,
-} from "../_data";
 
 // Phase 10 / 10-7 — `/manage/t20/[id]` Twenty 20 results view.
 //
@@ -97,71 +97,9 @@ export default async function ManageT20Result({
   );
 }
 
-function rowsToDeliveries(rows: DeliveryRow[]): Delivery[] {
-  return rows.map((r) => {
-    const o = r.outcome ?? {};
-    if (typeof o.line === "string") {
-      return {
-        section: r.section,
-        round: r.round as 1 | 2,
-        delivery_index: r.delivery_index,
-        distance_m: r.distance_m,
-        outcome: {
-          section_model: "line_outcome",
-          value: o.line as LineOutcome,
-        },
-      } satisfies Delivery;
-    }
-    if (typeof o.zone === "number") {
-      return {
-        section: r.section,
-        round: r.round as 1 | 2,
-        delivery_index: r.delivery_index,
-        distance_m: r.distance_m,
-        outcome: {
-          section_model: "zones_8",
-          value: o.zone as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8,
-        },
-      } satisfies Delivery;
-    }
-    if (o.zone === "miss") {
-      return {
-        section: r.section,
-        round: r.round as 1 | 2,
-        delivery_index: r.delivery_index,
-        distance_m: r.distance_m,
-        outcome: { section_model: "zones_8", value: "miss" },
-      } satisfies Delivery;
-    }
-    return {
-      section: r.section,
-      round: r.round as 1 | 2,
-      delivery_index: r.delivery_index,
-      distance_m: r.distance_m,
-      outcome: {
-        section_model: "on_length",
-        value: typeof o.on_length === "boolean" ? o.on_length : null,
-      },
-    } satisfies Delivery;
-  });
-}
-
-function computeZoneCounts(
-  rows: DeliveryRow[],
-): Partial<Record<Exclude<ZoneOutcome, "miss">, number>> {
-  const counts: Partial<Record<Exclude<ZoneOutcome, "miss">, number>> = {};
-  for (const r of rows) {
-    if (r.section !== "drive" && r.section !== "control" && r.section !== "trail") {
-      continue;
-    }
-    const z = (r.outcome ?? {}).zone;
-    if (typeof z === "number") {
-      const k = z as Exclude<ZoneOutcome, "miss">;
-      counts[k] = (counts[k] ?? 0) + 1;
-    }
-  }
-  return counts;
-}
+// 12.5-4: rowsToDeliveries + computeZoneCounts moved to
+// `lib/t20/assessment-detail.ts` so the new player /t20/[assessmentId]
+// route can reuse them. Imported at the top of this file.
 
 export type HandBalance = {
   forehand: number;
