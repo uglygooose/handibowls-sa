@@ -938,6 +938,96 @@ at Phase 12 / 12-6; the remaining 15 active entries land across
 - **Drift counts:** 45 → 54 open (+9 new audit findings); closed
   unchanged at 57.
 
+### 12.5-4 — Player Twenty 20 results detail view (NEW route) — closed 2026-05-01
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-12.5-design-unification`).
+- **Four atomic commits on top of `369ebc4`:**
+  - `bb1f902` (12.5-4 commit 1) — Pure refactor + folded
+    seed-data drift entry. Extracted `getAssessmentDetail` +
+    types (`DeliveryRow`, `T20Notes`, `AssessmentDetail`,
+    `DetailResult`) + `parseNotes` helper from
+    `app/(club-admin)/manage/t20/_data.ts` to a new
+    `lib/t20/assessment-detail.ts` (224 lines). Admin _data.ts
+    re-exports for back-compat with the four existing admin
+    consumers (AssessmentResults / CaptureWizard / capture page
+    / detail page) — no consumer migrations in this commit.
+    New stand-alone `AssessmentDetailAssessment` type decouples
+    detail-view from list-row concerns. DRIFT_LOG: folded the
+    "Comprehensive seed data needed for full-version QA" entry
+    that was staged at the previous turn under a new
+    `### Phase 12.5 pre-stakeholder QA (12.5-7 prep)` sub-section.
+  - `b3cce3e` (12.5-4 commit 2) — The build. New
+    `app/(player)/(gated)/t20/[assessmentId]/page.tsx` Server
+    Component reads via the shared `getAssessmentDetail`
+    fetcher; RLS via `t20_assessments_subject_read` (migration
+    010); defence-in-depth `assessment.player_id !==
+    ctx.userId` guard at the route boundary; non-submitted
+    assessments redirect back to /t20. New `<PlayerResultsView>`
+    (320 lines) — hero (grade gradient + percentage + assessor
+    + date) + 5-column section breakdown with mobile <600px
+    collapse + 3 read-only categorised notes tiles + lazy-loaded
+    zone heatmap. Hand-balance + length-distribution charts
+    NOT rendered per locked decision. New
+    `<RequestReassessmentButton>` Client island wraps the
+    existing `requestT20Assessment` action (no new Server
+    Action). Past-assessments rows on `/t20` now `<Link>`-wrapped
+    so taps navigate (pre-12.5-4 dead). `rowsToDeliveries` +
+    `computeZoneCounts` extracted to lib/t20/assessment-detail.ts
+    so admin + player routes share the helpers.
+  - `cff814a` (12.5-4 commit 3) — Tests + a Next 16 / Turbopack
+    constraint fix. Build error surfaced that
+    `next/dynamic({ ssr: false })` is only allowed in Client
+    Components; the heatmap lazy-load moved into a small
+    `<HeatmapMount>` "use client" wrapper (same pattern as
+    12-5's `DynamicSyncBadgeMount`). 12-case test suite for
+    PlayerResultsView pinning the read-only contract (no edit
+    affordances; 7 breakdown rows; 3 notes tiles + empty
+    states; legacy notes block; heatmap zone counts; CTA
+    enabled/disabled-by-membership). RLS coverage stays via
+    existing `tests/rls/t20.test.ts:27-48`. Cleanup: removed
+    unused `ZoneOutcome` + `SectionKey` + `DbT20Section`
+    imports from admin _data + [id]/page.
+  - This commit (12.5-4 close) — DRIFT_LOG closure
+    (`player-t20-results-detail`) + PHASE_LOG entry.
+- **Drift entries closed:** **1** — `player-t20-results-detail`
+  (closed by `bb1f902` + `b3cce3e` + `cff814a`).
+- **Drift entries opened:** **0** in 12.5-4 itself. The
+  `Comprehensive seed data needed` entry that landed in
+  `bb1f902` was carried over from the previous turn's staged
+  edit; not a new 12.5-4 finding.
+- **Test count delta:** 1270 → 1282 (+12 net unit; all from
+  `t20-detail-view.test.tsx`). Integration: 114 / 114
+  unchanged.
+- **Verification gates at close:** tsc clean / lint 0 errors
+  (17 warnings, 1 below pre-12.5-4 baseline of 18 — the t20
+  admin imports cleanup removed an existing unused-var warning
+  along the way) / 1282 unit / 114 integration / build green.
+- **What to QA in dev:**
+  - **Player /t20 hub:** past-assessments rows now navigate
+    on tap. Each row shows a ChevronRight affordance; tap →
+    /t20/<assessmentId>.
+  - **Player results detail view:** hero shows grade pill +
+    percentage + assessor name + date + rubric label. Section
+    breakdown renders read-only (no edit affordances). 3 notes
+    tiles render with empty-state copy when notes are null,
+    populated content when notes are present. Heatmap renders
+    with the player's drive/control/trail zone hits combined.
+  - **Mobile (<600px viewport):** breakdown collapses from
+    5-column desktop layout to a 2-column mobile layout
+    (Section + Total/%); R1/R2 detail still surfaces below the
+    section name.
+  - **Hand-balance + length-distribution charts NOT
+    present** — only the heatmap renders (locked decision:
+    coach tools, not player motivation tools).
+  - **"Request re-assessment" CTA:** tap fires the existing
+    in-app message → admin path; toast surfaces "Re-assessment
+    requested · Sent to N admin(s) at Demo Bowls Club".
+  - **RLS:** open another player's assessment URL directly
+    (e.g. paste the UUID of an assessment for a different
+    player) — should 404 (RLS denies, then defence-in-depth
+    guard returns 404 anyway).
+
 ### 12.5-3 — T20 admin polish — closed 2026-05-01
 
 - **Branch tip at close:** `<filled in commit message>`
