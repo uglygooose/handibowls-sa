@@ -7,11 +7,33 @@ import { SplatterAccent } from "@/components/brand/SplatterAccent";
 import type { PlayerNextMatch } from "../_data";
 
 // Phase 8a — hero card for /play. Mirrors the design source's
-// HeroNextMatch (player-core.jsx:84): speckle-tinted primary surface,
-// vs-stack with avatars + rolling totals, target line + rink, big
-// "SCORE THIS MATCH" CTA. The CTA's destination is the scorecard
-// surface (Phase 8c — route exists once 8c lands; for 8a the link
-// targets the read-only detail page so the user can see the bracket).
+// HeroNextMatch (player-core.jsx:84) + the `.hero-card` CSS rules
+// in player-styles.css:253-267:
+//
+//   .hero-card {
+//     position: relative;
+//     border-radius: 20px;
+//     overflow: hidden;
+//     color: var(--on-primary);
+//     background: var(--primary-500);
+//     margin-bottom: 16px;
+//   }
+//   .hero-card .splatter {
+//     position: absolute; right: -40px; top: -40px;
+//   }
+//   .hero-card .hero-inner { padding: 18px 18px 20px; }
+//
+// Speckle-tinted primary surface, vs-stack with avatars + rolling
+// totals, target line + rink, big "SCORE THIS MATCH" CTA. The CTA's
+// destination is the scorecard surface (Phase 8c — route exists
+// once 8c lands; for 8a the link targets the read-only detail page
+// so the user can see the bracket).
+//
+// Phase 12.5 / 12.5-6.5 Stage E: aligned to bundle's `.hero-card`
+// contract — radius bumped from rounded-2xl (16px) to rounded-[20px],
+// splatter inset from -right-6/-top-6 (-24px) to -right-10/-top-10
+// (-40px), inner padding to match `18px 18px 20px` (px-[18px]
+// pt-[18px] pb-5).
 
 type Props = {
   match: PlayerNextMatch;
@@ -52,7 +74,10 @@ export function HeroNextMatch({ match, scorecardHref }: Props) {
     match.tournament.handicap_rule === "handicap_start" ? "HANDICAP" : null;
 
   return (
-    <div className="relative isolate overflow-hidden rounded-2xl bg-primary-500 text-[color:var(--color-on-primary)]">
+    <div
+      data-slot="hero-next-match"
+      className="relative isolate overflow-hidden rounded-[20px] bg-primary-500 text-[color:var(--color-on-primary)]"
+    >
       <div className="pointer-events-none absolute inset-0 z-0">
         <SpeckleField
           preset={match.tournament.host_club_theme}
@@ -61,7 +86,7 @@ export function HeroNextMatch({ match, scorecardHref }: Props) {
           seedKey={`hero-next-match-${match.match_id}`}
         />
       </div>
-      <div className="pointer-events-none absolute -right-6 -top-6 z-0 opacity-55">
+      <div className="pointer-events-none absolute -right-10 -top-10 z-0 opacity-55">
         <SplatterAccent
           preset={match.tournament.host_club_theme}
           variant={1}
@@ -70,7 +95,7 @@ export function HeroNextMatch({ match, scorecardHref }: Props) {
         />
       </div>
 
-      <div className="relative z-10 flex flex-col gap-3 px-5 py-5">
+      <div className="relative z-10 flex flex-col gap-3 px-[18px] pt-[18px] pb-5">
         {/* Eyebrow + live pill */}
         <div className="flex items-center justify-between gap-2">
           <div className="font-mono text-[10.5px] font-bold uppercase tracking-[0.12em] text-[color:var(--color-on-primary)]/85">

@@ -938,6 +938,150 @@ at Phase 12 / 12-6; the remaining 15 active entries land across
 - **Drift counts:** 45 → 54 open (+9 new audit findings); closed
   unchanged at 57.
 
+### 12.5-6.5 — Player surface unification — closed 2026-05-02
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-12.5-design-unification`).
+- **Stage-gated execution** with 6 atomic commits on top of
+  the 12.5-6 close `105a773`:
+
+  **Stage 0 — diagnostic sweep (read-only):** post-12.5-6 QA
+  surfaced that player surfaces ship at least three different
+  visual patterns; ran a static-analysis sweep against the
+  design source bundle's player primitives to catalogue drift.
+  Found 9 deviations: `/me` full-bleed banner vs `/t20`
+  contained-rounded card; `/me` avatar drift (64px → 84px
+  ringed); `/tournaments/[id]` (player) full-bleed; section-head
+  size drift across 5 surfaces; body copy 13px on bundle's 15px
+  baseline; visible h1 on 4 no-hero surfaces; HeroNextMatch
+  chrome drift. Recommendation: open 12.5-6.5 as a new sub-
+  checkpoint (not amend 12.5-6, not fold into 12.5-7).
+
+  **Stage A — PlayerHero primitive extraction:**
+  - `e3ec3de` — `components/layout/PlayerHero.tsx` (15 cases).
+    Slot model: title (required) / titleSize / leading /
+    eyebrow / meta / actions / children + speckle / splatter /
+    className. Bundle CSS contract: rounded-[20px], p-[18px],
+    bg-primary-500, isolate stacking, on-primary ink. 3 bundle
+    conflicts surfaced (SpeckleField borderRadius, intensity
+    naming, splatter per-surface positioning) — all resolved
+    via primitive-default + per-consumer opt-in.
+
+  **Stage B — three identity surfaces migrate to PlayerHero:**
+  - `3b5b609` — /me, /t20, /tournaments/[id] (player) all
+    consume PlayerHero. /me restructured INSIDE the centered
+    wrapper (was a full-bleed sibling outside it); avatar
+    bumped to 84px with 3px ring per bundle; SplatterAccent
+    corner accent ADDED. /tournaments/[id] same restructure
+    + breadcrumb moved from inside hero to above. /t20 dropped
+    `sm:mx-5 sm:my-5` and snapped padding to bundle's 18px.
+    PlayerHero `leading` slot added during migration to
+    accommodate /me's avatar+name layout; h1 gained `truncate`.
+
+  **Stage C — section-head primitive + body copy sweep:**
+  - `d86471a` — `components/layout/PlayerSectionHead.tsx` (7
+    cases) at bundle's 22px font-display italic uppercase
+    contract. 6 surfaces migrated (15+ section-head call sites)
+    + 5 local `function SectionHead` definitions deleted.
+    `/book` SlotList caption slot preserved the existing
+    `data-slot="open-count"` test pin via caption ReactNode.
+  - `a400fc4` — body copy 13 → 15 px sweep on player surfaces.
+    10 spots / 6 files (empty-state descs, banner lede,
+    info-banner body, sheet descriptions). 13/14px exceptions
+    flagged inline (buttons, card titles, tab labels, back-
+    links, date-pill internals, form inputs, metadata).
+
+  **Stage D — visually-hide h1 on no-hero surfaces:**
+  - `25ac009` — /play, /book, /tournaments wrap entire
+    `<header>` block (eyebrow + h1) in `sr-only`; /me/inbox
+    uses `<h1 className="sr-only">` directly because the
+    sibling back-link stays visible. h1 stays in the a11y
+    tree for landmark navigation. Pinned by 12 cases (3
+    assertions × 4 surfaces) in
+    `tests/app/player/no-hero-h1-landmark.test.ts`.
+
+  **Stage E — HeroNextMatch chrome verify + close:**
+  - this commit — HeroNextMatch alignment to bundle's
+    `.hero-card` (rounded-2xl → rounded-[20px], padding
+    swept to bundle's `18 18 20`, splatter inset to `-40
+    -40` per bundle). NOT migrated to PlayerHero because
+    bundle classifies it as `.hero-card` (a card on /play),
+    distinct from `.t20-hero` / `.profile-hero` / `.detail-
+    hero` page-level identity heroes. DRIFT_LOG closures (9
+    new + 1 deferred). PHASE_LOG entry.
+
+- **Locked-decisions applied:**
+  - Bundle is the source of truth for player surfaces, same
+    standard as 12.5-6.
+  - Section-heads at bundle's 22px italic uppercase across
+    every player surface.
+  - Body copy at bundle's 15px on `.mcontent`-equivalent
+    surfaces.
+  - Page-level h1 on no-hero surfaces visually-hidden via
+    `sr-only`, kept in a11y tree.
+  - Original 12.5-6 follow-ups (Members offset, super-admin
+    layout shift, T20 banner responsive question) deferred
+    to 12.5-7 pre-stakeholder QA.
+
+- **Drift entries closed (9 — from the Stage 0 diagnostic):**
+  - `player-hero-shape-drift` ✓
+  - `player-me-avatar-drift` ✓
+  - `player-section-head-drift` ✓
+  - `player-body-copy-size-drift` ✓
+  - `player-no-hero-h1-drift` ✓
+  - `hero-next-match-chrome-drift` ✓ (deviation 9 from
+    diagnostic — verified + aligned in Stage E)
+  - Plus structural deviations folded into above closures:
+    `/me` restructure, `/tournaments/[id]` restructure,
+    `/me` missing splatter, `/t20` responsive-margin
+    invention.
+
+- **Drift entries opened:** none. (The
+  `speckle-layer-vs-speckle-field-primitive-duplication`
+  entry from 12.5-6 Stage 0 stays open — post-v1.)
+
+- **Test deltas:** unit 1338 (12.5-6 close baseline) → 1372
+  (+34): +15 PlayerHero (Stage A), 0 Stage B (surface
+  migrations only), +7 PlayerSectionHead (Stage C / 1), 0
+  body-copy sweep (no test changes), +12 sr-only h1
+  landmark (Stage D). Integration unchanged at 119.
+
+- **What 12.5-6.5 closes for v1:** every player identity-tier
+  surface (/me, /t20, /tournaments/[id]) lands on one PlayerHero
+  primitive matching the bundle's contract; section-heads + body
+  copy + h1 landmarks unified across all 7 player surfaces;
+  HeroNextMatch on /play aligned to bundle's `.hero-card`.
+
+- **Manual QA (post-restart `npm run dev`):**
+  - /me: rounded contained hero (NOT full-bleed), 84px
+    ringed avatar (NOT 64px no-border), splatter corner accent
+    bottom-right at -50/-60 inset, leading-slot layout
+    (avatar left, name+meta+badges right).
+  - /t20: rounded contained hero, NO `sm:mx-5 sm:my-5`
+    responsive margin attaching the hero to viewport edge —
+    consistent contained shape across all viewports;
+    padding 18px (was 20px).
+  - /tournaments/[id] (player): rounded contained hero
+    (NOT full-bleed); back-link breadcrumb sits ABOVE the
+    hero card with normal ink-muted ink (was inside the
+    hero with white-on-red ink).
+  - Section-heads at 22px font-display italic uppercase
+    across player surfaces (/play / /me / /t20 /
+    /t20/[assessmentId] / /tournaments/[id] / /book SlotList).
+    Visibly larger than pre-12.5-6.5 13-18px.
+  - Body copy reads at 15px on player content
+    (paragraphs, lede, descriptions, empty states).
+    13/14px stays on intentional contexts (buttons, card
+    titles, tab labels, date-pill internals, form inputs,
+    metadata strips).
+  - /play, /book, /tournaments, /me/inbox: NO visible h1,
+    screen-reader still announces page heading landmark
+    (verifiable via DevTools accessibility tree or
+    screen-reader-driven walk).
+  - HeroNextMatch on /play: rounded-[20px] (was
+    rounded-2xl 16px), padding 18 18 20 (was 20 all around),
+    splatter inset -40/-40 (was -24/-24).
+
 ### 12.5-6 — Visual unification (Option 2) + responsive / loading / icon docket — closed 2026-05-01
 
 - **Branch tip at close:** `<filled in commit message>`
