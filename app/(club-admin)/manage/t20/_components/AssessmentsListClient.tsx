@@ -1,12 +1,11 @@
 "use client";
 
-import { Search, Sparkles } from "lucide-react";
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { ClipboardList, Search } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { AssessmentCard } from "@/components/t20/AssessmentCard";
-import { Bowl } from "@/components/brand/Bowl";
-import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
+import { EmptyState } from "@/components/layout/EmptyState";
 import { cn } from "@/lib/utils";
 
 import type { AssessmentListRow } from "../_data";
@@ -21,18 +20,28 @@ import type { AssessmentListRow } from "../_data";
 //
 // The grade chips are visually de-emphasised (data-disabled) when
 // the status filter excludes 'completed' — only completed
-// assessments have grades. Click still works (future-proofing for
-// when an admin flips status back to 'all') but the muted treatment
-// nudges the assessor toward a consistent filter combination.
+// assessments have grades.
 //
-// Three empty states match the design source:
-//   no-data       data set is empty entirely → big bowl + "start the
-//                 first one" hero treatment
-//   no-match      filtered set is empty but data exists → search
-//                 icon + "Clear filters" CTA
+// Phase 12.5 / 12.5-3 (audit id `t20-list-empty-states`):
 //
-// Both empty states render with speckle to keep visual continuity
-// with the page hero.
+//   • Filter state lifted from `useState` to URL search params
+//     (`?status=…&grade=…&q=…`) via `useRouter().replace` with a
+//     debounced search input (300ms) so reload + share preserve
+//     the filter set. Pattern matches `/platform/clubs` from
+//     12-7's search-pagination fix.
+//
+//   • Two empty states migrated to the shared `<EmptyState>`
+//     primitive shipped at 12.5-1. The "no captures yet" state
+//     ships the audit's locked copy (lucide ClipboardList icon,
+//     "NO ASSESSMENTS YET" eyebrow, "Capture your first
+//     Twenty 20" headline, primary CTA → /manage/t20/new). The
+//     "no-match" state uses the same primitive with a Search
+//     icon and a "Clear filters" CTA.
+//
+// Per the locked decision at 12.5-prep: total-only empty state at
+// v1 (not per-rubric) — the empty-state copy applies to the whole
+// dataset, not a filtered slice that has rubric-specific zero
+// captures.
 
 const STATUS_OPTIONS: ReadonlyArray<readonly [string, string]> = [
   ["all", "All"],
@@ -49,54 +58,143 @@ const GRADE_OPTIONS: ReadonlyArray<readonly [string, string]> = [
   ["fail", "Reassess"],
 ] as const;
 
-type StatusFilter = "all" | "draft" | "in_progress" | "completed";
-type GradeFilter = "all" | "gold" | "silver" | "bronze" | "fail";
+const STATUS_VALUES = ["all", "draft", "in_progress", "completed"] as const;
+const GRADE_VALUES = ["all", "gold", "silver", "bronze", "fail"] as const;
+type StatusFilter = (typeof STATUS_VALUES)[number];
+type GradeFilter = (typeof GRADE_VALUES)[number];
+
+const SEARCH_DEBOUNCE_MS = 300;
+
+function readStatusParam(value: string | null): StatusFilter {
+  return (STATUS_VALUES as readonly string[]).includes(value ?? "")
+    ? (value as StatusFilter)
+    : "all";
+}
+
+function readGradeParam(value: string | null): GradeFilter {
+  return (GRADE_VALUES as readonly string[]).includes(value ?? "")
+    ? (value as GradeFilter)
+    : "all";
+}
 
 type Props = {
   rows: AssessmentListRow[];
 };
 
 export function AssessmentsListClient({ rows }: Props) {
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [gradeFilter, setGradeFilter] = useState<GradeFilter>("all");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [, startTransition] = useTransition();
+
+  // Read URL → seed local state. Local state is the visible truth
+  // for the search input (so typing feels instant); the URL is
+  // pushed on a debounce. Status + grade chips push immediately
+  // since they're discrete choices.
+  const urlStatus = readStatusParam(searchParams.get("status"));
+  const urlGrade = readGradeParam(searchParams.get("grade"));
+  const urlQuery = searchParams.get("q") ?? "";
+
+  const [search, setSearch] = useState(urlQuery);
+  const searchTimerRef = useRef<number | null>(null);
+
+  // Re-sync search input when URL changes from elsewhere (back
+  // button etc.). Status / grade are read directly from the URL
+  // every render so they don't need a sync effect.
+  useEffect(() => {
+    setSearch(urlQuery);
+  }, [urlQuery]);
+
+  function buildHref(next: {
+    status?: StatusFilter;
+    grade?: GradeFilter;
+    q?: string;
+  }): string {
+    const params = new URLSearchParams(searchParams.toString());
+    const set = (key: string, value: string, defaultValue = "") => {
+      if (!value || value === defaultValue) params.delete(key);
+      else params.set(key, value);
+    };
+    if (next.status !== undefined) set("status", next.status, "all");
+    if (next.grade !== undefined) set("grade", next.grade, "all");
+    if (next.q !== undefined) set("q", next.q.trim());
+    const qs = params.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  }
+
+  function pushUrl(next: {
+    status?: StatusFilter;
+    grade?: GradeFilter;
+    q?: string;
+  }) {
+    startTransition(() => {
+      router.replace(buildHref(next), { scroll: false });
+    });
+  }
+
+  function setStatusFilter(value: StatusFilter) {
+    pushUrl({ status: value });
+  }
+
+  function setGradeFilter(value: GradeFilter) {
+    pushUrl({ grade: value });
+  }
+
+  function onSearchChange(next: string) {
+    setSearch(next);
+    if (searchTimerRef.current != null) {
+      window.clearTimeout(searchTimerRef.current);
+    }
+    searchTimerRef.current = window.setTimeout(() => {
+      pushUrl({ q: next });
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current != null) {
+        window.clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, []);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = urlQuery.trim().toLowerCase();
     return rows.filter((r) => {
       if (q) {
         const name = (r.player_name ?? "").toLowerCase();
         if (!name.includes(q)) return false;
       }
-      if (statusFilter !== "all" && r.ui_state !== statusFilter) return false;
-      if (gradeFilter !== "all") {
+      if (urlStatus !== "all" && r.ui_state !== urlStatus) return false;
+      if (urlGrade !== "all") {
         if (r.ui_state !== "completed") return false;
-        if (r.grade !== gradeFilter) return false;
+        if (r.grade !== urlGrade) return false;
       }
       return true;
     });
-  }, [rows, search, statusFilter, gradeFilter]);
+  }, [rows, urlQuery, urlStatus, urlGrade]);
 
   function clearFilters() {
     setSearch("");
-    setStatusFilter("all");
-    setGradeFilter("all");
+    if (searchTimerRef.current != null) {
+      window.clearTimeout(searchTimerRef.current);
+    }
+    startTransition(() => {
+      router.replace(pathname, { scroll: false });
+    });
   }
 
   const hasData = rows.length > 0;
   const hasFiltered = filtered.length > 0;
   const filtersActive =
-    search.trim().length > 0 ||
-    statusFilter !== "all" ||
-    gradeFilter !== "all";
+    urlQuery.trim().length > 0 ||
+    urlStatus !== "all" ||
+    urlGrade !== "all";
 
   return (
     <div data-slot="assessments-list-client" className="flex flex-col gap-3.5">
       {/* SEARCH */}
-      <div
-        data-slot="search-row"
-        className="relative flex items-center"
-      >
+      <div data-slot="search-row" className="relative flex items-center">
         <Search
           aria-hidden="true"
           className="pointer-events-none absolute left-3.5 size-4 text-ink-muted"
@@ -104,7 +202,7 @@ export function AssessmentsListClient({ rows }: Props) {
         <input
           type="search"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search by player, assessor, or date…"
           aria-label="Search assessments"
           data-slot="search-input"
@@ -136,7 +234,7 @@ export function AssessmentsListClient({ rows }: Props) {
               {STATUS_OPTIONS.map(([id, lbl]) => (
                 <Chip
                   key={id}
-                  active={statusFilter === id}
+                  active={urlStatus === id}
                   onClick={() => setStatusFilter(id as StatusFilter)}
                   data-slot="status-chip"
                   data-value={id}
@@ -150,7 +248,7 @@ export function AssessmentsListClient({ rows }: Props) {
           <div
             data-slot="grade-filter"
             data-disabled={
-              statusFilter !== "all" && statusFilter !== "completed"
+              urlStatus !== "all" && urlStatus !== "completed"
             }
             className="min-w-0 border-l border-border pl-5"
           >
@@ -160,11 +258,11 @@ export function AssessmentsListClient({ rows }: Props) {
             <div className="flex flex-wrap gap-1.5">
               {GRADE_OPTIONS.map(([id, lbl]) => {
                 const dim =
-                  statusFilter !== "all" && statusFilter !== "completed";
+                  urlStatus !== "all" && urlStatus !== "completed";
                 return (
                   <Chip
                     key={id}
-                    active={gradeFilter === id}
+                    active={urlGrade === id}
                     dim={dim}
                     onClick={() => setGradeFilter(id as GradeFilter)}
                     data-slot="grade-chip"
@@ -204,9 +302,21 @@ export function AssessmentsListClient({ rows }: Props) {
 
       {/* EMPTY STATES + CARD GRID */}
       {!hasData ? (
-        <EmptyNoData />
+        <EmptyState
+          icon={ClipboardList}
+          eyebrow="NO ASSESSMENTS YET"
+          title="Capture your first Twenty 20"
+          body="Pick a player, run them through the 7 sections, sign off."
+          primaryCta={{ label: "New assessment", href: "/manage/t20/new" }}
+        />
       ) : !hasFiltered ? (
-        <EmptyNoMatch onClear={clearFilters} />
+        <EmptyState
+          icon={Search}
+          eyebrow="No matches"
+          title="No assessments match those filters."
+          body="Try a different status or grade combination, or clear the search."
+          primaryCta={{ label: "Clear filters", onClick: clearFilters }}
+        />
       ) : (
         <ul
           data-slot="assessments-grid"
@@ -250,67 +360,5 @@ function Chip({ active, dim = false, onClick, children, ...rest }: ChipProps) {
     >
       {children}
     </button>
-  );
-}
-
-function EmptyNoData() {
-  return (
-    <div
-      data-slot="empty-no-data"
-      className="relative overflow-hidden rounded-2xl border border-dashed border-border bg-bone px-8 py-24 text-center"
-    >
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <SpeckleLayer seed="t20-empty-1" density="med" opacity={0.05} />
-      </div>
-      <div className="relative z-10">
-        <div className="mx-auto w-[140px]">
-          <Bowl size={140} seed="empty-t20" preset="atomic-red" emblem={true} />
-        </div>
-        <h3 className="mt-5 font-display text-[34px] font-black italic leading-tight tracking-tight">
-          No assessments yet — start the first one.
-        </h3>
-        <p className="mx-auto mt-2 max-w-[58ch] text-[14px] text-ink-muted">
-          Twenty 20 captures a player&apos;s complete skills profile across
-          7 sections and 16 deliveries per section. Roughly 45 minutes per
-          player, on the green.
-        </p>
-        <Link
-          href="/manage/t20/new"
-          data-slot="empty-no-data-cta"
-          className="mt-5 inline-flex h-12 items-center gap-2 rounded-lg bg-primary-500 px-6 text-[14px] font-semibold text-on-primary shadow-sm hover:bg-primary-600"
-        >
-          <Sparkles className="size-4" aria-hidden="true" />
-          Start the first assessment
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function EmptyNoMatch({ onClear }: { onClear: () => void }) {
-  return (
-    <div
-      data-slot="empty-no-match"
-      className="rounded-2xl border border-dashed border-border bg-bone px-8 py-14 text-center"
-    >
-      <Search
-        aria-hidden="true"
-        className="mx-auto size-10 text-ink-subtle"
-      />
-      <h3 className="mt-4 font-display text-[24px] font-black italic leading-tight tracking-tight">
-        No assessments match those filters.
-      </h3>
-      <p className="mx-auto mt-1.5 max-w-[44ch] text-[13.5px] text-ink-muted">
-        Try a different status or grade combination.
-      </p>
-      <button
-        type="button"
-        onClick={onClear}
-        data-slot="empty-no-match-cta"
-        className="mt-5 inline-flex h-11 items-center rounded-lg border border-border bg-surface px-5 text-[13px] font-medium text-ink hover:bg-surface-muted"
-      >
-        Clear filters
-      </button>
-    </div>
   );
 }
