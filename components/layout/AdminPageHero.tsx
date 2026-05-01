@@ -11,11 +11,11 @@ import { cn } from "@/lib/utils";
 // All values lifted from the design source bundle's `.page-hero` /
 // `.page-hero-inner` / `.page-hero h1` / `.page-hero .sub` rules in
 // `admin-styles.css` (lines 313-323). Adopting the bundle wholesale
-// closes the audit's `admin-page-hero-primitive-missing` drift +
+// closed the audit's `admin-page-hero-primitive-missing` drift +
 // the `super-admin-vs-club-admin-page-header-divergence` divergence
 // — both club-admin and super-admin surfaces consume this single
-// primitive; super-admin's old `<PageHeader>` is retired in a
-// separate commit.
+// primitive; super-admin's old `<PageHeader>` was retired alongside
+// the migration sweep.
 //
 // Conflicts with the 12.5-6 prompt are surfaced in the Stage A
 // report (commit message); per the prompt's own rule "if the
