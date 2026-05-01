@@ -30,10 +30,24 @@ const ZONES = [
   { name: "NW", grade: "C" },
 ] as const;
 
+// Phase 12.5 / 12.5-2 (audit `theme` system dimension): the C-grade
+// hex was duplicated inline at the legend row's `bg-[#F5B700]`.
+// Declared once here; both the wedge fill (via `GRADE_FILL.C`) and
+// the legend row (`SHOWCASE_GRADE_C_HEX`) consume it.
+//
+// Note: these are zone-grade colours (A/B/C/D — the compass-card
+// zone tier) — distinct from the assessment-tier grades (gold /
+// silver / bronze / fail) extracted to `lib/brand/grade.ts`. Same
+// concept ("a grade") at different scales (per-shot zone vs
+// whole-assessment tier) — kept apart so the t20 module owns
+// assessment-tier grades and the marketing module owns its own
+// zone-grade legend.
+const SHOWCASE_GRADE_C_HEX = "#F5B700";
+
 const GRADE_FILL: Record<"A" | "B" | "C" | "D", string> = {
   A: "var(--color-success-500)",
   B: "var(--color-primary-500)",
-  C: "#F5B700",
+  C: SHOWCASE_GRADE_C_HEX,
   D: "var(--color-danger-500)",
 };
 
@@ -140,15 +154,20 @@ export function ShowcaseT20() {
           every club lines up on the same axis.
         </p>
         <ul className="mt-8 grid grid-cols-2 gap-2 text-sm">
-          {[
-            { cls: "bg-success-500", label: "A · On the jack" },
-            { cls: "bg-primary-500", label: "B · In zone" },
-            { cls: "bg-[#F5B700]", label: "C · Off zone" },
-            { cls: "bg-danger-500", label: "D · No bowl" },
-          ].map((g) => (
-            <li key={g.label} className="flex items-center gap-2 text-ink-muted">
-              <span className={`inline-block h-3 w-3 rounded-sm ${g.cls}`} />
-              {g.label}
+          {(
+            [
+              ["A", "A · On the jack"],
+              ["B", "B · In zone"],
+              ["C", "C · Off zone"],
+              ["D", "D · No bowl"],
+            ] as const
+          ).map(([grade, label]) => (
+            <li key={label} className="flex items-center gap-2 text-ink-muted">
+              <span
+                className="inline-block h-3 w-3 rounded-sm"
+                style={{ backgroundColor: GRADE_FILL[grade] }}
+              />
+              {label}
             </li>
           ))}
         </ul>

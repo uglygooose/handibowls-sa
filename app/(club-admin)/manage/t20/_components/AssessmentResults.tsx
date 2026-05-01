@@ -12,6 +12,7 @@ import { CompassHeatmap } from "@/components/t20/CompassHeatmap";
 import { GradePill } from "@/components/t20/GradePill";
 import { HandBalanceChart } from "@/components/t20/HandBalanceChart";
 import { LengthDistributionChart } from "@/components/t20/LengthDistributionChart";
+import { GRADE_COLORS, gradeHeroGradient } from "@/lib/brand/grade";
 import { cn } from "@/lib/utils";
 import { formatDateLongZA } from "@/lib/format/dates";
 import {
@@ -54,34 +55,36 @@ import type { AssessmentDetail, T20Notes } from "../_data";
 // kind='pending' (template not ready). The toast informs without
 // throwing.
 
+// Phase 12.5 / 12.5-2 (audit id `grade-color-extraction`): hero
+// gradient + ink now consume `lib/brand/grade.ts` (`gradeHeroGradient`
+// + `GRADE_COLORS`). The hero-specific metadata (tag copy, band
+// label, decorative bowlColor) stays inline since it's not a colour
+// concern — it's the per-tier coaching copy + Bowl decoration tint.
+//
+// Silver was theme-derived pre-12.5-2 (`var(--color-primary-300/500/700)`).
+// Locked decision moves it to a fixed cool-metallic gradient so silver
+// reads as silver across every preset.
+
 const GRADE_HERO: Record<
   Grade,
-  { bg: string; ink: string; tag: string; band: string; bowlColor: string }
+  { tag: string; band: string; bowlColor: string }
 > = {
   gold: {
-    bg: "linear-gradient(135deg, #f5cf52 0%, #d4a000 50%, #8a6300 100%)",
-    ink: "#0a0a0a",
     tag: "Selection grade. District trial recommended next cycle.",
     band: "≥ 80%",
     bowlColor: "#1a1a18",
   },
   silver: {
-    bg: "linear-gradient(135deg, var(--color-primary-300) 0%, var(--color-primary-500) 50%, var(--color-primary-700) 100%)",
-    ink: "#fafaf7",
     tag: "Strong development band. Targeted work to reach selection grade.",
     band: "65–79%",
     bowlColor: "rgba(0,0,0,0.55)",
   },
   bronze: {
-    bg: "linear-gradient(135deg, #c08758 0%, #8a6230 60%, #4a3520 100%)",
-    ink: "#fafaf7",
     tag: "Foundation building. Re-test in 6–8 weeks after focused work.",
     band: "50–64%",
     bowlColor: "rgba(0,0,0,0.55)",
   },
   fail: {
-    bg: "linear-gradient(135deg, #2a2a28 0%, #0f0f0e 100%)",
-    ink: "#fafaf7",
     tag: "Reassessment recommended. Coach focus on length + line fundamentals.",
     band: "< 50%",
     bowlColor: "rgba(0,0,0,0.55)",
@@ -249,7 +252,10 @@ function ResultsHero({
       data-slot="results-hero"
       data-grade={score.grade}
       className="relative overflow-hidden rounded-3xl px-9 py-10 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.32)]"
-      style={{ background: hero.bg, color: hero.ink }}
+      style={{
+        background: gradeHeroGradient(score.grade),
+        color: GRADE_COLORS[score.grade].ink,
+      }}
     >
       <div
         aria-hidden="true"
@@ -366,7 +372,10 @@ function ResultsHero({
             disabled={pdfPending}
             data-slot="export-pdf-cta"
             className="inline-flex h-10 items-center gap-1.5 rounded-md border bg-transparent px-4 text-[13px] font-medium transition disabled:opacity-50"
-            style={{ borderColor: hero.ink, color: hero.ink }}
+            style={{
+              borderColor: GRADE_COLORS[score.grade].ink,
+              color: GRADE_COLORS[score.grade].ink,
+            }}
           >
             <Download className="size-4" aria-hidden="true" />
             {pdfPending ? "Working…" : "Export PDF"}

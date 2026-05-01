@@ -1,6 +1,6 @@
-import { cn } from "@/lib/utils";
-
+import { GRADE_COLORS, gradePillCompactGradient, gradePillGradient } from "@/lib/brand/grade";
 import type { Grade } from "@/lib/t20/rubric";
+import { cn } from "@/lib/utils";
 
 // Phase 10 — Twenty 20 grade pill.
 //
@@ -14,10 +14,18 @@ import type { Grade } from "@/lib/t20/rubric";
 //         `fail` per migration 001).
 //
 // Per-grade visual treatment is intentionally distinct — Gold
-// renders with a metallic gradient + star sigil; Silver maps to the
-// active club preset's primary; Bronze uses a muted brown gradient;
-// Reassess (fail) uses the inverse ink scheme. Density is part of
-// the design and must not be softened.
+// renders with a metallic gradient + star sigil; Silver renders
+// with a fixed cool-metallic gradient (12.5-2 locked-decision —
+// silver no longer derives from the active club preset so it
+// looks the same across every preset); Bronze uses a muted brown
+// gradient; Reassess (fail) uses the inverse ink scheme. Density
+// is part of the design and must not be softened.
+//
+// Phase 12.5 / 12.5-2 (audit id `grade-color-extraction`): all
+// hex literals moved to `lib/brand/grade.ts` (`GRADE_COLORS` +
+// `gradePillGradient` / `gradePillCompactGradient` helpers). This
+// component now consumes the constant; any future grade visual
+// reads from the same source.
 
 export type GradePillSize = "sm" | "md" | "lg";
 
@@ -36,24 +44,28 @@ const LABEL: Record<Grade, string> = {
 
 export function GradePill({ grade, size = "md", className }: Props) {
   if (size === "lg") {
+    // Tier shadows + border are pill-specific affordances kept here
+    // (GRADE_COLORS only provides gradient stops + ink). `fail` keeps
+    // its solid `--ink` treatment + outlined border instead of using
+    // the dark-grey gradient; that's the existing design contract.
     const styles = {
       gold: {
-        bg: "linear-gradient(140deg, #f5cf52 0%, #d4a000 65%, #a87c00 100%)",
-        ink: "#0a0a0a",
+        bg: gradePillGradient("gold"),
+        ink: GRADE_COLORS.gold.ink,
         shadow:
           "0 14px 28px -8px rgba(212,160,0,0.45), inset 0 1px 0 rgba(255,255,255,0.5)",
         border: undefined as string | undefined,
       },
       silver: {
-        bg: "var(--primary-500)",
-        ink: "var(--on-primary)",
+        bg: gradePillGradient("silver"),
+        ink: GRADE_COLORS.silver.ink,
         shadow:
-          "0 14px 28px -8px color-mix(in srgb, var(--primary-500) 45%, transparent), inset 0 1px 0 rgba(255,255,255,0.18)",
+          "0 14px 28px -8px rgba(120,122,124,0.45), inset 0 1px 0 rgba(255,255,255,0.4)",
         border: undefined as string | undefined,
       },
       bronze: {
-        bg: "linear-gradient(140deg, #c08758 0%, #8a6230 60%, #5e4220 100%)",
-        ink: "#fafaf7",
+        bg: gradePillGradient("bronze"),
+        ink: GRADE_COLORS.bronze.ink,
         shadow: "0 8px 18px -8px rgba(94,66,32,0.35)",
         border: undefined as string | undefined,
       },
@@ -94,11 +106,13 @@ export function GradePill({ grade, size = "md", className }: Props) {
     );
   }
 
-  // Compact pills (sm | md)
+  // Compact pills (sm | md). `fail` keeps its solid `--ink`
+  // treatment for the high-contrast inverse look; the other tiers
+  // pick from the shared GRADE_COLORS via `gradePillCompactGradient`.
   const styles = {
-    gold: { bg: "linear-gradient(120deg, #f5cf52, #d4a000)", ink: "#0a0a0a" },
-    silver: { bg: "var(--primary-500)", ink: "var(--on-primary)" },
-    bronze: { bg: "linear-gradient(120deg, #b27a48, #8a6230)", ink: "#fafaf7" },
+    gold: { bg: gradePillCompactGradient("gold"), ink: GRADE_COLORS.gold.ink },
+    silver: { bg: gradePillCompactGradient("silver"), ink: GRADE_COLORS.silver.ink },
+    bronze: { bg: gradePillCompactGradient("bronze"), ink: GRADE_COLORS.bronze.ink },
     fail: { bg: "var(--ink)", ink: "var(--ink-inverse)" },
   }[grade];
   const isSm = size === "sm";
