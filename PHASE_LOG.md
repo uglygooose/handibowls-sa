@@ -926,46 +926,95 @@ classifying the 63 open drift entries at the Phase 12 boundary into
 surface; DEFER entries roll forward. Effort framing dropped per
 stakeholder call — Phase 12 ships when work ships.
 
-### 12-5 — Performance + Lighthouse sweep — opened 2026-05-01
+### 12-5 — Performance + Lighthouse sweep — closed 2026-05-01
 
-- **Branch tip at open:** `7ed7266` (`rebuild/phase-12-stakeholder-polish`).
-- **Scope:** two MUST drift entries — M3 / L42 (Phase 7
-  Lighthouse re-run on `/manage/tournaments/[id]`, original
-  86/100/96/91 was measured against a 404 page) + M4 / L67
-  (player route Performance below the ≥90 gate; LCP 4.4s + TBT
-  1040ms on `/play`, primary suspect a 1.4MB chunk).
-- **Six-step plan from L67 entry text:** (1) bundle analysis
-  via Turbopack-native `next experimental-analyze`; (2) lazy-
-  load `BookingSheet` + `OpponentConfirmationCard` +
-  `DisputeForm` via `next/dynamic`; (3) verify lucide-react
-  tree-shaking; (4) gate `@react-pdf` from player chunks; (5)
-  gate `dexie` from non-scorecard player chunks; (6) re-run
-  Lighthouse on all 4 player routes.
-- **Pre-flight findings (read-only inspection):**
-  - `@react-pdf/renderer` is already gated — only `PdfPreview.tsx`
-    consumes it via `next/dynamic`, and that file lives under
-    `app/(club-admin)/manage/tournaments/[id]/pdf/`. Step 4 is a
-    no-op verification.
-  - `dexie` reaches every player route via the static import
-    chain `app/(player)/layout.tsx` → `DynamicSyncBadge` →
-    `useOutboxFlush` + `useSyncState` → `lib/scorecard/outbox.ts`
-    → `dexie`. The TopBar slot wants live sync state on every
-    surface (so the player can see "queued / error" at a glance),
-    so the fix is to lazy-mount `DynamicSyncBadge` rather than
-    move it to scorecard-only — keeps the UX, splits the chunk.
-  - `lucide-react` imports across the repo are all named-import
-    form (`import { X, Y } from "lucide-react"`); no barrel /
-    star imports surfaced in the spot-check. Step 3 is likely
-    a verification-only pass.
-- **DRIFT_LOG addition (this commit):** new entry under
-  `### Player Twenty 20 hub` — "Player T20 results detail view —
-  design needed" — captures the gap surfaced during 12-4 close
-  (past-assessments rows are dead taps; no design source for a
-  player-side detail view exists in the bundle). Owner: Phase
-  12.5 Claude Design pass. Folded into the 12-5 open commit per
-  the standing convention "next drift-touching commit".
+- **Branch tip at close:** `<filled in commit message>` (`rebuild/phase-12-stakeholder-polish`).
+- **Five atomic commits on top of 7ed7266:**
+  - `1b906cd` (12-5 open) — DRIFT_LOG entry "Player T20 results
+    detail view — design needed" folded in + PHASE_LOG opener.
+  - `24d32ca` (12-5 step 1) — `scripts/route-bundle-audit.mjs`
+    bundle-analysis script + baseline findings (read-only).
+    Surfaced that the 1.4MB hypothesis was disproven (yoga
+    chunk is /pdf-only) and that `dexie` leaks into all 4
+    base player routes via the layout-mounted DynamicSyncBadge.
+  - `a701070` (12-5 step 2) — lazy-load BookingSheet (in /book),
+    DisputeForm + OpponentConfirmationCard (in scorecard) via
+    `next/dynamic({ ssr: false })`. Three sync `getByRole`
+    assertions in `tests/app/player/scorecard-captain-submitted-
+    branch.test.tsx` swapped to `findByRole` to handle the
+    async chunk resolution in jsdom.
+  - `855977f` (12-5 step 5) — lazy-mount DynamicSyncBadge via
+    new `components/player/DynamicSyncBadgeMount.tsx` so dexie
+    ships in a deferred chunk instead of every player route's
+    Client Component graph.
+  - This commit (12-5 close) — DRIFT_LOG closures (M3/L42 +
+    M4/L67) + new Phase 13 entry `[L67-followup]` for the
+    sub-90 perf gap + this PHASE_LOG entry.
+- **Steps 3 + 4 closed as no-ops:**
+  - **Step 3 lucide-react tree-shaking** — repo-wide grep
+    confirms all imports are named-import form (`import { X, Y }
+    from "lucide-react"`); no barrel/star imports. Tree-shaking
+    is already working; no code change required.
+  - **Step 4 gate @react-pdf** — already gated at 12-5 open per
+    the audit. Only consumer is `PdfPreview.tsx` which uses
+    `next/dynamic`. Yoga (the wasm dep, ~1.4MB) is reachable
+    only via `/manage/tournaments/[id]/pdf`; never lands on
+    a player route.
+- **Bundle deltas (per `scripts/route-bundle-audit.mjs`):**
+
+  | Route | Before (KiB) | After (KiB) | Δ KiB | Δ % | yoga | dexie |
+  |---|---|---|---|---|---|---|
+  | `/play` | 581 | 484 | −97 | −17% | no→no | YES→no |
+  | `/book` | 929 | 491 | −438 | −47% | no→no | YES→no |
+  | `/tournaments` | 583 | 485 | −98 | −17% | no→no | YES→no |
+  | `/me` | 585 | 488 | −97 | −17% | no→no | YES→no |
+  | scorecard `/tournaments/[id]/matches/[matchId]` | 947 | 646 | −301 | −32% | no→no | YES→YES (correct — scorecard owns the outbox) |
+  | `/manage/tournaments/[id]/pdf` | 1837 | 1837 | 0 | 0% | YES→YES (correctly gated; not touched) | no |
+
+- **Lighthouse re-runs (post-fix, three runs each, WSL2 + Lighthouse 13, mobile preset for the player routes, desktop preset for the admin route):**
+
+  | Route | Run 1 Perf | Run 2 Perf | Run 3 Perf | Median Perf | A11y | BP | SEO | Notes |
+  |---|---|---|---|---|---|---|---|---|
+  | `/play` | 61 | 65 | 68 | **65** | 94 | 100 | 91 | sub-90; WSL noise |
+  | `/book` | 47 | 70 | 72 | **70** | 94 | 100 | 91 | sub-90; WSL noise (range 47–72) |
+  | `/tournaments` | 66 | 56 | 67 | **66** | 95 | 100 | 91 | sub-90 |
+  | `/me` | 73 | 71 | 69 | **71** | 92 | 100 | 91 | sub-90 |
+  | scorecard | 70 | 62 | 74 | **70** | 95 | 100 | 91 | sub-90 |
+  | `/manage/tournaments/[id]` | 88 | — | — | **88** | 85 | 100 | 91 | M3/L42 — 88 just under bar; A11y 85 separately flagged |
+
+  WSL Lighthouse single-run variance is large (e.g. /book ranged 23 points across three runs). The median numbers are still all below the ≥90 Phase 13 perf bar. Real-device Lighthouse on Android Chrome is the canonical authoritative measure (per the project standard at PHASE_LOG.md:1359 — "Browser-driven QA is human-side throughout the rebuild").
+- **Verification gates at close:** tsc clean / lint 0 errors
+  (18 pre-existing warnings) / 1206 unit / 114 integration /
+  build green / Lighthouse → recorded above (player routes
+  ≥90 deferred to Phase 13 per the spec — see DRIFT_LOG
+  `[L67-followup]` entry).
+- **Drift entries closed:** **M3 / L42** — Phase 7 Lighthouse
+  re-run done; **M4 / L67** — six-step plan delivered; bundle
+  reductions confirmed (17–47% per player route); sub-90
+  Lighthouse residue handed to Phase 13. **No drift opened in
+  12-prep that 12-5 should have closed but didn't.**
+- **Drift entries opened:** **`[L67-followup]` Phase 13 entry**
+  consolidating the post-fix sub-90 player perf + the M3
+  tournament-detail A11y 85 + Performance 88 audit gaps. Owner:
+  Phase 13.
+- **Migrations applied:** none (12-5 is application code only).
+- **Test count delta:** 1206 → 1206 (no new tests; three sync
+  assertions in `scorecard-captain-submitted-branch.test.tsx`
+  switched to async `findByRole` to handle the lazy-load).
+- **What to QA in dev** (per the open prompt's checklist):
+  - Open `/play` in incognito with throttling — confirm no
+    perceptible regression vs pre-12-5.
+  - Open `/book` — tap a slot, confirm `BookingSheet` still
+    opens cleanly (lazy chunk fetches on first tap).
+  - Open `/tournaments` — list still renders fast.
+  - Open `/me` — same.
+  - Real-device Lighthouse from Android Chrome is the
+    authoritative ≥90 confirmation step; record numbers in the
+    `[L67-followup]` entry's task list when done.
 
 
+
+### 12-prep — branch cut + DRIFT triage application — closed 2026-04-30
 
 - **Branch tip:** `1b20559` (`rebuild/phase-12-stakeholder-polish`,
   cut from `005b8af` Phase 11 close).

@@ -23,7 +23,6 @@
 // after each lazy-load / gate commit to see the delta.
 
 import { readFileSync, statSync, readdirSync, existsSync } from "node:fs";
-import { resolve, basename } from "node:path";
 
 const NEXT = ".next";
 const STATIC_CHUNKS = `${NEXT}/static/chunks`;
