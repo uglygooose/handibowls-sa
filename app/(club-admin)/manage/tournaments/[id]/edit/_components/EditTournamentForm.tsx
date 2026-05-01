@@ -5,8 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
-import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
-import { SplatterAccent } from "@/components/brand/SplatterAccent";
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
 import { FormatPicker } from "@/components/tournament/FormatPicker";
 import { StructurePicker } from "@/components/tournament/StructurePicker";
 import { updateTournament } from "@/app/(club-admin)/manage/tournaments/_actions";
@@ -253,40 +252,15 @@ export function EditTournamentForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex max-w-[1100px] flex-col gap-6 px-8 py-6"
+      className="mx-auto flex max-w-[1100px] flex-col gap-6 px-6 py-8 pb-24"
     >
-      {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-surface px-8 py-7">
-        <div className="pointer-events-none absolute inset-0 z-0">
-          <SpeckleLayer seed={`edit-hero-${tournament.id}`} density="med" opacity={0.05} />
-        </div>
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-8 -top-8 z-0 opacity-50"
-        >
-          <SplatterAccent
-            preset="atomic-red"
-            variant={0}
-            size={240}
-            rotate={20}
-          />
-        </div>
-        <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div
-              data-slot="edit-eyebrow"
-              className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted"
-            >
-              Edit · Tournament
-            </div>
-            <h1 className="mt-1.5 font-display text-[48px] font-black italic leading-[1.05] tracking-tight">
-              Edit tournament
-            </h1>
-            <p className="mt-2 max-w-[58ch] text-[14px] text-ink-muted">
-              Adjust the configuration. Format and structure lock once a
-              match has been scored.
-            </p>
-          </div>
+      <AdminPageHero
+        eyebrow="Edit · Tournament"
+        title="Edit tournament"
+        description="Adjust the configuration. Format and structure lock once a match has been scored."
+        speckle={{ seed: `edit-hero-${tournament.id}`, density: "med", opacity: 0.05 }}
+        splatter={{ preset: "atomic-red", variant: 0, size: "L", rotate: 20, opacity: 0.5 }}
+        actions={
           <Link
             href={`/manage/tournaments/${tournament.id}`}
             className="inline-flex h-11 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium text-ink-muted hover:bg-surface-muted hover:text-ink"
@@ -294,8 +268,9 @@ export function EditTournamentForm({
             <X className="size-4" aria-hidden="true" />
             Discard
           </Link>
-        </div>
-      </div>
+        }
+        containerWidth="none"
+      />
 
       {/* Sections card */}
       <div className="overflow-hidden rounded-2xl border border-border bg-surface">

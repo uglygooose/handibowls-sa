@@ -1,7 +1,6 @@
 import Link from "next/link";
 
-import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
-import { SplatterAccent } from "@/components/brand/SplatterAccent";
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
 import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { requireRole } from "@/lib/auth/role";
 
@@ -35,15 +34,12 @@ export default async function ManageMessagesNewPage() {
   ]);
   if (!hostClub) {
     return (
-      <div className="mx-auto max-w-5xl px-6 py-10">
-        <header className="mb-6">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-subtle">
-            Club admin
-          </span>
-          <h1 className="mt-1 font-display text-3xl font-extrabold italic tracking-tight">
-            New message
-          </h1>
-        </header>
+      <div className="mx-auto flex max-w-[1100px] flex-col gap-6 px-6 py-8 pb-24">
+        <AdminPageHero
+          eyebrow="Club admin"
+          title="New message"
+          containerWidth="none"
+        />
         <div className="rounded-xl border border-dashed border-border p-8 text-center">
           <p className="text-sm text-ink-muted">
             No club is in scope for this account. Use{" "}
@@ -66,43 +62,15 @@ export default async function ManageMessagesNewPage() {
 
   return (
     <div className="mx-auto flex max-w-[1100px] flex-col gap-6 px-6 py-8 pb-24">
-      {/* HERO — speckle backing + single splatter accent matching design */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-surface px-8 py-7">
-        <div className="pointer-events-none absolute inset-0 z-0">
-          <SpeckleLayer
-            seed="messages-new-hero"
-            density="med"
-            opacity={0.06}
-          />
-        </div>
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-8 -top-10 z-0 opacity-[0.55]"
-        >
-          <SplatterAccent
-            preset={splatterPreset}
-            variant={0}
-            size={260}
-            rotate={18}
-          />
-        </div>
-        <div className="relative z-10 flex min-h-[128px] flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
-              Club admin · New message
-            </div>
-            <h1 className="mt-1.5 font-display text-[48px] font-black italic leading-[1.05] tracking-tight">
-              Compose
-            </h1>
-            <p className="mt-2 max-w-[64ch] text-[14px] text-ink-muted">
-              Write the broadcast members see in their HandiBowls inbox. Save
-              a draft, schedule it, or send it right now.
-            </p>
-          </div>
-        </div>
-      </div>
+      <AdminPageHero
+        eyebrow="Club admin · New message"
+        title="Compose"
+        description="Write the broadcast members see in their HandiBowls inbox. Save a draft, schedule it, or send it right now."
+        speckle={{ seed: "messages-new-hero", density: "med", opacity: 0.06 }}
+        splatter={{ preset: splatterPreset, variant: 0, size: "L", rotate: 18, opacity: 0.55 }}
+        containerWidth="none"
+      />
 
-      {/* FORM ISLAND */}
       <ComposeForm tournaments={tournaments} members={members} />
     </div>
   );
