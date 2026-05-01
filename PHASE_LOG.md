@@ -917,7 +917,7 @@ at the moment a phase closed, derived from
 
 ---
 
-## Phase 12 — Stakeholder polish — in progress
+## Phase 12 — Stakeholder polish — closed 2026-05-01
 
 The phase opens against a triage artefact (`DRIFT_TRIAGE_PHASE12.md`)
 classifying the 63 open drift entries at the Phase 12 boundary into
@@ -925,6 +925,78 @@ classifying the 63 open drift entries at the Phase 12 boundary into
 / 1 PARKED. Sub-checkpoints land MUST + NICE entries grouped by
 surface; DEFER entries roll forward. Effort framing dropped per
 stakeholder call — Phase 12 ships when work ships.
+
+### 12-7 — Pre-stakeholder QA + Phase 12 close — closed 2026-05-01
+
+- **Branch tip at close:** `<filled in commit message>` (`rebuild/phase-12-stakeholder-polish`).
+- **Stage 1 (Block A) findings:** 23 routes smoke-checked (HTTP 200/307; no 500s, no broken routes); source-level audit of every Phase-12-touched surface against `handibowls/project/*.jsx` design source. **9 MUST findings — 4 over the user's ~5 alarm threshold;** user approved re-scope to two cross-cutting commits per the class-of-bug pattern.
+- **Block B commits:**
+  - `825823a` (B1) — search-pagination fix on `/platform/clubs`. Audit confirmed **single-surface** scope (not class-of-bug as originally framed): `listClubs` gains `q` parameter + PostgREST OR-ILIKE across name / short_name / city; new `ClubsSearchBar` URL-pushing input replaces the in-table `globalFilter`; ClubsTable renders the server-rendered subset; pagination preserves `q`. Pattern matches `/platform/users` precedent. +6 cases in `ClubsTable.test.tsx` (no-client-filter assertion + q-aware empty-state); +3 cases in new `ClubsSearch.test.tsx` (debounce / clear / typing-coalesce).
+  - `51db553` (B2) — stale phase-string copy sweep across 8 files. Internal "Phase N ships in…" tracking-speak removed from stakeholder UI: QuickActions T20 fallback, Step4Consent privacy footer, AuditTab platform empty-state, TournamentsTab platform empty-state, CommsTab disabled-Send tooltip, tournaments/[id] standings empty-state, /me settings footer, StubPage component (dropped `phase` prop entirely + neutralised "Coming soon."). One consolidated post-v1 drift entry opened covering 4 real feature gaps the sweep surfaced (settings deep-links, tournament-scoped comms, round-robin/sectional standings, super-admin `/platform/tournaments`).
+- **Block C close mechanics:**
+  - **C1 plan reconciliation (R4a / L67) — already at parity (no-op).** Audit confirmed Phase 8g's "PWA gate realignment" note (`HANDIBOWLS_REBUILD_PLAN.md:485-505`) had already rewritten every "Lighthouse PWA ≥ 95" assertion to structural checks (manifest validation / SW registration / real-device install / offline shell). Drift entry was open against a stale plan state; closed in this commit.
+  - **C2 Decisions section reorg — already at parity (no-op).** 12-prep had promoted the section to top-level (`## Decisions`) between `## Other phases` and `## Closed items`; PlayerBottomNav 20/20 + AdminSidebar entries already there.
+  - **C3 DRIFT_LOG sweep** — closed 2 additional entries during 12-7 (search-pagination at B1 + Lighthouse PWA gates plan reconciliation at C1). Counts at close: **45 open / 57 closed** (vs `46 / 56` at start of 12-7). The header rules document grep commands; no static count to update.
+  - **C4 + C5** — this PHASE_LOG entry + Phase 12 cumulative close summary appended below + README status block updated.
+- **Verification gates at close:** tsc clean / lint 0 errors (18 pre-existing warnings) / unit + integration + build all green / DRIFT_LOG `grep -c "^- \[ \]"` matches new open-count baseline.
+- **Drift entries closed in 12-7:** L67 (Lighthouse PWA gates plan reconciliation — no-op confirmation) + the in-flight `List search filters paginated subset` entry that 12-6 surfaced and 12-7 shipped. **2 closures.**
+- **Drift entries opened in 12-7:** consolidated post-v1 entry "Post-v1 feature gaps surfaced by 12-7 phase-string sweep" covering 4 sub-bullets (settings deep-links, tournament-scoped comms, standings tables, super-admin platform tournaments view). **1 opened.**
+- **Test count delta:** 1209 → 1213 (+4 net — +6 from B1, plus −2 from one obsoleted ClubsTable test replaced by two new ones). Integration: 114 / 114 unchanged.
+- **What to QA in dev (12-7 specific):**
+  - `/platform/clubs` — paste a test club name into the search input; confirm matching rows appear from across pages (not just the active page); confirm the URL gains `?q=...`; confirm pagination Previous/Next preserves `q`.
+  - `/play` — confirm "My Twenty 20" card meta reads `Not yet assessed` (or the player's grade) — never `Phase 10`.
+  - `/me/setup` Step 4 — privacy footer reads "profile export and account deletion tools will be added in a future update" (no `(Phase 11)` parenthetical).
+  - `/platform/clubs/[id]` Audit + Tournaments tabs — empty-state copy reads neutrally (no Phase 9 / Phase 11 references).
+  - `/manage/tournaments/[id]` Comms tab — disabled-Send tooltip reads "Tournament-scoped comms integration coming soon."
+  - `/tournaments/[id]` standings section — copy reads "Standings will be available once the tournament is in progress."
+  - `/me` settings footer — "More settings coming soon." (no Phase 11 reference).
+  - `/platform/tournaments` super-admin stub — "Coming soon." (no Phase 7 reference).
+
+### 12-close — Phase 12 cumulative close summary — closed 2026-05-01
+
+- **Phase 12 banner:** "Stakeholder polish" — closed 2026-05-01 across 7 sub-checkpoints (12-prep, 12-1, 12-2, 12-3, 12-4 + finalize hotfix, 12-5, 12-6, 12-7). Branch: `rebuild/phase-12-stakeholder-polish`, cut from `005b8af` (Phase 11 close).
+- **Sub-checkpoint roll-up:**
+  - **12-prep** (`9f77b73` + `1b20559`) — 12-prep-1 froze the triage artefact (`DRIFT_TRIAGE_PHASE12.md`); 12-prep-2 swept DRIFT_LOG with the locked R1-R9 rewrites + promoted `## Decisions` to top-level + applied 9 reword / consolidate / reclassify-as-Decision strikes. Drift delta: 63 → 58 open (−5).
+  - **12-1** (`7beb570` + `c12e5fa` followup) — Player `/t20` hub + request → admin-schedule → notify loop. Migration 037 (`request_t20_assessment` + `admin_schedule_t20_assessment` RPCs). Two MUST closures.
+  - **12-2** (`a71c350`) — Tournament admin gaps. Migration 039 (`tournament_greens` join table + `tournaments.fair_rink` column). Three drift closures.
+  - **12-3** (`050f881` + `31fb77f`) — Messaging admin polish + notification system fixes. Migration 040 (`invites.email_status / email_error / email_sent_at`). Eight drift closures across Block A (4) + Block B (4 + 1 deferral).
+  - **12-4** (`f3151e7` + `8049cbf` + `1aad798` + finalize hotfix `1162f1f` / `2312a70` / `017a3be` / `e188503` + `8986a9d` shared schema + `9b667a0` integration test + `7ed7266` lint cleanup) — T20 admin polish + finalize-hotfix. Migration 041 (`t20_assessments.notes` text → jsonb). Five 12-4 drift closures + bug-class regression integration test for `finalizeAssessment`.
+  - **12-5** (`1b906cd` + `24d32ca` + `a701070` + `855977f` + `64c1f5a`) — Performance + Lighthouse sweep. Bundle reductions: /play −17%, /book −47%, /tournaments −17%, /me −17%, scorecard −32%. Two drift closures (M3 / L42 + M4 / L67) + one Phase 13 follow-up entry opened.
+  - **12-6** (`92543b6` + `3e4720f` + `120da1c`) — Design fidelity sweep. ShowcaseT20 wedge labels + legend + metadata; auth Checkbox → shadcn primitive; six drift closures (4 N + 2 R drops).
+  - **12-7** (`825823a` + `51db553` + this commit) — Pre-stakeholder QA + Phase 12 close. Search-pagination on `/platform/clubs` + 8-file phase-string copy sweep. Two drift closures + one consolidated post-v1 entry opened.
+- **Migrations applied during Phase 12:** 037 (T20 request loop), 038 (T20 RPC bug fixes), 039 (tournament_greens + fair_rink), 040 (invites email_status), 041 (t20_assessments.notes jsonb). **5 migrations.**
+- **Test count baseline → close:** 1181 → 1213 (+32 net) unit. 111 → 114 integration (+3, all from the 12-4 finalizeAssessment integration suite).
+- **Bundle deltas (12-5 measurement, persisted in `scripts/route-bundle-audit.mjs` baseline):**
+
+  | Route | Before (KiB) | After (KiB) | Δ % |
+  |---|---|---|---|
+  | `/play` | 581 | 484 | −17% |
+  | `/book` | 929 | 491 | −47% |
+  | `/tournaments` | 583 | 485 | −17% |
+  | `/me` | 585 | 488 | −17% |
+  | scorecard | 947 | 646 | −32% |
+
+- **Lighthouse score table (12-5 measurement, three-run medians, WSL2 Lighthouse 13, mobile preset):**
+
+  | Route | Median Perf | A11y | BP | SEO |
+  |---|---|---|---|---|
+  | `/play` | 65 | 94 | 100 | 91 |
+  | `/book` | 70 | 94 | 100 | 91 |
+  | `/tournaments` | 66 | 95 | 100 | 91 |
+  | `/me` | 71 | 92 | 100 | 91 |
+  | scorecard | 70 | 95 | 100 | 91 |
+  | `/manage/tournaments/[id]` (desktop) | 88 | 85 | 100 | 91 |
+
+  All player routes below the ≥90 perf bar in WSL Lighthouse — single-run noise is large (e.g. `/book` ranged 47–72 across three runs); real-device confirmation deferred to Phase 13 `[L67-followup]`. Bundle-side wins are unambiguous; perf-side residue is a measurement-environment concern as much as a code concern.
+- **Drift entries closed during Phase 12:** ~22 closures across the 7 sub-checkpoints (M2/L26-L28 consolidated, M3/L42, M4/L67, M5/L46, M6/L52, M8/L141, M10/L150, M2/L151, N5/L34, N6/L154, N7/L145, N8/L152, R1/L29, R2/L30, AuditTab L46, T20-CTA scheduling deferred, multiple Phase-12-section closures). Plus the 12-prep R1-R9 reword/consolidate sweep that closed 9 entries via reclassification.
+- **Drift entries opened during Phase 12:** 6 net new entries (counted from the in-phase additions): Player T20 results detail view (12-4 close → Phase 12.5), `[L67-followup]` Lighthouse perf real-device gap (12-5), Tournament edit page missing (12-2), Personal theme override (12-1 followup → post-v1), List search paginated-subset (12-6 → closed 12-7), Post-v1 feature gaps consolidated (12-7 → post-v1).
+- **QA findings from Block A (12-7):** 9 stakeholder-visible polish gaps; 1 fixed via B1 (search-pagination), 8 fixed via B2 (cross-cutting copy sweep). Zero deferred MUST findings; 4 real feature gaps logged as a single post-v1 drift entry.
+- **Cross-cutting fixes from Block B (12-7):** 2 commits — search-pagination + phase-string sweep. Both followed the user's class-of-bug pattern from the original prompt.
+- **Plan reconciliation from C1:** No edit needed — Phase 8g realignment had already rewired every "Lighthouse PWA ≥ 95" assertion to structural checks. Drift entry closed as audit-confirmed-already-done.
+- **Phase 12.5 readiness:** branch ready for the Claude Design pass. Phase 12.5's primary target in `DRIFT_LOG.md` retains 24 design-fidelity entries (after 12-6 closures) plus the 1 added in 12-1 followup for the player T20 results detail view + the new entries from 12-2 / 12-1 followup logged for design-pass attention. The bundle is at parity with the existing design source files (in repo at `/tmp/design-pkg/handibowls/project/*.jsx` after the 12-6 fetch); fresh design output for the player T20 results detail view will be the first new design source the pass needs.
+- **Verification gates at Phase 12 close:** tsc clean / lint 0 errors (18 pre-existing warnings) / 1213 unit / 114 integration / build green.
+
+---
 
 ### 12-5 — Performance + Lighthouse sweep — closed 2026-05-01
 
