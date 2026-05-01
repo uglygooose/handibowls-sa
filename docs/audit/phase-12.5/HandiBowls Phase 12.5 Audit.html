@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HandiBowls — Phase 12.5 Design Fidelity Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,800;0,900;1,800;1,900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #f4efe8;
+    --bone: #fafaf7;
+    --ink: #0f0f0e;
+    --ink-muted: #5a564f;
+    --ink-subtle: #8a857c;
+    --border: #d9d2c5;
+    --border-strong: #1a1a18;
+    --primary: #d7261e;
+    --primary-soft: #fde4e2;
+    --good: #2f8f4f;
+    --warn: #b9802d;
+    --bad: #b3322c;
+    --speckle-a: #1a1a18;
+    --speckle-b: #b9802d;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,system-ui,sans-serif;font-size:15px;line-height:1.5}
+  .display{font-family:"Barlow Condensed",sans-serif;font-weight:900;font-style:italic;letter-spacing:-0.01em;text-transform:uppercase;line-height:0.95}
+  .mono{font-family:"JetBrains Mono",monospace}
+  .eyebrow{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-muted)}
+  a{color:inherit}
+
+  /* ===== Page chrome ===== */
+  .page{max-width:1240px;margin:0 auto;padding:48px 32px 96px}
+  @media (max-width:720px){ .page{padding:24px 16px 80px} }
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:24px;border-bottom:2px solid var(--border-strong);margin-bottom:40px}
+  .wm{display:flex;align-items:center;gap:10px}
+  .wm-dot{width:14px;height:14px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 4px rgba(215,38,30,0.18)}
+  .wm-name{font-family:"Barlow Condensed",sans-serif;font-weight:900;font-style:italic;font-size:22px;letter-spacing:-0.01em;text-transform:uppercase}
+  .topbar-meta{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .topbar-meta .chip{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-muted);border:1px solid var(--border);padding:5px 10px;border-radius:999px;background:var(--bone)}
+  .topbar-meta .chip strong{color:var(--ink);font-weight:700;margin-left:6px}
+
+  /* ===== Hero ===== */
+  .hero{position:relative;border:2px solid var(--border-strong);border-radius:20px;background:var(--bone);padding:40px 44px;margin-bottom:40px;overflow:hidden}
+  .hero-speckle{position:absolute;inset:0;opacity:0.08;pointer-events:none}
+  .hero-eyebrow{position:relative;z-index:2}
+  .hero h1{position:relative;z-index:2;font-family:"Barlow Condensed",sans-serif;font-weight:900;font-style:italic;font-size:clamp(40px,6.8vw,84px);line-height:0.9;letter-spacing:-0.02em;text-transform:uppercase;margin:14px 0 18px;text-wrap:pretty}
+  .hero h1 em{font-style:italic;color:var(--primary)}
+  .hero h1 .pocket{position:relative;display:inline-block}
+  .hero h1 .pocket::before{content:"";position:absolute;inset:auto -4% 6% -4%;height:18%;background:var(--primary);opacity:0.16;transform:skewX(-8deg);z-index:-1}
+  .hero p{position:relative;z-index:2;max-width:720px;font-size:18px;line-height:1.45;color:var(--ink-muted);margin:0 0 16px}
+  .hero-meta{position:relative;z-index:2;display:flex;flex-wrap:wrap;gap:24px;margin-top:20px;border-top:1px solid var(--border);padding-top:18px}
+  .hero-meta div{display:flex;flex-direction:column;gap:2px}
+  .hero-meta strong{font-family:"Barlow Condensed",sans-serif;font-weight:900;font-style:italic;font-size:22px;letter-spacing:-0.01em}
+  .hero-meta span{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-subtle)}
+
+  /* ===== Section ===== */
+  section.system, section.entries{margin-bottom:64px}
+  .section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:24px;border-bottom:1px solid var(--border);padding-bottom:14px}
+  .section-head h2{font-family:"Barlow Condensed",sans-serif;font-weight:900;font-style:italic;font-size:clamp(32px,4.4vw,52px);text-transform:uppercase;letter-spacing:-0.01em;margin:0;line-height:1}
+  .section-head .count{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-muted)}
+
+  /* ===== Filter bar ===== */
+  .filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+  .filter-chip{cursor:pointer;border:1px solid var(--border);background:var(--bone);padding:7px 14px;border-radius:999px;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-muted);transition:all 0.15s}
+  .filter-chip:hover{border-color:var(--ink)}
+  .filter-chip.active{background:var(--ink);color:var(--bone);border-color:var(--ink)}
+  .filter-chip .ct{margin-left:8px;opacity:0.6}
+
+  /* ===== System grid ===== */
+  .syscard{border:1px solid var(--border);border-radius:14px;background:var(--bone);padding:22px 24px;margin-bottom:14px;break-inside:avoid}
+  .syscard summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:14px}
+  .syscard summary::-webkit-details-marker{display:none}
+  .syscard .num{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--ink-subtle);letter-spacing:0.12em}
+  .syscard h3{font-family:"Barlow Condensed",sans-serif;font-weight:900;font-style:italic;font-size:24px;text-transform:uppercase;letter-spacing:-0.01em;margin:0;flex:1}
+  .syscard .caret{width:14px;height:14px;border-right:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:rotate(45deg);transition:transform 0.15s;flex-shrink:0;margin-bottom:6px}
+  details[open] .syscard .caret, .syscard[open] .caret{transform:rotate(-135deg);margin-bottom:0;margin-top:6px}
+  .syscard .body{margin-top:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media (max-width:880px){ .syscard .body{grid-template-columns:1fr} }
+  .syscard .col h4{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  .syscard .col h4::before{content:"";width:8px;height:8px;border-radius:50%}
+  .col-on h4::before{background:var(--good)}
+  .col-drift h4::before{background:var(--bad)}
+  .col-spec h4::before{background:var(--ink)}
+  .syscard ul{margin:0;padding:0;list-style:none}
+  .syscard li{font-size:13.5px;line-height:1.5;color:var(--ink);padding:8px 0;border-bottom:1px dashed var(--border)}
+  .syscard li:last-child{border-bottom:0}
+  .syscard code{font-family:"JetBrains Mono",monospace;font-size:11.5px;background:rgba(0,0,0,0.05);padding:1px 4px;border-radius:3px}
+
+  /* ===== Entries ===== */
+  .entry{border:1px solid var(--border);border-radius:14px;background:var(--bone);padding:0;margin-bottom:14px;overflow:hidden}
+  .entry-head{display:grid;grid-template-columns:auto 1fr auto auto;gap:14px;align-items:center;padding:18px 24px;cursor:pointer}
+  .entry-head:hover{background:rgba(215,38,30,0.02)}
+  .entry-id{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:0.08em;color:var(--ink-subtle);min-width:64px}
+  .entry-title{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .entry-title .h{font-family:"Barlow Condensed",sans-serif;font-weight:900;font-style:italic;font-size:18px;text-transform:uppercase;letter-spacing:-0.005em;line-height:1.1}
+  .entry-title .ref{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--ink-muted);letter-spacing:0.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pill{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;padding:3px 8px;border-radius:999px;border:1px solid var(--border-strong);background:var(--bone);color:var(--ink)}
+  .pill-sev-high{background:var(--bad);color:#fff;border-color:var(--bad)}
+  .pill-sev-med{background:var(--warn);color:#fff;border-color:var(--warn)}
+  .pill-sev-low{background:var(--bone);color:var(--ink-muted)}
+  .pill-group{background:var(--ink);color:var(--bone);border-color:var(--ink)}
+  .entry-body{padding:0 24px 22px;display:none;border-top:1px dashed var(--border)}
+  .entry.open .entry-body{display:block}
+  .entry-body .row{display:grid;grid-template-columns:120px 1fr;gap:18px;padding:14px 0;border-bottom:1px dashed var(--border)}
+  .entry-body .row:last-child{border-bottom:0}
+  .entry-body .row dt{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-muted);padding-top:2px}
+  .entry-body .row dd{margin:0;font-size:14px;line-height:1.55}
+  .entry-body code, .entry-body .surf{font-family:"JetBrains Mono",monospace;font-size:12px;background:rgba(0,0,0,0.05);padding:2px 6px;border-radius:3px;color:var(--ink)}
+  .entry-body ol, .entry-body ul{margin:0;padding-left:18px}
+  .entry-body li{margin-bottom:6px}
+  .entry-body .open-q li{color:var(--bad)}
+  @media (max-width:720px){
+    .entry-head{grid-template-columns:1fr auto;gap:8px}
+    .entry-id{display:none}
+    .entry-head .pill-group{display:none}
+    .entry-body .row{grid-template-columns:1fr;gap:6px}
+  }
+
+  /* ===== Reference strip ===== */
+  .refs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:32px}
+  @media (max-width:880px){ .refs{grid-template-columns:1fr} }
+  .refs .ref{position:relative;border:1px solid var(--border);border-radius:14px;background:var(--bone);padding:18px 20px;overflow:hidden}
+  .refs .ref::after{content:"";position:absolute;inset:auto 0 0 0;height:4px;background:var(--primary)}
+  .refs .ref .eyebrow{margin-bottom:6px}
+  .refs .ref .h{font-family:"Barlow Condensed",sans-serif;font-weight:900;font-style:italic;font-size:22px;text-transform:uppercase;letter-spacing:-0.005em;line-height:1.05;margin-bottom:6px}
+  .refs .ref .src{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--ink-muted)}
+
+  /* ===== Footer ===== */
+  footer.bot{margin-top:64px;padding-top:24px;border-top:2px solid var(--border-strong);font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:0.08em;color:var(--ink-muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+  /* ===== Print ===== */
+  @media print{
+    body{background:#fff}
+    .topbar-meta, .filterbar{display:none}
+    .entry-body{display:block !important}
+    .entry, .syscard{break-inside:avoid;page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+
+<!-- Speckle pattern reused -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <pattern id="hb-speckle" width="120" height="120" patternUnits="userSpaceOnUse">
+      <!-- 60 dots filled in JS for true randomness; static fallback below -->
+      <circle cx="12" cy="18" r="1.4" fill="#1a1a18" opacity="0.5"/>
+      <circle cx="34" cy="42" r="1.8" fill="#b9802d" opacity="0.6"/>
+      <circle cx="78" cy="22" r="1.2" fill="#1a1a18" opacity="0.5"/>
+      <circle cx="100" cy="60" r="2" fill="#b9802d" opacity="0.55"/>
+      <circle cx="56" cy="96" r="1.6" fill="#1a1a18" opacity="0.5"/>
+      <circle cx="22" cy="78" r="1.3" fill="#b9802d" opacity="0.5"/>
+      <circle cx="92" cy="104" r="1.5" fill="#1a1a18" opacity="0.5"/>
+      <circle cx="44" cy="14" r="1.1" fill="#b9802d" opacity="0.55"/>
+      <circle cx="68" cy="68" r="1.7" fill="#1a1a18" opacity="0.5"/>
+      <circle cx="14" cy="108" r="1.2" fill="#b9802d" opacity="0.5"/>
+    </pattern>
+  </defs>
+</svg>
+
+<div class="page" id="app"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="audit-data.js"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<script type="text/babel">
+const { useState, useMemo } = React;
+const A = window.AUDIT;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "showOpenQuestions": true,
+  "expandAllEntries": true,
+  "filter": "all",
+  "density": "comfortable"
+}/*EDITMODE-END*/;
+
+function Hero() {
+  return (
+    <header className="hero">
+      <svg className="hero-speckle" preserveAspectRatio="none">
+        <rect width="100%" height="100%" fill="url(#hb-speckle)"/>
+      </svg>
+      <div className="hero-eyebrow eyebrow">
+        <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:"var(--primary)",marginRight:10,verticalAlign:"middle"}}></span>
+        Phase {A.meta.phase} · Design fidelity audit · Cut from {A.meta.cutFrom}
+      </div>
+      <h1>Audit, unify, hand off.<br/>One <em>coherent</em> system <span className="pocket">end-to-end<span style={{color:"var(--primary)"}}>.</span></span></h1>
+      <p>Comprehensive walk of every shipped surface against the production reference visual language. The 25-entry drift backlog is the starting point — this pass surfaces more, codifies the spec, and produces per-entry briefs ready for a fresh Claude Code session.</p>
+      <div className="hero-meta">
+        <div><strong>{A.system.length}</strong><span>Audit dimensions</span></div>
+        <div><strong>{A.entries.length}</strong><span>Per-entry briefs</span></div>
+        <div><strong>{A.entries.filter(e=>e.severity==="high").length}</strong><span>High-severity</span></div>
+        <div><strong>3</strong><span>Reference surfaces</span></div>
+      </div>
+    </header>
+  );
+}
+
+function References() {
+  return (
+    <section>
+      <div className="section-head">
+        <h2>Reference surfaces</h2>
+        <span className="count">The production visual language</span>
+      </div>
+      <div className="refs">
+        {A.meta.referenceSurfaces.map((r,i)=>(
+          <div className="ref" key={i}>
+            <div className="eyebrow">Reference · phase {r.phase}</div>
+            <div className="h">{r.name}</div>
+            <div className="src">{r.file}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SystemDimension({ d, idx, density }) {
+  return (
+    <details className="syscard" open={density==="comfortable"}>
+      <summary>
+        <span className="num">{String(idx+1).padStart(2,"0")}</span>
+        <h3>{d.title}</h3>
+        <span className="caret"></span>
+      </summary>
+      <div className="body">
+        <div className="col col-on">
+          <h4>On point ({d.onPoint.length})</h4>
+          <ul>{d.onPoint.map((s,i)=><li key={i} dangerouslySetInnerHTML={{__html:formatInline(s)}}/>)}</ul>
+        </div>
+        <div className="col col-drift">
+          <h4>Drift ({d.drift.length})</h4>
+          <ul>{d.drift.map((s,i)=><li key={i} dangerouslySetInnerHTML={{__html:formatInline(s)}}/>)}</ul>
+        </div>
+        <div className="col col-spec">
+          <h4>Unified spec ({d.unifiedSpec.length})</h4>
+          <ul>{d.unifiedSpec.map((s,i)=><li key={i} dangerouslySetInnerHTML={{__html:formatInline(s)}}/>)}</ul>
+        </div>
+      </div>
+    </details>
+  );
+}
+
+function formatInline(s) {
+  // Render `code` spans inline.
+  return s
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/`([^`]+)`/g,"<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");
+}
+
+function System({ density }) {
+  return (
+    <section className="system">
+      <div className="section-head">
+        <h2>System-level summary</h2>
+        <span className="count">9 audit dimensions · what holds, what drifts, what to lock down</span>
+      </div>
+      {A.system.map((d,i)=><SystemDimension key={d.id} d={d} idx={i} density={density}/>)}
+    </section>
+  );
+}
+
+function Entry({ e, idx, expandAll, showOpen }) {
+  const [open, setOpen] = useState(false);
+  const isOpen = expandAll || open;
+  return (
+    <article className={"entry"+(isOpen?" open":"")} id={"e-"+e.id}>
+      <header className="entry-head" onClick={()=>setOpen(o=>!o)}>
+        <span className="entry-id">#{String(idx+1).padStart(2,"0")}</span>
+        <div className="entry-title">
+          <div className="h">{e.reference}</div>
+          <div className="ref">{e.surface}</div>
+        </div>
+        <span className={"pill pill-sev-"+e.severity}>{e.severity}</span>
+        <span className="pill pill-group">{e.group}</span>
+      </header>
+      {isOpen && (
+        <div className="entry-body">
+          <dl>
+            <div className="row">
+              <dt>Design intent</dt>
+              <dd dangerouslySetInnerHTML={{__html: Array.isArray(e.intent) ? e.intent.map(formatInline).join("<br/>") : formatInline(e.intent)}}/>
+            </div>
+            <div className="row">
+              <dt>Visual reference</dt>
+              <dd dangerouslySetInnerHTML={{__html: Array.isArray(e.visual) ? e.visual.map(formatInline).join("<br/>") : formatInline(e.visual)}}/>
+            </div>
+            <div className="row">
+              <dt>Implementation</dt>
+              <dd>
+                <ol>{e.impl.map((s,i)=><li key={i} dangerouslySetInnerHTML={{__html:formatInline(s)}}/>)}</ol>
+              </dd>
+            </div>
+            {showOpen && e.open && e.open.length>0 && (
+              <div className="row">
+                <dt>Open questions</dt>
+                <dd className="open-q">
+                  <ul>{e.open.map((s,i)=><li key={i} dangerouslySetInnerHTML={{__html:formatInline(s)}}/>)}</ul>
+                </dd>
+              </div>
+            )}
+          </dl>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function Entries({ filter, expandAll, showOpen }) {
+  const groups = useMemo(()=>{
+    const all = ["all", ...Array.from(new Set(A.entries.map(e=>e.group)))];
+    return all;
+  },[]);
+  const counts = useMemo(()=>{
+    const c = {all:A.entries.length};
+    A.entries.forEach(e=>{ c[e.group]=(c[e.group]||0)+1; });
+    return c;
+  },[]);
+
+  const [active, setActive] = useState(filter);
+  React.useEffect(()=>{ setActive(filter); },[filter]);
+
+  const filtered = active==="all" ? A.entries : A.entries.filter(e=>e.group===active);
+
+  return (
+    <section className="entries">
+      <div className="section-head">
+        <h2>Per-entry briefs</h2>
+        <span className="count">{filtered.length} of {A.entries.length} · click row to expand</span>
+      </div>
+      <div className="filterbar">
+        {groups.map(g=>(
+          <button key={g} className={"filter-chip"+(active===g?" active":"")} onClick={()=>setActive(g)}>
+            {g} <span className="ct">{counts[g]||0}</span>
+          </button>
+        ))}
+      </div>
+      {filtered.map((e,i)=><Entry key={e.id} e={e} idx={A.entries.indexOf(e)} expandAll={expandAll} showOpen={showOpen}/>)}
+    </section>
+  );
+}
+
+function Tweaks({ tweaks, setTweak }) {
+  const TweaksPanel = window.TweaksPanel;
+  const TweakSection = window.TweakSection;
+  const TweakToggle = window.TweakToggle;
+  const TweakRadio = window.TweakRadio;
+  if (!TweaksPanel) return null;
+  return (
+    <TweaksPanel title="Audit doc tweaks" defaultPosition="bottom-right">
+      <TweakSection title="Display">
+        <TweakRadio
+          label="Density"
+          value={tweaks.density}
+          options={[{value:"comfortable",label:"Comfortable"},{value:"compact",label:"Compact"}]}
+          onChange={v=>setTweak("density", v)}
+        />
+        <TweakToggle label="Expand all entries" value={tweaks.expandAllEntries} onChange={v=>setTweak("expandAllEntries", v)}/>
+        <TweakToggle label="Show open questions" value={tweaks.showOpenQuestions} onChange={v=>setTweak("showOpenQuestions", v)}/>
+      </TweakSection>
+      <TweakSection title="Filter">
+        <TweakRadio
+          label="Group"
+          value={tweaks.filter}
+          options={[
+            {value:"all",label:"All"},
+            {value:"Landing",label:"Landing"},
+            {value:"Auth",label:"Auth"},
+            {value:"Player Twenty 20",label:"Player T20"},
+            {value:"Twenty 20 admin",label:"Admin T20"},
+          ]}
+          onChange={v=>setTweak("filter", v)}
+        />
+      </TweakSection>
+    </TweaksPanel>
+  );
+}
+
+function App() {
+  const useTweaks = window.useTweaks;
+  const [tweaks, setTweak] = useTweaks ? useTweaks(TWEAK_DEFAULTS) : [TWEAK_DEFAULTS, ()=>{}];
+  return (
+    <>
+      <div className="topbar">
+        <div className="wm">
+          <span className="wm-dot"></span>
+          <span className="wm-name">HandiBowls · Phase 12.5</span>
+        </div>
+        <div className="topbar-meta">
+          <span className="chip">Branch <strong>{A.meta.branch}</strong></span>
+          <span className="chip">Cut <strong>{A.meta.cutFrom}</strong></span>
+          <span className="chip">Open <strong>{A.entries.length}</strong></span>
+        </div>
+      </div>
+
+      <Hero/>
+      <References/>
+      <System density={tweaks.density}/>
+      <Entries filter={tweaks.filter} expandAll={tweaks.expandAllEntries} showOpen={tweaks.showOpenQuestions}/>
+
+      <footer className="bot">
+        <div>HandiBowls Phase 12.5 design brief · {A.system.length} system dimensions · {A.entries.length} entries · prepared for Claude Code handoff</div>
+        <div>Reference surfaces: player /t20 · admin /manage/t20/[id] · landing</div>
+      </footer>
+
+      <Tweaks tweaks={tweaks} setTweak={setTweak}/>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("app")).render(<App/>);
+</script>
+
+</body>
+</html>
