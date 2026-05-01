@@ -35,6 +35,21 @@ export const PRESET_BY_ID: Record<ThemePreset, PresetSwatch> = Object.fromEntrie
   BOWL_PRESETS.map((p) => [p.id, p]),
 ) as Record<ThemePreset, PresetSwatch>;
 
+// Phase 12.5 / 12.5-6 — splatter size tier. Resolves the
+// `splatter-accent-size-tier-missing` drift entry. Pre-12.5-6 the
+// shipped surfaces used unsanctioned literals (130, 170, 180, 240,
+// 260, 300, 320). Three tiers anchored to the design source bundle's
+// most-common admin uses (page-list / page-detail hero splatter at
+// 300; secondary accents at 180; card-level accents at 130). All
+// SplatterAccent consumers should pass `size={SPLATTER_SIZE.L}`
+// instead of inline numbers.
+//
+//   S — card-level accents (~130) — booking cards, hero sub-rosettes
+//   M — section / mid-card accents (~180) — list cards, profile bands
+//   L — page-hero splatter (~300) — admin page hero, T20 list hero
+export const SPLATTER_SIZE = { S: 130, M: 180, L: 300 } as const;
+export type SplatterSize = keyof typeof SPLATTER_SIZE;
+
 // Mulberry32 — tiny deterministic PRNG. Paired with hashSeed to turn any
 // string/number seed into a stable pseudo-random stream.
 export function mulberry32(seed: number) {
