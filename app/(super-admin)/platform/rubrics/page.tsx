@@ -1,3 +1,4 @@
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
 import { requireRole } from "@/lib/auth/role";
 
 import { RubricsClient } from "./_components/RubricsClient";
@@ -40,15 +41,12 @@ export default async function PlatformRubrics() {
 
   if (!result.ok) {
     return (
-      <div className="mx-auto max-w-4xl px-6 py-10">
-        <header className="mb-6">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-subtle">
-            Platform · Rubric library
-          </span>
-          <h1 className="mt-1 font-display text-3xl font-extrabold italic tracking-tight">
-            Twenty 20 rubrics
-          </h1>
-        </header>
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 pb-24">
+        <AdminPageHero
+          eyebrow="Platform · Rubric library"
+          title="Twenty 20 rubrics"
+          containerWidth="none"
+        />
         <div className="rounded-xl border border-dashed border-border p-8 text-center">
           <p className="text-sm text-ink-muted">
             Couldn&apos;t load rubric versions: {result.error}

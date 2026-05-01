@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/layout/PageHeader";
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
 import { requireRole } from "@/lib/auth/role";
 
 import { UsersSearchBar } from "./_components/UsersSearchBar";
@@ -29,23 +29,22 @@ export default async function PlatformUsers({
   const { rows, total } = await listUsers({ q, page, pageSize: PAGE_SIZE });
 
   return (
-    <div className="flex flex-col">
-      <PageHeader
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 pb-24">
+      <AdminPageHero
         eyebrow="Platform"
         title="Users"
         description="Search across all profiles by name, email, or club. Read-only."
+        containerWidth="none"
       />
-      <div className="flex flex-col gap-4 px-6 py-6">
-        <UsersSearchBar initialQuery={q} basePath={BASE_PATH} />
-        <UsersTable
-          rows={rows}
-          page={page}
-          pageSize={PAGE_SIZE}
-          total={total}
-          q={q}
-          basePath={BASE_PATH}
-        />
-      </div>
+      <UsersSearchBar initialQuery={q} basePath={BASE_PATH} />
+      <UsersTable
+        rows={rows}
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        q={q}
+        basePath={BASE_PATH}
+      />
     </div>
   );
 }

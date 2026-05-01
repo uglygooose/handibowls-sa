@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { BowlChip } from "@/components/brand/BowlChip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
 import { requireRole } from "@/lib/auth/role";
 
 import { AdminsTab } from "./_components/AdminsTab";
@@ -57,8 +57,9 @@ export default async function ClubDetailPage({
   };
 
   return (
-    <div className="flex flex-col">
-      <PageHeader
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 pb-24">
+      <AdminPageHero
+        titleSize="detail"
         eyebrow={
           <span className="flex items-center gap-2">
             <Link href="/platform/clubs" className="hover:underline">
@@ -77,16 +78,14 @@ export default async function ClubDetailPage({
             </Badge>
           </span>
         }
-        description={
-          <span>
-            {club.district_name ?? "—"} · {club.city}
-          </span>
-        }
+        description={`${club.district_name ?? "—"} · ${club.city}`}
         actions={
           <Button asChild variant="outline">
             <Link href="/platform/clubs">Back to list</Link>
           </Button>
         }
+        splatter={{ preset: club.theme_preset, variant: 0, size: "L", rotate: -12, opacity: 0.5 }}
+        containerWidth="none"
       />
       <ClubTabs active={active} />
       <TabPanel tab="overview" active={active}>

@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/layout/PageHeader";
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
 import { requireRole } from "@/lib/auth/role";
 
 import { DistrictsTable } from "./_components/DistrictsTable";
@@ -10,15 +10,14 @@ export default async function PlatformDistricts() {
   const rows = await listDistrictsWithClubCount();
 
   return (
-    <div className="flex flex-col">
-      <PageHeader
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 pb-24">
+      <AdminPageHero
         eyebrow="Platform"
         title="Districts"
         description="Bowls South Africa districts. Read-only — fixed BSA reference data."
+        containerWidth="none"
       />
-      <div className="px-6 py-6">
-        <DistrictsTable rows={rows} />
-      </div>
+      <DistrictsTable rows={rows} />
     </div>
   );
 }

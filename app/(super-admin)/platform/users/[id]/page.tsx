@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
 import { requireRole } from "@/lib/auth/role";
 
 import { getUserDetail, type UserDetail } from "../_data";
@@ -46,8 +46,9 @@ export default async function PlatformUserDetail({ params }: { params: Params })
   if (!user) notFound();
 
   return (
-    <div className="flex flex-col">
-      <PageHeader
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 pb-24">
+      <AdminPageHero
+        titleSize="detail"
         eyebrow="Platform · User"
         title={fullName(user)}
         description={user.email ?? "No email on record"}
@@ -56,9 +57,10 @@ export default async function PlatformUserDetail({ params }: { params: Params })
             <Link href="/platform/users">Back to users</Link>
           </Button>
         }
+        containerWidth="none"
       />
 
-      <div className="flex flex-col gap-6 px-6 py-6">
+      <div className="flex flex-col gap-6">
         <Card className="p-6">
           <h2 className="font-display text-sm uppercase tracking-widest text-ink-muted">
             Profile

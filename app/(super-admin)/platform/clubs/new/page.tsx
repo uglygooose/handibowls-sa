@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/layout/PageHeader";
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
 import { requireRole } from "@/lib/auth/role";
 
 import { listDistricts } from "../_data";
@@ -14,15 +14,14 @@ export default async function NewClubPage() {
   const districts = await listDistricts();
 
   return (
-    <div className="flex flex-col">
-      <PageHeader
+    <div className="mx-auto flex max-w-[1100px] flex-col gap-6 px-6 py-8 pb-24">
+      <AdminPageHero
         eyebrow="Platform · Clubs"
         title="New club"
         description="Five steps: club details, admin invite, greens & rinks, initial players, review & publish. Save a draft at any point."
+        containerWidth="none"
       />
-      <div className="px-6 py-6">
-        <NewClubWizard districts={districts} />
-      </div>
+      <NewClubWizard districts={districts} />
     </div>
   );
 }

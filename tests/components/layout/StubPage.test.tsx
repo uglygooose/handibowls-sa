@@ -12,7 +12,7 @@ import { StubPage } from "@/components/layout/StubPage";
 afterEach(cleanup);
 
 describe("<StubPage />", () => {
-  it("renders the title via PageHeader (h1)", () => {
+  it("renders the title via AdminPageHero (h1) — 12.5-6 migrated off PageHeader", () => {
     render(<StubPage title="Tournaments" eyebrow="Platform" />);
     expect(
       screen.getByRole("heading", { level: 1, name: "Tournaments" }),

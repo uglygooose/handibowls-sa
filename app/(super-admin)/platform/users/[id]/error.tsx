@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
 
 export default function Error({
   error,
@@ -12,7 +12,7 @@ export default function Error({
 }) {
   return (
     <div className="flex flex-col">
-      <PageHeader eyebrow="Platform · User" title="Error" />
+      <AdminPageHero containerWidth="none" eyebrow="Platform · User" title="Error" />
       <div className="px-6 py-10">
         <div className="max-w-xl rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm">
           <p className="font-medium text-destructive">Could not load this user.</p>

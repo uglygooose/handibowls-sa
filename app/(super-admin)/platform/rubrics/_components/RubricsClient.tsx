@@ -13,8 +13,7 @@ import {
 import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
-import { SplatterAccent } from "@/components/brand/SplatterAccent";
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
 import { RubricDiff } from "@/components/t20/RubricDiff";
 import { cn } from "@/lib/utils";
 import { formatDateZA } from "@/lib/format/dates";
@@ -93,40 +92,16 @@ export function RubricsClient({ rows }: Props) {
   return (
     <div
       data-slot="rubrics-page"
-      className="mx-auto flex max-w-[1280px] flex-col gap-5 px-6 py-6 pb-24"
+      className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-8 pb-24"
     >
-      {/* HERO */}
-      <header
-        data-slot="rubrics-hero"
-        className="relative overflow-hidden rounded-2xl border border-border bg-surface px-8 py-7"
-      >
-        <div className="pointer-events-none absolute inset-0 z-0">
-          <SpeckleLayer seed="rubric-hero" density="high" opacity={0.07} />
-        </div>
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-3 -top-14 z-0 opacity-50"
-        >
-          <SplatterAccent
-            preset="atomic-red"
-            variant={2}
-            size={300}
-            rotate={-22}
-          />
-        </div>
-        <div className="relative z-10">
-          <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
-            Platform · Rubric library
-          </div>
-          <h1 className="mt-1.5 font-display text-[44px] font-black italic leading-[1.05] tracking-tight">
-            Twenty 20 rubrics
-          </h1>
-          <p className="mt-2 max-w-[64ch] text-[14px] text-ink-muted">
-            Version-controlled scoring rules. One active rubric at a time.
-            Upload, diff, activate — captures lock to whichever rubric was
-            active at the moment they began.
-          </p>
-          <div className="mt-3.5 flex flex-wrap items-center gap-2">
+      <AdminPageHero
+        eyebrow="Platform · Rubric library"
+        title="Twenty 20 rubrics"
+        description="Version-controlled scoring rules. One active rubric at a time. Upload, diff, activate — captures lock to whichever rubric was active at the moment they began."
+        speckle={{ seed: "rubric-hero", density: "high", opacity: 0.07 }}
+        splatter={{ preset: "atomic-red", variant: 2, size: "L", rotate: -22, opacity: 0.5, top: -56, right: -12 }}
+        meta={
+          <div className="flex flex-wrap items-center gap-2">
             <span
               data-slot="active-pill"
               className="inline-flex h-7 items-center gap-1.5 rounded-full bg-primary-500 px-3 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-on-primary"
@@ -153,8 +128,9 @@ export function RubricsClient({ rows }: Props) {
               </span>
             )}
           </div>
-        </div>
-      </header>
+        }
+        containerWidth="none"
+      />
 
       <UploadZone onUploaded={() => undefined} />
 
