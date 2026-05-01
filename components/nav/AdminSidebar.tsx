@@ -189,7 +189,12 @@ export function AdminSidebar({
                       collapsed && "justify-center px-0",
                     )}
                   >
-                    <Icon className="size-[18px] shrink-0" />
+                    <Icon
+                      className={cn(
+                        "size-5 shrink-0",
+                        isActive && "stroke-[2.5]",
+                      )}
+                    />
                     {!collapsed && (
                       <>
                         <span className="truncate">{item.label}</span>

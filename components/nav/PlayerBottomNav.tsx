@@ -86,7 +86,7 @@ export function PlayerBottomNav({
           >
             <span className="relative">
               <Icon
-                className={cn("size-[22px] shrink-0", isActive && "stroke-[2.5]")}
+                className={cn("size-5 shrink-0", isActive && "stroke-[2.5]")}
                 aria-hidden="true"
               />
               {showBadge && (
