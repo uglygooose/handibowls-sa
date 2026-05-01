@@ -4,6 +4,7 @@ import { ArrowRight, Clock } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 
+import { PlayerSectionHead } from "@/components/layout/PlayerSectionHead";
 import { cn } from "@/lib/utils";
 
 import { type BookingSlot, purposeLabel } from "../slots";
@@ -79,17 +80,13 @@ export function SlotList({ slots, clubName, allRinksCount }: Props) {
   return (
     <>
       <section data-slot="slot-list">
-        <header className="mb-3 flex items-center justify-between">
-          <h3 className="font-display text-[18px] font-black uppercase italic tracking-tight">
-            Available slots
-          </h3>
-          <span
-            data-slot="open-count"
-            className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted"
-          >
-            {openCount} open
-          </span>
-        </header>
+        <PlayerSectionHead
+          caption={
+            <span data-slot="open-count">{openCount} open</span>
+          }
+        >
+          Available slots
+        </PlayerSectionHead>
 
         <div className="flex flex-col gap-2">
           {slots.map((s) => (

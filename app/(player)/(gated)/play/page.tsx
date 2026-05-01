@@ -2,6 +2,7 @@ import { ArrowRight, Bell, Trophy } from "lucide-react";
 import Link from "next/link";
 
 import { Bowl } from "@/components/brand/Bowl";
+import { PlayerSectionHead } from "@/components/layout/PlayerSectionHead";
 import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { getCurrentProfile } from "@/lib/auth/profile";
 
@@ -99,24 +100,25 @@ export default async function PlayHome() {
       )}
 
       {/* Quick actions */}
-      <SectionHead title="Quick actions" />
+      <PlayerSectionHead>Quick actions</PlayerSectionHead>
       <QuickActions counts={{ openTournaments: null, t20Latest }} />
 
       {/* Recent results */}
-      <SectionHead
-        title="Recent results"
+      <PlayerSectionHead
         action={
           recentResults.length > 0
-            ? { href: "/me", label: "View all" }
+            ? { label: "View all", href: "/me" }
             : undefined
         }
-      />
+      >
+        Recent results
+      </PlayerSectionHead>
       <RecentResults results={recentResults} />
 
       {/* Primary club */}
       {hostClub && (
         <>
-          <SectionHead title="Your club" />
+          <PlayerSectionHead>Your club</PlayerSectionHead>
           <Link
             href="/me"
             className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-3 hover:bg-surface-muted"
@@ -162,30 +164,6 @@ function EmptyNextMatch() {
         Browse tournaments
         <ArrowRight className="size-4" aria-hidden="true" />
       </Link>
-    </div>
-  );
-}
-
-function SectionHead({
-  title,
-  action,
-}: {
-  title: string;
-  action?: { href: string; label: string };
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <h3 className="font-display text-[13px] font-bold uppercase tracking-[0.12em] text-ink-muted">
-        {title}
-      </h3>
-      {action && (
-        <Link
-          href={action.href}
-          className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-primary-500 hover:underline"
-        >
-          {action.label}
-        </Link>
-      )}
     </div>
   );
 }

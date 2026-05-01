@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { PlayerHero } from "@/components/layout/PlayerHero";
+import { PlayerSectionHead } from "@/components/layout/PlayerSectionHead";
 import { getAuthContext } from "@/lib/auth/role";
 import { formatDateZA, formatTimeZA } from "@/lib/format/dates";
 
@@ -105,7 +106,7 @@ export default async function T20Page() {
 
       <div className="flex flex-col gap-5">
         {/* "What is Twenty 20?" explainer */}
-        <SectionHead title="What is Twenty 20?" />
+        <PlayerSectionHead>What is Twenty 20?</PlayerSectionHead>
         <div className="rounded-xl border border-border bg-surface px-5 py-5">
           <p className="m-0 mb-3 text-[13.5px] leading-[1.5] text-ink-muted">
             Twenty 20 is the official handicap and grading system for South
@@ -132,7 +133,7 @@ export default async function T20Page() {
         </div>
 
         {/* Upcoming assessments — booked rows or empty state */}
-        <SectionHead title="Upcoming assessments" />
+        <PlayerSectionHead>Upcoming assessments</PlayerSectionHead>
         {upcoming.length > 0 ? (
           <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
             {upcoming.map((u) => (
@@ -190,7 +191,7 @@ export default async function T20Page() {
             the latest is no longer past. */}
         {profile.history.length > 0 && (
           <>
-            <SectionHead title="All assessments" />
+            <PlayerSectionHead>All assessments</PlayerSectionHead>
             <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
               {profile.history.map((a) => (
                 <li key={a.id}>
@@ -274,14 +275,6 @@ function ExplainItem({
         <span className="text-[12px] text-ink-muted">{body}</span>
       </span>
     </li>
-  );
-}
-
-function SectionHead({ title }: { title: string }) {
-  return (
-    <h2 className="m-0 pt-1 font-display text-[18px] font-black italic uppercase tracking-tight">
-      {title}
-    </h2>
   );
 }
 

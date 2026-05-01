@@ -1,6 +1,7 @@
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
+import { PlayerSectionHead } from "@/components/layout/PlayerSectionHead";
 import { GradePill } from "@/components/t20/GradePill";
 import { LengthDistributionChart } from "@/components/t20/LengthDistributionChart";
 import {
@@ -151,7 +152,7 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
         data-slot="player-results-breakdown"
         className="mx-auto mt-6 max-w-3xl px-5"
       >
-        <SectionHead title="Section breakdown" />
+        <PlayerSectionHead>Section breakdown</PlayerSectionHead>
         <div className="overflow-hidden rounded-xl border border-border bg-bone">
           {/* Desktop / wide table */}
           <table
@@ -244,7 +245,7 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
         data-slot="player-results-notes"
         className="mx-auto mt-6 max-w-3xl px-5"
       >
-        <SectionHead title="Notes from your coach" />
+        <PlayerSectionHead>Notes from your coach</PlayerSectionHead>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <NoteTile
             data-slot="note-tile-strengths"
@@ -292,7 +293,7 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
         className="mx-auto mt-6 grid max-w-3xl grid-cols-1 gap-4 px-5 md:grid-cols-2"
       >
         <div data-slot="player-results-heatmap">
-          <SectionHead title="Where your bowls landed" />
+          <PlayerSectionHead>Where your bowls landed</PlayerSectionHead>
           <div className="rounded-xl border border-border bg-bone px-5 py-5">
             <HeatmapMount counts={zoneCounts} size={240} />
             <p
@@ -304,7 +305,7 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
           </div>
         </div>
         <div data-slot="player-results-length">
-          <SectionHead title="Length distribution" />
+          <PlayerSectionHead>Length distribution</PlayerSectionHead>
           <div className="rounded-xl border border-border bg-bone px-5 py-5">
             <LengthDistributionChart data={lengthDist} />
             <p
@@ -320,18 +321,6 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
   );
 }
 
-function SectionHead({ title }: { title: string }) {
-  return (
-    <div
-      data-slot="section-head"
-      className="mb-3 flex items-baseline justify-between"
-    >
-      <h2 className="font-display text-[18px] font-extrabold tracking-tight">
-        {title}
-      </h2>
-    </div>
-  );
-}
 
 function Th({
   children,

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { Bowl } from "@/components/brand/Bowl";
 import { PlayerHero } from "@/components/layout/PlayerHero";
+import { PlayerSectionHead } from "@/components/layout/PlayerSectionHead";
 import { MyBookings } from "@/components/player/MyBookings";
 import { getCurrentMemberships } from "@/lib/auth/memberships";
 import { getCurrentProfile } from "@/lib/auth/profile";
@@ -134,21 +135,19 @@ export default async function MePage() {
         </div>
 
         {/* Inbox preview */}
-        <SectionHead
-          title="Inbox"
-          right={
-            <Link
-              href="/me/inbox"
-              className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-primary-500 hover:underline"
-            >
-              {unreadCount > 0
+        <PlayerSectionHead
+          action={{
+            label:
+              unreadCount > 0
                 ? `${unreadCount} unread`
                 : inbox.length > 0
                   ? "View all"
-                  : "Open"}
-            </Link>
-          }
-        />
+                  : "Open",
+            href: "/me/inbox",
+          }}
+        >
+          Inbox
+        </PlayerSectionHead>
         {inbox.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-5 text-center text-[13px] text-ink-muted">
             No notifications yet. Match reminders, draws, and announcements
@@ -207,7 +206,7 @@ export default async function MePage() {
         />
 
         {/* Your clubs */}
-        <SectionHead title="Your clubs" />
+        <PlayerSectionHead>Your clubs</PlayerSectionHead>
         <ul className="flex flex-col gap-1.5">
           {memberships.map((m) => (
             <li
@@ -241,7 +240,7 @@ export default async function MePage() {
         </ul>
 
         {/* Settings */}
-        <SectionHead title="Settings" />
+        <PlayerSectionHead>Settings</PlayerSectionHead>
         <ul className="flex flex-col gap-1 rounded-xl border border-border bg-surface">
           <SettingRow icon={<User className="size-4" />} label="Personal details" trailing="—" />
           <SettingRow icon={<Bell className="size-4" />} label="Notifications" trailing="—" />
@@ -265,23 +264,6 @@ function StatCell({ value, label }: { value: string; label: string }) {
       <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-ink-muted">
         {label}
       </span>
-    </div>
-  );
-}
-
-function SectionHead({
-  title,
-  right,
-}: {
-  title: string;
-  right?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <h2 className="font-display text-[13px] font-bold uppercase tracking-[0.12em] text-ink-muted">
-        {title}
-      </h2>
-      {right}
     </div>
   );
 }

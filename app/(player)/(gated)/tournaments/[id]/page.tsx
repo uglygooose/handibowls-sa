@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PlayerHero } from "@/components/layout/PlayerHero";
+import { PlayerSectionHead } from "@/components/layout/PlayerSectionHead";
 import { formatDateRangeZA } from "@/lib/format/dates";
 
 import {
@@ -158,12 +159,12 @@ export default async function PlayerTournamentDetailPage({ params }: Props) {
         )}
 
         {/* Bracket */}
-        <SectionHead title="Bracket" />
+        <PlayerSectionHead>Bracket</PlayerSectionHead>
         <MiniBracket rounds={rounds} />
 
         {/* Standings — placeholder; round-robin / sectional standings ship
             when those formats are unlocked engine-wide. */}
-        <SectionHead title="Standings" />
+        <PlayerSectionHead>Standings</PlayerSectionHead>
         <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-6 text-[13px] text-ink-muted">
           Standings will be available once the tournament is in progress.
           Knockout tournaments use the bracket above; round-robin and
@@ -172,7 +173,7 @@ export default async function PlayerTournamentDetailPage({ params }: Props) {
         </div>
 
         {/* Tournament info */}
-        <SectionHead title="Tournament info" />
+        <PlayerSectionHead>Tournament info</PlayerSectionHead>
         <div className="grid grid-cols-2 gap-2">
           <Info label="Host" value={tournament.host_club_name} />
           <Info label="District" value={tournament.district_name ?? "—"} />
@@ -221,14 +222,6 @@ function HeroPill({
       {icon}
       {children}
     </span>
-  );
-}
-
-function SectionHead({ title }: { title: string }) {
-  return (
-    <h3 className="font-display text-[13px] font-bold uppercase tracking-[0.12em] text-ink-muted">
-      {title}
-    </h3>
   );
 }
 
