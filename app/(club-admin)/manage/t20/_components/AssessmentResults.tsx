@@ -567,7 +567,7 @@ function ChartsRow({
   return (
     <section
       data-slot="charts-row"
-      className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr_1fr]"
+      className="grid grid-cols-1 gap-4 md:grid-cols-[1.2fr_1fr_1fr]"
     >
       <div
         data-slot="zone-heatmap-card"

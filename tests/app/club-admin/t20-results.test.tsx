@@ -317,6 +317,19 @@ describe("<AssessmentResults /> — charts row", () => {
     ).not.toBeNull();
   });
 
+  it("charts grid uses md: breakpoint (768px+) for the 3-column layout — single-column below md (12.5-6 responsive-admin-t20-charts)", () => {
+    const { container } = renderResults();
+    const grid = container.querySelector("[data-slot='charts-row']");
+    expect(grid).not.toBeNull();
+    const cls = grid?.className ?? "";
+    expect(cls).toContain("grid-cols-1");
+    // 3-col layout fires at md+ (768px), NOT lg+ (1024px) — at the
+    // 768-1023 viewport range three charts fit and the lg fallback
+    // collapsed them to single-column unnecessarily.
+    expect(cls).toMatch(/md:grid-cols-\[1\.2fr_1fr_1fr\]/);
+    expect(cls).not.toMatch(/lg:grid-cols-\[1\.2fr_1fr_1fr\]/);
+  });
+
   it("zone heatmap renders with the zone-count totals in the eyebrow", () => {
     const { container } = renderResults();
     const card = container.querySelector(
