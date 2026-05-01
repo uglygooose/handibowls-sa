@@ -10,6 +10,16 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CompassPicker } from "@/components/t20/CompassPicker";
 import { SaveIndicator, type SaveState } from "@/components/t20/SaveIndicator";
 import { SectionStepper } from "@/components/t20/SectionStepper";
@@ -18,6 +28,7 @@ import { useWakeLock } from "@/lib/scorecard/use-wake-lock";
 import { cn } from "@/lib/utils";
 import { formatDateZA } from "@/lib/format/dates";
 import {
+  type Grade,
   type LineOutcome,
   type Rubric,
   SECTION_KEYS,
@@ -25,9 +36,10 @@ import {
   ZONE_META,
   type ZoneOutcome,
 } from "@/lib/t20/rubric";
-import { sectionMaxes } from "@/lib/t20/score";
+import { gradeFor, grandMax, sectionMaxes } from "@/lib/t20/score";
 
 import {
+  discardAssessment,
   finalizeAssessment,
   recordDelivery,
 } from "../_actions";
@@ -107,6 +119,12 @@ export function CaptureWizard({ assessment, deliveries, rubric }: Props) {
   const [deliveriesMap, setDeliveriesMap] = useState<DeliveriesMap>(
     initial.deliveriesMap,
   );
+
+  // Phase 12.5 / 12.5-3 (audit `t20-cancel-confirm`): cancel-confirm
+  // dialog state. The X close button opens this when at least one
+  // shot is recorded; with zero shots it just routes to /manage/t20.
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [discardPending, startDiscardTransition] = useTransition();
 
   // Keep the SectionStepper completion map in sync with the
   // deliveries state.
@@ -252,6 +270,39 @@ export function CaptureWizard({ assessment, deliveries, rubric }: Props) {
   const sectionRoundMax = sectionMaxes(rubric)[sectionKey] / 2;
   const liveLabel = humanLiveLabel(savePending, saveState);
 
+  // 12.5-3 / cancel-confirm: live projection used by the discard
+  // dialog body. Only computed when needed (memoised so a dialog-
+  // open re-render doesn't re-walk the whole map).
+  const projection = useMemo(
+    () => computeProjection(rubric, deliveriesMap),
+    [rubric, deliveriesMap],
+  );
+
+  function onCloseClick() {
+    if (projection.shotsRecorded === 0) {
+      router.push("/manage/t20");
+      return;
+    }
+    setDiscardOpen(true);
+  }
+
+  function onConfirmDiscard() {
+    startDiscardTransition(async () => {
+      const result = await discardAssessment({
+        assessment_id: assessment.id,
+      });
+      if (result.kind === "ok") {
+        router.push("/manage/t20");
+      } else {
+        // Surface the failure inline; AlertDialog stays open so
+        // the coach can retry. Save & pause is the safe escape
+        // hatch from this state.
+        setSaveState("failed");
+        setDiscardOpen(false);
+      }
+    });
+  }
+
   return (
     <div
       data-slot="capture-wizard"
@@ -270,9 +321,9 @@ export function CaptureWizard({ assessment, deliveries, rubric }: Props) {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => router.push("/manage/t20")}
-              aria-label="Save and exit to assessments list"
-              data-slot="capture-exit-cta"
+              onClick={onCloseClick}
+              aria-label="Discard this assessment"
+              data-slot="capture-discard-cta"
               className="inline-flex size-10 items-center justify-center rounded-md text-ink hover:bg-surface-muted"
             >
               <X className="size-5" aria-hidden="true" />
@@ -443,8 +494,90 @@ export function CaptureWizard({ assessment, deliveries, rubric }: Props) {
           )}
         </div>
       </footer>
+
+      {/* 12.5-3 (audit `t20-cancel-confirm`): destructive-confirm
+          dialog. Opens from the X close button when at least one
+          shot has been recorded. */}
+      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <AlertDialogContent data-slot="discard-confirm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard this assessment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {`You've recorded ${projection.shotsRecorded} ${projection.shotsRecorded === 1 ? "shot" : "shots"} across ${projection.sectionsTouched} ${projection.sectionsTouched === 1 ? "section" : "sections"}. Discarding can't be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div
+            data-slot="discard-projection-pill"
+            className="mx-auto inline-flex items-center gap-2 rounded-full border border-border bg-bone px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink"
+          >
+            <span>Projected:</span>
+            <span className="text-primary-500">
+              {GRADE_LABEL[projection.grade]}
+            </span>
+            <span className="tabular-nums text-ink-muted">
+              · {projection.percent.toFixed(0)}%
+            </span>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={discardPending}>
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="danger"
+              onClick={onConfirmDiscard}
+              disabled={discardPending}
+            >
+              {discardPending ? "Discarding…" : "Discard assessment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
+}
+
+const GRADE_LABEL: Record<Grade, string> = {
+  gold: "Gold",
+  silver: "Silver",
+  bronze: "Bronze",
+  fail: "Reassess",
+};
+
+// 12.5-3: live projection from the partial deliveriesMap. Sums the
+// per-section-round subtotals (using the existing
+// `subtotalForSectionRound` helper) for `earned`, divides by
+// `grandMax(rubric)` for `percent`, then routes through `gradeFor`
+// for the grade band. Mirrors what `aggregateAssessment` would
+// return on the same data, without the conversion overhead of
+// rebuilding a Delivery[] from the map.
+function computeProjection(
+  rubric: Rubric,
+  deliveriesMap: DeliveriesMap,
+): {
+  shotsRecorded: number;
+  sectionsTouched: number;
+  earned: number;
+  percent: number;
+  grade: Grade;
+} {
+  let earned = 0;
+  let shots = 0;
+  let sectionsTouched = 0;
+  for (const k of SECTION_KEYS) {
+    const sectionShots =
+      countFilled(deliveriesMap[k]?.[1] ?? {}) +
+      countFilled(deliveriesMap[k]?.[2] ?? {});
+    if (sectionShots > 0) {
+      sectionsTouched++;
+      shots += sectionShots;
+      earned += subtotalForSectionRound(rubric, k, 1, deliveriesMap);
+      earned += subtotalForSectionRound(rubric, k, 2, deliveriesMap);
+    }
+  }
+  const max = grandMax(rubric);
+  const percent = max > 0 ? Math.min(100, (earned / max) * 100) : 0;
+  const grade = gradeFor(rubric, percent);
+  return { shotsRecorded: shots, sectionsTouched, earned, percent, grade };
 }
 
 // ---------------------------------------------------------------------

@@ -10,9 +10,11 @@ vi.mock("next/navigation", () => ({
 
 const recordDeliverySpy = vi.fn();
 const finalizeAssessmentSpy = vi.fn();
+const discardAssessmentSpy = vi.fn();
 vi.mock("@/app/(club-admin)/manage/t20/_actions", () => ({
   recordDelivery: (...a: unknown[]) => recordDeliverySpy(...a),
   finalizeAssessment: (...a: unknown[]) => finalizeAssessmentSpy(...a),
+  discardAssessment: (...a: unknown[]) => discardAssessmentSpy(...a),
 }));
 
 const wakeLockAcquireSpy = vi.fn().mockResolvedValue(true);
@@ -865,7 +867,7 @@ describe("<CaptureWizard /> — exit + save indicator", () => {
     );
   });
 
-  it("Exit button + Save & pause both push back to /manage/t20", () => {
+  it("Discard button (zero shots) + Save & pause both push back to /manage/t20", () => {
     const { container } = render(
       <CaptureWizard
         assessment={makeAssessment()}
@@ -873,9 +875,11 @@ describe("<CaptureWizard /> — exit + save indicator", () => {
         rubric={RUBRIC_V1}
       />,
     );
+    // 12.5-3: discard CTA goes silent-route when zero shots are
+    // recorded (no AlertDialog opens). Save & pause is unchanged.
     fireEvent.click(
       container.querySelector(
-        "[data-slot='capture-exit-cta']",
+        "[data-slot='capture-discard-cta']",
       ) as HTMLButtonElement,
     );
     expect(routerPushSpy).toHaveBeenLastCalledWith("/manage/t20");
@@ -927,5 +931,119 @@ describe("<CaptureWizard /> — subtotal chip", () => {
     const chip = container.querySelector("[data-slot='subtotal-chip']");
     expect(chip?.textContent).toContain("R1 subtotal");
     expect(chip?.textContent).toContain("Live %");
+  });
+});
+
+describe("<CaptureWizard /> — discard-with-confirm (12.5-3)", () => {
+  beforeEach(() => {
+    routerPushSpy.mockReset();
+    discardAssessmentSpy.mockReset();
+  });
+
+  function makeShot(over: Partial<DeliveryRow> = {}): DeliveryRow {
+    return {
+      id: `d-${Math.random().toString(16).slice(2)}`,
+      assessment_id: ASSESSMENT_ID,
+      section: "jacks",
+      round: 1,
+      delivery_index: 1,
+      distance_m: 23,
+      outcome: { line: "on_line" },
+      points: 1,
+      ...over,
+    } as DeliveryRow;
+  }
+
+  it("does NOT open the AlertDialog when zero shots are recorded — silent route", () => {
+    const { container, queryByText } = render(
+      <CaptureWizard
+        assessment={makeAssessment()}
+        deliveries={[]}
+        rubric={RUBRIC_V1}
+      />,
+    );
+    fireEvent.click(
+      container.querySelector(
+        "[data-slot='capture-discard-cta']",
+      ) as HTMLButtonElement,
+    );
+    expect(queryByText("Discard this assessment?")).toBeNull();
+    expect(routerPushSpy).toHaveBeenLastCalledWith("/manage/t20");
+    expect(discardAssessmentSpy).not.toHaveBeenCalled();
+  });
+
+  it("opens the AlertDialog when at least one shot is recorded", async () => {
+    const { container, findByText, findByRole } = render(
+      <CaptureWizard
+        assessment={makeAssessment()}
+        deliveries={[
+          makeShot({ delivery_index: 1, outcome: { line: "on_line" } }),
+          makeShot({ delivery_index: 2, outcome: { line: "narrow" } }),
+        ]}
+        rubric={RUBRIC_V1}
+      />,
+    );
+    fireEvent.click(
+      container.querySelector(
+        "[data-slot='capture-discard-cta']",
+      ) as HTMLButtonElement,
+    );
+    expect(await findByText("Discard this assessment?")).toBeInTheDocument();
+    // 2 shots, 1 section
+    expect(
+      await findByText(/2 shots across 1 section/i),
+    ).toBeInTheDocument();
+    // projection pill renders the grade label + percent
+    expect(await findByRole("button", { name: /Discard assessment/i })).toBeInTheDocument();
+    expect(routerPushSpy).not.toHaveBeenCalled();
+    expect(discardAssessmentSpy).not.toHaveBeenCalled();
+  });
+
+  it("'Keep editing' closes the dialog without discarding or routing", async () => {
+    const { container, findByRole, queryByText } = render(
+      <CaptureWizard
+        assessment={makeAssessment()}
+        deliveries={[makeShot()]}
+        rubric={RUBRIC_V1}
+      />,
+    );
+    fireEvent.click(
+      container.querySelector(
+        "[data-slot='capture-discard-cta']",
+      ) as HTMLButtonElement,
+    );
+    const cancelBtn = await findByRole("button", { name: /Keep editing/i });
+    fireEvent.click(cancelBtn);
+    await waitFor(() => {
+      expect(queryByText("Discard this assessment?")).toBeNull();
+    });
+    expect(discardAssessmentSpy).not.toHaveBeenCalled();
+    expect(routerPushSpy).not.toHaveBeenCalled();
+  });
+
+  it("'Discard assessment' calls discardAssessment then routes to /manage/t20", async () => {
+    discardAssessmentSpy.mockResolvedValueOnce({ kind: "ok" });
+    const { container, findByRole } = render(
+      <CaptureWizard
+        assessment={makeAssessment()}
+        deliveries={[makeShot()]}
+        rubric={RUBRIC_V1}
+      />,
+    );
+    fireEvent.click(
+      container.querySelector(
+        "[data-slot='capture-discard-cta']",
+      ) as HTMLButtonElement,
+    );
+    const discardBtn = await findByRole("button", { name: /Discard assessment/i });
+    await act(async () => {
+      fireEvent.click(discardBtn);
+    });
+    await waitFor(() => {
+      expect(discardAssessmentSpy).toHaveBeenCalledWith({ assessment_id: ASSESSMENT_ID });
+    });
+    await waitFor(() => {
+      expect(routerPushSpy).toHaveBeenCalledWith("/manage/t20");
+    });
   });
 });

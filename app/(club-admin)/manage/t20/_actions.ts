@@ -764,3 +764,76 @@ export async function editAssessmentNotes(
     notes: data.notes as T20NotesInput | null,
   };
 }
+
+// Phase 12.5 / 12.5-3 (audit id `t20-cancel-confirm`): discard a
+// draft assessment. Cascades to t20_deliveries via the existing
+// FK on delete cascade (migration 007). Submitted/archived
+// assessments are protected — only `status='draft'` rows can be
+// discarded; the wizard's "Discard this assessment?" confirm
+// dialog only opens against drafts in flight.
+
+const discardAssessmentSchema = z.object({
+  assessment_id: z.string().uuid(),
+});
+
+export type DiscardAssessmentInput = z.input<typeof discardAssessmentSchema>;
+export type DiscardAssessmentResult =
+  | { kind: "ok" }
+  | { kind: "validation"; error: string }
+  | { kind: "auth"; error: string }
+  | { kind: "forbidden"; error: string }
+  | { kind: "wrong_state"; status: string }
+  | { kind: "not_found" }
+  | { kind: "error"; error: string };
+
+export async function discardAssessment(
+  input: DiscardAssessmentInput,
+): Promise<DiscardAssessmentResult> {
+  const ctx = await getAuthContext();
+  if (!ctx) return { kind: "auth", error: "Not authenticated" };
+
+  const parsed = discardAssessmentSchema.safeParse(input);
+  if (!parsed.success) {
+    return { kind: "validation", error: firstZodError(parsed.error) };
+  }
+
+  const supabase = await createClient();
+
+  // Status check first so we return a useful kind on submitted/
+  // archived attempts (RLS would also reject the DELETE but a
+  // separate kind reads cleaner at the consumer).
+  const { data: row, error: readErr } = await supabase
+    .from("t20_assessments")
+    .select("id, status")
+    .eq("id", parsed.data.assessment_id)
+    .maybeSingle();
+  if (readErr) return { kind: "error", error: readErr.message };
+  if (!row) return { kind: "not_found" };
+  if (row.status !== "draft") {
+    return { kind: "wrong_state", status: row.status };
+  }
+
+  const { error: delErr, data: del } = await supabase
+    .from("t20_assessments")
+    .delete()
+    .eq("id", parsed.data.assessment_id)
+    .eq("status", "draft")
+    .select("id");
+
+  if (delErr) {
+    if (delErr.code === "PGRST116" || /Row Level Security|RLS/i.test(delErr.message)) {
+      return { kind: "forbidden", error: "Not authorized to discard this assessment." };
+    }
+    return { kind: "error", error: delErr.message };
+  }
+  if (!del || del.length === 0) {
+    // RLS denied silently — surface as forbidden rather than ok.
+    return {
+      kind: "forbidden",
+      error: "DELETE matched no rows — likely RLS denial. Verify your club admin assignment is current.",
+    };
+  }
+
+  revalidatePath("/manage/t20");
+  return { kind: "ok" };
+}
