@@ -1,51 +1,47 @@
-import { forwardRef } from "react";
+"use client";
+
+import * as React from "react";
 import type { ReactNode } from "react";
 
+import { Checkbox as ShadcnCheckbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
-type Props = Omit<React.ComponentProps<"input">, "type" | "children"> & {
+// Phase 12 / 12-6: swapped from a hand-rolled `peer-checked:[&>svg]:opacity-100`
+// arbitrary-variant component to the shadcn Checkbox primitive (Radix
+// Checkbox under the hood). The visual contract — 2px black border
+// square that fills primary-500 with a white tick when checked — is
+// preserved via className overrides; the form-submit semantics are
+// unchanged (Radix renders a hidden form-associated input, so `name` /
+// `required` / `defaultChecked` work as before).
+//
+// Used on the remember-me row (login), terms row (signup), and
+// code-of-conduct row (invite). All three forms are Client Components;
+// the "use client" directive here matches the shadcn primitive.
+
+type ShadcnProps = React.ComponentProps<typeof ShadcnCheckbox>;
+
+type Props = Omit<ShadcnProps, "children"> & {
   children: ReactNode;
   error?: boolean;
 };
 
-// HandiBowls native checkbox — styled with a 2px black border box that
-// fills primary-500 when checked. Used on the remember-me and terms rows.
-export const Checkbox = forwardRef<HTMLInputElement, Props>(function Checkbox(
-  { children, error, className, ...props },
-  ref,
-) {
+export const Checkbox = React.forwardRef<
+  React.ElementRef<typeof ShadcnCheckbox>,
+  Props
+>(function Checkbox({ children, error, className, ...props }, ref) {
   return (
-    <label
-      className={cn(
-        "relative flex cursor-pointer items-start gap-2.5 text-sm text-ink-muted",
-        className,
-      )}
-    >
-      <input ref={ref} type="checkbox" className="peer sr-only" {...props} />
-      <span
+    <label className="relative flex cursor-pointer items-start gap-2.5 text-sm text-ink-muted">
+      <ShadcnCheckbox
+        ref={ref}
         className={cn(
-          "relative mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] border-2 border-ink bg-bone transition-colors",
-          "peer-checked:border-primary-500 peer-checked:bg-primary-500",
-          "peer-focus-visible:ring-[3px] peer-focus-visible:ring-primary-500/30",
-          "peer-checked:[&>svg]:opacity-100",
+          "mt-0.5 size-5 shrink-0 rounded-[5px] border-2 border-ink bg-bone",
+          "data-checked:border-primary-500 data-checked:bg-primary-500 data-checked:text-on-primary",
+          "focus-visible:ring-[3px] focus-visible:ring-primary-500/30",
           error && "border-danger-500",
+          className,
         )}
-      >
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 12 10"
-          className="h-[10px] w-3 text-white opacity-0 transition-opacity"
-        >
-          <path
-            d="M1 5 L4.5 8.5 L11 1.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </span>
+        {...props}
+      />
       <span>{children}</span>
     </label>
   );
