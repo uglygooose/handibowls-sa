@@ -938,6 +938,106 @@ at Phase 12 / 12-6; the remaining 15 active entries land across
 - **Drift counts:** 45 → 54 open (+9 new audit findings); closed
   unchanged at 57.
 
+### 12.5-3 — T20 admin polish — closed 2026-05-01
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-12.5-design-unification`).
+- **Five atomic commits on top of `1944dee`:**
+  - `5b5b36d` (12.5-3 commit 1) — prep. Ships shadcn
+    `<AlertDialog>` primitive at `components/ui/alert-dialog.tsx`
+    (192 lines, mirrors `dialog.tsx` structure + the project's
+    `radix-ui` import shape). Default `<AlertDialogAction>` /
+    `<AlertDialogCancel>` render the project's `<Button>` via
+    `asChild` so the primary/secondary actions inherit the
+    44px primary CTA height + outline cancel treatment from
+    the locked form-control scale.
+  - `7f4792c` (12.5-3 commit 2) — closes audit id
+    `t20-cancel-confirm`. New `discardAssessment(assessment_id)`
+    Server Action (~70 lines) DELETEs the t20_assessments row
+    (cascade-deletes deliveries via FK); status-guarded to drafts
+    only; silent-RLS-denial guard mirrors the 12-4 finalize
+    hotfix pattern. CaptureWizard X close button rewired:
+    aria-label "Discard this assessment"; 0 shots → silent
+    route to /manage/t20; ≥1 shot → AlertDialog with audit-
+    verbatim copy + projection pill (computed via new
+    `computeProjection(rubric, deliveriesMap)` helper). +4 new
+    test cases, +1 case rewrite for the new data-slot id.
+  - `81c8aa1` (12.5-3 commit 3) — closes audit id
+    `t20-list-empty-states`. Two parts: (a) `EmptyNoData` +
+    `EmptyNoMatch` migrated to the shared `<EmptyState>`
+    primitive from 12.5-1 — `EmptyNoData` ships the audit's
+    locked copy (ClipboardList icon, "NO ASSESSMENTS YET"
+    eyebrow, "Capture your first Twenty 20" title, primary CTA
+    → /manage/t20/new). (b) Filter state lifted from `useState`
+    to URL search params (`?status=…&grade=…&q=…`). Status +
+    grade chips push immediately; search debounces 300ms.
+    Test rewrite (21 → 25 cases): mock pattern lifted from
+    `/platform/clubs` `ClubsSearch.test.tsx`; URL-state seeded
+    via `mockSearch` per test for filtered-render assertions.
+  - `6b9b894` (12.5-3 commit 4) — closes audit id
+    `rubrics-view-schema-modal`. New `<RubricSchemaDialog>`
+    (156 lines) wired into the rubrics versions table via a
+    per-row "View schema" button. Section table per audit
+    spec (# / Section / Model / Max R1 / Max R2 / Total + tfoot
+    Grand total) + `<details>` JSON reveal for power users.
+    Reuses canonical SECTION_KEYS order + `sectionMaxes()` so
+    the modal tracks the live grading engine. +6 unit tests.
+  - This commit (12.5-3 close) — DRIFT_LOG closures (3 audit
+    IDs) + PHASE_LOG entry.
+- **Drift entries closed:** **3** —
+  - `t20-cancel-confirm` (closed by `5b5b36d` + `7f4792c`).
+  - `t20-list-empty-states` (closed by `81c8aa1` — covers both
+    `coach-no-captures empty state not implemented` (sub-a)
+    and `filter state is React-local, not URL-driven` (sub-b)).
+  - `rubrics-view-schema-modal` (closed by `6b9b894`).
+- **Drift entries opened:** **0**. The audit's open call
+  about copy-to-clipboard for the JSON reveal stays a no-v1
+  per the locked decision; the absence of a per-rubric empty
+  state stays a no-v1 per the locked decision.
+- **Test count delta:** 1256 → 1270 (+14 net unit; +4 from new
+  cancel-confirm cases in `t20-capture-wizard.test.tsx`, +4
+  from the list-client rewrite (21 → 25), +6 from new
+  `rubric-schema-dialog.test.tsx`). Integration: 114 / 114
+  unchanged.
+- **Verification gates at close:** tsc clean / lint 0 errors
+  (18 pre-existing warnings) / 1270 unit / 114 integration /
+  build green. (One pre-existing flaky case in
+  `tests/lib/email/unsubscribe.test.ts` — signature-tamper
+  test that relies on a random-byte flip; clears on rerun;
+  unrelated to 12.5-3.)
+- **What to QA in dev:**
+  - **Capture wizard discard-with-confirm:** Start a capture,
+    record 1+ shots, tap the X close button (top-left). Dialog
+    appears with title "Discard this assessment?", body shows
+    shot count + section count, projection pill renders
+    "Projected: <GRADE> · NN%". "Keep editing" closes dialog,
+    no navigation. "Discard assessment" closes dialog, calls
+    `discardAssessment` action (DELETE row + cascade), routes
+    to /manage/t20.
+  - **Capture wizard zero shots:** Start a fresh capture,
+    immediately tap X without recording any shots. Routes to
+    /manage/t20 directly, no dialog.
+  - **Capture wizard "Save & pause":** Unchanged from
+    pre-12.5-3. Always saves and exits, no confirm.
+  - **T20 list empty state:** As a coach with zero captures
+    (or in dev, a fresh club), see the new EmptyState
+    treatment with ClipboardList icon, "NO ASSESSMENTS YET"
+    eyebrow, "Capture your first Twenty 20" headline, "New
+    assessment" primary CTA.
+  - **T20 list URL filters:** Apply rubric, grade, status
+    filter chips → URL gains `?status=…&grade=…`. Reload →
+    chips remain active. Type in search → URL gains `?q=…`
+    after 300ms. "Clear filters" → URL drops all params.
+    Share-the-URL works.
+  - **Rubrics list view-schema:** As super_admin, navigate to
+    `/platform/rubrics`. On any row whose schema parsed
+    cleanly, click the "View schema" button (lucide Code2
+    icon). Modal opens with section table (7 rows in order
+    Jacks → … → Speedhumps Descending), Max R1 = Max R2 per
+    section, Grand total in footer. Click "JSON" details
+    reveal → raw rubric JSON expands. Close button + Escape
+    key both close the dialog.
+
 ### 12.5-2 — Theme + Speckle — closed 2026-05-01
 
 - **Branch tip at close:** `<filled in commit message>`
