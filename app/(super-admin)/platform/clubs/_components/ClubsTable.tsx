@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import {
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
@@ -16,7 +15,6 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { BowlChip } from "@/components/brand/BowlChip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -33,12 +31,19 @@ type Props = {
   page: number;
   pageSize: number;
   total: number;
+  q: string;
   basePath: string;
 };
 
-export function ClubsTable({ rows, page, pageSize, total, basePath }: Props) {
+// Phase 12 / 12-7: search input lives in `<ClubsSearchBar>` (sibling
+// component, URL-driven). The table no longer maintains a client-side
+// `globalFilter` — `rows` is the already-filtered + paginated set per
+// the URL's `q` + `page`. Server-side filter scales to the full clubs
+// dataset; pre-12-7 the `globalFilter` only matched rows on the active
+// page.
+
+export function ClubsTable({ rows, page, pageSize, total, q, basePath }: Props) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }]);
-  const [globalFilter, setGlobalFilter] = useState("");
 
   const columns = useMemo<ColumnDef<ClubRow>[]>(
     () => [
@@ -129,29 +134,27 @@ export function ClubsTable({ rows, page, pageSize, total, basePath }: Props) {
   const table = useReactTable({
     data: rows,
     columns,
-    state: { sorting, globalFilter },
+    state: { sorting },
     onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    globalFilterFn: "includesString",
   });
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  function pageHref(targetPage: number): string {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (targetPage > 1) params.set("page", String(targetPage));
+    const qs = params.toString();
+    return qs ? `${basePath}?${qs}` : basePath;
+  }
+
   return (
     <div className="flex flex-col gap-3" data-slot="clubs-table">
-      <div className="flex items-center gap-2">
-        <Input
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          placeholder="Filter clubs…"
-          aria-label="Filter clubs"
-          className="max-w-sm"
-        />
-        <span className="ml-auto text-xs text-ink-muted tabular-nums">
-          {table.getFilteredRowModel().rows.length} of {total}
+      <div className="flex items-center justify-end">
+        <span className="text-xs text-ink-muted tabular-nums">
+          {q ? `${rows.length} match · ${total} total` : `${total} clubs`}
         </span>
       </div>
 
@@ -196,7 +199,7 @@ export function ClubsTable({ rows, page, pageSize, total, basePath }: Props) {
             {table.getRowModel().rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={columns.length} className="py-10 text-center text-ink-muted">
-                  No clubs match.
+                  {q ? `No clubs match “${q}”.` : "No clubs."}
                 </TableCell>
               </TableRow>
             ) : (
@@ -221,7 +224,7 @@ export function ClubsTable({ rows, page, pageSize, total, basePath }: Props) {
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm" disabled={page <= 1}>
             <Link
-              href={`${basePath}?page=${Math.max(1, page - 1)}`}
+              href={pageHref(Math.max(1, page - 1))}
               aria-disabled={page <= 1}
               className={cn(page <= 1 && "pointer-events-none opacity-50")}
             >
@@ -230,7 +233,7 @@ export function ClubsTable({ rows, page, pageSize, total, basePath }: Props) {
           </Button>
           <Button asChild variant="outline" size="sm" disabled={page >= totalPages}>
             <Link
-              href={`${basePath}?page=${Math.min(totalPages, page + 1)}`}
+              href={pageHref(Math.min(totalPages, page + 1))}
               aria-disabled={page >= totalPages}
               className={cn(page >= totalPages && "pointer-events-none opacity-50")}
             >

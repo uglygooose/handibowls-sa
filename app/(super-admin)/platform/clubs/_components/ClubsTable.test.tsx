@@ -57,6 +57,7 @@ function renderTable() {
       page={1}
       pageSize={50}
       total={rows.length}
+      q=""
       basePath="/platform/clubs"
     />,
   );
@@ -74,13 +75,24 @@ describe("ClubsTable", () => {
     expect(screen.getByRole("link", { name: "Marina Greens" })).toBeInTheDocument();
   });
 
-  it("filters rows by the global filter input", () => {
+  it("does NOT own a client-side filter input — filtering is server-side via ClubsSearchBar (12-7)", () => {
     renderTable();
-    const input = screen.getByLabelText("Filter clubs");
-    fireEvent.change(input, { target: { value: "Acme" } });
-    expect(screen.queryByRole("link", { name: "Zephyr Club" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Marina Greens" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Acme Bowls" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Filter clubs")).toBeNull();
+    expect(screen.queryByLabelText("Search clubs")).toBeNull();
+  });
+
+  it("renders the empty-state with q-aware copy when q is set + 0 rows", () => {
+    render(
+      <ClubsTable
+        rows={[]}
+        page={1}
+        pageSize={50}
+        total={0}
+        q="Acme"
+        basePath="/platform/clubs"
+      />,
+    );
+    expect(screen.getByText(/No clubs match.+Acme/i)).toBeInTheDocument();
   });
 
   it("reverses name order when the Name sort header is clicked", () => {

@@ -40,20 +40,37 @@ export type ListClubsResult = {
   pageSize: number;
 };
 
+function escapeOrLiteral(value: string): string {
+  // PostgREST .or() splits on commas + parens; strip any stray double-quotes
+  // from the user input so the wildcard wrap below is safe. ILIKE wildcards
+  // (%) pass through verbatim.
+  return value.replace(/"/g, "");
+}
+
 // Server-side paginated list of clubs with the joins we need for the platform
 // clubs table. RLS (clubs_super_admin_all) gates access to super-admins.
+//
+// Phase 12 / 12-7: takes an optional `q` for server-side search across
+// `name`, `short_name`, and `city` (ILIKE OR'd in one PostgREST query).
+// Pre-12-7 the table did client-side `globalFilter` on the paginated subset,
+// which only matched rows on the active page when the dataset spanned 2+
+// pages. Pattern matches `listUsers` from `/platform/users` (the precedent
+// for server-side `q` thread on a paginated TanStack Table).
 export async function listClubs({
+  q = "",
   page,
   pageSize,
 }: {
+  q?: string;
   page: number;
   pageSize: number;
 }): Promise<ListClubsResult> {
   const supabase = await createClient();
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
+  const trimmed = q.trim();
 
-  const { data, count, error } = await supabase
+  let query = supabase
     .from("clubs")
     .select(
       `
@@ -67,6 +84,15 @@ export async function listClubs({
     )
     .order("name", { ascending: true })
     .range(from, to);
+
+  if (trimmed) {
+    const wildcard = `%${escapeOrLiteral(trimmed)}%`;
+    query = query.or(
+      `name.ilike.${wildcard},short_name.ilike.${wildcard},city.ilike.${wildcard}`,
+    );
+  }
+
+  const { data, count, error } = await query;
 
   if (error) throw new Error(`listClubs: ${error.message}`);
 
