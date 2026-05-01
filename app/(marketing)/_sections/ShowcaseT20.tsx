@@ -1,20 +1,63 @@
 import { SplatterAccent } from "@/components/brand/SplatterAccent";
 
-// Eight-zone compass: 8 equal wedges, one filled to show a landed jack.
+// Phase 12 / 12-6: design-fidelity sweep on the Twenty 20 compass
+// card per design source `landing.jsx:331-368` (`ShowcaseT20`) +
+// `landing.jsx:273-329` (`Compass`). Three drift-log items closed
+// in this file (consolidated entry "T20 compass card design
+// fidelity"):
+//
+//   • N2 — Wedge labels + A/B/C/D grades inside each wedge
+//     (was: blank wedges with only N/E/S/W on the outer ring).
+//   • N3 — Grade legend wording (`A · On the jack` / `B · In zone`
+//     / `C · Off zone` / `D · No bowl` — was: `A — dead weight to
+//     the jack` etc).
+//   • N4 — Metadata strings (`BSA T20 · DRAW SHOT` / `End 4 of 20`
+//     / `82%` running percentage badge — was: `Station 3 · Draw to
+//     jack` / `Nthabi Mokoena` / big `A` grade letter).
+
+// Eight zones with N/NE/E/SE/S/SW/W/NW labels + per-zone grade
+// per design source (landing.jsx:275-280). The filled wedge
+// (i === 3, SE, grade A) shows the landed delivery — matches the
+// landing-marker bowl rendered at (248, 232).
+const ZONES = [
+  { name: "N", grade: "A" },
+  { name: "NE", grade: "B" },
+  { name: "E", grade: "C" },
+  { name: "SE", grade: "A" },
+  { name: "S", grade: "A" },
+  { name: "SW", grade: "B" },
+  { name: "W", grade: "D" },
+  { name: "NW", grade: "C" },
+] as const;
+
+const GRADE_FILL: Record<"A" | "B" | "C" | "D", string> = {
+  A: "var(--color-success-500)",
+  B: "var(--color-primary-500)",
+  C: "#F5B700",
+  D: "var(--color-danger-500)",
+};
+
 function Compass() {
   const cx = 200;
   const cy = 200;
   const r = 150;
-  const segments = Array.from({ length: 8 }, (_, i) => {
-    const a1 = (i * 360) / 8 - 90;
-    const a2 = ((i + 1) * 360) / 8 - 90;
-    const p1 = polar(cx, cy, r, a1);
-    const p2 = polar(cx, cy, r, a2);
-    const large = 0;
-    const d = `M ${cx} ${cy} L ${p1.x} ${p1.y} A ${r} ${r} 0 ${large} 1 ${p2.x} ${p2.y} Z`;
-    return { d, idx: i };
+  // Wedge angle convention: each wedge is 45°. Wedge 0 (N) is
+  // centred straight-up (-90°), so the start angle for wedge i is
+  // (i*45) - 112.5°. This matches the design source's exact
+  // orientation (landing.jsx:296).
+  const segments = ZONES.map((z, i) => {
+    const a0 = ((i * 45 - 112.5) * Math.PI) / 180;
+    const a1 = (((i + 1) * 45 - 112.5) * Math.PI) / 180;
+    const x0 = cx + Math.cos(a0) * r;
+    const y0 = cy + Math.sin(a0) * r;
+    const x1 = cx + Math.cos(a1) * r;
+    const y1 = cy + Math.sin(a1) * r;
+    const mid = (a0 + a1) / 2;
+    const tx = cx + Math.cos(mid) * (r * 0.68);
+    const ty = cy + Math.sin(mid) * (r * 0.68);
+    return { ...z, idx: i, d: `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y1} Z`, tx, ty };
   });
-  const landingWedge = 2; // east-north-east wedge
+  const landingWedge = 3; // SE — matches landing-marker bowl at (248, 232)
   return (
     <svg viewBox="0 0 400 400" className="block aspect-square max-w-[360px] mx-auto">
       <defs>
@@ -24,17 +67,44 @@ function Compass() {
         </radialGradient>
       </defs>
       <circle cx={cx} cy={cy} r={r + 10} fill="url(#compass-bg)" stroke="var(--color-ink)" strokeWidth={2} />
-      {segments.map((s) => (
-        <path
-          key={s.idx}
-          d={s.d}
-          fill={s.idx === landingWedge ? "var(--color-success-500)" : "transparent"}
-          fillOpacity={s.idx === landingWedge ? 0.28 : 0}
-          stroke="var(--color-ink)"
-          strokeOpacity={0.35}
-          strokeWidth={1}
-        />
-      ))}
+      {segments.map((s) => {
+        const filled = s.idx === landingWedge;
+        return (
+          <g key={s.idx}>
+            <path
+              d={s.d}
+              fill={filled ? GRADE_FILL[s.grade] : "var(--color-bone)"}
+              fillOpacity={filled ? 0.92 : 1}
+              stroke="var(--color-ink)"
+              strokeOpacity={0.35}
+              strokeWidth={1}
+            />
+            <text
+              x={s.tx}
+              y={s.ty}
+              textAnchor="middle"
+              dominantBaseline="central"
+              className="font-display"
+              fontSize={18}
+              fontWeight={800}
+              fill={filled ? "#fff" : "var(--color-ink)"}
+            >
+              {s.name}
+            </text>
+            <text
+              x={s.tx}
+              y={s.ty + 18}
+              textAnchor="middle"
+              dominantBaseline="central"
+              className="font-mono"
+              fontSize={11}
+              fill={filled ? "#fff" : "var(--color-ink-muted)"}
+            >
+              {s.grade}
+            </text>
+          </g>
+        );
+      })}
       {/* Concentric grading rings */}
       {[100, 60, 30].map((rr) => (
         <circle key={rr} cx={cx} cy={cy} r={rr} fill="none" stroke="var(--color-ink)" strokeOpacity={0.18} strokeDasharray="3 5" />
@@ -44,32 +114,8 @@ function Compass() {
       {/* Landed bowl marker at (248, 232) per design spec */}
       <circle cx={248} cy={232} r={12} fill="var(--color-primary-500)" stroke="var(--color-ink)" strokeWidth={2} />
       <circle cx={248} cy={232} r={3} fill="var(--color-on-primary)" opacity={0.6} />
-      {/* Compass labels */}
-      {["N", "E", "S", "W"].map((label, i) => {
-        const pos = polar(cx, cy, r + 24, -90 + i * 90);
-        return (
-          <text
-            key={label}
-            x={pos.x}
-            y={pos.y + 5}
-            textAnchor="middle"
-            className="font-mono"
-            fontSize="12"
-            fill="var(--color-ink-subtle)"
-            fontWeight={700}
-            letterSpacing="2"
-          >
-            {label}
-          </text>
-        );
-      })}
     </svg>
   );
-}
-
-function polar(cx: number, cy: number, r: number, deg: number) {
-  const rad = (deg * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
 }
 
 export function ShowcaseT20() {
@@ -95,10 +141,10 @@ export function ShowcaseT20() {
         </p>
         <ul className="mt-8 grid grid-cols-2 gap-2 text-sm">
           {[
-            { cls: "bg-success-500", label: "A — dead weight to the jack" },
-            { cls: "bg-primary-500", label: "B — hugs the zone" },
-            { cls: "bg-[#F5B700]", label: "C — in the head" },
-            { cls: "bg-danger-500", label: "D — off the rink" },
+            { cls: "bg-success-500", label: "A · On the jack" },
+            { cls: "bg-primary-500", label: "B · In zone" },
+            { cls: "bg-[#F5B700]", label: "C · Off zone" },
+            { cls: "bg-danger-500", label: "D · No bowl" },
           ].map((g) => (
             <li key={g.label} className="flex items-center gap-2 text-ink-muted">
               <span className={`inline-block h-3 w-3 rounded-sm ${g.cls}`} />
@@ -119,21 +165,17 @@ export function ShowcaseT20() {
           <header className="mb-4 flex items-start justify-between">
             <div>
               <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-subtle">
-                Station 3 · Draw to jack
+                BSA T20 · Draw shot
               </div>
               <div className="mt-1 font-display text-[22px] font-extrabold italic uppercase">
-                Nthabi Mokoena
+                End 4 of 20
               </div>
             </div>
-            <div className="font-display text-[40px] font-black italic leading-none tracking-[-0.02em] text-success-500">
-              A
+            <div className="rounded-full border-2 border-ink bg-bone px-3 py-1 font-mono text-[14px] font-bold tabular-nums">
+              82%
             </div>
           </header>
           <Compass />
-          <div className="mt-5 flex justify-between font-mono text-[11px] tracking-[0.1em] uppercase text-ink-subtle">
-            <span>End 4 of 6</span>
-            <span>Card locked</span>
-          </div>
         </div>
       </div>
     </section>
