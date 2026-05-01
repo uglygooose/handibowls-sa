@@ -917,6 +917,99 @@ at the moment a phase closed, derived from
 
 ---
 
+## Phase 12.5 — Design fidelity & unification (Claude Design pass) — in progress
+
+The phase opens against [`DRIFT_TRIAGE_PHASE12-5.md`](./DRIFT_TRIAGE_PHASE12-5.md)
+mapping each audit entry from
+[`docs/audit/phase-12.5/audit-data.js`](./docs/audit/phase-12.5/audit-data.js)
+to a sub-checkpoint. 7 audit entries are already-shipped or rejected
+at Phase 12 / 12-6; the remaining 15 active entries land across
+12.5-prep through 12.5-7. All locked user decisions captured at
+12.5-prep close are applied without re-asking.
+
+### 12.5-prep — audit package + DRIFT sweep + triage — closed 2026-05-01
+
+- **Branch tip:** `7db2a9a` (`rebuild/phase-12.5-design-unification`,
+  cut from Phase 12 close `555ea83`).
+- **One commit:** `7db2a9a` — `docs/audit/phase-12.5/` (audit-data.js
+  + audit HTML preserved verbatim) + `DRIFT_TRIAGE_PHASE12-5.md` +
+  DRIFT_LOG sweep (re-tagged 6 existing entries to specific
+  12.5-N sub-checkpoints + opened 9 new entries from the audit).
+- **Drift counts:** 45 → 54 open (+9 new audit findings); closed
+  unchanged at 57.
+
+### 12.5-1 — Foundation primitives — closed 2026-05-01
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-12.5-design-unification`).
+- **Five atomic commits on top of `7db2a9a`:**
+  - `c828394` (12.5-1 commit 1) — codify design-system token
+    scales (typography roles + 4-step body / radius / form-control /
+    container-padding scales) as a header comment block in
+    `app/globals.css`. Ship `.eyebrow` + `.eyebrow-sm` utilities
+    in `@layer components`.
+  - `feb6ec8` (12.5-1 commit 2) — bump shadcn `<Input>` from
+    `h-8` (32px) to `h-10` (40px) per the locked form-control
+    scale's default. Pair `px-2.5 → px-3` + `file:h-6 → file:h-7`
+    so the file-input chip scales proportionally.
+  - `44bdee4` (12.5-1 commit 3) — `<MobileTabBar>` primitive
+    (`components/layout/MobileTabBar.tsx`) wrapping shadcn `<Tabs>`
+    (Radix) with the audit's mobile visual (60px tall, 12px
+    uppercase label, primary-500 underline override of shadcn's
+    upstream `bg-foreground`). Migrates `/me/inbox` `<InboxTabs>`
+    from a hand-rolled segmented-control to the new primitive
+    (90 → 28 lines; same export shape). Closes audit id
+    `tabs-fork`.
+  - `b071f74` (12.5-1 commit 4) — `<EmptyState>` primitive
+    (`components/layout/EmptyState.tsx`) per audit spec. Shipped
+    without consumer migration; 12.5-2 (`stub-page-phase-tag` body
+    rewrite) and 12.5-3 (`t20-list-empty-states`) consume it.
+    Closes audit id `empty-state-primitive`.
+  - This commit (12.5-1 close) — DRIFT_LOG closures (tabs-fork
+    + empty-state-primitive) + new entry "Radius scale sweep —
+    87 callers of `rounded-xl` (12px)" deferred to 12.5-7 final
+    pass + post-v1 shadcn primitive radius work + this PHASE_LOG
+    entry.
+- **Foundation work explicitly NOT done in 12.5-1 (per the user
+  guardrail "foundation ships first; consumer migration happens
+  per-sub-checkpoint"):**
+  - Eyebrow class adoption — utility shipped; existing surfaces
+    still use ad-hoc `font-mono uppercase tracking-[0.14em]` until
+    each sub-checkpoint touches them.
+  - Body-scale (13/15/17/20) audit + alignment — documented;
+    consumer alignment incremental.
+  - Radius-scale sweep across 87 `rounded-xl` callers — deferred
+    via new drift entry to 12.5-7 + post-v1.
+  - Form-control height alignment beyond the shadcn `<Input>`
+    bump — Field.tsx (h-13) is a documented exception, not drift;
+    button-md already at h-11; SubmitButton + slot button already
+    sized within the scale.
+- **Drift entries closed:** **2** — `tabs-fork` (audit id) +
+  `empty-state-primitive` (audit id).
+- **Drift entries opened:** **1** — "Radius scale sweep — 87
+  callers" deferred to 12.5-7 final pass + post-v1.
+- **Test count delta:** 1213 → 1231 (+18 net unit; +8 from
+  MobileTabBar suite, +10 from EmptyState suite).
+  Integration: 114 / 114 unchanged.
+- **Verification gates at close:** tsc clean / lint 0 errors
+  (18 pre-existing warnings) / 1231 unit / 114 integration /
+  build green.
+- **What to QA in dev:**
+  - Player `/me/inbox` — confirm tabs render at 60px tall with
+    12px uppercase labels + primary-500 underline on the active
+    tab; tap "Messages" tab → URL gains `?tab=messages`; tap
+    "Notifications" → URL drops the `tab` param; count badges
+    show 3 / 0 (or whatever the seed has).
+  - Auth `/login` + `/signup` — confirm `<Input>` controls render
+    at the new 40px height (subtle bump from 32px); auth `Field.tsx`
+    inputs unchanged at 52px (the documented exception).
+  - Existing tournament + booking forms — confirm `<Input>` calls
+    render at 40px; no consumers should have broken since the
+    bump preserves all existing classes + adds `h-10`.
+  - `<EmptyState>` has no consumers in 12.5-1 — visual smoke
+    check deferred to 12.5-2 (StubPage rewrite) + 12.5-3
+    (t20 list empty).
+
 ## Phase 12 — Stakeholder polish — closed 2026-05-01
 
 The phase opens against a triage artefact (`DRIFT_TRIAGE_PHASE12.md`)
