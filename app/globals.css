@@ -250,6 +250,46 @@ html[data-theme="white-speckle"],
 }
 
 /* =========================================================================
+   Phase 12.5 design-system foundation — token scales (codified).
+   These are the locked scales every consumer reads from. New surfaces
+   pick a value from the scale; ad-hoc literals are drift.
+
+   Audit reference: docs/audit/phase-12.5/audit-data.js
+                    (system dimensions: type / spacing / primitives)
+
+   TYPOGRAPHY ROLES
+     display      — font-display (Barlow Condensed 900 italic, leading 0.9)
+                    page hero, grade reveal, section headlines
+     body         — font-sans 16/1.5
+                    paragraphs + form copy
+     mono-eyebrow — font-mono 700 12px / 0.14em uppercase ink-muted
+                    kickers + small labels (use the .eyebrow utility below)
+
+   BODY-SIZE SCALE (4 steps)
+     13 / 15 / 17 / 20  (text-[13px] / [15px] / [17px] / [20px])
+     Anything outside is drift.
+
+   RADIUS SCALE (4 steps)
+     10 — chip / inline tag / inset card     (rounded-[10px])
+     14 — card default                        (rounded-[14px])
+     20 — hero / brand surface                (rounded-[20px])
+     24 — reveal hero only                    (rounded-[24px])
+     The previous 12 (rounded-xl) value is dropped.
+
+   FORM-CONTROL HEIGHT SCALE
+     40 — default (h-10)         desktop input / inline button
+     44 — primary CTA (h-11)     button-md, primary action button
+     48 — mobile-block (h-12)    full-width primary on player surfaces
+     52 — auth field (h-13)      auth forms only (mobile-form-heavy)
+     The 36px shadcn default is the drift; bump to 40 minimum.
+
+   CONTAINER PADDING SCALE
+     14 / 18 / 24 / 32  (p-3.5 / p-[18px] / p-6 / p-8)
+     Cards: 24 horizontal, 18–22 vertical.
+     T20 reveal hero only: 40 horizontal, 44 vertical.
+   ========================================================================= */
+
+/* =========================================================================
    Base layer — typography defaults and utility bridges.
    ========================================================================= */
 @layer base {
@@ -266,6 +306,24 @@ html[data-theme="white-speckle"],
   h2,
   h3 {
     @apply font-display tracking-tight;
+  }
+}
+
+/* =========================================================================
+   Components layer — design-system component classes.
+   ========================================================================= */
+@layer components {
+  /* `eyebrow` — canonical kicker label.
+     Replaces ad-hoc `font-mono uppercase tracking-[0.14em] text-ink-muted`
+     that had drifted across player + admin surfaces. The audit (system
+     dimension `type`) flagged this as the single biggest cleanup win.
+     Apply with `<span class="eyebrow">…</span>` or compose alongside
+     other utilities (e.g. `class="eyebrow text-primary-500"`). */
+  .eyebrow {
+    @apply font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted;
+  }
+  .eyebrow-sm {
+    @apply font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted;
   }
 }
 
