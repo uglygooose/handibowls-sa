@@ -1014,6 +1014,85 @@ stakeholder call — Phase 12 ships when work ships.
 
 
 
+### 12-6 — Design fidelity sweep — closed 2026-04-30
+
+- **Branch tip at close:** `<filled in commit message>` (`rebuild/phase-12-stakeholder-polish`).
+- **Three atomic commits on top of 64c1f5a (12-5 close):**
+  - `92543b6` (12-6 step 1) — `ShowcaseT20.tsx` rewrite per design
+    source `landing.jsx:273-368`. Closes consolidated drift entry
+    "T20 compass card design fidelity" (N2 + N3 + N4): all 8
+    wedges with N/NE/E/SE/S/SW/W/NW + A/B/C/D grades; grade
+    legend BSA-aligned wording; header swapped to "BSA T20 ·
+    Draw shot" + "End 4 of 20" + "82%" badge.
+  - `3e4720f` (12-6 step 2) — `app/(auth)/_components/Checkbox.tsx`
+    rewritten to wrap the shadcn Checkbox primitive (Radix
+    Checkbox under the hood). Closes drift entry "Checkbox
+    arbitrary variant" (N5). 3-case smoke test in
+    `tests/app/auth/auth-checkbox.test.tsx`.
+  - This commit (12-6 close) — DRIFT_LOG closures for L26-L28
+    consolidated entry + L34 Checkbox + L36 Hero pocket (already
+    at parity) + L154 Rubrics YAML (already at parity) + R1/L29
+    + R2/L30 (DROP per locked user calls). New Phase 12 entry
+    `List search filters paginated subset, not full dataset`
+    folded in (pre-stakeholder QA finding from 12-7 scope).
+    PHASE_LOG entry.
+- **Steps closed as no-ops (already at parity):**
+  - **N1 / L36 — Hero pocket highlight hex.** Audit confirmed
+    shipped `Hero.tsx:124` uses `bg-primary-500 opacity-[0.14]
+    -skew-x-[8deg]` which resolves to exactly the design
+    source's `.hero__pocket::after { background:
+    var(--primary-500); opacity: .14; transform: skew(-8deg); }`
+    — same colour token, same opacity, same skew. Drift was
+    stale (alignment landed in an earlier commit, entry never
+    closed).
+  - **N6 / L154 — Rubrics YAML mention.** Audit confirmed
+    shipped `RubricsClient.tsx:331` reads "JSON validated
+    against the v1 schema before staging as a draft." — no
+    YAML mention to drop. Drift entry was about whether to
+    add YAML support (build js-yaml) or drop YAML from the
+    design's preview copy; we took option B pre-12-6.
+- **DROP closures (R1 + R2 — verified deliberate v1 marketing-
+  pass, not drift):**
+  - **R1 / L29 — Top nav system.** Original design's
+    `LANDING / LOGIN / SIGNUP / INVITE` pill nav was a
+    dev-time page-switcher (Claude Design tool affordance for
+    jumping between mockup states), not the real v1 nav. The
+    shipped `Product / Tournaments / T20 / Clubs / About`
+    text-link nav is the real production state.
+  - **R2 / L30 — Hero heading wording.** Shipped headline
+    `TOURNAMENTS, SCORES, AND SKILLS IN YOUR POCKET.` is a
+    deliberate brand-led rewrite of the design source's
+    tap-here-it-finished line.
+- **Drift entries closed:** **N1 / L36 (no-op) · N2+N3+N4 /
+  L26+L27+L28 · N5 / L34 · N6 / L154 (no-op) · R1 / L29
+  (DROP) · R2 / L30 (DROP).** Six closures total.
+- **Drift entries opened:** **`List search filters paginated
+  subset, not full dataset`** under Phase 12 — Stakeholder
+  polish. Surfaced in 12-6 in-flight QA when searching
+  `/platform/clubs` only matched rows on the active page.
+  Owner: Phase 12 12-7 close (folds into pre-stakeholder QA
+  audit).
+- **Verification gates at close:** tsc clean / lint 0 errors
+  (18 pre-existing warnings) / unit suite passing / integration
+  suite passing / build green.
+- **Migrations applied:** none (12-6 is application + design code only).
+- **Test count delta:** +3 new in
+  `tests/app/auth/auth-checkbox.test.tsx`.
+- **What to QA in dev:**
+  - Marketing landing → Twenty 20 compass card now shows all
+    8 wedge labels + A/B/C/D grades inside; grade legend
+    column reads `A · On the jack` etc.; header reads `BSA
+    T20 · Draw shot` + `End 4 of 20` + `82%` badge top-right.
+  - Hero pocket highlight matches design source hex (audit
+    confirmed; visual eyeball recommended).
+  - Auth pages (`/login`, `/signup`, `/invite/[token]`) —
+    checkboxes still render correctly post-shadcn-swap;
+    remember-me default state on `/login`; terms-row
+    required-attribute on `/signup`.
+  - `/platform/rubrics` — upload-zone copy reads "JSON
+    validated against the v1 schema before staging as a
+    draft." (no YAML mention).
+
 ### 12-prep — branch cut + DRIFT triage application — closed 2026-04-30
 
 - **Branch tip:** `1b20559` (`rebuild/phase-12-stakeholder-polish`,
