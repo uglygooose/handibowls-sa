@@ -1,3 +1,4 @@
+import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
 import { cn } from "@/lib/utils";
 
 // Phase 10 — Twenty 20 length-distribution chart.
@@ -10,6 +11,19 @@ import { cn } from "@/lib/utils";
 // Bar heights are scaled so the largest data point reaches the
 // full chart height — the chart is comparative, not absolute.
 // Empty data renders an empty placeholder rather than a bare frame.
+//
+// Phase 12.5 / 12.5-6 (M / `length-distribution-chart-brand-decoration`):
+// brand-decoration overlay added on each bar via `<SpeckleLayer>`.
+// Design source bar-chart treatment in `t20-components.jsx:318-336`
+// has only a subtle white-to-transparent gradient (already shipped);
+// the audit drift entry called out the bars feeling undecorated next
+// to surrounding speckled brand surfaces. Speckle density is "low"
+// + opacity 0.18 — subtle enough not to fight the percentage cap
+// reading, distinct enough to read as a brand-textured surface.
+// Per-bar seed by distance so each column has a stable but unique
+// pattern (no shared-seed identicalness across bars). Both admin
+// `/manage/t20/[id]` and player `/t20/[assessmentId]` consume the
+// same primitive — decoration lands on both surfaces simultaneously.
 
 type Datum = {
   /** Throwing distance in metres — typically 23 / 26 / 29 / 32. */
@@ -68,12 +82,27 @@ export function LengthDistributionChart({
             </div>
             <div
               data-slot="length-distribution-bar"
-              className="relative w-full rounded-t-[4px] bg-primary-500"
+              className="relative w-full overflow-hidden rounded-t-[4px] bg-primary-500"
               style={{ height: h }}
             >
+              {/* Brand decoration — speckle layer sits below the
+                  white-to-transparent gradient so the lit-from-above
+                  effect still reads. Per-bar seed keeps the pattern
+                  unique per column. */}
               <div
                 aria-hidden="true"
-                className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"
+                data-slot="length-distribution-bar-speckle"
+                className="absolute inset-0 z-0"
+              >
+                <SpeckleLayer
+                  seed={`length-bar-${d.distance}`}
+                  density="low"
+                  opacity={0.18}
+                />
+              </div>
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 z-[1] bg-gradient-to-b from-white/20 to-transparent"
               />
             </div>
             <div
