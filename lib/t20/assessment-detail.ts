@@ -272,6 +272,38 @@ export function rowsToDeliveries(rows: DeliveryRow[]): Delivery[] {
   });
 }
 
+/** Per-distance "% on length" for the speedhumps_asc / speedhumps_desc
+ *  sections. Buckets by `distance_m`, sums hits where outcome.on_length
+ *  is true, divides by total deliveries at that distance. Used by both
+ *  the admin results view (`/manage/t20/[id]`) and the player
+ *  /t20/[assessmentId] results detail view's length-distribution chart.
+ *  12.5-4 amendment: re-introduced on the player view alongside the
+ *  heatmap; hand-balance stays admin-only (coach analysis tool). */
+export function computeLengthDistribution(
+  rows: DeliveryRow[],
+): Array<{ distance: number; pct: number }> {
+  const buckets = new Map<number, { hits: number; total: number }>();
+  for (const r of rows) {
+    if (
+      r.section !== "speedhumps_asc" &&
+      r.section !== "speedhumps_desc"
+    ) {
+      continue;
+    }
+    if (r.distance_m == null) continue;
+    const b = buckets.get(r.distance_m) ?? { hits: 0, total: 0 };
+    b.total++;
+    if ((r.outcome ?? {}).on_length === true) b.hits++;
+    buckets.set(r.distance_m, b);
+  }
+  return Array.from(buckets.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([distance, b]) => ({
+      distance,
+      pct: b.total > 0 ? Math.round((b.hits / b.total) * 100) : 0,
+    }));
+}
+
 /** Aggregate Drive / Control / Trail zone hits across all
  *  deliveries. Used by both the admin results view's heatmap
  *  card and the player /t20/[assessmentId] results detail view's

@@ -2,8 +2,10 @@ import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
 import { GradePill } from "@/components/t20/GradePill";
+import { LengthDistributionChart } from "@/components/t20/LengthDistributionChart";
 import {
   type AssessmentDetail,
+  computeLengthDistribution,
   computeZoneCounts,
   rowsToDeliveries,
 } from "@/lib/t20/assessment-detail";
@@ -34,9 +36,14 @@ import { RequestReassessmentButton } from "./RequestReassessmentButton";
 //   • Zone heatmap (drive + control + trail combined). Lazy-
 //     loaded via next/dynamic so the /t20 hub bundle stays slim.
 //
-// Per the locked decision at 12.5-prep:
-//   • DROP hand-balance + length-distribution charts — coach
-//     analysis tools, not player motivation tools.
+// Per the locked decision at 12.5-prep, amended at 12.5-4 QA:
+//   • DROP hand-balance — coach analysis tool, not a player
+//     motivation tool.
+//   • KEEP length-distribution alongside heatmap — players read
+//     "which lengths I bowled best at" intuitively, and the chart
+//     visually balances the heatmap section. (Originally dropped
+//     with hand-balance; restored after QA showed the heatmap
+//     alone left the section visually unbalanced.)
 //   • Re-assessment CTA: "Request re-assessment" → wires to the
 //     existing requestT20Assessment action.
 
@@ -73,6 +80,7 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
 
   const breakdown = buildBreakdown(rubric, score.sectionTotals);
   const zoneCounts = computeZoneCounts(deliveries);
+  const lengthDist = computeLengthDistribution(deliveries);
   const notes = assessment.notes;
 
   return (
@@ -271,20 +279,36 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
         )}
       </section>
 
-      {/* Zone heatmap */}
+      {/* Charts — heatmap + length-distribution side-by-side at
+          ≥900px, stacked at <900px (12.5-4 amendment).
+          Hand-balance stays out per the locked decision. */}
       <section
-        data-slot="player-results-heatmap"
-        className="mx-auto mt-6 max-w-3xl px-5"
+        data-slot="player-results-charts"
+        className="mx-auto mt-6 grid max-w-3xl grid-cols-1 gap-4 px-5 min-[900px]:grid-cols-2"
       >
-        <SectionHead title="Where your bowls landed" />
-        <div className="rounded-xl border border-border bg-bone px-5 py-5">
-          <HeatmapMount counts={zoneCounts} size={240} />
-          <p
-            data-slot="heatmap-note"
-            className="mt-3 text-center text-[12px] text-ink-muted"
-          >
-            Drive, control, and trail deliveries combined.
-          </p>
+        <div data-slot="player-results-heatmap">
+          <SectionHead title="Where your bowls landed" />
+          <div className="rounded-xl border border-border bg-bone px-5 py-5">
+            <HeatmapMount counts={zoneCounts} size={240} />
+            <p
+              data-slot="heatmap-note"
+              className="mt-3 text-center text-[12px] text-ink-muted"
+            >
+              Drive, control, and trail deliveries combined.
+            </p>
+          </div>
+        </div>
+        <div data-slot="player-results-length">
+          <SectionHead title="Length distribution" />
+          <div className="rounded-xl border border-border bg-bone px-5 py-5">
+            <LengthDistributionChart data={lengthDist} />
+            <p
+              data-slot="length-note"
+              className="mt-3 text-center text-[12px] text-ink-muted"
+            >
+              Speedhumps deliveries — % on length per distance.
+            </p>
+          </div>
         </div>
       </section>
     </div>

@@ -1,14 +1,34 @@
 import { Calendar, Target, Trophy } from "lucide-react";
 import Link from "next/link";
 
+import { GradePill } from "@/components/t20/GradePill";
+import { formatDateZA } from "@/lib/format/dates";
+import type { Grade } from "@/lib/t20/rubric";
+
 // Phase 8a — quick actions row. 3 cards: Browse tournaments, Book a
 // rink, My Twenty 20. Mirrors player-core.jsx PagePlay's qa-row block.
+//
+// 12.5-4 amendment (Finding 1): the My Twenty 20 card's caption now
+// reflects the player's latest submitted assessment — date + small
+// grade pill — instead of the static "Not yet assessed" placeholder.
+// Falls back to the placeholder when the player has zero submitted
+// assessments.
+
+export type QuickActionsT20Latest = {
+  /** Grade enum value from the latest submitted assessment. May be
+   *  null on legacy rows where grade was never persisted; the card
+   *  then renders the date alone (no pill). */
+  grade: Grade | null;
+  /** ISO date string from the latest submitted assessment. */
+  assessed_on: string;
+};
 
 export type QuickActionsCounts = {
   /** Open tournaments visible to the player. Falls through to "—" when null. */
   openTournaments: number | null;
-  /** Most-recent grade earned. Null when the player has not yet been assessed. */
-  t20Grade: string | null;
+  /** Latest submitted Twenty 20 assessment. Null when the player has
+   *  not yet been assessed. */
+  t20Latest: QuickActionsT20Latest | null;
 };
 
 type Props = {
@@ -56,10 +76,32 @@ export function QuickActions({ counts }: Props) {
             Twenty 20
           </>
         }
-        meta={counts.t20Grade ?? "Not yet assessed"}
-        metaTone="info"
+        meta={<T20Meta latest={counts.t20Latest} />}
+        metaTone={counts.t20Latest ? "info" : "muted"}
       />
     </div>
+  );
+}
+
+function T20Meta({ latest }: { latest: QuickActionsT20Latest | null }) {
+  if (!latest) {
+    return (
+      <span data-slot="t20-meta" data-state="never-assessed">
+        Not yet assessed
+      </span>
+    );
+  }
+  return (
+    <span
+      data-slot="t20-meta"
+      data-state="assessed"
+      className="inline-flex items-center gap-1.5"
+    >
+      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] tabular-nums">
+        {formatDateZA(latest.assessed_on).toUpperCase()}
+      </span>
+      {latest.grade && <GradePill grade={latest.grade} size="sm" />}
+    </span>
   );
 }
 
@@ -73,7 +115,7 @@ function Card({
   href: string;
   icon: React.ReactNode;
   label: React.ReactNode;
-  meta: string;
+  meta: React.ReactNode;
   metaTone?: "muted" | "info";
 }) {
   return (

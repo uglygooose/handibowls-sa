@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { requireRole } from "@/lib/auth/role";
 import {
+  computeLengthDistribution,
   computeZoneCounts,
   type DeliveryRow,
   getAssessmentDetail,
@@ -99,6 +100,10 @@ export default async function ManageT20Result({
 // 12.5-4: rowsToDeliveries + computeZoneCounts moved to
 // `lib/t20/assessment-detail.ts` so the new player /t20/[assessmentId]
 // route can reuse them. Imported at the top of this file.
+// 12.5-4 amendment: computeLengthDistribution also moved to
+// `lib/t20/assessment-detail.ts` — the player results detail view now
+// renders the length-distribution chart alongside the heatmap.
+// computeHandBalance stays admin-only (coach analysis tool).
 
 export type HandBalance = {
   forehand: number;
@@ -125,31 +130,6 @@ function computeHandBalance(rows: DeliveryRow[]): HandBalance {
   const forePct = Math.round((foreCount / total) * 100);
   const backPct = 100 - forePct;
   return { forehand: forePct, backhand: backPct, totalDeliveries: total };
-}
-
-function computeLengthDistribution(
-  rows: DeliveryRow[],
-): Array<{ distance: number; pct: number }> {
-  const buckets = new Map<number, { hits: number; total: number }>();
-  for (const r of rows) {
-    if (
-      r.section !== "speedhumps_asc" &&
-      r.section !== "speedhumps_desc"
-    ) {
-      continue;
-    }
-    if (r.distance_m == null) continue;
-    const b = buckets.get(r.distance_m) ?? { hits: 0, total: 0 };
-    b.total++;
-    if ((r.outcome ?? {}).on_length === true) b.hits++;
-    buckets.set(r.distance_m, b);
-  }
-  return Array.from(buckets.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([distance, b]) => ({
-      distance,
-      pct: b.total > 0 ? Math.round((b.hits / b.total) * 100) : 0,
-    }));
 }
 
 export type SectionBreakdownRow = {

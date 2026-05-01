@@ -5,6 +5,8 @@ import { Bowl } from "@/components/brand/Bowl";
 import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { getCurrentProfile } from "@/lib/auth/profile";
 
+import { getCurrentPlayerT20Profile } from "@/app/(player)/(gated)/t20/_data";
+
 import {
   getNextMatchForCurrentPlayer,
   getRecentResultsForCurrentPlayer,
@@ -30,14 +32,25 @@ export const metadata = {
 };
 
 export default async function PlayHome() {
-  const [profile, hostClub, nextMatch, recentResults, unreadCount] =
+  const [profile, hostClub, nextMatch, recentResults, unreadCount, t20Profile] =
     await Promise.all([
       getCurrentProfile(),
       getCurrentHostClub(),
       getNextMatchForCurrentPlayer(),
       getRecentResultsForCurrentPlayer(5),
       getUnreadNotificationCount(),
+      getCurrentPlayerT20Profile(),
     ]);
+
+  // 12.5-4 amendment (Finding 1): pipe latest T20 grade + date into
+  // the QuickAction caption. `t20Profile.latest` is the same row the
+  // /t20 hub hero displays — same source = same content.
+  const t20Latest = t20Profile.latest
+    ? {
+        grade: t20Profile.latest.grade,
+        assessed_on: t20Profile.latest.assessed_on,
+      }
+    : null;
 
   const greeting = greetingFor(profile?.first_name ?? profile?.display_name);
 
@@ -87,7 +100,7 @@ export default async function PlayHome() {
 
       {/* Quick actions */}
       <SectionHead title="Quick actions" />
-      <QuickActions counts={{ openTournaments: null, t20Grade: null }} />
+      <QuickActions counts={{ openTournaments: null, t20Latest }} />
 
       {/* Recent results */}
       <SectionHead

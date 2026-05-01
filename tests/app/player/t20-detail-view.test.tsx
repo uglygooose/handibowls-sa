@@ -298,15 +298,85 @@ describe("<PlayerResultsView /> — read-only contract", () => {
     expect(counts).toEqual({ "1": 2, "2": 1, "5": 1 });
   });
 
-  it("does NOT render a hand-balance chart or length-distribution chart (locked decision: drop)", () => {
+  it("does NOT render a hand-balance chart (12.5-4 amendment: hand-balance stays admin-only)", () => {
     const { container } = render(
       <PlayerResultsView detail={SAMPLE_DETAIL} hasClubMembership={true} />,
     );
     expect(container.querySelector("[data-slot='hand-balance-chart']")).toBeNull();
-    expect(container.querySelector("[data-slot='length-distribution-chart']")).toBeNull();
-    // Spot-check the rendered text doesn't contain headlines either.
     expect(container.textContent).not.toMatch(/hand balance/i);
-    expect(container.textContent).not.toMatch(/length distribution/i);
+  });
+
+  it("renders the length-distribution chart alongside the heatmap (12.5-4 amendment)", () => {
+    const detail: AssessmentDetail = {
+      ...SAMPLE_DETAIL,
+      deliveries: [
+        ...SAMPLE_DETAIL.deliveries,
+        // Speedhumps deliveries → length-distribution buckets.
+        {
+          id: "sl1",
+          assessment_id: "00000000-0000-0000-0000-00000000aaaa",
+          section: "speedhumps_asc",
+          round: 1,
+          delivery_index: 1,
+          distance_m: 23,
+          hand: null,
+          outcome: { on_length: true },
+          points: 2,
+          distance_bucket: null,
+        },
+        {
+          id: "sl2",
+          assessment_id: "00000000-0000-0000-0000-00000000aaaa",
+          section: "speedhumps_asc",
+          round: 1,
+          delivery_index: 2,
+          distance_m: 23,
+          hand: null,
+          outcome: { on_length: false },
+          points: 0,
+          distance_bucket: null,
+        },
+        {
+          id: "sl3",
+          assessment_id: "00000000-0000-0000-0000-00000000aaaa",
+          section: "speedhumps_desc",
+          round: 1,
+          delivery_index: 1,
+          distance_m: 26,
+          hand: null,
+          outcome: { on_length: true },
+          points: 2,
+          distance_bucket: null,
+        },
+      ],
+    };
+    const { container } = render(
+      <PlayerResultsView detail={detail} hasClubMembership={true} />,
+    );
+    const chart = container.querySelector(
+      "[data-slot='length-distribution-chart']",
+    );
+    expect(chart).not.toBeNull();
+    expect(chart?.getAttribute("data-empty")).toBe("false");
+    // Two distance buckets present (23m + 26m).
+    const cols = container.querySelectorAll(
+      "[data-slot='length-distribution-col']",
+    );
+    expect(cols).toHaveLength(2);
+  });
+
+  it("places heatmap + length-distribution side-by-side under the same charts grid", () => {
+    const { container } = render(
+      <PlayerResultsView detail={SAMPLE_DETAIL} hasClubMembership={true} />,
+    );
+    const grid = container.querySelector("[data-slot='player-results-charts']");
+    expect(grid).not.toBeNull();
+    // Both children render under the grid container.
+    expect(grid?.querySelector("[data-slot='player-results-heatmap']")).not.toBeNull();
+    expect(grid?.querySelector("[data-slot='player-results-length']")).not.toBeNull();
+    // 2-column at ≥900px, 1-column at <900px (Tailwind responsive
+    // breakpoint pinned in the className).
+    expect(grid?.className).toMatch(/min-\[900px\]:grid-cols-2/);
   });
 
   it("renders the Request re-assessment CTA with the correct copy + enabled state when the player has a club", () => {
