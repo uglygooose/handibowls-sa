@@ -2,8 +2,7 @@ import { ArrowRight, Calendar, ChevronLeft, Circle, Trophy } from "lucide-react"
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { SpeckleField } from "@/components/brand/SpeckleField";
-import { SplatterAccent } from "@/components/brand/SplatterAccent";
+import { PlayerHero } from "@/components/layout/PlayerHero";
 import { formatDateRangeZA } from "@/lib/format/dates";
 
 import {
@@ -73,47 +72,26 @@ export default async function PlayerTournamentDetailPage({ params }: Props) {
   const isLiveForPlayer = openMatch?.display_status === "IN_PLAY";
 
   return (
-    <div className="pb-24">
-      {/* Detail hero */}
-      <section className="relative isolate overflow-hidden bg-primary-500 text-[color:var(--color-on-primary)]">
-        <div className="pointer-events-none absolute inset-0 z-0">
-          <SpeckleField
-            preset={tournament.host_club_theme}
-            intensity="bold"
-            seedKey={`tournament-${tournament.id}`}
-          />
-        </div>
-        <div className="pointer-events-none absolute -right-8 -top-8 z-0 opacity-55">
-          <SplatterAccent
-            preset={tournament.host_club_theme}
-            variant={2}
-            size={140}
-            rotate={-10}
-          />
-        </div>
-        <div className="relative z-10 mx-auto flex max-w-3xl flex-col gap-3 px-5 py-6">
-          <Link
-            href="/tournaments"
-            className="inline-flex h-7 w-fit items-center gap-1 text-[12px] font-medium text-[color:var(--color-on-primary)]/85 hover:text-[color:var(--color-on-primary)]"
-          >
-            <ChevronLeft className="size-3.5" aria-hidden="true" />
-            All tournaments
-          </Link>
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[color:var(--color-on-primary)]/85">
-            {STRUCTURE_LABEL[tournament.structure]} · {tournament.entries_count}{" "}
-            entries
-          </span>
-          {/* Player themed-hero h1 tier — 28px italic uppercase, per
-              design source `.detail-hero h1` (player-styles.css:425)
-              + `.profile-hero .name` (player-styles.css:728). Snapped
-              from a previous 32px to align with the /me hero pattern
-              (12.5-6 / `player-title-size-scale-drift` close). */}
-          <h1 className="font-display text-[28px] font-black uppercase italic leading-none tracking-tight">
-            {tournament.name}
-          </h1>
-
-          {/* Meta pills */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-4 pb-24">
+      {/* Detail hero — bundle's `.detail-hero` shape via PlayerHero
+          (rounded-[20px] contained). 12.5-6.5 Stage B restructure:
+          hero now INSIDE the centered max-w-3xl wrapper (was a
+          full-bleed sibling pre-12.5-6.5). Back-link breadcrumb
+          stays above the hero card per design — pre-12.5-6.5 it
+          was inside the hero. */}
+      <Link
+        href="/tournaments"
+        className="inline-flex h-7 w-fit items-center gap-1 text-[12px] font-medium text-ink-muted hover:text-ink"
+      >
+        <ChevronLeft className="size-3.5" aria-hidden="true" />
+        All tournaments
+      </Link>
+      <PlayerHero
+        titleSize="detail"
+        eyebrow={`${STRUCTURE_LABEL[tournament.structure]} · ${tournament.entries_count} entries`}
+        title={tournament.name}
+        meta={
+          <div className="flex flex-wrap items-center gap-1.5">
             <HeroPill icon={<Trophy className="size-3" />}>
               {FORMAT_LABEL[tournament.format]}
             </HeroPill>
@@ -126,21 +104,36 @@ export default async function PlayerTournamentDetailPage({ params }: Props) {
               <HeroPill className="bg-black/30">Handicap</HeroPill>
             )}
           </div>
-
-          {/* CTA — when the player has an in-play or scheduled match */}
-          {openMatch && (
+        }
+        actions={
+          openMatch && (
             <Link
               href={`/tournaments/${tournament.id}/matches/${openMatch.id}`}
-              className="mt-2 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-ink px-4 text-[13px] font-extrabold uppercase tracking-[0.04em] text-ink-inverse"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-ink px-4 text-[13px] font-extrabold uppercase tracking-[0.04em] text-ink-inverse"
             >
               {isLiveForPlayer ? "Score next match" : "Open next match"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
-          )}
-        </div>
-      </section>
+          )
+        }
+        speckle={{
+          preset: tournament.host_club_theme,
+          seedKey: `tournament-${tournament.id}`,
+          intensity: "bold",
+          borderRadius: 20,
+        }}
+        splatter={{
+          preset: tournament.host_club_theme,
+          variant: 2,
+          size: 140,
+          top: -8,
+          right: -8,
+          rotate: -10,
+          opacity: 0.55,
+        }}
+      />
 
-      <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-5">
+      <div className="flex flex-col gap-5">
         {/* Inline notice — player's current in-play match summary */}
         {openMatch && (
           <div className="flex items-center gap-3 rounded-xl border border-info-500/30 bg-info-500/10 px-3 py-2.5 text-info-500">

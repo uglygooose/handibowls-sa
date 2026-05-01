@@ -2,8 +2,7 @@ import { Calendar, ChevronRight, Target, Trophy } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { SpeckleField } from "@/components/brand/SpeckleField";
-import { SplatterAccent } from "@/components/brand/SplatterAccent";
+import { PlayerHero } from "@/components/layout/PlayerHero";
 import { getAuthContext } from "@/lib/auth/role";
 import { formatDateZA, formatTimeZA } from "@/lib/format/dates";
 
@@ -60,46 +59,51 @@ export default async function T20Page() {
   const heroCopy = heroCopyFor(profile.latest);
 
   return (
-    <div className="pb-24">
-      {/* Hero — primary-club themed band */}
-      <section className="relative isolate mx-auto max-w-3xl overflow-hidden rounded-[20px] bg-primary-500 px-5 py-6 sm:mx-5 sm:my-5">
-        <div className="pointer-events-none absolute inset-0 z-0">
-          <SpeckleField
-            preset={heroTheme}
-            intensity="bold"
-            seedKey={`t20-hero-${ctx.userId}`}
-            borderRadius={20}
-          />
+    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-4 pb-24">
+      {/* Hero — primary-club themed band, contained inside the
+          centered wrapper per bundle's `.t20-hero` (rounded-[20px]
+          + p-[18px] + bg-primary-500). 12.5-6.5 Stage B: dropped
+          the previous `sm:mx-5 sm:my-5` responsive margin (bundle
+          has no responsive margin-add) and snapped padding from
+          `px-5 py-6` to the bundle's flat 18px via PlayerHero. */}
+      <PlayerHero
+        titleSize="grade"
+        eyebrow={heroCopy.eyebrow}
+        title={heroCopy.gradeText}
+        speckle={{
+          preset: heroTheme,
+          seedKey: `t20-hero-${ctx.userId}`,
+          intensity: "bold",
+          borderRadius: 20,
+        }}
+        splatter={{
+          preset: heroTheme,
+          variant: 1,
+          size: "S",
+          right: -22,
+          bottom: -22,
+          opacity: 0.45,
+        }}
+      >
+        <span className="mt-2.5 block font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white/85">
+          {heroCopy.subline}
+        </span>
+
+        <div className="mt-3 grid grid-cols-4 gap-1.5">
+          {ladder.map(({ tier, state }) => (
+            <TierStep key={tier} tier={tier} state={state} />
+          ))}
         </div>
-        <div className="pointer-events-none absolute -right-6 -bottom-6 z-0 opacity-45">
-          <SplatterAccent preset={heroTheme} variant={1} size={130} />
-        </div>
 
-        <div className="relative z-10 flex flex-col gap-3 text-[color:var(--color-on-primary)]">
-          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-white/85">
-            {heroCopy.eyebrow}
-          </span>
-          <span className="font-display text-[56px] font-black italic leading-none tracking-[-0.01em]">
-            {heroCopy.gradeText}
-          </span>
-          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white/85">
-            {heroCopy.subline}
-          </span>
-
-          <div className="mt-1 grid grid-cols-4 gap-1.5">
-            {ladder.map(({ tier, state }) => (
-              <TierStep key={tier} tier={tier} state={state} />
-            ))}
-          </div>
-
+        <div className="mt-3.5">
           <RequestAssessmentButton />
-          <span className="text-center font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white/70">
-            Sends an in-app message to your club admins
-          </span>
         </div>
-      </section>
+        <span className="mt-1.5 block text-center font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white/70">
+          Sends an in-app message to your club admins
+        </span>
+      </PlayerHero>
 
-      <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-5">
+      <div className="flex flex-col gap-5">
         {/* "What is Twenty 20?" explainer */}
         <SectionHead title="What is Twenty 20?" />
         <div className="rounded-xl border border-border bg-surface px-5 py-5">

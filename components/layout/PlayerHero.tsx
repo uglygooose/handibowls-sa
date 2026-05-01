@@ -89,6 +89,12 @@ type Props = {
    *  Pass a number for an exact size when neither tier fits. Default
    *  "identity". */
   titleSize?: "grade" | "identity" | "detail" | number;
+  /** Optional decoration / avatar slot rendered as a flex sibling
+   *  on the LEFT of the title-meta-actions column. Used by /me for
+   *  the bundle's `.profile-hero .avatar` 84px ringed circle that
+   *  sits beside the name+badges block. When omitted, the title
+   *  column fills the hero. */
+  leading?: ReactNode;
   /** Optional small-caps eyebrow above the title. White-tinted by
    *  default (text inherits text-on-primary). Caller supplies
    *  styling via the eyebrow prop's children. */
@@ -159,6 +165,7 @@ function renderSplatter(spec: SplatterSpec): ReactNode {
 export function PlayerHero({
   title,
   titleSize,
+  leading,
   eyebrow,
   meta,
   actions,
@@ -204,34 +211,47 @@ export function PlayerHero({
       )}
       {renderSplatter(splatter ?? false)}
 
-      <div data-slot="player-hero-inner" className="relative z-10">
-        {eyebrow && (
-          <div
-            data-slot="player-hero-eyebrow"
-            className="font-mono text-[11px] font-bold uppercase tracking-[0.1em]"
-            style={{ color: "rgba(255,255,255,0.85)" }}
+      <div
+        data-slot="player-hero-inner"
+        className={cn(
+          "relative z-10",
+          leading && "flex items-start gap-4",
+        )}
+      >
+        {leading && (
+          <div data-slot="player-hero-leading" className="shrink-0">
+            {leading}
+          </div>
+        )}
+        <div data-slot="player-hero-content" className="min-w-0 flex-1">
+          {eyebrow && (
+            <div
+              data-slot="player-hero-eyebrow"
+              className="font-mono text-[11px] font-bold uppercase tracking-[0.1em]"
+              style={{ color: "rgba(255,255,255,0.85)" }}
+            >
+              {eyebrow}
+            </div>
+          )}
+          <h1
+            data-slot="player-hero-title"
+            className="truncate font-display font-black italic uppercase leading-[0.95] tracking-tight"
+            style={{ fontSize: `${resolveTitleSize(titleSize)}px` }}
           >
-            {eyebrow}
-          </div>
-        )}
-        <h1
-          data-slot="player-hero-title"
-          className="font-display font-black italic uppercase leading-[0.95] tracking-tight"
-          style={{ fontSize: `${resolveTitleSize(titleSize)}px` }}
-        >
-          {title}
-        </h1>
-        {meta && (
-          <div data-slot="player-hero-meta" className="mt-2.5">
-            {meta}
-          </div>
-        )}
-        {actions && (
-          <div data-slot="player-hero-actions" className="mt-3.5">
-            {actions}
-          </div>
-        )}
-        {children}
+            {title}
+          </h1>
+          {meta && (
+            <div data-slot="player-hero-meta" className="mt-2.5">
+              {meta}
+            </div>
+          )}
+          {actions && (
+            <div data-slot="player-hero-actions" className="mt-3.5">
+              {actions}
+            </div>
+          )}
+          {children}
+        </div>
       </div>
     </section>
   );

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Bowl } from "@/components/brand/Bowl";
-import { SpeckleField } from "@/components/brand/SpeckleField";
+import { PlayerHero } from "@/components/layout/PlayerHero";
 import { MyBookings } from "@/components/player/MyBookings";
 import { getCurrentMemberships } from "@/lib/auth/memberships";
 import { getCurrentProfile } from "@/lib/auth/profile";
@@ -51,58 +51,78 @@ export default async function MePage() {
   const unreadCount = inbox.filter((n) => !n.read).length;
 
   return (
-    <div className="pb-24">
-      {/* Profile hero */}
-      <section className="relative isolate overflow-hidden bg-primary-500 text-[color:var(--color-on-primary)]">
-        <div className="pointer-events-none absolute inset-0 z-0 opacity-90">
-          <SpeckleField
-            preset={primaryThemePreset}
-            density={1.1}
-            opacityScale={1.2}
-            seedKey="me-profile-hero"
-          />
-        </div>
-        <div className="relative z-10 mx-auto flex max-w-3xl items-center gap-4 px-5 py-7">
+    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-4 pb-24">
+      {/* Profile hero — bundle's `.profile-hero` shape via PlayerHero
+          (rounded-[20px] contained, NOT full-bleed). 12.5-6.5 Stage B
+          restructure: the hero is now INSIDE the centered max-w-3xl
+          wrapper — pre-12.5-6.5 it broke out of the wrapper as a
+          full-bleed sibling, which is why /me looked viewport-edge-
+          to-viewport-edge red. Avatar bumped from 64px to 84px with
+          a 3px on-primary ring + 36px font per `.profile-hero
+          .avatar`. SplatterAccent corner accent added per
+          `.profile-hero .splatter` (right:-50 bottom:-60 opacity:0.5).
+          SpeckleField intensity="medium" approximates the bundle's
+          density:1.1 / opacityScale:1.2 (no exact named tier match;
+          medium = 1.2/1.2 is the closest). borderRadius={0} matches
+          the bundle's exact JSX (parent overflow:hidden makes the
+          visual identical to borderRadius:20). */}
+      <PlayerHero
+        titleSize="identity"
+        title={fullName}
+        leading={
           <span
             aria-hidden="true"
-            className="flex size-16 shrink-0 items-center justify-center rounded-full bg-white/95 font-display text-[22px] font-black tracking-tight text-primary-500"
+            data-slot="profile-hero-avatar"
+            className="flex size-[84px] items-center justify-center rounded-full border-[3px] border-[color:var(--color-on-primary)] bg-black/25 font-display text-[36px] font-black leading-none tracking-tight"
           >
             {initials}
           </span>
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <h1 className="truncate font-display text-[28px] font-black italic leading-none tracking-tight">
-              {fullName}
-            </h1>
-            <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.08em] text-[color:var(--color-on-primary)]/90">
-              {profile?.bsa_number ? `BSA ${profile.bsa_number}` : "BSA pending"}
-              {primary && (
-                <>
-                  {" · "}Member {primary.club_name}
-                </>
-              )}
+        }
+        meta={
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-[color:var(--color-on-primary)]/90">
+            {profile?.bsa_number ? `BSA ${profile.bsa_number}` : "BSA pending"}
+            {primary && (
+              <>
+                {" · "}Member {primary.club_name}
+              </>
+            )}
+          </span>
+        }
+        speckle={{
+          preset: primaryThemePreset,
+          seedKey: "me-profile-hero",
+          intensity: "medium",
+          borderRadius: 0,
+        }}
+        splatter={{
+          preset: primaryThemePreset,
+          variant: 1,
+          size: "S",
+          right: -50,
+          bottom: -60,
+          opacity: 0.5,
+        }}
+      >
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {grading && (
+            <span className="rounded-full bg-white/20 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] ring-1 ring-inset ring-white/30">
+              {grading}
             </span>
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              {grading && (
-                <span className="rounded-full bg-white/20 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] ring-1 ring-inset ring-white/30">
-                  {grading}
-                </span>
-              )}
-              {profile?.dominant_hand && (
-                <span className="rounded-full bg-white/20 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] ring-1 ring-inset ring-white/30">
-                  {profile.dominant_hand}
-                </span>
-              )}
-              {profile?.gender && profile.gender !== "prefer_not" && (
-                <span className="rounded-full bg-white/20 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] ring-1 ring-inset ring-white/30">
-                  {profile.gender}
-                </span>
-              )}
-            </div>
-          </div>
+          )}
+          {profile?.dominant_hand && (
+            <span className="rounded-full bg-white/20 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] ring-1 ring-inset ring-white/30">
+              {profile.dominant_hand}
+            </span>
+          )}
+          {profile?.gender && profile.gender !== "prefer_not" && (
+            <span className="rounded-full bg-white/20 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] ring-1 ring-inset ring-white/30">
+              {profile.gender}
+            </span>
+          )}
         </div>
-      </section>
+      </PlayerHero>
 
-      <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-5">
+      <div className="flex flex-col gap-5">
         {/* Stats strip */}
         <div className="grid grid-cols-3 gap-2">
           <StatCell value={String(stats.matches_played)} label="Matches" />
