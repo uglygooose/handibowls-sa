@@ -124,7 +124,6 @@ export function SpeckleField({
 
   if (process.env.NODE_ENV !== "production") {
     if (intensity && (density != null || opacityScale != null)) {
-      // eslint-disable-next-line no-console
       console.warn(
         `[SpeckleField] intensity="${intensity}" was provided alongside explicit density/opacityScale; the explicit values win. Pick one form.`,
       );
@@ -146,7 +145,6 @@ export function SpeckleField({
 
   if (process.env.NODE_ENV !== "production") {
     if (!isFluid && !seedKey) {
-      // eslint-disable-next-line no-console
       console.warn(
         `[SpeckleField] non-fluid render (width=${width}, height=${height}) is missing seedKey — adjacent same-preset cards will share a pattern. Pass a unique seedKey per visual region.`,
       );

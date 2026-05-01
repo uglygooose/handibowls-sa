@@ -938,6 +938,89 @@ at Phase 12 / 12-6; the remaining 15 active entries land across
 - **Drift counts:** 45 → 54 open (+9 new audit findings); closed
   unchanged at 57.
 
+### 12.5-2 — Theme + Speckle — closed 2026-05-01
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-12.5-design-unification`).
+- **Four atomic commits on top of `085fe40`:**
+  - `da426b5` (12.5-2 commit 1) — `lib/brand/grade.ts` (new,
+    87 lines) exports `GRADE_COLORS` keyed by `Grade | "ungraded"`
+    with `{ from, mid, to, ink }` shape + three gradient helpers
+    (`gradeHeroGradient` 135deg 3-stop / `gradePillGradient` 140deg
+    3-stop / `gradePillCompactGradient` 120deg 2-stop legacy).
+    Hex values for gold / bronze / fail copied verbatim from
+    `t20-page-results.jsx` heroBg. **Silver migrated to a fixed
+    cool-metallic gradient** `#e6e7e9 / #b1b2b4 / #6f7173` per
+    the locked user decision — pre-12.5-2 silver derived from
+    `--primary-*` tokens and tinted with the active club preset.
+    Three consumers migrated (GradePill lg + sm/md variants,
+    admin AssessmentResults hero, ShowcaseT20 zone-grade legend
+    via `GRADE_FILL`). +11 unit tests in `tests/lib/brand/grade.test.ts`.
+    Closes audit id `grade-color-extraction`.
+  - `6ad2b17` (12.5-2 commit 2) — SpeckleField `seedKey?: string`
+    + `intensity?: "subtle" | "medium" | "bold"` props ship
+    together (same component) per the foundation guardrail.
+    `seedKey` folds into the SVG pattern id; non-fluid renders
+    without seedKey log a dev `console.warn` per locked decision.
+    `intensity` maps to (density, opacityScale) pairs codified in
+    `INTENSITY_MAP`; explicit numeric props win with a dev warn.
+    All 7 production call sites + 2 dev DesignShowcase calls
+    migrated in the same commit (FeatureGrid / SocialProof /
+    HeroNextMatch / tournaments[id] / TournamentCard / t20 hub /
+    me-page hero / DesignShowcase preview + steps). +11 unit
+    tests in `tests/components/brand/SpeckleField.test.tsx`.
+    Closes audit ids `speckle-seed` + `speckle-intensity-step`.
+  - `d5f1162` (12.5-2 commit 3) — StubPage body rewritten to
+    consume the `<EmptyState>` primitive from 12.5-1 (Construction
+    icon + "Coming soon" eyebrow + display-h3 title + honest body
+    copy). Component API unchanged; the two consumers (`/payments`
+    + `/platform/tournaments` super-admin) need no updates. +3
+    unit tests including a "no Phase N tracking-string leak"
+    regression-guard. Closes audit id `stub-page-phase-tag`.
+  - This commit (12.5-2 close) — DRIFT_LOG closures (4 audit IDs)
+    + PHASE_LOG entry. No new drift entries opened — the soft
+    drift around the 4 SpeckleField consumers that kept explicit
+    numeric values (outside the 3-step scale) is captured in the
+    `speckle-intensity-step` closure note rather than as a fresh
+    open entry; revisit at 12.5-7 final pass.
+- **Drift entries closed:** **4** — `grade-color-extraction` +
+  `speckle-seed` + `speckle-intensity-step` + `stub-page-phase-tag`.
+- **Drift entries opened:** **0**. The "snap to intensity vs keep
+  explicit numerics" decisions across SpeckleField consumers are
+  captured inline in the `speckle-intensity-step` closure note.
+- **Test count delta:** 1231 → 1256 (+25 net unit; +11 from
+  `grade.test.ts`, +11 from `SpeckleField.test.tsx`, +3 from
+  `StubPage.test.tsx`). Integration: 114 / 114 unchanged.
+- **Verification gates at close:** tsc clean / lint 0 errors
+  (18 pre-existing warnings) / 1256 unit / 114 integration /
+  build green.
+- **What to QA in dev:**
+  - **Player `/t20` hero** — speckle still renders with the
+    same visible density (now consuming `intensity="bold"` =
+    1.3/1.4, exact match to pre-12.5-2 explicit values); grade
+    pill colours unchanged on player surfaces (no GradePill on
+    /t20 yet — that lands in 12.5-4 player results detail).
+  - **Admin `/manage/t20/[id]` hero** — Gold / Bronze / Fail
+    gradients unchanged. **Silver hero changes:** previously
+    derived from active club preset (e.g. red on atomic-red,
+    blue on ocean-blue); now fixed cool-metallic regardless of
+    preset. Test against a few seeded silver assessments + a
+    few preset switches to confirm the fixed gradient holds.
+  - **Adjacent feature grid cards on landing** — speckle
+    patterns now distinct per card (each `<FeatureCard>` passes
+    a unique `seedKey={feature-${preset}}`). Pre-12.5-2 the
+    three preset cards already had distinct speckle (different
+    presets); this is a regression-guard for any future grid
+    that repeats a preset.
+  - **`/payments`** + **`/platform/tournaments`** super-admin
+    stubs — body shows the new `<EmptyState>` treatment with
+    Construction icon, "Coming soon" eyebrow, "This surface is
+    still being built." headline, body copy. No "Phase N"
+    string anywhere.
+  - **Open the dev console on any player surface** — confirm
+    no SpeckleField warnings about missing seedKey or
+    intensity-vs-numeric mixing.
+
 ### 12.5-1 — Foundation primitives — closed 2026-05-01
 
 - **Branch tip at close:** `<filled in commit message>`
