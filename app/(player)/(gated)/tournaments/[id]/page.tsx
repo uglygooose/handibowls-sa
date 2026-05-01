@@ -163,12 +163,14 @@ export default async function PlayerTournamentDetailPage({ params }: Props) {
         <SectionHead title="Bracket" />
         <MiniBracket rounds={rounds} />
 
-        {/* Standings — Phase 12 follow-up */}
+        {/* Standings — placeholder; round-robin / sectional standings ship
+            when those formats are unlocked engine-wide. */}
         <SectionHead title="Standings" />
         <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-6 text-[13px] text-ink-muted">
-          Standings tables ship in Phase 12. Knockout tournaments use the
-          bracket above; round-robin and sectional formats will surface
-          their tables once round-robin is unlocked engine-wide.
+          Standings will be available once the tournament is in progress.
+          Knockout tournaments use the bracket above; round-robin and
+          sectional formats will surface their tables when those formats
+          unlock.
         </div>
 
         {/* Tournament info */}

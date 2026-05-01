@@ -2,13 +2,12 @@ import { Calendar, Target, Trophy } from "lucide-react";
 import Link from "next/link";
 
 // Phase 8a — quick actions row. 3 cards: Browse tournaments, Book a
-// rink, My T20. Mirrors player-core.jsx PagePlay's qa-row block.
-// T20 routes to the Phase 10 stub for now (matches the bottom-nav tab).
+// rink, My Twenty 20. Mirrors player-core.jsx PagePlay's qa-row block.
 
 export type QuickActionsCounts = {
   /** Open tournaments visible to the player. Falls through to "—" when null. */
   openTournaments: number | null;
-  /** Most-recent grade earned. "—" until the T20 module ships in Phase 10. */
+  /** Most-recent grade earned. Null when the player has not yet been assessed. */
   t20Grade: string | null;
 };
 
@@ -57,7 +56,7 @@ export function QuickActions({ counts }: Props) {
             Twenty 20
           </>
         }
-        meta={counts.t20Grade ?? "Phase 10"}
+        meta={counts.t20Grade ?? "Not yet assessed"}
         metaTone="info"
       />
     </div>

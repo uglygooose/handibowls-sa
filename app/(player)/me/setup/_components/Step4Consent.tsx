@@ -69,7 +69,7 @@ export function Step4Consent() {
                 I&apos;ve read the HandiBowls Privacy Policy (v{PRIVACY_VERSION}).
               </FormLabel>
               <FormDescription>
-                We store data per POPIA — see your profile for export &amp; delete tools (Phase 11).
+                We store data per POPIA — profile export and account deletion tools will be added in a future update.
               </FormDescription>
               <FormMessage />
             </div>

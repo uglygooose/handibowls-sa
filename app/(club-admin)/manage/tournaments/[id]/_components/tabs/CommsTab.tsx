@@ -114,7 +114,7 @@ export function CommsTab({ tournament }: Props) {
             <button
               type="button"
               disabled
-              title="Send-message wiring lands with the Resend integration in Phase 11"
+              title="Tournament-scoped comms integration coming soon"
               className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-primary-500 px-5 text-[13px] font-semibold text-[color:var(--color-on-primary)] disabled:cursor-not-allowed disabled:opacity-60 hover:bg-primary-600"
             >
               <Send className="size-3.5" aria-hidden="true" />

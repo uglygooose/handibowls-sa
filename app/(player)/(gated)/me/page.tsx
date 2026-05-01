@@ -224,7 +224,7 @@ export default async function MePage() {
           <SettingRow icon={<Settings className="size-4" />} label="Account" trailing="—" />
         </ul>
         <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-subtle">
-          Settings deep-links land alongside Phase 11 comms wiring.
+          More settings coming soon.
         </p>
       </div>
     </div>
