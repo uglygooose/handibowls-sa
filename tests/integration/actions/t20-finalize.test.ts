@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { randomUUID } from "node:crypto";
 import { createClient as createSbClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 import type { AuthContext } from "@/lib/auth/role";
