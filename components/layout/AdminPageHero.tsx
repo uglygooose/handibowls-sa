@@ -80,10 +80,22 @@ type SplatterSpec =
 type Props = {
   /** Required — the surface's primary headline (h1 reading order). */
   title: ReactNode;
+  /** Title size tier. Design source ships two sizes: "hero" (56px,
+   *  used on list surfaces — `.page-hero h1` rule) and "detail"
+   *  (48px, used on per-row detail surfaces — page-detail.jsx:135
+   *  inline override). Pass a number for an exact size when neither
+   *  tier fits. Default "hero". */
+  titleSize?: "hero" | "detail" | number;
   /** Optional small-caps mono-feel label above the title. Design
    *  source uses Barlow Condensed font-bold 11px tracking 0.16em
    *  ink-muted (`.eyebrow` class). */
   eyebrow?: ReactNode;
+  /** Optional content rendered above the eyebrow — typically a
+   *  breadcrumb / back-link row. Design source page-detail.jsx
+   *  renders this between the hero card edge and the eyebrow.
+   *  Caller controls layout (typically `<div className="flex
+   *  items-center gap-2">`). */
+  prefix?: ReactNode;
   /** Optional italic-Barlow 22px sub-headline below the title. Used
    *  on /manage/t20 ("skills assessment") + /manage/messages
    *  ("broadcasts & reminders") — see t20-page-list.jsx:67. */
@@ -170,9 +182,21 @@ function renderSplatter(spec: SplatterSpec, idx: number): ReactNode {
   );
 }
 
+const TITLE_SIZE_PX: Record<"hero" | "detail", number> = {
+  hero: 56,
+  detail: 48,
+};
+
+function resolveTitleSize(size: Props["titleSize"]): number {
+  if (typeof size === "number") return size;
+  return TITLE_SIZE_PX[size ?? "hero"];
+}
+
 export function AdminPageHero({
   title,
+  titleSize,
   eyebrow,
+  prefix,
   subtitle,
   description,
   meta,
@@ -220,6 +244,11 @@ export function AdminPageHero({
         className="relative z-10 flex min-h-[156px] flex-wrap items-end justify-between gap-8 px-9 py-8"
       >
         <div className="min-w-0 flex-1">
+          {prefix && (
+            <div data-slot="admin-page-hero-prefix" className="mb-2">
+              {prefix}
+            </div>
+          )}
           {eyebrow && (
             <div
               data-slot="admin-page-hero-eyebrow"
@@ -230,7 +259,8 @@ export function AdminPageHero({
           )}
           <h1
             data-slot="admin-page-hero-title"
-            className="mt-1.5 font-display text-[56px] font-black leading-none tracking-tight"
+            className="mt-1.5 font-display font-black leading-none tracking-tight"
+            style={{ fontSize: `${resolveTitleSize(titleSize)}px` }}
           >
             {title}
           </h1>

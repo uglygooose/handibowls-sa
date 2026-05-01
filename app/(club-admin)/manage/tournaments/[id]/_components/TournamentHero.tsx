@@ -11,8 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
-import { SplatterAccent } from "@/components/brand/SplatterAccent";
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
 import { EntriesGatePill } from "@/components/tournament/EntriesGatePill";
 import { formatDateRangeZA } from "@/lib/format/dates";
 import { FORMAT_DEFAULTS } from "@/lib/tournaments/formats";
@@ -66,79 +65,55 @@ export function TournamentHero({ tournament: t }: Props) {
   const allMatchesDone =
     t.matches_total > 0 && t.matches_open === 0 && t.matches_in_progress === 0;
 
+  // 12.5-6: bespoke detail-page hero now consumes AdminPageHero for
+  // chrome (rounded-[18px] / bg-bone / items-end / SpeckleLayer /
+  // SplatterAccent constants), but keeps the breadcrumb prefix +
+  // pill row meta + multi-element action stack since they're
+  // detail-page-only affordances. titleSize="detail" maps to 48px
+  // per page-detail.jsx:135 inline override.
   return (
-    // `isolate` creates a fresh stacking context so the splatter SVG's
-    // transform-induced stacking context can't leak above the action-stack
-    // CTAs. See SplatterAccent.tsx stacking-expectation block.
-    <div className="relative isolate overflow-hidden rounded-2xl border border-border bg-surface px-8 py-7">
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <SpeckleLayer seed={`detail-hero-${t.id}`} density="med" opacity={0.06} />
-      </div>
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-8 -top-10 z-0 opacity-[0.85]"
-      >
-        <SplatterAccent
-          preset={splatterPreset}
-          variant={0}
-          size={300}
-          rotate={-12}
-        />
-      </div>
-
-      <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          {/* Back link + breadcrumb */}
-          <div className="flex items-center gap-2">
-            <Link
-              href="/manage/tournaments"
-              className="inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-[13px] font-medium text-ink-muted hover:bg-surface-muted hover:text-ink"
-            >
-              <ChevronLeft className="size-3.5" aria-hidden="true" />
-              All tournaments
-            </Link>
-            <span className="text-[13px] text-ink-subtle">/ {t.name}</span>
-          </div>
-
-          {/* Eyebrow + title */}
-          <div className="mt-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
-            {t.host_club.name} · {STRUCTURE_LABEL[t.structure]} · {FORMAT_LABEL[t.format]}
-          </div>
-          <h1 className="mt-1 font-display text-[48px] font-black italic leading-none tracking-tight">
-            {t.name}
-          </h1>
-
-          {/* Pill row — format / scope / dates / rules / entries-gate / status */}
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary-500/10 px-2.5 py-1 text-[12px] font-semibold tracking-tight text-primary-500 ring-1 ring-inset ring-primary-500/30">
-              <strong>{FORMAT_LABEL[t.format]}</strong>
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 text-[12px] font-medium text-ink-muted ring-1 ring-inset ring-border">
-              <Shield className="size-3.5" aria-hidden="true" />
-              {SCOPE_LABEL[t.scope]}
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 text-[12px] font-medium text-ink-muted ring-1 ring-inset ring-border">
-              <Calendar className="size-3.5" aria-hidden="true" />
-              {formatDateRangeZA(t.starts_at, t.ends_at)}
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 font-mono text-[12px] font-medium text-ink-muted ring-1 ring-inset ring-border">
-              {rulesText(t)}
-            </span>
-            <EntriesGatePill
-              status={t.status}
-              entries_close_at={t.entries_close_at}
-              size="md"
-            />
-            <StatusPill tournament={t} />
-          </div>
+    <AdminPageHero
+      titleSize="detail"
+      title={t.name}
+      eyebrow={`${t.host_club.name} · ${STRUCTURE_LABEL[t.structure]} · ${FORMAT_LABEL[t.format]}`}
+      prefix={
+        <div className="flex items-center gap-2">
+          <Link
+            href="/manage/tournaments"
+            className="inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-[13px] font-medium text-ink-muted hover:bg-surface-muted hover:text-ink"
+          >
+            <ChevronLeft className="size-3.5" aria-hidden="true" />
+            All tournaments
+          </Link>
+          <span className="text-[13px] text-ink-subtle">/ {t.name}</span>
         </div>
-
-        {/* Right rail: action stack. The detail page is role-gated to
-            club_admin (host) + super_admin via the parent page's
-            `requireRole` + `getTournamentDetail`'s host-club filter,
-            so every viewer of this hero is authorised to edit — the
-            Edit CTA renders unconditionally inside this gated route. */}
-        <div className="relative z-10 flex flex-col items-end gap-3">
+      }
+      meta={
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary-500/10 px-2.5 py-1 text-[12px] font-semibold tracking-tight text-primary-500 ring-1 ring-inset ring-primary-500/30">
+            <strong>{FORMAT_LABEL[t.format]}</strong>
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 text-[12px] font-medium text-ink-muted ring-1 ring-inset ring-border">
+            <Shield className="size-3.5" aria-hidden="true" />
+            {SCOPE_LABEL[t.scope]}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 text-[12px] font-medium text-ink-muted ring-1 ring-inset ring-border">
+            <Calendar className="size-3.5" aria-hidden="true" />
+            {formatDateRangeZA(t.starts_at, t.ends_at)}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 font-mono text-[12px] font-medium text-ink-muted ring-1 ring-inset ring-border">
+            {rulesText(t)}
+          </span>
+          <EntriesGatePill
+            status={t.status}
+            entries_close_at={t.entries_close_at}
+            size="md"
+          />
+          <StatusPill tournament={t} />
+        </div>
+      }
+      actions={
+        <div className="flex flex-col items-end gap-3">
           <div className="flex items-center gap-2">
             <Link
               href={`/manage/tournaments/${t.id}/edit`}
@@ -197,8 +172,11 @@ export function TournamentHero({ tournament: t }: Props) {
               )}
           </p>
         </div>
-      </div>
-    </div>
+      }
+      speckle={{ seed: `detail-hero-${t.id}`, density: "med", opacity: 0.06 }}
+      splatter={{ preset: splatterPreset, variant: 0, size: "L", rotate: -12, opacity: 0.85 }}
+      containerWidth="none"
+    />
   );
 }
 

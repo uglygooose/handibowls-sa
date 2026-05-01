@@ -42,20 +42,49 @@ describe("<AdminPageHero /> — design-source contract", () => {
     expect(cls).toContain("justify-between");
   });
 
-  it("h1 renders at text-[56px] font-display font-black leading-none — NO italic (design source has none)", () => {
+  it("h1 renders at 56px (default 'hero' tier) font-display font-black leading-none — NO italic (design source has none)", () => {
     const { container } = render(<AdminPageHero title="Tournaments" containerWidth="none" />);
-    const h1 = container.querySelector("[data-slot='admin-page-hero-title']");
+    const h1 = container.querySelector<HTMLHeadingElement>(
+      "[data-slot='admin-page-hero-title']",
+    );
     expect(h1?.tagName).toBe("H1");
     expect(h1?.textContent).toBe("Tournaments");
     const cls = h1?.className ?? "";
-    expect(cls).toContain("text-[56px]");
+    expect(h1?.style.fontSize).toBe("56px");
     expect(cls).toContain("font-display");
     expect(cls).toContain("font-black");
     expect(cls).toContain("leading-none");
     // Design source `.page-hero h1` does NOT set font-style: italic.
-    // Pinning the absence prevents drift back to the shipped
-    // pre-12.5-6 italic styling.
     expect(cls).not.toMatch(/\bitalic\b/);
+  });
+
+  it("h1 renders at 48px when titleSize='detail' (per page-detail.jsx:135 inline override)", () => {
+    const { container } = render(
+      <AdminPageHero title="Tournament" titleSize="detail" containerWidth="none" />,
+    );
+    const h1 = container.querySelector<HTMLHeadingElement>(
+      "[data-slot='admin-page-hero-title']",
+    );
+    expect(h1?.style.fontSize).toBe("48px");
+  });
+
+  it("renders prefix slot above the eyebrow when provided (breadcrumb pattern from page-detail.jsx)", () => {
+    const { container } = render(
+      <AdminPageHero
+        title="Tournament"
+        prefix={<span data-testid="breadcrumb-link">All tournaments</span>}
+        eyebrow="Demo Bowls Club · Knockout · Singles"
+        containerWidth="none"
+      />,
+    );
+    const prefix = container.querySelector("[data-slot='admin-page-hero-prefix']");
+    const eyebrow = container.querySelector("[data-slot='admin-page-hero-eyebrow']");
+    expect(prefix).not.toBeNull();
+    expect(eyebrow).not.toBeNull();
+    expect(prefix?.querySelector("[data-testid='breadcrumb-link']")).not.toBeNull();
+    // DOM order — prefix renders before eyebrow.
+    const all = Array.from(prefix?.parentElement?.children ?? []);
+    expect(all.indexOf(prefix as Element)).toBeLessThan(all.indexOf(eyebrow as Element));
   });
 });
 
