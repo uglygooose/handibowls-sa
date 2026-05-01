@@ -3,6 +3,7 @@
 import {
   AlertTriangle,
   ChevronRight,
+  Code2,
   Download,
   FileText,
   Sparkles,
@@ -26,6 +27,7 @@ import {
   uploadRubricVersion,
 } from "../_actions";
 import type { RubricVersionRow } from "../_data";
+import { RubricSchemaDialog } from "./RubricSchemaDialog";
 
 // Phase 10 / 10-8 — Twenty 20 rubric library, super-admin surface.
 //
@@ -61,6 +63,14 @@ export function RubricsClient({ rows }: Props) {
   const [dialog, setDialog] = useState<DialogMode>({ kind: "none" });
   const [selectedId, setSelectedId] = useState<string>(
     rows.find((r) => r.isActive)?.id ?? rows[0]?.id ?? "",
+  );
+  // Phase 12.5 / 12.5-3 (audit `rubrics-view-schema-modal`): id of
+  // the rubric whose schema is currently being inspected. null → no
+  // dialog open.
+  const [schemaInspectId, setSchemaInspectId] = useState<string | null>(null);
+  const schemaInspectRow = useMemo(
+    () => (schemaInspectId ? rows.find((r) => r.id === schemaInspectId) ?? null : null),
+    [schemaInspectId, rows],
   );
 
   const active = useMemo(() => rows.find((r) => r.status === "active"), [rows]);
@@ -168,8 +178,20 @@ export function RubricsClient({ rows }: Props) {
         onDeactivate={(id) =>
           setDialog({ kind: "deactivate", targetId: id })
         }
+        onViewSchema={(id) => setSchemaInspectId(id)}
         canDeactivate={(id) => canDeactivate(rows, id)}
       />
+
+      {schemaInspectRow?.rubric && (
+        <RubricSchemaDialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setSchemaInspectId(null);
+          }}
+          rubric={schemaInspectRow.rubric}
+          versionLabel={schemaInspectRow.version}
+        />
+      )}
 
       {active && firstDraft && (
         <PendingChangesPanel
@@ -453,6 +475,7 @@ function VersionsTable({
   onSelect,
   onActivate,
   onDeactivate,
+  onViewSchema,
   canDeactivate,
 }: {
   rows: RubricVersionRow[];
@@ -460,6 +483,7 @@ function VersionsTable({
   onSelect: (id: string) => void;
   onActivate: (id: string) => void;
   onDeactivate: (id: string) => void;
+  onViewSchema: (id: string) => void;
   canDeactivate: (id: string) => boolean;
 }) {
   return (
@@ -565,6 +589,18 @@ function VersionsTable({
                     className="whitespace-nowrap px-3 py-3 text-right"
                     onClick={(e) => e.stopPropagation()}
                   >
+                    {r.rubric && (
+                      <button
+                        type="button"
+                        onClick={() => onViewSchema(r.id)}
+                        data-slot="row-view-schema-cta"
+                        title={`View ${r.version} section structure + JSON`}
+                        className="mr-1.5 inline-flex h-8 items-center gap-1 rounded-md border border-border bg-bone px-2.5 text-[12px] font-medium text-ink-muted hover:bg-surface-muted hover:text-ink"
+                      >
+                        <Code2 className="size-3.5" aria-hidden="true" />
+                        View schema
+                      </button>
+                    )}
                     {r.status === "draft" && (
                       <button
                         type="button"
