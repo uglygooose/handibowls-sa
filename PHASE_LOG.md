@@ -926,7 +926,46 @@ classifying the 63 open drift entries at the Phase 12 boundary into
 surface; DEFER entries roll forward. Effort framing dropped per
 stakeholder call — Phase 12 ships when work ships.
 
-### 12-prep — branch cut + DRIFT triage application — closed 2026-04-30
+### 12-5 — Performance + Lighthouse sweep — opened 2026-05-01
+
+- **Branch tip at open:** `7ed7266` (`rebuild/phase-12-stakeholder-polish`).
+- **Scope:** two MUST drift entries — M3 / L42 (Phase 7
+  Lighthouse re-run on `/manage/tournaments/[id]`, original
+  86/100/96/91 was measured against a 404 page) + M4 / L67
+  (player route Performance below the ≥90 gate; LCP 4.4s + TBT
+  1040ms on `/play`, primary suspect a 1.4MB chunk).
+- **Six-step plan from L67 entry text:** (1) bundle analysis
+  via Turbopack-native `next experimental-analyze`; (2) lazy-
+  load `BookingSheet` + `OpponentConfirmationCard` +
+  `DisputeForm` via `next/dynamic`; (3) verify lucide-react
+  tree-shaking; (4) gate `@react-pdf` from player chunks; (5)
+  gate `dexie` from non-scorecard player chunks; (6) re-run
+  Lighthouse on all 4 player routes.
+- **Pre-flight findings (read-only inspection):**
+  - `@react-pdf/renderer` is already gated — only `PdfPreview.tsx`
+    consumes it via `next/dynamic`, and that file lives under
+    `app/(club-admin)/manage/tournaments/[id]/pdf/`. Step 4 is a
+    no-op verification.
+  - `dexie` reaches every player route via the static import
+    chain `app/(player)/layout.tsx` → `DynamicSyncBadge` →
+    `useOutboxFlush` + `useSyncState` → `lib/scorecard/outbox.ts`
+    → `dexie`. The TopBar slot wants live sync state on every
+    surface (so the player can see "queued / error" at a glance),
+    so the fix is to lazy-mount `DynamicSyncBadge` rather than
+    move it to scorecard-only — keeps the UX, splits the chunk.
+  - `lucide-react` imports across the repo are all named-import
+    form (`import { X, Y } from "lucide-react"`); no barrel /
+    star imports surfaced in the spot-check. Step 3 is likely
+    a verification-only pass.
+- **DRIFT_LOG addition (this commit):** new entry under
+  `### Player Twenty 20 hub` — "Player T20 results detail view —
+  design needed" — captures the gap surfaced during 12-4 close
+  (past-assessments rows are dead taps; no design source for a
+  player-side detail view exists in the bundle). Owner: Phase
+  12.5 Claude Design pass. Folded into the 12-5 open commit per
+  the standing convention "next drift-touching commit".
+
+
 
 - **Branch tip:** `1b20559` (`rebuild/phase-12-stakeholder-polish`,
   cut from `005b8af` Phase 11 close).
