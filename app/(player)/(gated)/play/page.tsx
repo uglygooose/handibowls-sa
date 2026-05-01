@@ -57,16 +57,15 @@ export default async function PlayHome() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 pb-24 pt-5">
-      {/* Greeting eyebrow + h1 — design's MTopBar title flows here too on
-          surfaces without a back button. The shared TopBar shows it as
-          the route title; the inline h1 anchors the scroll context. */}
-      <header className="flex flex-col gap-1">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
-          Today
-        </span>
-        <h1 className="font-display text-3xl font-black italic leading-none tracking-tight">
-          {greeting}
-        </h1>
+      {/* Greeting eyebrow + h1 — visually hidden via sr-only so the
+          first visible content is the notif banner + HeroNextMatch +
+          section-heads (matches design source PagePlay shape per
+          player-pages.jsx — no h1 in the visible chrome). h1 stays
+          in the a11y tree as the page landmark for screen readers
+          (12.5-6.5 Stage D / `player-h1-landmark`). */}
+      <header className="sr-only">
+        <span>Today</span>
+        <h1>{greeting}</h1>
       </header>
 
       {/* Notification banner — only when there's at least one unread. */}

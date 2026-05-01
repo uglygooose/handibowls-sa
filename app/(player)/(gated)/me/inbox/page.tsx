@@ -38,8 +38,8 @@ export default async function InboxPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-5 pb-24 pt-5">
-      {/* Header — back link + h1. Matches the design's MTopBar with
-          back button shape. */}
+      {/* Back link stays visible — design's MTopBar back-button
+          equivalent for the player surface. */}
       <div className="flex items-center gap-2">
         <Link
           href="/me"
@@ -49,9 +49,11 @@ export default async function InboxPage({ searchParams }: Props) {
           Back
         </Link>
       </div>
-      <h1 className="font-display text-3xl font-black italic leading-none tracking-tight">
-        Inbox
-      </h1>
+      {/* Visually hidden — bundle's PageInbox has no h1 in the
+          visible chrome (player-pages.jsx PageInbox — straight to
+          tab-bar + lists). h1 stays in the a11y tree for landmark
+          navigation (12.5-6.5 Stage D). */}
+      <h1 className="sr-only">Inbox</h1>
 
       <InboxTabs
         active={active}

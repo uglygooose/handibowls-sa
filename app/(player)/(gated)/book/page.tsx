@@ -58,13 +58,12 @@ export default async function BookPage({ searchParams }: Props) {
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-5 pb-24">
-      <header className="flex flex-col gap-1">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-ink-muted">
-          {data.club_name}
-        </span>
-        <h1 className="font-display text-[28px] font-black uppercase italic tracking-tight">
-          Book a rink
-        </h1>
+      {/* Visually hidden — bundle's PageBook has no h1 in the
+          visible chrome (player-pages.jsx). h1 stays in the a11y
+          tree for landmark navigation (12.5-6.5 Stage D). */}
+      <header className="sr-only">
+        <span>{data.club_name}</span>
+        <h1>Book a rink</h1>
       </header>
 
       <section className="flex flex-col gap-3 rounded-xl bg-surface p-3 shadow-sm">

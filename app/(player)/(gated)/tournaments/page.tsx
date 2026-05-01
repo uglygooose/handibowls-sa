@@ -41,15 +41,13 @@ export default async function TournamentsListPage({ searchParams }: Props) {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-5 pb-24 pt-5">
-      {/* Hero block — eyebrow + h1. Inline rather than a separate
-          component since it's small and surface-specific. */}
-      <header className="flex flex-col gap-1">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
-          Tournaments
-        </span>
-        <h1 className="font-display text-3xl font-black italic leading-none tracking-tight">
-          {active === "available" ? "Open entries" : "Your tournaments"}
-        </h1>
+      {/* Visually hidden — bundle's PageTournaments has no h1 in the
+          visible chrome (player-core.jsx PageTournaments — straight
+          to tab-bar + chips-row + cards). h1 stays in the a11y tree
+          for landmark navigation (12.5-6.5 Stage D). */}
+      <header className="sr-only">
+        <span>Tournaments</span>
+        <h1>{active === "available" ? "Open entries" : "Your tournaments"}</h1>
       </header>
 
       <TournamentsTabs
