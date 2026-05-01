@@ -79,6 +79,55 @@ export const createTournamentSchema = z
 // default, hence the explicit `input` here.
 export type CreateTournamentInput = z.input<typeof createTournamentSchema>;
 
+// -------------------- updateTournament (12.5-5) --------------------
+//
+// The edit form sends the full set of editable fields plus the row's
+// `updated_at` value at form-load time so the action can reject a
+// concurrent-edit collision. Field set mirrors createTournamentSchema
+// minus `host_club_id` (immutable — tournaments don't move clubs)
+// and `created_by`. Defaults are stripped because the edit form
+// always sends explicit values from the pre-fill — no defaulted
+// fields, every field is required input.
+
+export const updateTournamentSchema = z
+  .object({
+    tournament_id: uuid,
+    /** ISO timestamp of the tournament row's `updated_at` at the time
+     *  the edit form loaded. The action UPDATE includes this in the
+     *  WHERE clause so a concurrent edit (which has bumped updated_at)
+     *  causes a zero-row UPDATE — the action then re-reads
+     *  updated_at and returns it back to the caller as
+     *  `currentUpdatedAt` with `code: "stale"`.
+     *  `{ offset: true }` accepts Postgres timestamptz format
+     *  ("...+00:00") in addition to the strict-Z form. The value is
+     *  passed through to the .eq() WHERE clause as-is so precision
+     *  matches the persisted row exactly. */
+    expected_updated_at: z.string().datetime({ offset: true }),
+    name: tournamentName,
+    scope: z.enum(TOURNAMENT_SCOPES),
+    format: z.enum(TOURNAMENT_FORMATS),
+    structure: z.enum(TOURNAMENT_STRUCTURES),
+    category: z.enum(CATEGORIES),
+    age_group: z.enum(AGE_GROUPS),
+    handicap_rule: z.enum(HANDICAP_RULES),
+    seeding_method: z.enum(SEEDING_METHODS),
+    starts_at: z.string().datetime().nullable().optional(),
+    ends_at: z.string().datetime().nullable().optional(),
+    entries_close_at: z.string().datetime().nullable().optional(),
+    max_entries: positiveInt.nullable().optional(),
+    ends_per_match: positiveInt.nullable().optional(),
+    shots_up_target: positiveInt.nullable().optional(),
+    fair_rink: z.boolean(),
+    green_ids: z.array(uuid),
+  })
+  .refine(
+    (v) =>
+      !v.starts_at || !v.ends_at || new Date(v.ends_at) >= new Date(v.starts_at),
+    { message: "ends_at must be on or after starts_at", path: ["ends_at"] },
+  );
+
+export type UpdateTournamentInput = z.infer<typeof updateTournamentSchema>;
+
 // -------------------- closeEntries / completeTournament / cancelTournament --------------------
 
 export const tournamentIdSchema = z.object({ tournament_id: uuid });

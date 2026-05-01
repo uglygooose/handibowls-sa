@@ -34,6 +34,7 @@ import { completeTournamentIfDone } from "@/lib/tournaments/completion";
 import { revalidateMatchSurfaces } from "@/lib/tournaments/revalidate";
 import { advanceRound as advanceRoundPrimitive } from "@/lib/tournaments/rounds";
 import { seedEntries as seedEntriesPrimitive } from "@/lib/tournaments/seeding";
+import { tournamentHasScores } from "@/lib/tournaments/queries";
 import {
   advanceRoundSchema,
   bulkSaveMatchScoresSchema,
@@ -45,6 +46,7 @@ import {
   seedEntriesSchema,
   submitMatchSchema,
   tournamentIdSchema,
+  updateTournamentSchema,
   verifyMatchSchema,
   type AdvanceRoundInput,
   type BulkSaveMatchScoresInput,
@@ -56,6 +58,7 @@ import {
   type SeedEntriesInput,
   type SubmitMatchInput,
   type TournamentIdInput,
+  type UpdateTournamentInput,
   type VerifyMatchInput,
 } from "@/lib/validation/tournaments";
 
@@ -197,6 +200,209 @@ export async function createTournament(
 
   revalidatePath("/manage/tournaments", "page");
   return { ok: true, data: { tournament_id: data.id } };
+}
+
+// -------------------- 1b. updateTournament (12.5-5) --------------------
+//
+// Edit-mode counterpart to `createTournament`. Mirrors the editable
+// field set from the create form (host_club_id stays immutable —
+// tournaments don't move clubs).
+//
+// Three concerns layered on top of the create flow:
+//
+//   1. Optimistic concurrency. The edit form passes
+//      `expected_updated_at` (the row's updated_at at form-load
+//      time) and the action filters the UPDATE on it. Concurrent
+//      edits collide as a zero-row UPDATE; the action then re-reads
+//      the current updated_at and returns it as
+//      `{ code: "stale", currentUpdatedAt }` so the form can warn
+//      and re-prompt.
+//
+//   2. Format-locked gate. Once any match in the tournament has a
+//      scored end (`tournamentHasScores` predicate), the format +
+//      structure pickers are locked in the UI. The action
+//      re-validates server-side: if the caller tries to mutate
+//      either field on a tournament that already has scores, the
+//      action rejects with `{ code: "format_locked" }`. UI is the
+//      proactive guard; the action is the integrity guarantee.
+//
+//   3. tournament_greens diff. Greens are a join table — a single
+//      UPDATE on tournaments.green_ids isn't an option. The action
+//      reads the current set, computes add + remove sets vs. the
+//      payload, and INSERTs / DELETEs accordingly. Unchanged greens
+//      are no-ops — keeps the network round-trip small + RLS happy.
+
+export type UpdateTournamentResult =
+  | { ok: true; data: { tournament_id: string; updated_at: string } }
+  | {
+      ok: false;
+      error: string;
+      fieldErrors?: Record<string, string[]>;
+      /** Recovery hint. `"stale"` means a concurrent edit moved
+       *  `updated_at`; the form should re-load. `"format_locked"`
+       *  means the format/structure mutation was rejected because
+       *  scoring has started. */
+      code?: "stale" | "format_locked";
+      /** Fresh `updated_at` from the DB when `code === "stale"`,
+       *  null when we couldn't read it back (e.g. RLS denial on
+       *  the re-fetch). */
+      currentUpdatedAt?: string | null;
+    };
+
+export async function updateTournament(
+  input: UpdateTournamentInput,
+): Promise<UpdateTournamentResult> {
+  const ctx = await getAuthContext();
+  if (!ctx) return { ok: false, error: NOT_AUTHENTICATED.error };
+
+  const parsed = updateTournamentSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Invalid input.",
+      fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+  const v = parsed.data;
+
+  const supabase = await createClient();
+
+  // 1) Authorise + fetch current state. We need host_club_id (auth),
+  //    format / structure (format-locked diff), and updated_at (the
+  //    optimistic-lock check below uses .eq() on updated_at; this
+  //    fetch lets us also distinguish "row missing" from "stale").
+  const { data: current, error: fetchErr } = await supabase
+    .from("tournaments")
+    .select("id, host_club_id, format, structure, updated_at")
+    .eq("id", v.tournament_id)
+    .maybeSingle();
+  if (fetchErr) {
+    return { ok: false, error: fetchErr.message };
+  }
+  if (!current) {
+    return { ok: false, error: "Tournament not found." };
+  }
+
+  const allowed =
+    ctx.role === "super_admin" ||
+    (ctx.role === "club_admin" && ctx.clubIds.includes(current.host_club_id));
+  if (!allowed) {
+    return { ok: false, error: "Not authorized for this tournament." };
+  }
+
+  // 2) Format-locked gate. Only re-checks the predicate when the
+  //    caller is actually trying to mutate format / structure —
+  //    avoids a needless query on the common rename / fair-rink-
+  //    toggle / dates-tweak save.
+  const formatChanged =
+    current.format !== v.format || current.structure !== v.structure;
+  if (formatChanged) {
+    const hasScores = await tournamentHasScores(v.tournament_id);
+    if (hasScores) {
+      return {
+        ok: false,
+        error: "Format and structure are locked once a match has been scored.",
+        code: "format_locked",
+      };
+    }
+  }
+
+  // 3) Optimistic-locked UPDATE. The .eq("updated_at", ...) clause
+  //    is the lock — a concurrent edit will have bumped updated_at
+  //    via the set_updated_at() trigger and this UPDATE matches
+  //    zero rows. .select(...).maybeSingle() returns
+  //    `data: null, error: null` in that case.
+  const { data: updated, error: upErr } = await supabase
+    .from("tournaments")
+    .update({
+      name: v.name,
+      scope: v.scope,
+      format: v.format,
+      structure: v.structure,
+      category: v.category,
+      age_group: v.age_group,
+      handicap_rule: v.handicap_rule,
+      seeding_method: v.seeding_method,
+      starts_at: v.starts_at ?? null,
+      ends_at: v.ends_at ?? null,
+      entries_close_at: v.entries_close_at ?? null,
+      max_entries: v.max_entries ?? null,
+      ends_per_match: v.ends_per_match ?? null,
+      shots_up_target: v.shots_up_target ?? null,
+      fair_rink: v.fair_rink,
+    })
+    .eq("id", v.tournament_id)
+    .eq("updated_at", v.expected_updated_at)
+    .select("id, updated_at")
+    .maybeSingle();
+  if (upErr) {
+    return { ok: false, error: upErr.message };
+  }
+  if (!updated) {
+    // Zero rows updated. Auth was already validated above + the row
+    // exists, so the WHERE clause that didn't match must have been
+    // updated_at — i.e. a concurrent edit. Re-read the fresh value
+    // so the client can rebase.
+    const { data: stale } = await supabase
+      .from("tournaments")
+      .select("updated_at")
+      .eq("id", v.tournament_id)
+      .maybeSingle();
+    return {
+      ok: false,
+      error: "Tournament was edited in another session — refresh and try again.",
+      code: "stale",
+      currentUpdatedAt: stale?.updated_at ?? null,
+    };
+  }
+
+  // 4) tournament_greens diff. Read the current set, compute
+  //    add / remove vs. the payload, fire the necessary writes.
+  //    Errors here are logged but don't fail the overall save —
+  //    the tournament row is already updated.
+  const { data: existingGreens, error: greensErr } = await supabase
+    .from("tournament_greens")
+    .select("green_id")
+    .eq("tournament_id", v.tournament_id);
+  if (!greensErr) {
+    const currentSet = new Set((existingGreens ?? []).map((r) => r.green_id));
+    const nextSet = new Set(v.green_ids);
+    const toAdd = [...nextSet].filter((id) => !currentSet.has(id));
+    const toRemove = [...currentSet].filter((id) => !nextSet.has(id));
+
+    if (toAdd.length > 0) {
+      const { error: addErr } = await supabase
+        .from("tournament_greens")
+        .insert(
+          toAdd.map((green_id) => ({
+            tournament_id: v.tournament_id,
+            green_id,
+          })),
+        );
+      if (addErr) {
+        console.error("[tournaments] tournament_greens add failed:", addErr);
+      }
+    }
+    if (toRemove.length > 0) {
+      const { error: rmErr } = await supabase
+        .from("tournament_greens")
+        .delete()
+        .eq("tournament_id", v.tournament_id)
+        .in("green_id", toRemove);
+      if (rmErr) {
+        console.error("[tournaments] tournament_greens remove failed:", rmErr);
+      }
+    }
+  } else {
+    console.error("[tournaments] tournament_greens fetch failed:", greensErr);
+  }
+
+  revalidatePath("/manage/tournaments", "page");
+  revalidatePath(`/manage/tournaments/${v.tournament_id}`, "page");
+  return {
+    ok: true,
+    data: { tournament_id: updated.id, updated_at: updated.updated_at },
+  };
 }
 
 // -------------------- 2. closeEntries --------------------
