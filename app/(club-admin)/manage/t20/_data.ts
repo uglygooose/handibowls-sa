@@ -22,14 +22,29 @@ import type { Database } from "@/types/database.types";
 //                                   player + assessor profile embeds
 //                                   for the list page's grade-pill UI.
 //
-//   getAssessmentForCapture(id)   — single assessment + every delivery
-//                                   row, used by the capture wizard
-//                                   to hydrate state and by the
-//                                   results view to recompute totals.
+// Phase 12.5 / 12.5-4: `getAssessmentDetail` (single assessment +
+// deliveries + rubric, used by the capture wizard / admin results
+// view / new player results view) was extracted to
+// `lib/t20/assessment-detail.ts` so the new player route at
+// `app/(player)/(gated)/t20/[assessmentId]/page.tsx` can read the
+// same data without duplicating the SQL or types. The shared types
+// + function are re-exported below for back-compat with the four
+// existing admin consumers.
 //
 // All consumers are server-side. Cancelled / finalized assessments
 // are returned alongside in-progress ones; the UI distinguishes by
 // `status`.
+
+// Re-export shared assessment-detail types + fetcher from the
+// extracted lib module (12.5-4).
+export {
+  type AssessmentDetail,
+  type AssessmentDetailAssessment,
+  type DeliveryRow,
+  type DetailResult,
+  type T20Notes,
+  getAssessmentDetail,
+} from "@/lib/t20/assessment-detail";
 
 type DbAssessmentStatus = "draft" | "submitted" | "archived";
 type DbT20Section = Database["public"]["Enums"]["t20_section"];
@@ -58,48 +73,9 @@ export type AssessmentListRow = {
   second_marker_name: string | null;
 };
 
-export type DeliveryRow = {
-  id: string;
-  assessment_id: string;
-  section: DbT20Section;
-  round: number;
-  delivery_index: number;
-  distance_m: number | null;
-  hand: "fore" | "back" | null;
-  outcome: Record<string, unknown>;
-  points: number;
-  distance_bucket: "<10cm" | "10-30cm" | "30cm+" | null;
-};
-
-/** 12-4 / N8: coach-categorised notes (migration 041). The jsonb
- *  column carries any subset of these keys; the UI renders one
- *  tile per known category. NULL = no notes captured. */
-export type T20Notes = {
-  strengths?: string;
-  watch?: string;
-  focus?: string;
-  /** Reserved for future imports of pre-12-4 uncategorised notes —
-   *  surfaces as a read-only tile in the UI when present. */
-  legacy?: string;
-};
-
-export type AssessmentDetail = {
-  assessment: AssessmentListRow & {
-    notes: T20Notes | null;
-    pdf_url: string | null;
-    submitted_at: string | null;
-  };
-  deliveries: DeliveryRow[];
-  rubric: Rubric;
-};
-
 export type ListResult =
   | { ok: true; clubId: string; clubName: string; rows: AssessmentListRow[] }
   | { ok: false; reason: "no-club" | "error"; error?: string };
-
-export type DetailResult =
-  | { ok: true; data: AssessmentDetail }
-  | { ok: false; reason: "not-found" | "no-club" | "error"; error?: string };
 
 export type RubricResult =
   | { ok: true; rubric: Rubric; versionId: string; versionLabel: string }
@@ -226,111 +202,15 @@ export async function listAssessmentsForClub(): Promise<ListResult> {
   return { ok: true, clubId: club.club_id, clubName: club.club_name, rows };
 }
 
-export async function getAssessmentDetail(
-  id: string,
-): Promise<DetailResult> {
-  const ctx = await getAuthContext();
-  if (!ctx) return { ok: false, reason: "no-club" };
-
-  const supabase = await createClient();
-  const { data: a, error: aErr } = await supabase
-    .from("t20_assessments")
-    .select(
-      "id, club_id, profile_id, assessor_id, assessor_accreditation_id, assessed_on, green_type, green_speed, status, total_score, percentage, grade, rubric_version_id, second_marker_name, notes, pdf_url, submitted_at, player:profiles!profile_id(first_name, last_name, display_name, email), assessor:profiles!assessor_id(first_name, last_name, display_name), rubric:t20_rubric_versions!rubric_version_id(version, rubric)",
-    )
-    .eq("id", id)
-    .maybeSingle();
-  if (aErr) {
-    console.error("[t20] assessment detail fetch failed:", aErr);
-    return { ok: false, reason: "error", error: aErr.message };
-  }
-  if (!a) return { ok: false, reason: "not-found" };
-
-  const rubricRow = a.rubric as { version?: string; rubric?: unknown } | null;
-  const rubricParsed = RubricSchema.safeParse(rubricRow?.rubric);
-  if (!rubricParsed.success) {
-    console.error("[t20] rubric attached to assessment failed schema validation");
-    return {
-      ok: false,
-      reason: "error",
-      error: "Rubric attached to assessment is not valid v1 shape.",
-    };
-  }
-
-  const { data: deliveries, error: dErr } = await supabase
-    .from("t20_deliveries")
-    .select(
-      "id, assessment_id, section, round, delivery_index, distance_m, hand, outcome, points, distance_bucket",
-    )
-    .eq("assessment_id", id)
-    .order("section", { ascending: true })
-    .order("round", { ascending: true })
-    .order("distance_m", { ascending: true })
-    .order("delivery_index", { ascending: true });
-  if (dErr) {
-    console.error("[t20] deliveries fetch failed:", dErr);
-    return { ok: false, reason: "error", error: dErr.message };
-  }
-
-  const player = a.player as
-    | { first_name?: string | null; last_name?: string | null; display_name?: string | null; email?: string | null }
-    | null;
-  const assessor = a.assessor as
-    | { first_name?: string | null; last_name?: string | null; display_name?: string | null }
-    | null;
-
-  const ui_state: AssessmentListRow["ui_state"] =
-    a.status === "submitted" || a.status === "archived"
-      ? "completed"
-      : (deliveries ?? []).length > 0
-        ? "in_progress"
-        : "draft";
-
-  const rows: DeliveryRow[] = (deliveries ?? []).map((d) => ({
-    id: d.id,
-    assessment_id: d.assessment_id,
-    section: d.section,
-    round: d.round,
-    delivery_index: d.delivery_index,
-    distance_m: d.distance_m,
-    hand: d.hand as DeliveryRow["hand"],
-    outcome: (d.outcome ?? {}) as Record<string, unknown>,
-    points: Number(d.points),
-    distance_bucket: d.distance_bucket as DeliveryRow["distance_bucket"],
-  }));
-
-  return {
-    ok: true,
-    data: {
-      assessment: {
-        id: a.id,
-        club_id: a.club_id,
-        player_id: a.profile_id,
-        player_name: nameOf(player),
-        player_email: player?.email ?? null,
-        assessor_id: a.assessor_id,
-        assessor_name: nameOf(assessor),
-        assessor_accreditation_id: a.assessor_accreditation_id,
-        assessed_on: a.assessed_on,
-        green_type: a.green_type,
-        green_speed: a.green_speed,
-        status: a.status as DbAssessmentStatus,
-        ui_state,
-        total_score: Number(a.total_score),
-        percentage: Number(a.percentage),
-        grade: a.grade,
-        rubric_version_id: a.rubric_version_id,
-        rubric_version_label: rubricRow?.version ?? null,
-        second_marker_name: a.second_marker_name,
-        notes: parseNotes(a.notes),
-        pdf_url: a.pdf_url,
-        submitted_at: a.submitted_at,
-      },
-      deliveries: rows,
-      rubric: rubricParsed.data,
-    },
-  };
-}
+// 12.5-4: getAssessmentDetail moved to `lib/t20/assessment-detail.ts`
+// and re-exported at the top of this file. The block below is the
+// admin _data layer's remaining helpers + the candidate-list fetcher.
+//
+// `nameOf` is shared with `listAssessmentsForClub` and
+// `getT20CandidatesForClub` — kept here as a private helper.
+//
+// `parseNotes` moved to lib/t20/assessment-detail.ts (only consumer
+// was getAssessmentDetail).
 
 function nameOf(
   p: {
@@ -343,32 +223,6 @@ function nameOf(
   if (p.display_name) return p.display_name;
   const composed = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
   return composed || null;
-}
-
-// 12-4 / N8: parse jsonb notes into the typed T20Notes shape.
-// PostgREST returns jsonb columns as JS objects; the CHECK
-// constraint t20_assessments_notes_shape pins keys to a known
-// subset, so a defensive read here just narrows + guards against
-// non-object values (shouldn't happen post-migration but cheap to
-// gate at the boundary).
-function parseNotes(raw: unknown): T20Notes | null {
-  if (raw == null) return null;
-  if (typeof raw !== "object" || Array.isArray(raw)) return null;
-  const obj = raw as Record<string, unknown>;
-  const result: T20Notes = {};
-  if (typeof obj.strengths === "string" && obj.strengths.length > 0) {
-    result.strengths = obj.strengths;
-  }
-  if (typeof obj.watch === "string" && obj.watch.length > 0) {
-    result.watch = obj.watch;
-  }
-  if (typeof obj.focus === "string" && obj.focus.length > 0) {
-    result.focus = obj.focus;
-  }
-  if (typeof obj.legacy === "string" && obj.legacy.length > 0) {
-    result.legacy = obj.legacy;
-  }
-  return Object.keys(result).length > 0 ? result : null;
 }
 
 // Phase 10 / 10-5 — candidate-list fetcher for the New assessment
