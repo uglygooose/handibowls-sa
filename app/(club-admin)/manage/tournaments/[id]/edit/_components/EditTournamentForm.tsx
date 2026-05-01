@@ -382,9 +382,9 @@ export function EditTournamentForm({
               <div className="flex-1 text-[13px] leading-[1.45]">
                 <strong className="text-ink">Format and structure are locked.</strong>{" "}
                 <span className="text-ink-muted">
-                  Once a match has been scored, the tournament's format and
-                  structure can't change — moving the bracket shape mid-event
-                  would invalidate live scores.
+                  Once a match has been scored, the tournament&apos;s format
+                  and structure can&apos;t change — moving the bracket shape
+                  mid-event would invalidate live scores.
                 </span>
               </div>
             </div>

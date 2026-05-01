@@ -938,6 +938,107 @@ at Phase 12 / 12-6; the remaining 15 active entries land across
 - **Drift counts:** 45 → 54 open (+9 new audit findings); closed
   unchanged at 57.
 
+### 12.5-5 — Tournament edit page (NEW route) — closed 2026-05-01
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-12.5-design-unification`).
+- **Three atomic commits on top of the 12.5-4 amendment Stage 2
+  tip `8f8a5cd`:**
+  - `d97cef6` (12.5-5 commit 1) — `tournamentHasScores` predicate.
+    Single-purpose server-only query in `lib/tournaments/queries.ts`
+    that returns true iff any `match_ends` row across the
+    tournament's matches has non-zero shots. Reads from
+    `match_ends` (the authoritative source — `matches.home_shots /
+    away_shots` are denormalised but app-updated rather than
+    trigger-synced; a 0-0 first-end row would have a `match_ends`
+    row while `matches.home_shots` stays 0). Inner-join via
+    `matches!inner(tournament_id)` + `.or('home_shots.gt.0,away_shots.gt.0')`.
+    Fail-open on query error so the format-locked gate never
+    erroneously locks the form on a transient query failure — the
+    action re-validates server-side anyway. 5 unit cases pin the
+    chained-call shape + the four result branches (zero / null /
+    non-zero / error).
+  - `65de60b` (12.5-5 commit 2) — `updateTournament` server
+    action. Mirrors `createTournament` with three additions:
+    optimistic concurrency via `.eq('id').eq('updated_at',
+    expected_updated_at).select().maybeSingle()` (zero-row UPDATE
+    on a stale value triggers a fresh re-read +
+    `{ code: 'stale', currentUpdatedAt }` response); server-side
+    format-locked re-validation against `tournamentHasScores`;
+    `tournament_greens` add/remove diff (read current set, compute
+    add/remove, INSERT/DELETE; unchanged greens are no-ops). Result
+    type extends the existing `ActionResult<T>` failure variant
+    with optional `code: "stale" | "format_locked"` +
+    `currentUpdatedAt: string | null` — no new discriminated-union
+    pattern. Schema: `expected_updated_at: z.string().datetime({
+    offset: true })` accepts Postgres timestamptz format
+    ("...+00:00") so the value passes through to `.eq()`
+    losslessly. Pinned by 5 live-SQL integration cases against
+    real Supabase (happy path, optimistic-lock conflict,
+    format-locked, cross-club admin, player).
+  - `54b1df7` (12.5-5 commit 3) — `/[id]/edit/page.tsx` Server
+    Component + `<EditTournamentForm>` Client island + shared
+    form shell. Mirrors the create form's 4-section structure
+    (Basics / Rules / Seeding & Greens / Entry fee placeholder)
+    pre-filled from the existing tournament row. Hero copy reads
+    "Edit · Tournament" / "Edit tournament". `formatLocked` →
+    inline notice card above Format/Structure pickers + disabled
+    pickers. `softWarnRename` AND `nameChangedFromInitial` →
+    inline helper text under the name field ("Public tournament
+    links update when the name changes."). `expectedUpdatedAt`
+    held in component state, init from `tournament.updated_at`,
+    rebases to `result.data.updated_at` on a successful save.
+    Stale-edit response surfaces an inline error + RefreshCw
+    affordance prompting reload. Footer: "Discard" link to
+    `/manage/tournaments/[id]` + "Save changes" primary. Shared
+    `Section`/`Field`/`ChipRow`/`Chip`/`inputClass` extracted
+    from `NewTournamentForm` to
+    `app/(club-admin)/manage/tournaments/_components/form-shell.tsx`
+    — both forms now consume the same primitives. Pinned by 7
+    component cases (pre-fill × 2, format-locked × 2, rename
+    soft-warn × 3).
+- **Locked-decision applied:** land on the full form (no step
+  state machine — the audit's "5-step wizard" was aspirational,
+  the actual create form is single-page; the edit page mirrors
+  what's actually built). Allow rename after publish with
+  soft-warn near the name field. No entrants editor (managed on
+  the existing detail page's entries tab). No publish step
+  (status transitions live as separate lifecycle actions).
+- **Drift entries closed:** `tournament-edit-page` (audit id) —
+  per the actual drift entry, not the audit's aspirational
+  wizard description. The closure note records the audit-
+  aspirational distinction for future reference.
+- **Drift entries opened:** none.
+- **Test deltas:** unit 1291 → 1303 (+12: 5 in
+  `tests/lib/tournaments/queries.test.ts`, 7 in
+  `tests/app/club-admin/tournament-edit-form.test.tsx`);
+  integration 114 → 119 (+5 in
+  `tests/integration/actions/tournament-update.test.ts`).
+- **What 12.5-5 closes for v1:** tournament edits — name, dates,
+  scope, format/structure (when not locked), category, age group,
+  handicap rule, seeding method, max entries, fair_rink, greens
+  selection — now have a server-rendered admin surface with
+  optimistic concurrency + a server-side format-locked gate.
+- **Manual QA:**
+  - Open existing tournament from list, navigate to `/edit` —
+    form pre-fills all 4 sections.
+  - Section 01: rename a published (`status='open'` or
+    `'in_progress'`) tournament — soft-warn helper text surfaces
+    near name field as soon as the typed value differs from the
+    initial. On a draft tournament — no warn even if renamed.
+  - Section 01: try editing format/structure on a tournament with
+    a scored match — pickers are disabled with the red-bordered
+    notice card. On a tournament with no scores — pickers fully
+    editable.
+  - Section 03: change greens selection (add one, remove one) —
+    diff persists on save (verify via the existing `/manage/
+    tournaments/[id]` rinks tab).
+  - Save changes succeeds; concurrent edit (open in 2 tabs, save
+    tab 1, then save tab 2) → tab 2 gets the stale-edit error
+    inline ("Tournament was edited in another session — refresh
+    the page to see the latest version before saving.") and the
+    save is blocked.
+
 ### 12.5-4 — Player Twenty 20 results detail view (NEW route) — closed 2026-05-01
 
 - **Branch tip at close:** `<filled in commit message>`
