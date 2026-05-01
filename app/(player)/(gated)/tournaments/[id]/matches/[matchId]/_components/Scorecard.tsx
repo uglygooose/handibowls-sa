@@ -461,7 +461,7 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
           )}
 
           {serverError && (
-            <p className="rounded-xl border border-danger-500/40 bg-danger-500/10 px-3 py-2 text-[13px] text-danger-500">
+            <p className="rounded-xl border border-danger-500/40 bg-danger-500/10 px-3 py-2 text-[15px] text-danger-500">
               {serverError}
             </p>
           )}
@@ -487,7 +487,7 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
                 Confirm end {currentEndNumber}
               </h3>
             </BottomSheet.Title>
-            <BottomSheet.Description className="text-[13px] text-ink-muted">
+            <BottomSheet.Description className="text-[15px] text-ink-muted">
               Locking this end will be hard to undo. The admin can still
               override final scores.
             </BottomSheet.Description>

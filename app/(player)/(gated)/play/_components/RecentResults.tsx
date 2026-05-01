@@ -26,7 +26,7 @@ export function RecentResults({ results }: Props) {
   if (results.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-6 text-center">
-        <p className="text-[13px] text-ink-muted">
+        <p className="text-[15px] text-ink-muted">
           No completed matches yet. Your results land here once the first one
           finishes.
         </p>

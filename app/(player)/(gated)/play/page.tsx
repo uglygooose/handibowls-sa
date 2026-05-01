@@ -78,7 +78,7 @@ export default async function PlayHome() {
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-info-500/15">
             <Bell className="size-3.5" aria-hidden="true" />
           </span>
-          <span className="flex-1 text-[13px]">
+          <span className="flex-1 text-[15px]">
             <strong className="font-extrabold">
               {unreadCount} unread
             </strong>{" "}
@@ -152,7 +152,7 @@ function EmptyNextMatch() {
         <h2 className="font-display text-xl font-black italic tracking-tight">
           No matches scheduled.
         </h2>
-        <p className="text-[13px] text-ink-muted">
+        <p className="text-[15px] text-ink-muted">
           You&apos;re not currently entered in any open tournaments. Browse
           available competitions to enter your first one.
         </p>

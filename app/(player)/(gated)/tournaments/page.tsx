@@ -113,7 +113,7 @@ function EmptyState({ tab }: { tab: AvailableEnteredTab }) {
         <h2 className="font-display text-xl font-black italic tracking-tight">
           No open entries.
         </h2>
-        <p className="text-[13px] text-ink-muted">
+        <p className="text-[15px] text-ink-muted">
           Your club doesn&apos;t have any open tournament entries right now.
           Check back soon — your club admin posts new tournaments here.
         </p>
@@ -128,7 +128,7 @@ function EmptyState({ tab }: { tab: AvailableEnteredTab }) {
       <h2 className="font-display text-xl font-black italic tracking-tight">
         Not entered in any tournaments yet.
       </h2>
-      <p className="text-[13px] text-ink-muted">
+      <p className="text-[15px] text-ink-muted">
         Browse open entries to enter your first one. Once you&apos;re in,
         match cards and bracket progress land here.
       </p>

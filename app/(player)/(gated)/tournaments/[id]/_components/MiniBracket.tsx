@@ -42,7 +42,7 @@ type Props = {
 export function MiniBracket({ rounds }: Props) {
   if (rounds.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-8 text-center text-[13px] text-ink-muted">
+      <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-8 text-center text-[15px] text-ink-muted">
         Bracket lands once the draw is generated.
       </div>
     );

@@ -141,7 +141,7 @@ export default async function PlayerTournamentDetailPage({ params }: Props) {
             <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-info-500/15">
               <Circle className="size-3.5" aria-hidden="true" />
             </span>
-            <div className="flex-1 text-[13px]">
+            <div className="flex-1 text-[15px]">
               <strong className="block font-extrabold text-ink">
                 Match #{openMatch.match_no ?? "—"}{" "}
                 {openMatch.round != null && `· Round ${openMatch.round}`}
@@ -165,7 +165,7 @@ export default async function PlayerTournamentDetailPage({ params }: Props) {
         {/* Standings — placeholder; round-robin / sectional standings ship
             when those formats are unlocked engine-wide. */}
         <PlayerSectionHead>Standings</PlayerSectionHead>
-        <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-6 text-[13px] text-ink-muted">
+        <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-6 text-[15px] text-ink-muted">
           Standings will be available once the tournament is in progress.
           Knockout tournaments use the bracket above; round-robin and
           sectional formats will surface their tables when those formats
