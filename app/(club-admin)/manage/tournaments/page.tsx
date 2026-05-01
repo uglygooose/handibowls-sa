@@ -1,8 +1,7 @@
 import { Download, Trophy } from "lucide-react";
 import Link from "next/link";
 
-import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
-import { SplatterAccent } from "@/components/brand/SplatterAccent";
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
 import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { requireRole } from "@/lib/auth/role";
 
@@ -32,41 +31,15 @@ export default async function ManageTournamentsPage() {
       : `Run knockouts, drawn sets, and tournaments at ${clubName}. ${activeCount} active ${activeCount === 1 ? "competition" : "competitions"} across ${formatCount} ${formatCount === 1 ? "format" : "formats"}.`;
 
   return (
-    <div className="flex flex-col gap-6 px-8 py-6">
-      {/* Page hero — speckle backing + corner splatter accent. */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-surface px-8 py-7">
-        <div className="pointer-events-none absolute inset-0 z-0">
-          <SpeckleLayer
-            seed="hero-tournaments"
-            density="high"
-            opacity={0.06}
-          />
-        </div>
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-8 -top-10 z-0 opacity-[0.6]"
-        >
-          <SplatterAccent
-            preset={splatterPreset}
-            variant={1}
-            size={300}
-            rotate={-12}
-          />
-        </div>
-
-        <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
-              Club Admin · {clubName}
-            </div>
-            <h1 className="mt-1.5 font-display text-[44px] font-black italic leading-[1.05] tracking-tight">
-              Tournaments
-            </h1>
-            <p className="mt-2 max-w-[58ch] text-[14px] text-ink-muted">
-              {subtitle}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 pb-24">
+      <AdminPageHero
+        eyebrow={`Club admin · ${clubName}`}
+        title="Tournaments"
+        description={subtitle}
+        splatter={{ preset: splatterPreset, variant: 1, size: "L", rotate: -12, opacity: 0.6 }}
+        speckle={{ seed: "hero-tournaments", density: "high", opacity: 0.06 }}
+        actions={
+          <>
             <button
               type="button"
               className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink hover:bg-surface-muted"
@@ -81,9 +54,10 @@ export default async function ManageTournamentsPage() {
               <Trophy className="size-4" aria-hidden="true" />
               New Tournament
             </Link>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+        containerWidth="none"
+      />
 
       <TournamentsList tournaments={tournaments} clubName={clubName} />
     </div>

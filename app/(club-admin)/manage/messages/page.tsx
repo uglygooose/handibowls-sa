@@ -1,8 +1,7 @@
 import { Inbox, MessageSquare, Sparkles } from "lucide-react";
 import Link from "next/link";
 
-import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
-import { SplatterAccent } from "@/components/brand/SplatterAccent";
+import { AdminPageHero } from "@/components/layout/AdminPageHero";
 import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { requireRole } from "@/lib/auth/role";
 
@@ -49,15 +48,13 @@ export default async function ManageMessagesPage({
 
   if (!listResult.ok) {
     return (
-      <div className="mx-auto max-w-5xl px-6 py-10">
-        <header className="mb-6">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-subtle">
-            Club admin
-          </span>
-          <h1 className="mt-1 font-display text-3xl font-extrabold italic tracking-tight">
-            Messages
-          </h1>
-        </header>
+      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-8 pb-24">
+        <AdminPageHero
+          eyebrow="Club admin"
+          title="Messages"
+          subtitle="broadcasts & reminders"
+          containerWidth="none"
+        />
         <div className="rounded-xl border border-dashed border-border p-8 text-center">
           <p className="text-sm text-ink-muted">
             No club is in scope for this account. Use{" "}
@@ -90,79 +87,48 @@ export default async function ManageMessagesPage({
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 pb-24">
-      {/* HERO — speckle + double-splatter accent matching /manage/t20 */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-surface px-8 py-7">
-        <div className="pointer-events-none absolute inset-0 z-0">
-          <SpeckleLayer seed="messages-list-hero" density="high" opacity={0.06} />
-        </div>
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-8 -top-12 z-0 opacity-[0.55]"
-        >
-          <SplatterAccent
-            preset={splatterPreset}
-            variant={2}
-            size={300}
-            rotate={-14}
-          />
-        </div>
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-10 left-32 z-0 opacity-40"
-        >
-          <SplatterAccent
-            preset={splatterPreset}
-            variant={0}
-            size={170}
-            rotate={28}
-          />
-        </div>
-
-        <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
-              Club admin · {clubName}
-            </div>
-            <h1 className="mt-1.5 font-display text-[44px] font-black italic leading-[1.05] tracking-tight">
-              Messages
-            </h1>
-            <div className="mt-0.5 font-display text-[22px] font-bold italic text-ink-muted">
-              broadcasts &amp; reminders
-            </div>
-            <p className="mt-2 max-w-[64ch] text-[14px] text-ink-muted">
-              {subtitle}
-            </p>
-            <div className="mt-3.5 flex flex-wrap items-center gap-2">
-              <span
-                data-slot="channel-pill"
-                className="inline-flex h-7 items-center gap-1.5 rounded-full bg-primary-500 px-3 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-on-primary"
-              >
-                <MessageSquare className="size-3" aria-hidden="true" />
-                In-app · v1
-              </span>
-              {rows.length > 0 && (
-                <span
-                  data-slot="counts-pill"
-                  className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border bg-bone px-3 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted"
-                >
-                  <Inbox className="size-3" aria-hidden="true" />
-                  {draftCount} drafts · {failedCount} failed
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Link
-              href="/manage/messages/new"
-              data-slot="new-message-cta"
-              className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-primary-500 px-5 text-sm font-semibold text-on-primary shadow-sm hover:bg-primary-600"
+      <AdminPageHero
+        eyebrow={`Club admin · ${clubName}`}
+        title="Messages"
+        subtitle="broadcasts & reminders"
+        description={subtitle}
+        speckle={{ seed: "messages-list-hero", density: "high", opacity: 0.06 }}
+        splatter={[
+          { preset: splatterPreset, variant: 2, size: "L", rotate: -14, opacity: 0.55 },
+          { preset: splatterPreset, variant: 0, size: "M", rotate: 28, opacity: 0.4, bottom: -40, left: 128 },
+        ]}
+        meta={
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              data-slot="channel-pill"
+              className="inline-flex h-7 items-center gap-1.5 rounded-full bg-primary-500 px-3 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-on-primary"
             >
-              <Sparkles className="size-4" aria-hidden="true" />
-              New message
-            </Link>
+              <MessageSquare className="size-3" aria-hidden="true" />
+              In-app · v1
+            </span>
+            {rows.length > 0 && (
+              <span
+                data-slot="counts-pill"
+                className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border bg-bone px-3 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted"
+              >
+                <Inbox className="size-3" aria-hidden="true" />
+                {draftCount} drafts · {failedCount} failed
+              </span>
+            )}
           </div>
-        </div>
-      </div>
+        }
+        actions={
+          <Link
+            href="/manage/messages/new"
+            data-slot="new-message-cta"
+            className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-primary-500 px-5 text-sm font-semibold text-on-primary shadow-sm hover:bg-primary-600"
+          >
+            <Sparkles className="size-4" aria-hidden="true" />
+            New message
+          </Link>
+        }
+        containerWidth="none"
+      />
 
       {/* INBOX / SENT TABS — URL-driven so notification deep links can target a tab */}
       <nav

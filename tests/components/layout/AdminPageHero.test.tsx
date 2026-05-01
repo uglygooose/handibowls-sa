@@ -130,6 +130,28 @@ describe("<AdminPageHero /> — slot variants", () => {
     expect(cls).toContain("max-w-[56ch]");
   });
 
+  it("renders meta slot below description (per t20-page-list.jsx:67-72 pill row pattern)", () => {
+    const { container } = render(
+      <AdminPageHero
+        title="Twenty 20"
+        description="Skills assessments at Demo Bowls Club."
+        meta={
+          <div className="flex flex-wrap gap-2">
+            <span data-testid="active-rubric-pill">Active rubric · v1</span>
+          </div>
+        }
+        containerWidth="none"
+      />,
+    );
+    const metaSlot = container.querySelector("[data-slot='admin-page-hero-meta']");
+    expect(metaSlot).not.toBeNull();
+    expect(metaSlot?.querySelector("[data-testid='active-rubric-pill']")).not.toBeNull();
+    // Meta slot lives below description but in the same left column —
+    // before the actions slot which is in the right column.
+    const desc = container.querySelector("[data-slot='admin-page-hero-description']");
+    expect(desc?.parentElement).toBe(metaSlot?.parentElement);
+  });
+
   it("renders actions slot top-right when provided", () => {
     const { container } = render(
       <AdminPageHero

@@ -63,11 +63,18 @@ type SplatterSpec =
       rotate?: number;
       opacity?: number;
       /** Top inset in px (negative pulls the splatter above the hero
-       *  card border). Default -40 matches design source. */
-      top?: number;
-      /** Right inset in px (negative pulls the splatter past the
-       *  hero card right edge). Default -30 matches design source. */
-      right?: number;
+       *  card border). Default -40 — pass `null` to omit (e.g. when
+       *  pinning to bottom instead). */
+      top?: number | null;
+      /** Right inset in px. Default -30 — pass `null` to omit when
+       *  pinning to left. */
+      right?: number | null;
+      /** Bottom inset in px (negative pulls below border). Omitted by
+       *  default. The /manage/t20 secondary splatter uses
+       *  `{ bottom: -40, left: 128 }` per the design source. */
+      bottom?: number;
+      /** Left inset in px. Omitted by default. */
+      left?: number;
     };
 
 type Props = {
@@ -84,6 +91,12 @@ type Props = {
   /** Optional 15px ink-muted lede paragraph. max-w-[56ch] capped
    *  per design source. */
   description?: ReactNode;
+  /** Optional pill / badge row rendered immediately below the
+   *  description. Matches the design source's t20-page-list.jsx:67-72
+   *  pattern (active-rubric pill + cycle pill). Caller controls
+   *  the row layout — typically a `<div className="flex flex-wrap
+   *  gap-2">` wrapping `<span>` pills. */
+  meta?: ReactNode;
   /** Optional top-right action stack (CTAs, secondary buttons). */
   actions?: ReactNode;
   /** Background speckle layer. Default `{ density: "high", opacity:
@@ -121,15 +134,31 @@ function renderSplatter(spec: SplatterSpec, idx: number): ReactNode {
     size,
     rotate = -12,
     opacity = 0.6,
-    top = -40,
-    right = -30,
+    top,
+    right,
+    bottom,
+    left,
   } = spec;
+  // Inset defaults: when neither bottom/left is passed, default to
+  // top -40 / right -30 (per design source page-list / page-detail
+  // hero corner splatter). When bottom OR left is passed, the
+  // caller is pinning to a different corner — don't auto-add the
+  // top/right defaults.
+  const inset =
+    bottom !== undefined || left !== undefined
+      ? {
+          ...(top !== undefined && top !== null ? { top } : {}),
+          ...(right !== undefined && right !== null ? { right } : {}),
+          ...(bottom !== undefined ? { bottom } : {}),
+          ...(left !== undefined ? { left } : {}),
+        }
+      : { top: top ?? -40, right: right ?? -30 };
   return (
     <div
       key={`splatter-${idx}`}
       aria-hidden="true"
       className="pointer-events-none absolute z-[1]"
-      style={{ top, right, opacity }}
+      style={{ ...inset, opacity }}
     >
       <SplatterAccent
         preset={preset}
@@ -146,6 +175,7 @@ export function AdminPageHero({
   eyebrow,
   subtitle,
   description,
+  meta,
   actions,
   speckle = { density: "high", opacity: 0.06 },
   splatter = { size: "L", variant: 1, rotate: -12, opacity: 0.6 },
@@ -219,6 +249,11 @@ export function AdminPageHero({
             >
               {description}
             </p>
+          )}
+          {meta && (
+            <div data-slot="admin-page-hero-meta" className="mt-3.5">
+              {meta}
+            </div>
           )}
         </div>
         {actions && (
