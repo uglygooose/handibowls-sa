@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Check, MapPin, Sparkles, X } from "lucide-react";
+import { AlertCircle, Check, Lock, MapPin, RefreshCw, Save, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -9,7 +9,7 @@ import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
 import { SplatterAccent } from "@/components/brand/SplatterAccent";
 import { FormatPicker } from "@/components/tournament/FormatPicker";
 import { StructurePicker } from "@/components/tournament/StructurePicker";
-import { createTournament } from "@/app/(club-admin)/manage/tournaments/_actions";
+import { updateTournament } from "@/app/(club-admin)/manage/tournaments/_actions";
 import {
   Chip,
   ChipRow,
@@ -24,10 +24,34 @@ import {
   HANDICAP_RULES,
   SEEDING_METHODS,
   TOURNAMENT_SCOPES,
-  type CreateTournamentInput,
+  type UpdateTournamentInput,
 } from "@/lib/validation/tournaments";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/types/database.types";
+
+// Phase 12.5 / 12.5-5 — edit-mode counterpart to <NewTournamentForm>.
+// Mirrors the create form's 4-section structure pre-filled from the
+// existing tournament row. Three edit-specific concerns layered on
+// top of the create flow:
+//
+//   1. Format-locked. The format + structure pickers + their auto-
+//      derived rule fields freeze with an inline notice card once
+//      `tournamentHasScores(id)` returns true (Section 01 + 02).
+//      Server-side gate in updateTournament re-validates on save;
+//      this is the proactive UI guard.
+//
+//   2. Rename soft-warn. When the row is published (status='open' or
+//      'in_progress'), edits to the name field surface inline helper
+//      text noting that public tournament links update. Locked
+//      decision: rename allowed even after publish.
+//
+//   3. Optimistic concurrency. The pre-filled form carries the row's
+//      `updated_at` at load time as `expected_updated_at`. The
+//      action's UPDATE filters on it; concurrent edits collide as a
+//      stale response which the form surfaces as an inline error +
+//      Reload affordance. Successful saves rebase
+//      `expectedUpdatedAt` to the freshly-bumped value so subsequent
+//      saves in the same session don't false-positive.
 
 type Scope = (typeof TOURNAMENT_SCOPES)[number];
 type Category = (typeof CATEGORIES)[number];
@@ -38,9 +62,33 @@ type Structure = Database["public"]["Enums"]["tournament_structure"];
 
 type Green = { id: string; name: string; rink_count: number };
 
+export type EditTournament = {
+  id: string;
+  name: string;
+  scope: Scope;
+  format: TournamentFormat;
+  structure: Structure;
+  category: Category;
+  age_group: AgeGroup;
+  handicap_rule: HandicapRule;
+  seeding_method: SeedingMethod;
+  starts_at: string | null;
+  ends_at: string | null;
+  entries_close_at: string | null;
+  max_entries: number | null;
+  ends_per_match: number | null;
+  shots_up_target: number | null;
+  fair_rink: boolean;
+  updated_at: string;
+  host_club: { id: string; name: string };
+};
+
 type Props = {
-  hostClub: { id: string; name: string };
+  tournament: EditTournament;
   greens: Green[];
+  selectedGreenIds: string[];
+  formatLocked: boolean;
+  softWarnRename: boolean;
 };
 
 const CATEGORY_OPTIONS: { id: Category; label: string }[] = [
@@ -69,70 +117,102 @@ const SEEDING_OPTIONS: { id: SeedingMethod; label: string; locked?: boolean }[] 
   { id: "sectional", label: "Sectional", locked: true },
 ];
 
-export function NewTournamentForm({ hostClub, greens }: Props) {
+// `<input type="datetime-local">` wants `YYYY-MM-DDTHH:MM` in local
+// time; `<input type="date">` wants `YYYY-MM-DD`. The DB row carries
+// ISO strings (UTC). These two helpers convert one direction; on
+// submit the existing toIsoOrNull pattern goes back to ISO.
+function isoToDatetimeLocal(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  // Local-zone components — same convention `<input type="datetime-local">` uses.
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function isoToDate(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function toIsoOrNull(local: string): string | null {
+  if (!local) return null;
+  const d = new Date(local);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+export function EditTournamentForm({
+  tournament,
+  greens,
+  selectedGreenIds,
+  formatLocked,
+  softWarnRename,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  // -------- form state ----------
-  const [name, setName] = useState("");
-  const [scope, setScope] = useState<Scope>("club");
-  const [format, setFormat] = useState<TournamentFormat | "">("");
-  const [structure, setStructure] = useState<Structure | "">("");
-  const [category, setCategory] = useState<Category>("open");
-  const [ageGroup, setAgeGroup] = useState<AgeGroup>("open");
-  const [handicapRule, setHandicapRule] = useState<HandicapRule>("scratch");
-  const [seedingMethod, setSeedingMethod] = useState<SeedingMethod>("random");
-  const [startsAt, setStartsAt] = useState<string>("");
-  const [endsAt, setEndsAt] = useState<string>("");
-  const [entriesCloseAt, setEntriesCloseAt] = useState<string>("");
-  const [maxEntries, setMaxEntries] = useState<string>("32");
-  // Greens picker + Fair-Rink toggle persist as of migration 039.
-  // Default selection is "all active club greens" so the form's empty
-  // submit still results in the rink-fairness algorithm having
-  // candidates to pick from. The toggle's default (true) matches the
-  // schema default — the column is set explicitly anyway in case the
-  // user toggles off.
-  const [selectedGreens, setSelectedGreens] = useState<Set<string>>(
-    () => new Set(greens.map((g) => g.id)),
+  // -------- form state — pre-filled from the row --------
+  const [name, setName] = useState(tournament.name);
+  const [scope, setScope] = useState<Scope>(tournament.scope);
+  const [format, setFormat] = useState<TournamentFormat>(tournament.format);
+  const [structure, setStructure] = useState<Structure>(tournament.structure);
+  const [category, setCategory] = useState<Category>(tournament.category);
+  const [ageGroup, setAgeGroup] = useState<AgeGroup>(tournament.age_group);
+  const [handicapRule, setHandicapRule] = useState<HandicapRule>(
+    tournament.handicap_rule,
   );
-  const [fairRink, setFairRink] = useState(true);
-  // Entry fee remains visual-only (a separate Phase 12.5 follow-up
-  // tracks payment collection — entry-fee placeholder card on this
-  // form is the surface).
+  const [seedingMethod, setSeedingMethod] = useState<SeedingMethod>(
+    tournament.seeding_method,
+  );
+  const [startsAt, setStartsAt] = useState(isoToDate(tournament.starts_at));
+  const [endsAt, setEndsAt] = useState(isoToDate(tournament.ends_at));
+  const [entriesCloseAt, setEntriesCloseAt] = useState(
+    isoToDatetimeLocal(tournament.entries_close_at),
+  );
+  const [maxEntries, setMaxEntries] = useState<string>(
+    tournament.max_entries != null ? String(tournament.max_entries) : "",
+  );
+  const [selectedGreens, setSelectedGreens] = useState<Set<string>>(
+    () => new Set(selectedGreenIds),
+  );
+  const [fairRink, setFairRink] = useState(tournament.fair_rink);
+  // Entry fee remains visual-only (placeholder per Section 04).
   const [entryFee, setEntryFee] = useState("80.00");
 
-  const [serverError, setServerError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
-
-  const formatDefaults = useMemo(
-    () => (format ? FORMAT_DEFAULTS[format] : null),
-    [format],
+  // expectedUpdatedAt rebases on every successful save so a second
+  // save in the same session passes the optimistic-lock check.
+  const [expectedUpdatedAt, setExpectedUpdatedAt] = useState(
+    tournament.updated_at,
   );
 
-  const valid = name.trim().length >= 2 && Boolean(format) && Boolean(structure);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [staleError, setStaleError] = useState<{
+    currentUpdatedAt: string | null;
+  } | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  function toIsoOrNull(local: string): string | null {
-    if (!local) return null;
-    // datetime-local inputs lack timezone; assume the user's local zone and
-    // convert to ISO-Z for the server. Date-only inputs (yyyy-mm-dd) get
-    // anchored to local-midnight.
-    const d = new Date(local);
-    if (Number.isNaN(d.getTime())) return null;
-    return d.toISOString();
-  }
+  const formatDefaults = useMemo(() => FORMAT_DEFAULTS[format], [format]);
+
+  const valid = name.trim().length >= 2 && Boolean(format) && Boolean(structure);
+  const nameChangedFromInitial = name.trim() !== tournament.name.trim();
+  const showRenameWarn = softWarnRename && nameChangedFromInitial;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!valid || pending) return;
     setServerError(null);
+    setStaleError(null);
     setFieldErrors({});
 
-    const payload: CreateTournamentInput = {
-      host_club_id: hostClub.id,
+    const payload: UpdateTournamentInput = {
+      tournament_id: tournament.id,
+      expected_updated_at: expectedUpdatedAt,
       name: name.trim(),
       scope,
-      format: format as TournamentFormat,
-      structure: structure as Structure,
+      format,
+      structure,
       category,
       age_group: ageGroup,
       handicap_rule: handicapRule,
@@ -146,13 +226,25 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
     };
 
     startTransition(async () => {
-      const result = await createTournament(payload);
+      const result = await updateTournament(payload);
       if (result.ok) {
-        router.push(`/manage/tournaments/${result.data.tournament_id}`);
+        // Rebase the optimistic-lock value so a second save in the
+        // same session doesn't false-positive as stale.
+        setExpectedUpdatedAt(result.data.updated_at);
+        // Refresh the cached server-rendered detail page on the
+        // back-nav target (revalidatePath in the action handles
+        // the revalidate; router.refresh forces this client to
+        // re-fetch any cached snapshot).
+        router.refresh();
+        router.push(`/manage/tournaments/${tournament.id}`);
+        return;
+      }
+      if (result.code === "stale") {
+        setStaleError({ currentUpdatedAt: result.currentUpdatedAt ?? null });
         return;
       }
       setServerError(result.error);
-      if ("fieldErrors" in result && result.fieldErrors) {
+      if (result.fieldErrors) {
         setFieldErrors(result.fieldErrors);
       }
     });
@@ -166,7 +258,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
       {/* Hero */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-surface px-8 py-7">
         <div className="pointer-events-none absolute inset-0 z-0">
-          <SpeckleLayer seed="new-hero" density="med" opacity={0.05} />
+          <SpeckleLayer seed={`edit-hero-${tournament.id}`} density="med" opacity={0.05} />
         </div>
         <div
           aria-hidden="true"
@@ -181,28 +273,31 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
         </div>
         <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
-              Create · Tournament
+            <div
+              data-slot="edit-eyebrow"
+              className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted"
+            >
+              Edit · Tournament
             </div>
             <h1 className="mt-1.5 font-display text-[48px] font-black italic leading-[1.05] tracking-tight">
-              New Tournament
+              Edit tournament
             </h1>
             <p className="mt-2 max-w-[58ch] text-[14px] text-ink-muted">
-              Configure once, run forever. The engine handles brackets,
-              byes, and rink fairness.
+              Adjust the configuration. Format and structure lock once a
+              match has been scored.
             </p>
           </div>
           <Link
-            href="/manage/tournaments"
+            href={`/manage/tournaments/${tournament.id}`}
             className="inline-flex h-11 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium text-ink-muted hover:bg-surface-muted hover:text-ink"
           >
             <X className="size-4" aria-hidden="true" />
-            Cancel
+            Discard
           </Link>
         </div>
       </div>
 
-      {/* Sections card — single shared border with internal dividers. */}
+      {/* Sections card */}
       <div className="overflow-hidden rounded-2xl border border-border bg-surface">
         {/* Section 01 — Basics */}
         <Section index="01" title="Basics" desc="Identity, dates, and the format your players will compete in.">
@@ -211,12 +306,17 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
               label="Tournament name"
               required
               error={fieldErrors.name?.[0]}
+              helper={
+                showRenameWarn
+                  ? "Public tournament links update when the name changes."
+                  : undefined
+              }
             >
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Demo Singles Open 2026"
                 className={inputClass}
+                data-slot="edit-name-input"
               />
             </Field>
             <Field label="Starts on">
@@ -273,22 +373,36 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
             </Field>
           </div>
 
+          {formatLocked && (
+            <div
+              data-slot="format-locked-notice"
+              className="flex items-start gap-2.5 rounded-xl border border-danger-500/40 bg-danger-500/5 px-4 py-3"
+            >
+              <Lock className="mt-0.5 size-4 shrink-0 text-danger-500" aria-hidden="true" />
+              <div className="flex-1 text-[13px] leading-[1.45]">
+                <strong className="text-ink">Format and structure are locked.</strong>{" "}
+                <span className="text-ink-muted">
+                  Once a match has been scored, the tournament's format and
+                  structure can't change — moving the bracket shape mid-event
+                  would invalidate live scores.
+                </span>
+              </div>
+            </div>
+          )}
+
           <Field label="Format" required error={fieldErrors.format?.[0]}>
             <FormatPicker
-              value={(format || "singles") as TournamentFormat}
-              onChange={(f) => setFormat(f)}
+              value={format}
+              onChange={(f) => !formatLocked && setFormat(f)}
+              disabled={formatLocked}
             />
-            {!format && (
-              <span className="text-[11px] text-ink-subtle">
-                Pick a format to auto-fill the rules below.
-              </span>
-            )}
           </Field>
 
           <Field label="Structure" required error={fieldErrors.structure?.[0]}>
             <StructurePicker
-              value={(structure || "knockout") as Structure}
-              onChange={(s) => setStructure(s)}
+              value={structure}
+              onChange={(s) => !formatLocked && setStructure(s)}
+              disabled={formatLocked}
             />
           </Field>
 
@@ -332,7 +446,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
             <Field label="Bowls per player">
               <input
                 type="number"
-                value={formatDefaults?.bowlsPerPlayer ?? ""}
+                value={formatDefaults.bowlsPerPlayer}
                 placeholder="—"
                 disabled
                 className={cn(inputClass, "tabular-nums")}
@@ -340,7 +454,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
             </Field>
             <Field label="Scoring model">
               <select
-                value={formatDefaults?.scoringModel ?? "shots_up"}
+                value={formatDefaults.scoringModel}
                 disabled
                 className={inputClass}
               >
@@ -352,7 +466,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
               <input
                 type="number"
                 value={
-                  formatDefaults?.scoringModel === "shots_up"
+                  formatDefaults.scoringModel === "shots_up"
                     ? formatDefaults.shotsTarget
                     : ""
                 }
@@ -365,7 +479,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
               <input
                 type="number"
                 value={
-                  formatDefaults?.scoringModel === "fixed_ends"
+                  formatDefaults.scoringModel === "fixed_ends"
                     ? formatDefaults.endsTarget
                     : ""
                 }
@@ -376,7 +490,6 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
             </Field>
           </div>
 
-          {/* Handicap card — chips + explainer. */}
           <div className="rounded-xl border border-border bg-surface-muted p-4">
             <Field label="Handicap rule">
               <ChipRow>
@@ -396,15 +509,8 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
             </Field>
             <div className="mt-3 rounded-md bg-bone px-3 py-2.5 text-[12.5px] leading-relaxed text-ink-muted">
               <strong className="text-ink">Handicap start</strong> gives
-              weaker players a starting-shot advantage applied via{" "}
-              <code className="rounded bg-surface-muted px-1 py-0.5 font-mono text-[11px]">
-                home_handicap_start
-              </code>{" "}
-              /{" "}
-              <code className="rounded bg-surface-muted px-1 py-0.5 font-mono text-[11px]">
-                away_handicap_start
-              </code>
-              . Club-internal only — not endorsed by BSA.
+              weaker players a starting-shot advantage. Club-internal only —
+              not endorsed by BSA.
             </div>
           </div>
         </Section>
@@ -438,8 +544,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
             <ChipRow>
               {greens.length === 0 ? (
                 <span className="text-[12px] italic text-ink-subtle">
-                  No active greens for this club. Add some on /manage/greens
-                  before seeding round-1 matches.
+                  No active greens for this club. Add some on /manage/greens.
                 </span>
               ) : (
                 greens.map((g) => {
@@ -531,62 +636,55 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
               </div>
               <p className="mt-1 text-[13px] text-ink-muted">
                 Fees are displayed on the entry page only — players won&apos;t be
-                charged through HandiBowls in v1. See{" "}
-                <Link
-                  href="/payments"
-                  className="text-primary-500 underline-offset-2 hover:underline"
-                >
-                  /payments
-                </Link>{" "}
-                for future options.
+                charged through HandiBowls in v1.
               </p>
             </div>
           </div>
         </Section>
 
-        {/* Footer — server error / status helper / actions */}
+        {/* Footer */}
         <div className="flex flex-wrap items-center gap-3 border-t border-border px-7 py-5">
           <div className="flex-1 text-[12px] text-ink-subtle">
-            {serverError ? (
+            {staleError ? (
+              <span
+                data-slot="stale-edit-error"
+                className="inline-flex items-center gap-1.5 text-danger-500"
+              >
+                <RefreshCw className="size-3.5" aria-hidden="true" />
+                Tournament was edited in another session. Reload the page to
+                see the latest version before saving.
+              </span>
+            ) : serverError ? (
               <span className="text-danger-500">{serverError}</span>
             ) : valid ? (
               <span className="inline-flex items-center gap-1.5 text-success-500">
                 <Check className="size-3.5" aria-hidden="true" />
-                Required fields complete — ready to create
+                Required fields complete — ready to save
               </span>
             ) : (
-              <span>
-                Fill required fields (name, format, structure) to continue.
-              </span>
+              <span>Fill required fields (name, format, structure) to continue.</span>
             )}
           </div>
           <Link
-            href="/manage/tournaments"
+            href={`/manage/tournaments/${tournament.id}`}
             className="inline-flex h-11 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium text-ink-muted hover:bg-surface-muted hover:text-ink"
           >
-            Cancel
+            Discard
           </Link>
           <button
             type="submit"
             disabled={!valid || pending}
+            data-slot="save-changes-cta"
             className={cn(
               "inline-flex h-14 items-center gap-2 rounded-lg bg-primary-500 px-6 text-base font-semibold text-[color:var(--color-on-primary)] shadow-sm transition-colors hover:bg-primary-600",
               (!valid || pending) && "cursor-not-allowed opacity-60",
             )}
           >
-            <Sparkles className="size-4" aria-hidden="true" />
-            {pending ? "Creating…" : "Create tournament"}
+            <Save className="size-4" aria-hidden="true" />
+            {pending ? "Saving…" : "Save changes"}
           </button>
         </div>
       </div>
     </form>
   );
 }
-
-// 12.5-5: Section / Field / ChipRow / Chip / inputClass moved to
-// `app/(club-admin)/manage/tournaments/_components/form-shell.tsx`
-// so the new edit page (`/[id]/edit`) can mirror the same section
-// structure without duplicating these primitives. Imported at the
-// top of this file. NewTournamentForm's behaviour is unchanged —
-// the extraction is purely a code-organisation refactor with no
-// runtime impact.
