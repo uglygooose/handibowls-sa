@@ -1,6 +1,5 @@
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 
 import { GradePill } from "@/components/t20/GradePill";
 import {
@@ -18,6 +17,7 @@ import {
 import { aggregateAssessment, sectionMaxes } from "@/lib/t20/score";
 import { cn } from "@/lib/utils";
 
+import { HeatmapMount } from "./HeatmapMount";
 import { RequestReassessmentButton } from "./RequestReassessmentButton";
 
 // Phase 12.5 / 12.5-4 (audit id `player-t20-results-detail`):
@@ -40,25 +40,12 @@ import { RequestReassessmentButton } from "./RequestReassessmentButton";
 //   • Re-assessment CTA: "Request re-assessment" → wires to the
 //     existing requestT20Assessment action.
 
-// Heatmap is the only chart that ships to /t20/[assessmentId];
-// lazy-loaded so its render path doesn't enter the /t20 hub
-// route's chunk graph (player surfaces stay under the 484 KiB
-// /play budget from 12-5).
-const CompassHeatmap = dynamic(
-  () =>
-    import("@/components/t20/CompassHeatmap").then((m) => ({
-      default: m.CompassHeatmap,
-    })),
-  {
-    ssr: false,
-    loading: () => (
-      <div
-        aria-hidden="true"
-        className="mx-auto h-[240px] w-[240px] rounded-full bg-surface-muted"
-      />
-    ),
-  },
-);
+// Heatmap is lazy-loaded via the `<HeatmapMount>` Client wrapper —
+// `next/dynamic({ ssr: false })` is Client-only in Next 16, so the
+// dynamic import lives in HeatmapMount and PlayerResultsView stays
+// a Server Component. The heatmap chunk loads off the initial
+// /t20-hub bundle (player surfaces stay under the 484 KiB /play
+// budget from 12-5).
 
 const SECTION_LABELS: Record<SectionKey, string> = {
   jacks: "Jacks",
@@ -291,7 +278,7 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
       >
         <SectionHead title="Where your bowls landed" />
         <div className="rounded-xl border border-border bg-bone px-5 py-5">
-          <CompassHeatmap counts={zoneCounts} size={240} />
+          <HeatmapMount counts={zoneCounts} size={240} />
           <p
             data-slot="heatmap-note"
             className="mt-3 text-center text-[12px] text-ink-muted"

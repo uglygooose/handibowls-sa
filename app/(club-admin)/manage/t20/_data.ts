@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 import {
   type Rubric,
   RubricSchema,
-  type SectionKey,
 } from "@/lib/t20/rubric";
 import type { Database } from "@/types/database.types";
 
@@ -47,7 +46,6 @@ export {
 } from "@/lib/t20/assessment-detail";
 
 type DbAssessmentStatus = "draft" | "submitted" | "archived";
-type DbT20Section = Database["public"]["Enums"]["t20_section"];
 type DbT20Grade = Database["public"]["Enums"]["t20_grade"];
 
 export type AssessmentListRow = {

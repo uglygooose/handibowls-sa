@@ -14,7 +14,6 @@ import {
 } from "@/lib/t20/score";
 import {
   type SectionKey,
-  type ZoneOutcome,
 } from "@/lib/t20/rubric";
 
 import { AssessmentResults } from "../_components/AssessmentResults";
