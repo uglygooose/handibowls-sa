@@ -5,7 +5,7 @@ import { NotificationsBell } from "@/components/nav/NotificationsBell";
 import { PlayerBottomNav } from "@/components/nav/PlayerBottomNav";
 import { TopBar } from "@/components/nav/TopBar";
 import { ClubSwitcher } from "@/components/player/ClubSwitcher";
-import { DynamicSyncBadge } from "@/components/player/DynamicSyncBadge";
+import { DynamicSyncBadgeMount } from "@/components/player/DynamicSyncBadgeMount";
 import { NoviceBadge } from "@/components/player/NoviceBadge";
 import { getCurrentMemberships } from "@/lib/auth/memberships";
 import { getCurrentProfile } from "@/lib/auth/profile";
@@ -57,8 +57,10 @@ export default async function PlayerLayout({
               {/* DynamicSyncBadge subscribes to the Dexie outbox + wires
                   tap-to-retry on the error state. Mount lives here so every
                   player surface gets live sync state without each surface
-                  re-wiring the hook. */}
-              <DynamicSyncBadge />
+                  re-wiring the hook. 12-5: wrapped in a lazy-mount so the
+                  ~95KB dexie chunk loads off the initial paint critical
+                  path — fetched alongside the badge's first hydration. */}
+              <DynamicSyncBadgeMount />
               {/* Phase 11 / 11-5b: realtime notifications bell. SSR
                   snapshot keeps initial paint stable; the hook subscribes
                   to live INSERT/UPDATE deltas on mount. */}
