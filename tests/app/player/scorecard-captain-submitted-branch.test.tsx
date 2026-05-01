@@ -77,7 +77,12 @@ describe("<CaptainSubmittedBranch /> — passive vs active branching", () => {
     ).toBeNull();
   });
 
-  it("caller is the opponent (player_is_home + submitted_by_team_id == away) → active OpponentConfirmationCard with Confirm + Dispute", () => {
+  // 12-5: OpponentConfirmationCard + DisputeForm are now next/dynamic
+  // ({ ssr: false }) imports inside Scorecard.tsx — they resolve async
+  // on first render in jsdom, so the assertions below `findByRole`
+  // (await) instead of `getByRole` (sync). The branching contract is
+  // unchanged; only the import shape changed.
+  it("caller is the opponent (player_is_home + submitted_by_team_id == away) → active OpponentConfirmationCard with Confirm + Dispute", async () => {
     const match: ScorecardMatch = {
       ...baseMatch,
       player_is_home: true,
@@ -85,14 +90,14 @@ describe("<CaptainSubmittedBranch /> — passive vs active branching", () => {
     };
     render(<CaptainSubmittedBranch {...baseProps} match={match} />);
     expect(
-      screen.getByRole("button", { name: /confirm/i }),
+      await screen.findByRole("button", { name: /confirm/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /dispute/i }),
+      await screen.findByRole("button", { name: /dispute/i }),
     ).toBeInTheDocument();
   });
 
-  it("submitted_by_team_id null (legacy / admin-override) → active card on both sides as fallback", () => {
+  it("submitted_by_team_id null (legacy / admin-override) → active card on both sides as fallback", async () => {
     const match: ScorecardMatch = {
       ...baseMatch,
       submitted_by_team_id: null,
@@ -104,14 +109,14 @@ describe("<CaptainSubmittedBranch /> — passive vs active branching", () => {
       container.querySelector("[data-slot='awaiting-opponent-confirm']"),
     ).toBeNull();
     expect(
-      screen.getByRole("button", { name: /confirm/i }),
+      await screen.findByRole("button", { name: /confirm/i }),
     ).toBeInTheDocument();
 
     rerender(
       <CaptainSubmittedBranch {...baseProps} match={{ ...match, player_is_home: false }} />,
     );
     expect(
-      screen.getByRole("button", { name: /confirm/i }),
+      await screen.findByRole("button", { name: /confirm/i }),
     ).toBeInTheDocument();
   });
 
@@ -129,7 +134,7 @@ describe("<CaptainSubmittedBranch /> — passive vs active branching", () => {
     ).not.toBeNull();
   });
 
-  it("away-side caller is opponent (player_is_home false + submitted_by_team_id == home) → active card", () => {
+  it("away-side caller is opponent (player_is_home false + submitted_by_team_id == home) → active card", async () => {
     const match: ScorecardMatch = {
       ...baseMatch,
       player_is_home: false,
@@ -137,7 +142,7 @@ describe("<CaptainSubmittedBranch /> — passive vs active branching", () => {
     };
     render(<CaptainSubmittedBranch {...baseProps} match={match} />);
     expect(
-      screen.getByRole("button", { name: /confirm/i }),
+      await screen.findByRole("button", { name: /confirm/i }),
     ).toBeInTheDocument();
   });
 });

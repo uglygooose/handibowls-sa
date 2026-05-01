@@ -11,6 +11,7 @@ import {
   Trophy,
   X,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -20,9 +21,30 @@ import { OfflineSyncBadge, type SyncState } from "@/components/player/OfflineSyn
 import { WakeLockIndicator } from "@/components/player/WakeLockIndicator";
 import { WetHandsToggle } from "@/components/player/WetHandsToggle";
 import { EndStepper } from "@/components/player/EndStepper";
-import { OpponentConfirmationCard } from "@/components/player/OpponentConfirmationCard";
-import { DisputeForm } from "@/components/player/DisputeForm";
 import { BottomSheet } from "@/components/player/BottomSheet";
+
+// Phase 12 / 12-5: lazy-load the two conditional surfaces so the
+// scorecard's initial Client Component bundle drops by the size of
+// these two components. Both render only behind a state branch
+// (DisputeForm inside the dispute BottomSheet; OpponentConfirmationCard
+// only when match.submission_status === 'captain_submitted' AND the
+// caller is the opponent), so deferring their chunk to first-use
+// doesn't change the initial paint for the most common scorecard
+// states (in_progress, completed).
+const OpponentConfirmationCard = dynamic(
+  () =>
+    import("@/components/player/OpponentConfirmationCard").then((m) => ({
+      default: m.OpponentConfirmationCard,
+    })),
+  { ssr: false },
+);
+const DisputeForm = dynamic(
+  () =>
+    import("@/components/player/DisputeForm").then((m) => ({
+      default: m.DisputeForm,
+    })),
+  { ssr: false },
+);
 import { confirmMatch, submitMatch } from "@/app/(club-admin)/manage/tournaments/_actions";
 import {
   deleteMatchEnd,

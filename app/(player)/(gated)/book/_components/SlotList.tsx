@@ -1,12 +1,13 @@
 "use client";
 
 import { ArrowRight, Clock } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 
 import { type BookingSlot, purposeLabel } from "../slots";
-import { BookingSheet, type Slot } from "./BookingSheet";
+import type { Slot } from "./BookingSheet";
 
 // Phase 8e — slot list. Was Server Component in 8e-1; converted to
 // Client in 8e-2 because the "Book this slot" CTA now opens a
@@ -16,6 +17,18 @@ import { BookingSheet, type Slot } from "./BookingSheet";
 //
 // Visual contract per design source `player-pages.jsx:147-162` +
 // `player-styles-additions.css:185-196` is unchanged from 8e-1.
+//
+// Phase 12 / 12-5: BookingSheet is `next/dynamic({ ssr: false })`-
+// loaded so its bundle (form + react-hook-form usage + booking
+// action wiring) lives in a separate chunk that only fetches when
+// a player taps "Book this slot". /book's initial Client Component
+// payload drops accordingly.
+
+const BookingSheet = dynamic(
+  () =>
+    import("./BookingSheet").then((m) => ({ default: m.BookingSheet })),
+  { ssr: false },
+);
 
 export type Props = {
   slots: BookingSlot[];
