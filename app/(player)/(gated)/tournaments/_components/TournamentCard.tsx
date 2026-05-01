@@ -71,8 +71,17 @@ export function TournamentCard({ tournament: t, variant }: Props) {
       href={`/tournaments/${t.id}`}
       className="relative isolate flex flex-col gap-2.5 overflow-hidden rounded-xl border border-border bg-surface p-4 transition-colors hover:bg-surface-muted"
     >
-      {/* Speckle band — top edge accent */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-12 opacity-60">
+      {/* Speckle band — bundle's `.t-card .speckle-band` (player-styles
+          .css:362-369) is a 6px-tall thin top-edge accent stripe, NOT
+          a content-area background. Pre-12.5-6.5-hotfix shipped at
+          h-12 (48px = 8× design) which made the entire top portion
+          of every card read as a red speckled background with content
+          floating on top. Snapped to the bundle's height-6px / h-1.5
+          tier. */}
+      <div
+        data-slot="tournament-card-speckle-band"
+        className="pointer-events-none absolute inset-x-0 top-0 z-0 h-1.5 opacity-60"
+      >
         <SpeckleField
           preset="atomic-red"
           density={0.9}

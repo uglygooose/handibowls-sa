@@ -1,13 +1,22 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-
-import { cn } from "@/lib/utils";
+import { MobileTabBar } from "@/components/layout/MobileTabBar";
 
 // Phase 8b — URL-state Available / Entered tab switch for /tournaments.
-// Mirrors the inbox tabs pattern (8a) and the Phase 7a TournamentsList
-// pattern: `router.replace` keeps history clean and the active tab
-// shareable via URL.
+//
+// Phase 12.5 / 12.5-6.5 hotfix (audit id
+// `tournaments-tabs-not-on-mobile-tab-bar-primitive`): rewritten as
+// a thin wrapper over the shared `<MobileTabBar>` primitive (shipped
+// at 12.5-1 / `44bdee4` per audit `tabs-fork`). Pre-hotfix this
+// component shipped a custom 2-column segmented-pill control —
+// drift from the bundle's `.tab-bar` (player-styles.css:382-398)
+// which prescribes a horizontal text-tab + full-width
+// border-bottom underline anchor. The 12.5-1 closure migrated
+// `/me/inbox` (PageInbox) but left `/tournaments` (PageTournaments)
+// on the legacy custom control; visible drift surfaced post-12.5-6.5
+// when the sr-only h1 made the unanchored pill control float in
+// the middle of the viewport. Mirrors the InboxTabs.tsx wrapper
+// pattern.
 
 export type AvailableEnteredTab = "available" | "entered";
 
@@ -22,76 +31,19 @@ export function TournamentsTabs({
   availableCount,
   enteredCount,
 }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const select = (tab: AvailableEnteredTab) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (tab === "entered") params.delete("tab");
-    else params.set("tab", tab);
-    const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  };
-
+  // First item's value ("entered") is the URL-default — when active,
+  // the `?tab=` search param is removed by MobileTabBar (matches the
+  // pre-hotfix custom-control behaviour: the page module also
+  // defaults `tabParam !== "available"` to "entered").
   return (
-    <div
-      role="tablist"
-      aria-label="Tournament list filter"
-      className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface p-1"
-    >
-      <Tab
-        active={active === "available"}
-        label="Available"
-        count={availableCount}
-        onSelect={() => select("available")}
-      />
-      <Tab
-        active={active === "entered"}
-        label="Entered"
-        count={enteredCount}
-        onSelect={() => select("entered")}
-      />
-    </div>
-  );
-}
-
-function Tab({
-  active,
-  label,
-  count,
-  onSelect,
-}: {
-  active: boolean;
-  label: string;
-  count: number;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      data-state={active ? "active" : "inactive"}
-      onClick={onSelect}
-      className={cn(
-        "relative inline-flex h-10 items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold transition-colors",
-        active
-          ? "bg-ink text-ink-inverse"
-          : "text-ink-muted hover:bg-surface-muted hover:text-ink",
-      )}
-    >
-      {label}
-      <span
-        className={cn(
-          "rounded-full px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums",
-          active
-            ? "bg-white/20 text-ink-inverse"
-            : "bg-surface-muted text-ink-muted",
-        )}
-      >
-        {count}
-      </span>
-    </button>
+    <MobileTabBar
+      ariaLabel="Tournament list filter"
+      active={active}
+      paramKey="tab"
+      items={[
+        { value: "entered", label: "Entered", count: enteredCount },
+        { value: "available", label: "Available", count: availableCount },
+      ]}
+    />
   );
 }
