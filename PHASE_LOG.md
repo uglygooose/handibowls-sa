@@ -3080,6 +3080,274 @@ annotation in its Owner field per the locked structure
   in dev mode, 0 on Vercel preview production build —
   evidence the dev-mode noise is Turbopack-specific).
 
+### 13-2b — POPIA compliance (soft-delete + anonymise + data export + retention) — closed 2026-05-03
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-13-launch-prep`).
+- **Sub-checkpoint structure:** 13-2b carved out of the
+  original Batch D at 13-2 scoping (POPIA was the largest of
+  the 4 execution batches, decision-loaded across schema /
+  cron / endpoint / UI). Independent scoping pass producing a
+  365-line report at `docs/audit/phase-13/13-2b-popia-scoping.md`
+  + 4 execution batches (E schema / F RLS / G endpoints + cron
+  / H UI) + this close. End-to-end deletion lifecycle wired:
+  soft-delete → 30-day grace → anonymise (pg_cron) → auth.users
+  ban (Vercel Cron) → cross-user "Deleted player" rendering
+  across data layer + UI.
+- **Headline SHAs across the full 13-2b sequence:**
+  - **Scoping pass** (`357b387`) — `docs/audit/phase-13/13-2b-popia-scoping.md`.
+    7 sections covering schema impact (20+ FKs to profiles
+    audited, 3 RESTRICT FKs identified as anonymise-not-delete
+    backbone), audit_log inventory (332 rows across 4
+    distinct actions; trivial backfill), cleanup-job mechanism
+    survey (pg_cron available, hybrid model recommended), 14
+    cross-user surfaces inventory (1 NEEDS-FALLBACK,
+    BookingsCalendarGrid), /me Settings stub status (4-row
+    placeholder; Account row is the natural deep-link target),
+    test coverage gaps (zero today), proposed batch breakdown.
+    3 design checks resolved by user pre-execution
+    (anonymise-not-delete for consents, hybrid pg_cron +
+    Vercel Cron, skip re-consent on restore).
+  - **Batch E** (`243c550`) — migration 043 schema. New enum
+    `audit_retention_category` (operational/compliance/financial);
+    `audit_log.retention_category` column + backfill (132
+    compliance rows, 200 operational rows match the
+    pre-migration distribution exactly); `profiles.deleted_at`
+    + `pending_auth_ban` + `auth_banned_at` columns + 2 CHECK
+    constraints (state-machine invariants); pg_cron extension
+    enabled.
+  - **Batch F1** (`b3ce2e5`) — migration 044 RLS. Two
+    cross-user SELECT policies on profiles updated with the
+    soft-delete filter `(deleted_at IS NULL OR (first_name IS
+    NULL AND last_name IS NULL))` — defence-in-depth via PII-
+    presence check rather than the state-flag column. Self-
+    rw + super-admin-all + club_memberships policies
+    deliberately untouched.
+  - **Batch F2** (`e54d076`) — 12 RLS integration cases
+    pinning the three-state visibility (active / grace
+    window / anonymised) + UPDATE policy paths + cross-user
+    JOIN behaviour against migration 044's policy. Surfaced
+    the admins-without-club_memberships pattern as a separate
+    follow-up DRIFT entry (out of 13-2b scope; opened at
+    this close).
+  - **Batch G1** (`eed5e11`) — three POPIA actions
+    (`requestAccountDeletion`, `restoreAccount`,
+    `superAdminInitiateDeletion`) with last-super-admin guard
+    + audit_log compliance-tier rows + idempotency. Implicit
+    restore-on-login wired into `signInAction` and
+    `/auth/callback/route.ts` via shared
+    `lib/auth/restore.ts:maybeRestoreOnLogin` helper. 8 action
+    integration cases.
+  - **Batch G2** (`f194b5f`) — `/api/me/export` JSON
+    synchronous data-portability endpoint covering 16 query
+    passes (profiles / consents / club_memberships /
+    club_admin_assignments / tournament_team_members /
+    tournament_entries / bookings × 2 / matches via teams /
+    match_ends / t20_assessments × 2 / t20_deliveries /
+    messages / message_recipients / notifications / audit_log
+    × 2). Service-role queries + audit_log compliance row +
+    Content-Disposition attachment. 6 endpoint test cases
+    including baseline payload-size pin (<10 KB regression
+    pin; ~5 MB real-world budget before streaming needed).
+  - **Batch G3a** (`45f2d55`) — migration 045 cron
+    schedules. Two SECURITY DEFINER functions
+    (`popia_anonymise_pending_run`, `popia_audit_retention_run`)
+    + cron.schedule registrations (03:00 UTC + 03:15 UTC
+    nightly). Idempotent migration; manual smoke-test
+    confirmed both functions execute cleanly with zero
+    counts (expected baseline; no profile past 30-day grace,
+    no audit_log row past horizon).
+  - **Batch G3b** (`e6b5506`) — Vercel Cron handler
+    `/api/cron/anonymise-pending`. CRON_SECRET-authenticated;
+    polls `pending_auth_ban=true AND auth_banned_at IS NULL`
+    profiles + calls Supabase Auth Admin
+    `updateUserById({ban_duration: '876000h'})` (effective
+    100-year ban) + writes `auth_banned_at` + audit_log row.
+    Per-row failure handling so one user's API outage
+    doesn't block others. `vercel.json` (NEW) + `.env.example`
+    extended. 4 endpoint integration cases including end-to-end
+    actual-ban verification.
+  - **Batch H1** (`d9d8b92`) — `lib/format/profile-display.ts:formatPlayerName`
+    helper (9 unit cases) + cross-user surface sweep across 6
+    `_data.ts` helpers (nameOf / bookerName) + 3 component
+    sites + 2 test contract updates. `display_name`
+    precedence preserved; null fallback delegates to
+    formatPlayerName for the canonical "Deleted player"
+    string. Helpers' return types narrowed `string | null →
+    string`; component fallbacks (`?? "—"` / `?? "Unknown
+    admin"`) became dead code, removed.
+  - **Batch H2** (`dd0fc59`) — `/me/settings/data-and-privacy`
+    sub-route + Export card (native `<a download>`) + Delete
+    card (shadcn AlertDialog with two-stage "I understand"
+    checkbox + danger-variant Confirm) + GraceWindowBanner
+    Server Component mounted in (player)(gated) layout +
+    RestoreAccountButton Client Component. 8 component test
+    cases.
+  - **13-2b close** (this commit) — PHASE_LOG entry +
+    DRIFT closures + new entries + README state-line.
+- **Locked decisions during 13-2b (from scoping pass +
+  per-batch design checks):**
+  - **(a) Account deletion: soft-delete with 30-day grace.**
+    `profiles.deleted_at` timestamp marks the request; restore-
+    on-login automatic within window; pg_cron anonymises
+    after.
+  - **(b) Anonymise-not-delete.** Hard-delete (post-grace)
+    NULLs PII columns (first_name, last_name, display_name,
+    email, phone, bsa_number, gender, date_of_birth,
+    avatar_url) but profile row PERSISTS. Tournament + match
+    + assessment records reference the anonymised UUID for
+    cross-user record continuity per POPIA Section 24
+    legitimate purposes.
+  - **(c) Email + BSA nulled at hard-delete.** User can
+    re-register with same email / BSA — fresh account, no
+    history carried; avoids "email already exists"
+    confusion.
+  - **(d) Last-super-admin guard at action layer.**
+    `requestAccountDeletion` + `superAdminInitiateDeletion`
+    both block when target is the only active super_admin.
+  - **(e) Data export: JSON synchronous download via
+    /api/me/export.** Single endpoint, 16 tables. No CSV /
+    per-table zip / async-email-link for v1.
+  - **(f) Audit retention: 7y compliance + financial; 30d
+    operational.** New `audit_log.retention_category` enum +
+    backfilled across 4 distinct actions; pg_cron sweep
+    nightly.
+  - **(g) Cron model: hybrid pg_cron + Vercel Cron.**
+    pg_cron handles SQL-only work (anonymise + audit
+    retention); Vercel Cron handles the Supabase Auth Admin
+    API ban call (pg_net for HTTP-from-Postgres rejected as
+    fragile).
+  - **(h) Scoping § 8.1: anonymise-not-delete makes
+    `consents.profile_id ON DELETE CASCADE` moot.** Profile
+    rows are never dropped, so the cascade never fires.
+    Consent records survive intact for 7-year compliance
+    retention. No FK alter needed.
+  - **(i) Scoping § 8.2: hybrid cron model (per (g)).**
+  - **(j) Scoping § 8.3: skip re-consent on grace-window
+    restore.** POPIA Section 11(3) — original consent stays
+    valid through the grace window because restoration is a
+    continuation of the same legal relationship, not a new
+    one. Existing consents-versioning schema handles
+    policy-change-during-grace via standard re-consent flow.
+  - **(k) F1 RLS approach: OR-with-PII-presence-check.**
+    The cross-user filter uses `(deleted_at IS NULL OR
+    (first_name IS NULL AND last_name IS NULL))` — defence-
+    in-depth against the pg_cron flag (pending_auth_ban)
+    being wrong. PII never leaks to cross-user views even
+    if the state-machine column desyncs from the actual
+    PII-NULL state.
+- **Migrations applied during 13-2b:** **3** — 043 (schema
+  additions + pg_cron extension), 044 (RLS soft-delete
+  filter), 045 (pg_cron schedules + SECURITY DEFINER
+  functions). All cloud-applied via Supabase MCP +
+  verified.
+- **Drift entries closed at 13-2b close:**
+  - **L57** (state-machine-vs-surface audit) — formal flip
+    deferred from Batch B2 to here. The audit ASK was
+    fulfilled at Batch A § A3; the residual hygiene work is
+    tracked separately in `state-machine-enum-hygiene`
+    (line 282).
+  - **Total 13-2b closures: 1.** Other 13-2b work surfaces
+    new state, doesn't address pre-existing drift.
+- **Drift entries opened during 13-2b:** **4** —
+  `admins-without-club-memberships-invisible-to-players`
+  (Phase 14 RLS hardening; pre-existing pattern surfaced
+  during F2 testing of the t20_assessments JOIN — `club_admin`
+  users have no `club_memberships` row so player-side embeds
+  silently null-fall-back),
+  `partial-profile-vs-anonymised-display-conflation` (Phase
+  14 polish; formatPlayerName treats partial profiles
+  identically to anonymised ones — practical exposure is
+  zero in v1 because /me/setup gate enforces
+  `profile_completed=true`),
+  `server-now-pattern-react-compiler` (Phase 14 codebase
+  guidance; React Compiler flags `Date.now()` as impure
+  during render, codebase pattern is `new Date().getTime()`),
+  `vercel-cron-secret-pre-deploy-checklist` (Phase 13 →
+  13-7 launch infra; CRON_SECRET must be set in Vercel
+  project env vars before the cron entry takes effect).
+- **DRIFT_LOG counts at close:** **50 open / 97 closed**
+  (was 47 / 96 entering 13-2b). Net +3 open, +1 closed (1
+  closure + 4 new opens).
+- **Test count delta:** unit **1376 → 1393 (+17 net)**:
+  Batch H1 formatPlayerName (+9) + Batch H2 component tests
+  (+8). Integration **148 → 166 (+18 net)**: F2 RLS soft-
+  delete coverage (+12), G1 deletion actions (+8), G2 export
+  endpoint (+6), G3b cron handler (+4) — totals match the
+  per-batch reports. Total suite: **1393 unit / 166
+  integration**.
+- **Verification gates at close:**
+  - `tsc --noEmit`: clean.
+  - `eslint`: 0 errors / **17 warnings** (unchanged across
+    13-1 + 13-2a + 13-2b — same pre-existing TanStack
+    react-hooks/incompatible-library + unused-vars in
+    non-app code).
+  - `vitest`: 1393 / 1393 unit · 166 / 166 integration.
+  - 5 consecutive runs of every new test: 5/5 stable, no
+    flakes.
+  - `next build`: clean.
+  - Cloud apply: migrations 043 / 044 / 045 all applied +
+    verified via Supabase MCP. Cron jobs registered + active
+    in `cron.job` (popia_anonymise_pending 03:00 UTC +
+    popia_audit_retention 03:15 UTC).
+  - Push: clean fast-forward across all 11 commits in
+    13-2b.
+- **What 13-2b closes for v1:**
+  - **POPIA-defensible deletion lifecycle.** soft-delete
+    request → 30-day grace window with restore-on-login →
+    pg_cron anonymises (NULLs PII) → Vercel Cron bans
+    auth.users. Per scoping § 1, every documented FK
+    behaviour to profiles is consistent with the
+    anonymise-not-delete pattern (3 RESTRICT FKs are the
+    record-continuity backbone; 17 SET NULL / CASCADE FKs
+    handle their domains correctly).
+  - **Data portability via JSON export.** `/api/me/export`
+    returns every row keyed to the user across 16 tables.
+    Single sync download; v1-baseline payload <10 KB,
+    real-world budget ~5 MB before streaming required.
+  - **Audit retention enforced by cron.** `audit_log.retention_category`
+    backfilled across all 332 existing rows; nightly
+    `popia_audit_retention_run` deletes operational rows
+    >30d; compliance + financial preserved 7y.
+  - **Cross-user "Deleted player" rendering** across data
+    layer (6 helpers via `formatPlayerName`) + UI (3
+    component sites). Single source of truth for the
+    canonical anonymisation marker string.
+  - **/me/settings/data-and-privacy sub-route** with
+    Export + Delete affordances. AlertDialog with
+    two-stage confirmation; danger-variant button styling;
+    grace-window banner mounted layout-level so users can
+    restore from any gated surface.
+  - **Implicit restore-on-login.** Users who soft-delete +
+    sign back in within the grace window get restored
+    silently via the maybeRestoreOnLogin helper hooked into
+    signInAction + the magic-link callback.
+- **Manual QA outcome:** deferred to Phase 13 / 13-8 pre-
+  launch QA — Vercel-preview end-to-end smoke (export
+  download triggers correctly with the Content-Disposition
+  filename, delete confirmation requires the checkbox,
+  restore-on-login flow displays the banner with the right
+  days-remaining count, BookingsCalendarGrid renders
+  "Deleted player" for a seeded anonymised profile). The
+  integration tests in F2/G1/G2/G3 + component tests in H2
+  cover the data + interaction layers; the actual download
+  triggering + visual polish need a real browser to verify.
+- **Operator-side tasks before live (tracked in DRIFT
+  `vercel-cron-secret-pre-deploy-checklist`):** generate
+  `openssl rand -hex 32`, set `CRON_SECRET` in Vercel
+  project env vars (production + preview), verify the
+  cron's first run logs no backlog. Banked for 13-7 launch
+  infra.
+- **What 13-3 will cover next (forward reference):**
+  performance + Lighthouse + real-device confirmation +
+  rounded-xl tier sweep. The L67-followup perf portion +
+  the M3 / L42 desktop-perf subtask carry forward; the
+  rounded-xl 174-caller sweep + the 4 a11y residuals
+  opened at 13-1 close (sw-registration-missing,
+  text-ink-muted-token-contrast, t20-hero-eyebrow-theme-
+  coupling, hover-pseudo-state-contrast-audit) all
+  scheduled for 13-3.
+
 ---
 
 ## Operational conventions
