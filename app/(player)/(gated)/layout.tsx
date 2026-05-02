@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { GraceWindowBanner } from "@/components/player/GraceWindowBanner";
 import { InstallPromptToast } from "@/components/player/InstallPromptToast";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { getAuthContext } from "@/lib/auth/role";
@@ -35,6 +36,7 @@ export default async function GatedPlayerLayout({
   }
   return (
     <>
+      <GraceWindowBanner />
       {children}
       <InstallPromptToast />
     </>

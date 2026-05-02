@@ -252,7 +252,12 @@ export default async function MePage() {
           <SettingRow icon={<User className="size-4" />} label="Personal details" trailing="—" />
           <SettingRow icon={<Bell className="size-4" />} label="Notifications" trailing="—" />
           <SettingRow icon={<Eye className="size-4" />} label="Wet hands default" trailing="Auto" />
-          <SettingRow icon={<Settings className="size-4" />} label="Account" trailing="—" />
+          <SettingRow
+            icon={<Settings className="size-4" />}
+            label="Account"
+            trailing="Data & privacy"
+            href="/me/settings/data-and-privacy"
+          />
         </ul>
         <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-subtle">
           More settings coming soon.
@@ -279,13 +284,19 @@ function SettingRow({
   icon,
   label,
   trailing,
+  href,
 }: {
   icon: React.ReactNode;
   label: string;
   trailing: string;
+  href?: string;
 }) {
-  return (
-    <li className="flex h-12 items-center gap-3 border-b border-border px-3 last:border-b-0">
+  // Phase 13 / 13-2b / Batch H2 — optional href makes a row
+  // navigable. Linked rows render as `<Link>`; stub rows stay
+  // as plain `<li>` per the existing "deep-links land in 8a /
+  // 11" pattern.
+  const inner = (
+    <>
       <span aria-hidden="true" className="text-ink-muted">
         {icon}
       </span>
@@ -294,6 +305,24 @@ function SettingRow({
         {trailing}
       </span>
       <ChevronRight className="size-4 text-ink-subtle" aria-hidden="true" />
+    </>
+  );
+
+  if (href) {
+    return (
+      <li className="border-b border-border last:border-b-0">
+        <Link
+          href={href}
+          className="flex h-12 items-center gap-3 px-3 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+        >
+          {inner}
+        </Link>
+      </li>
+    );
+  }
+  return (
+    <li className="flex h-12 items-center gap-3 border-b border-border px-3 last:border-b-0">
+      {inner}
     </li>
   );
 }
