@@ -680,7 +680,7 @@ function Scoreboard({
         <span
           className={cn(
             "font-mono text-[11px] font-bold uppercase tracking-[0.08em]",
-            wetHands ? "text-[#f5b700]" : playerLeading ? "text-success-500" : "text-warning-500",
+            wetHands ? "text-[#f5b700]" : playerLeading ? "text-success-700" : "text-warning-700",
           )}
         >
           {lead === 0 ? "Tied" : playerLeading ? `+${lead} ahead` : `−${lead} behind`}
@@ -709,7 +709,7 @@ function SideScore({
       <span
         className={cn(
           "font-mono text-[11px] font-bold uppercase tracking-[0.12em]",
-          wetHands ? "text-[#c08f00]" : tone === "you" ? "text-primary-500" : "text-warning-500",
+          wetHands ? "text-[#c08f00]" : tone === "you" ? "text-primary-500" : "text-warning-700",
         )}
       >
         {label}
@@ -740,7 +740,7 @@ function HandicapNotice({ match, wetHands }: { match: ScorecardMatch; wetHands: 
     <div
       className={cn(
         "rounded-xl px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.06em]",
-        wetHands ? "bg-[#1a1a00] text-[#c08f00]" : "bg-warning-500/12 text-warning-500 ring-1 ring-inset ring-warning-500/30",
+        wetHands ? "bg-[#1a1a00] text-[#c08f00]" : "bg-warning-500/12 text-warning-700 ring-1 ring-inset ring-warning-500/30",
       )}
     >
       Handicap start ·{" "}
@@ -1127,7 +1127,7 @@ function VerifiedBanner({ playerWon, wetHands }: { playerWon: boolean; wetHands:
         "flex flex-col items-center gap-2 rounded-2xl border-2 px-4 py-6 text-center",
         wetHands
           ? "border-[#f5b700] bg-[#1a1a00] text-[#f5b700]"
-          : "border-success-500 bg-success-500/8 text-success-500",
+          : "border-success-500 bg-success-500/8 text-success-700",
       )}
     >
       <span className="flex size-12 items-center justify-center rounded-full bg-success-500/20">
@@ -1157,7 +1157,7 @@ function ReadOnlyNotice({
 }) {
   const cls =
     tone === "warning"
-      ? "border-warning-500 bg-warning-500/10 text-warning-500"
+      ? "border-warning-500 bg-warning-500/10 text-warning-700"
       : "border-danger-500 bg-danger-500/10 text-danger-500";
   return (
     <section className={cn("flex flex-col gap-1 rounded-2xl border-2 px-4 py-4", cls)}>

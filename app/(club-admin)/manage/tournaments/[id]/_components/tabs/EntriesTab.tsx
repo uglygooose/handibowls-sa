@@ -110,7 +110,7 @@ export function EntriesTab({ entries }: Props) {
             placeholder="Search by name, club, or BSA number…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-11 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-sm text-ink placeholder:text-ink-muted focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+            className="h-11 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-sm text-ink placeholder:text-ink-muted focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
           />
         </div>
         <ActionButton variant="secondary">
@@ -232,7 +232,7 @@ function EntriesVirtualTable({
               value={value}
               onChange={(e) => onSeedEdit(id, e.target.value)}
               aria-label={`Seed for ${row.original.display_name}`}
-              className="h-8 w-12 rounded-md border border-border bg-surface px-1.5 text-center font-mono text-[13px] tabular-nums focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+              className="h-8 w-12 rounded-md border border-border bg-surface px-1.5 text-center font-mono text-[13px] tabular-nums focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
             />
           );
         },
@@ -287,11 +287,11 @@ function EntriesVirtualTable({
         header: "Status",
         cell: ({ row }) =>
           row.original.withdrawn ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-warning-500 ring-1 ring-inset ring-warning-500/30">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-warning-700 ring-1 ring-inset ring-warning-500/30">
               Withdrawn
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-success-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-success-500 ring-1 ring-inset ring-success-500/30">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-success-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-success-700 ring-1 ring-inset ring-success-500/30">
               Active
             </span>
           ),

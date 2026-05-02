@@ -232,7 +232,7 @@ export function NewAssessmentForm({
               data-slot="accreditation-input"
               className={cn(
                 "h-11 w-full rounded-lg border border-border bg-bone px-3.5 font-mono text-[13px]",
-                "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
+                "focus:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
               )}
             />
             <p className="mt-1 text-[12px] text-ink-muted">
@@ -261,7 +261,7 @@ export function NewAssessmentForm({
               data-slot="date-input"
               className={cn(
                 "h-11 w-full rounded-lg border border-border bg-bone px-3.5 text-[13px]",
-                "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
+                "focus:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
               )}
             />
           </div>
@@ -302,7 +302,7 @@ export function NewAssessmentForm({
               data-slot="green-speed-input"
               className={cn(
                 "h-11 w-full rounded-lg border border-border bg-bone px-3.5 font-mono text-[13px]",
-                "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
+                "focus:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
               )}
             />
             <p className="mt-1 text-[12px] text-ink-muted">
@@ -420,7 +420,7 @@ export function NewAssessmentForm({
                 data-slot="second-marker-name"
                 className={cn(
                   "h-11 w-full rounded-lg border border-border bg-bone px-3.5 text-[13px]",
-                  "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
+                  "focus:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
                 )}
               />
             </div>
@@ -437,7 +437,7 @@ export function NewAssessmentForm({
                 data-slot="second-marker-accred"
                 className={cn(
                   "h-11 w-full rounded-lg border border-border bg-bone px-3.5 font-mono text-[13px]",
-                  "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
+                  "focus:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
                 )}
               />
               <p className="mt-1 text-[12px] text-ink-muted">
@@ -646,7 +646,7 @@ function PlayerPicker({
           data-slot="player-picker-search"
           className={cn(
             "h-9 flex-1 rounded-md border border-border bg-bone px-2.5 text-[13px]",
-            "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
+            "focus:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
           )}
         />
         <button

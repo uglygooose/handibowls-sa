@@ -36,7 +36,7 @@ const TONE: Record<DisplayState, { bg: string; fg: string; ring: string }> = {
   },
   entries_closed: {
     bg: "bg-warning-500/10",
-    fg: "text-warning-500",
+    fg: "text-warning-700",
     ring: "ring-warning-500/30",
   },
   in_progress: {
@@ -46,7 +46,7 @@ const TONE: Record<DisplayState, { bg: string; fg: string; ring: string }> = {
   },
   completed: {
     bg: "bg-success-500/10",
-    fg: "text-success-500",
+    fg: "text-success-700",
     ring: "ring-success-500/30",
   },
   cancelled: {

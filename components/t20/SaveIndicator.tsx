@@ -33,7 +33,7 @@ const TONE: Record<
 > = {
   saved: {
     label: "Saved",
-    textClass: "text-success-500",
+    textClass: "text-success-700",
     dotClass: "bg-success-500",
     pulse: false,
   },

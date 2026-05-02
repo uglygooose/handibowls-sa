@@ -502,7 +502,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
             </Field>
             <div className="rounded-xl border border-dashed border-border bg-surface-muted p-3.5">
               <div className="flex items-center gap-1.5">
-                <AlertCircle className="size-4 shrink-0 text-warning-500" />
+                <AlertCircle className="size-4 shrink-0 text-warning-700" />
                 <strong className="text-[13px]">
                   Payment collection coming soon
                 </strong>
@@ -528,7 +528,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
             {serverError ? (
               <span className="text-danger-500">{serverError}</span>
             ) : valid ? (
-              <span className="inline-flex items-center gap-1.5 text-success-500">
+              <span className="inline-flex items-center gap-1.5 text-success-700">
                 <Check className="size-3.5" aria-hidden="true" />
                 Required fields complete — ready to create
               </span>

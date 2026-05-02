@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 // the cross-route consumption obvious.
 
 export const inputClass =
-  "h-11 w-full rounded-lg border border-border bg-surface px-3 text-[14px] text-ink placeholder:text-ink-subtle focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:opacity-60";
+  "h-11 w-full rounded-lg border border-border bg-surface px-3 text-[14px] text-ink placeholder:text-ink-subtle focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone disabled:cursor-not-allowed disabled:opacity-60";
 
 export function Section({
   index,

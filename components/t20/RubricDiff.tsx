@@ -144,7 +144,7 @@ export function RubricDiff({
                       </span>
                     )}
                     {c.to !== null && (
-                      <span data-slot="diff-to" className="text-success-500">
+                      <span data-slot="diff-to" className="text-success-700">
                         + {String(c.to)}
                       </span>
                     )}

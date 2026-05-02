@@ -23,11 +23,11 @@ const STATUS_PILL: Record<
   },
   IN_PLAY: {
     label: "In play",
-    cls: "bg-warning-500/16 text-warning-500 ring-warning-500/40",
+    cls: "bg-warning-500/16 text-warning-700 ring-warning-500/40",
   },
   FINAL: {
     label: "Final",
-    cls: "bg-success-500/12 text-success-500 ring-success-500/30",
+    cls: "bg-success-500/12 text-success-700 ring-success-500/30",
   },
   BYE: {
     label: "Bye",

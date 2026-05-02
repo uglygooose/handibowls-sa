@@ -238,7 +238,7 @@ export function BookingsCalendarGrid({
                               onClick={() => setSelected(b)}
                               className={cn(
                                 "flex flex-col gap-0.5 rounded-md border px-1.5 py-1 text-left",
-                                "hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ink/20",
+                                "hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
                                 b.status === "cancelled"
                                   ? "border-danger-500/40 bg-danger-500/8 text-ink-muted"
                                   : "border-primary-500/40 bg-primary-500/12 text-ink",

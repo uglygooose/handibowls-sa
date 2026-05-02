@@ -37,11 +37,11 @@ const STATUS_PILL: Record<
   draft: { label: "Draft", cls: "bg-surface-muted text-ink-muted ring-border" },
   open: {
     label: "Open",
-    cls: "bg-success-500/12 text-success-500 ring-success-500/30",
+    cls: "bg-success-500/12 text-success-700 ring-success-500/30",
   },
   in_progress: {
     label: "In play",
-    cls: "bg-warning-500/16 text-warning-500 ring-warning-500/40",
+    cls: "bg-warning-500/16 text-warning-700 ring-warning-500/40",
   },
   completed: {
     label: "Completed",
@@ -110,7 +110,7 @@ export function TournamentCard({ tournament: t, variant }: Props) {
             {status.label}
           </Pill>
           {t.handicap_rule === "handicap_start" && (
-            <Pill className="bg-warning-500/16 text-warning-500 ring-1 ring-inset ring-warning-500/40">
+            <Pill className="bg-warning-500/16 text-warning-700 ring-1 ring-inset ring-warning-500/40">
               Handicap
             </Pill>
           )}

@@ -32,6 +32,16 @@
   --color-ink-subtle: var(--ink-subtle);
   --color-ink-inverse: var(--ink-inverse);
 
+  /* Functional 700-tier (text-on-light variants).
+     The 500-tier values (success #16a34a, warning #f59e0b) fail WCAG AA
+     when used as foreground text on bone / surface. The 700-tier
+     (success #15803d, warning #b45309) clears 4.5:1 against both bone and
+     surface so the `text-{success,warning}-700` utilities can be used for
+     body-sized status copy without a contrast violation. Keep the 500-tier
+     for backgrounds + tinted fills (bg-warning-500/16). Phase 13 / 13-1. */
+  --color-success-700: var(--success-700);
+  --color-warning-700: var(--warning-700);
+
   /* Theme-driven primary scale */
   --color-primary-100: var(--primary-100);
   --color-primary-500: var(--primary-500);
@@ -120,12 +130,21 @@ html[data-theme="core-black"] {
   --bone: #ffffff;
   --ink: #0a0a0a;
   --ink-muted: #4a4a4a;
-  --ink-subtle: #7a7a7a;
+  /* Phase 13 / 13-1 Tier A: bumped #7a7a7a → #717171 to clear WCAG AA
+     normal-text contrast on bone/surface/surface-muted (was 4.10–4.29:1,
+     now ≥4.5:1). Audit confirmed via axe-core on Vercel preview: 9 nodes
+     on landing + 5 on login were the dominant serious-impact violations. */
+  --ink-subtle: #717171;
   --ink-inverse: #fafaf7;
 
-  /* Functional (same across all presets) */
+  /* Functional (same across all presets).
+     500-tier = canonical brand colour; use for backgrounds + tinted fills.
+     700-tier = darker variants for body-sized text on light backgrounds
+     where 500-tier fails WCAG AA (Phase 13 / 13-1 Tier A). */
   --success-500: #16a34a;
+  --success-700: #15803d;
   --warning-500: #f59e0b;
+  --warning-700: #b45309;
   --danger-500: #dc2626;
   --info-500: #2563eb;
 

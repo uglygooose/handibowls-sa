@@ -549,7 +549,7 @@ function ScoreInput({
       placeholder="—"
       disabled={disabled}
       className={cn(
-        "h-9 w-14 rounded-md border bg-surface px-1.5 text-center font-mono text-[13px] tabular-nums focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100",
+        "h-9 w-14 rounded-md border bg-surface px-1.5 text-center font-mono text-[13px] tabular-nums focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
         isLive ? "border-primary-500 bg-bone" : "border-border",
         disabled && "cursor-not-allowed opacity-50",
       )}

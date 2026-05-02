@@ -129,7 +129,7 @@ export function MatchModal({ match, decorPreset, onClose }: Props) {
             <ScoreSide
               align="left"
               eyebrow={`Home${homeWinner ? " · Winner" : ""}`}
-              eyebrowAccent={homeWinner ? "text-success-500" : undefined}
+              eyebrowAccent={homeWinner ? "text-success-700" : undefined}
               title={teamLabel(match.home_team) ?? feederLabel("a", match)}
               subtitle={subtitle(match.home_team)}
               winner={homeWinner}
@@ -142,7 +142,7 @@ export function MatchModal({ match, decorPreset, onClose }: Props) {
             <ScoreSide
               align="right"
               eyebrow={`Away${awayWinner ? " · Winner" : ""}`}
-              eyebrowAccent={awayWinner ? "text-success-500" : undefined}
+              eyebrowAccent={awayWinner ? "text-success-700" : undefined}
               title={teamLabel(match.away_team) ?? feederLabel("b", match)}
               subtitle={subtitle(match.away_team)}
               winner={awayWinner}
@@ -288,7 +288,7 @@ function ScoreSide({
       <div
         className={cn(
           "mt-1 font-display text-[28px] font-black leading-tight tracking-tight",
-          winner && "text-success-500",
+          winner && "text-success-700",
         )}
       >
         {title}
@@ -312,7 +312,7 @@ function ScoreReadout({
       <span
         className={cn(
           "font-mono text-[54px] font-extrabold tabular-nums leading-none tracking-tight",
-          winnerSide === "home" ? "text-success-500" : "text-ink",
+          winnerSide === "home" ? "text-success-700" : "text-ink",
         )}
       >
         {home}
@@ -321,7 +321,7 @@ function ScoreReadout({
       <span
         className={cn(
           "font-mono text-[54px] font-extrabold tabular-nums leading-none tracking-tight",
-          winnerSide === "away" ? "text-success-500" : "text-ink",
+          winnerSide === "away" ? "text-success-700" : "text-ink",
         )}
       >
         {away}
@@ -357,7 +357,7 @@ function SubmissionRow({
           className={cn(
             "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] ring-1 ring-inset",
             done
-              ? "bg-success-500/10 text-success-500 ring-success-500/30"
+              ? "bg-success-500/10 text-success-700 ring-success-500/30"
               : "bg-surface-muted text-ink-muted ring-border",
           )}
         >

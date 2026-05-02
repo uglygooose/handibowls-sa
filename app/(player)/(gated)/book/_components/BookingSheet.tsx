@@ -255,7 +255,7 @@ export function BookingSheet({ open, onOpenChange, slot, clubName }: Props) {
               className={cn(
                 "w-full resize-none rounded-lg border border-border bg-bone px-3 py-2",
                 "text-[14px] text-ink placeholder:text-ink-muted",
-                "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
+                "focus:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
               )}
               placeholder="Coaching session, drill focus, etc."
             />

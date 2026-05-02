@@ -36,13 +36,13 @@ const TONE: Record<
   synced: {
     bg: "bg-success-500/12",
     ring: "ring-success-500/30",
-    text: "text-success-500",
+    text: "text-success-700",
     dot: "bg-success-500",
   },
   pending: {
     bg: "bg-warning-500/16",
     ring: "ring-warning-500/40",
-    text: "text-warning-500",
+    text: "text-warning-700",
     dot: "bg-warning-500",
   },
   error: {

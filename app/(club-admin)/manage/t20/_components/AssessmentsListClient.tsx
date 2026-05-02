@@ -209,7 +209,7 @@ export function AssessmentsListClient({ rows }: Props) {
           className={cn(
             "h-11 w-full rounded-lg border border-border bg-bone pl-10 pr-3.5 text-[14px]",
             "placeholder:text-ink-muted",
-            "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
+            "focus:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
           )}
         />
         <span

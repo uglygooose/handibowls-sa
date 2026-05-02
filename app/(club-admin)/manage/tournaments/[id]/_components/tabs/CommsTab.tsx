@@ -92,7 +92,7 @@ export function CommsTab({ tournament }: Props) {
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="e.g. Round 3 starts at 09:00 sharp"
-              className="h-11 rounded-lg border border-border bg-surface px-3 text-[14px] text-ink placeholder:text-ink-subtle focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+              className="h-11 rounded-lg border border-border bg-surface px-3 text-[14px] text-ink placeholder:text-ink-subtle focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
             />
           </Field>
 
@@ -102,7 +102,7 @@ export function CommsTab({ tournament }: Props) {
               onChange={(e) => setBody(e.target.value)}
               rows={9}
               placeholder={`Hi all,\n\nWrite your update here. Markdown is supported — links, **bold**, lists, the lot.\n\nGood bowls,\n${tournament.host_club.name}`}
-              className="rounded-lg border border-border bg-surface px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-subtle focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+              className="rounded-lg border border-border bg-surface px-3 py-2.5 text-[14px] text-ink placeholder:text-ink-subtle focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
             />
           </Field>
 

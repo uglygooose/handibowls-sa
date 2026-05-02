@@ -178,7 +178,7 @@ export function TournamentsList({ tournaments, clubName }: Props) {
           placeholder="Search tournaments by name, format, or date…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-12 w-full rounded-xl border border-border bg-surface pl-11 pr-12 text-sm text-ink placeholder:text-ink-muted focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+          className="h-12 w-full rounded-xl border border-border bg-surface pl-11 pr-12 text-sm text-ink placeholder:text-ink-muted focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
         />
         <span
           aria-hidden="true"

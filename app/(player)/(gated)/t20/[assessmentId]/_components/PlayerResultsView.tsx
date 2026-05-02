@@ -189,7 +189,7 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
                   <td
                     className={cn(
                       "px-3 py-2.5 text-right font-mono tabular-nums",
-                      row.percent >= 80 && "text-success-500",
+                      row.percent >= 80 && "text-success-700",
                       row.percent < 50 && "text-danger-500",
                     )}
                   >
@@ -226,7 +226,7 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
                     <div
                       className={cn(
                         "font-mono text-[11px] tabular-nums",
-                        row.percent >= 80 && "text-success-500",
+                        row.percent >= 80 && "text-success-700",
                         row.percent < 50 && "text-danger-500",
                       )}
                     >

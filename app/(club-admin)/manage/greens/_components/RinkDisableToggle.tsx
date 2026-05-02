@@ -110,7 +110,7 @@ export function RinkDisableToggle({ rinkId, rinkLabel, active }: Props) {
             data-slot="rink-status-label"
             className={cn(
               "font-mono text-[10px] font-bold uppercase tracking-[0.06em]",
-              active ? "text-success-500" : "text-warning-500",
+              active ? "text-success-700" : "text-warning-700",
             )}
           >
             {active ? "ACTIVE" : "MAINTENANCE"}
@@ -126,8 +126,8 @@ export function RinkDisableToggle({ rinkId, rinkLabel, active }: Props) {
               "inline-flex h-8 items-center gap-1.5 rounded-md border px-3",
               "text-[12px] font-extrabold uppercase tracking-[0.04em]",
               active
-                ? "border-warning-500/60 bg-bone text-warning-500 hover:bg-warning-500/8"
-                : "border-success-500/60 bg-bone text-success-500 hover:bg-success-500/8",
+                ? "border-warning-500/60 bg-bone text-warning-700 hover:bg-warning-500/8"
+                : "border-success-500/60 bg-bone text-success-700 hover:bg-success-500/8",
               "disabled:cursor-not-allowed disabled:opacity-50",
             )}
           >
@@ -165,7 +165,7 @@ export function RinkDisableToggle({ rinkId, rinkLabel, active }: Props) {
             data-slot="reason-textarea"
             className={cn(
               "resize-none rounded-md border border-border bg-bone px-2 py-1.5 text-[13px]",
-              "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
+              "focus:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
             )}
             placeholder="e.g. Rink resurfacing — back online Saturday."
           />

@@ -17,7 +17,7 @@ const OUTCOME_LABEL: Record<PlayerRecentResult["outcome"], string> = {
 };
 
 const OUTCOME_TONE: Record<PlayerRecentResult["outcome"], string> = {
-  W: "bg-success-500/12 text-success-500 ring-success-500/30",
+  W: "bg-success-500/12 text-success-700 ring-success-500/30",
   L: "bg-danger-500/12 text-danger-500 ring-danger-500/30",
   P: "bg-info-500/12 text-info-500 ring-info-500/30",
 };

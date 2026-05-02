@@ -182,7 +182,7 @@ export function ComposeForm({ tournaments, members, edit }: ComposeFormProps) {
           data-slot="subject-input"
           className={cn(
             "h-11 w-full rounded-lg border border-border bg-bone px-3.5 text-[14px]",
-            "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
+            "focus:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
           )}
         />
         <p className="mt-1 flex justify-between font-mono text-[11px] text-ink-muted">
@@ -213,7 +213,7 @@ export function ComposeForm({ tournaments, members, edit }: ComposeFormProps) {
           data-slot="body-input"
           className={cn(
             "w-full rounded-lg border border-border bg-bone px-3.5 py-3 font-mono text-[13px]",
-            "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
+            "focus:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
           )}
         />
         <p className="mt-1 flex justify-between font-mono text-[11px] text-ink-muted">

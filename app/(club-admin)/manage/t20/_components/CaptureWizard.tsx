@@ -955,7 +955,7 @@ function OnLengthBody({
                           <span
                             className={cn(
                               "font-mono text-[11px] font-bold",
-                              v ? "text-success-500" : "text-danger-500",
+                              v ? "text-success-700" : "text-danger-500",
                             )}
                           >
                             {v ? "+2pt" : "0pt"}

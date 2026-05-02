@@ -194,7 +194,7 @@ function StatusPill({ tournament: t }: { tournament: TournamentDetail }) {
   }
   if (status === "completed") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-success-500/10 px-2.5 py-1 text-[12px] font-semibold text-success-500 ring-1 ring-inset ring-success-500/30">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-success-500/10 px-2.5 py-1 text-[12px] font-semibold text-success-700 ring-1 ring-inset ring-success-500/30">
         Completed
       </span>
     );

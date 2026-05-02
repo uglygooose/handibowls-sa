@@ -1020,7 +1020,7 @@ function SecondMarkerSection({
               data-slot="second-marker-name-input"
               className={cn(
                 "h-11 w-full rounded-lg border border-border bg-bone px-3 text-[13px]",
-                "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
+                "focus:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
               )}
             />
           </div>
@@ -1045,7 +1045,7 @@ function SecondMarkerSection({
               data-slot="second-marker-accred-input"
               className={cn(
                 "h-11 w-full rounded-lg border border-border bg-bone px-3 font-mono text-[13px]",
-                "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
+                "focus:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
               )}
             />
             <p className="mt-1 text-[12px] text-ink-muted">

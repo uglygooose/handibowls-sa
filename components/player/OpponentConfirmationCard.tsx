@@ -49,7 +49,7 @@ export function OpponentConfirmationCard({
       )}
     >
       <div className="flex items-start gap-2">
-        <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-warning-500/20 text-warning-500">
+        <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-warning-500/20 text-warning-700">
           <AlertCircle className="size-4" aria-hidden="true" />
         </span>
         <div className="flex flex-col gap-0.5">

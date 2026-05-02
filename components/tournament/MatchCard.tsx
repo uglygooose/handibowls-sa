@@ -117,7 +117,7 @@ export function MatchCard({
 
       {/* Live foot — only when IN_PLAY + we have a live label */}
       {match.status === "IN_PLAY" && match.liveLabel && (
-        <div className="flex items-center justify-between bg-warning-500/15 px-3 py-1.5 text-[11px] font-semibold text-warning-500">
+        <div className="flex items-center justify-between bg-warning-500/15 px-3 py-1.5 text-[11px] font-semibold text-warning-700">
           <span>{match.liveLabel}</span>
           <span className="inline-flex items-center gap-1">
             <span
@@ -195,8 +195,8 @@ function Slot({ slot, isFinal }: { slot: MatchCardSlot; isFinal?: boolean }) {
         "flex items-center justify-between gap-2 px-3 py-2 text-[12px]",
         slot.isWinner
           ? isFinal
-            ? "text-success-500"
-            : "bg-success-500/10 text-success-500"
+            ? "text-success-700"
+            : "bg-success-500/10 text-success-700"
           : isFinal
             ? "text-ink-inverse"
             : "text-ink",

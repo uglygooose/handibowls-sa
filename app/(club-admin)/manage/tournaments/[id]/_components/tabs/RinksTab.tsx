@@ -149,7 +149,7 @@ function RowStat({
 }) {
   const toneCls =
     tone === "warning"
-      ? "text-warning-500"
+      ? "text-warning-700"
       : tone === "text"
         ? "text-ink"
         : "text-ink-muted";

@@ -184,7 +184,7 @@ export function BookingDetailSheet({ booking, onClose }: Props) {
                   "font-mono text-[11px] font-bold uppercase tracking-[0.06em]",
                   booking.status === "cancelled"
                     ? "text-danger-500"
-                    : "text-success-500",
+                    : "text-success-700",
                 )}
               >
                 {booking.status}
@@ -233,7 +233,7 @@ export function BookingDetailSheet({ booking, onClose }: Props) {
                   data-slot="reason-textarea"
                   className={cn(
                     "resize-none rounded-md border border-border bg-bone px-2 py-1.5 text-[13px]",
-                    "focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/10",
+                    "focus:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone",
                   )}
                   placeholder="e.g. Member contacted club secretary; cancelling on their behalf."
                 />
