@@ -92,6 +92,22 @@
 }
 
 /* =========================================================================
+   Base layout — scrollbar-gutter reservation.
+   Phase 12.5 / 12.5-7 (audit id `members-page-offset` ⇢
+   `scrollbar-gutter-reservation`): without `scrollbar-gutter: stable`
+   the browser only allocates scrollbar space when content overflows,
+   shifting `mx-auto` containers ~8-15px LEFT on overflowing surfaces
+   while non-overflowing surfaces stay un-shifted. Result: visible
+   horizontal "jitter" between adjacent sidebar surfaces (Members
+   vs Overview vs Greens etc). Reserving the gutter on `<html>` keeps
+   centered content stable across all surfaces, all roles. Applies
+   globally — admin + super-admin + player surfaces.
+   ========================================================================= */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* =========================================================================
    Base (theme-invariant) + default "core-black" preset.
    html without data-theme falls back here (platform/auth pages).
    ========================================================================= */
