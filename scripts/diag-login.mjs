@@ -25,7 +25,7 @@ function loadEnv() {
 }
 loadEnv();
 
-const PREVIEW = "https://handibowls-chsc1zn6z-andrews-projects-a0c14c4f.vercel.app";
+const PREVIEW = process.env.PREVIEW_URL ?? "https://handibowls-pofdn4l7i-andrews-projects-a0c14c4f.vercel.app";
 const BYPASS = process.env.VERCEL_PROTECTION_BYPASS;
 const PASSWORD = "dev-password-12345";
 

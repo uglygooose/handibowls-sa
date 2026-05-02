@@ -19,10 +19,14 @@
 //   PREVIEW_URL=https://handibowls-xxx.vercel.app npm run baseline:13-1
 //   PREVIEW_URL=... node scripts/baseline-13-1.mjs --skip-lighthouse  # axe only
 //   PREVIEW_URL=... node scripts/baseline-13-1.mjs --surfaces=play,me # subset
+//   PREVIEW_URL=... node scripts/baseline-13-1.mjs --label=m2-pre     # versioned output
 //
 // Output:
-//   docs/audit/phase-13/baseline-13-1.json — full per-surface results
-//   docs/audit/phase-13/baseline-13-1.md   — human-readable summary table
+//   docs/audit/phase-13/baseline-13-1[-LABEL].json — full per-surface results
+//   docs/audit/phase-13/baseline-13-1[-LABEL].md   — human-readable summary table
+//   When --label is omitted, files are stamped with an ISO-second timestamp
+//   so successive runs don't overwrite. Pre/post snapshots survive for the
+//   M1/M2/M3 close-gate delta tables (M1 carry-forward #4).
 
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -65,6 +69,12 @@ const SURFACE_FILTER = process.argv
   .find((a) => a.startsWith("--surfaces="))
   ?.slice(11)
   ?.split(",");
+// Label suffix for output files. Defaults to an ISO-second timestamp so runs
+// don't overwrite each other (M1 carry-forward #4). Pass --label=m2-pre etc.
+// to use a stable label across a milestone's pre/post measurements.
+const LABEL =
+  process.argv.find((a) => a.startsWith("--label="))?.slice(8) ??
+  new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
 
 const PASSWORD = "dev-password-12345";
 
@@ -304,13 +314,14 @@ async function main() {
   const outDir = resolve(REPO_ROOT, "docs/audit/phase-13");
   mkdirSync(outDir, { recursive: true });
   const ts = new Date().toISOString();
-  const json = { capturedAt: ts, previewUrl: PREVIEW_URL, results };
-  writeFileSync(resolve(outDir, "baseline-13-1.json"), JSON.stringify(json, null, 2));
+  const json = { capturedAt: ts, label: LABEL, previewUrl: PREVIEW_URL, results };
+  const baseFile = `baseline-13-1-${LABEL}`;
+  writeFileSync(resolve(outDir, `${baseFile}.json`), JSON.stringify(json, null, 2));
 
   // Human summary
   const md = renderSummary(results, ts);
-  writeFileSync(resolve(outDir, "baseline-13-1.md"), md);
-  console.log(`\n[baseline-13-1] wrote docs/audit/phase-13/baseline-13-1.{json,md}`);
+  writeFileSync(resolve(outDir, `${baseFile}.md`), md);
+  console.log(`\n[baseline-13-1] wrote docs/audit/phase-13/${baseFile}.{json,md}`);
 }
 
 function renderSummary(results, ts) {
