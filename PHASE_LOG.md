@@ -917,7 +917,7 @@ at the moment a phase closed, derived from
 
 ---
 
-## Phase 12.5 — Design fidelity & unification (Claude Design pass) — in progress
+## Phase 12.5 — Design fidelity & unification (Claude Design pass) — closed 2026-05-02
 
 The phase opens against [`DRIFT_TRIAGE_PHASE12-5.md`](./DRIFT_TRIAGE_PHASE12-5.md)
 mapping each audit entry from
@@ -927,7 +927,268 @@ at Phase 12 / 12-6; the remaining 15 active entries land across
 12.5-prep through 12.5-7. All locked user decisions captured at
 12.5-prep close are applied without re-asking.
 
-### 12.5-prep — audit package + DRIFT sweep + triage — closed 2026-05-01
+### 12.5-close — Phase 12.5 cumulative close summary — closed 2026-05-02
+
+- **Phase 12.5 banner:** "Design fidelity & unification (Claude Design pass)" — closed 2026-05-02 across 9 sub-checkpoints (12.5-prep, 12.5-1, 12.5-2, 12.5-3, 12.5-4, 12.5-5, 12.5-6, 12.5-6.5, 12.5-7). Branch: `rebuild/phase-12.5-design-unification`, cut from `005b8af` (Phase 12 close).
+- **Sub-checkpoint roll-up (highest-leverage shipped):**
+  - **12.5-prep** — audit package frozen + DRIFT sweep (54 open after `+9` audit findings).
+  - **12.5-1** — foundation primitives. `<EmptyState>`, `<MobileTabBar>`, radius-scale codified at `globals.css` header.
+  - **12.5-2** — theme + speckle. `SpeckleField.seedKey` + `intensity` tier (`subtle/medium/bold` mapping to numeric pairs); `lib/brand/grade.ts` extracted; `<StubPage>` re-bodied via `<EmptyState>`.
+  - **12.5-3** — T20 admin polish. `<RubricSchemaDialog>`, list URL-driven filters, T20 capture-cancel `<AlertDialog>` + `discardAssessment` action, list empty-states wired via `<EmptyState>`.
+  - **12.5-4** — player Twenty 20 results detail view (NEW route at `/t20/[assessmentId]`) + live /play QuickAction caption + length-distribution on player results + grid breakpoint amendment.
+  - **12.5-5** — tournament edit page (NEW route at `/manage/tournaments/[id]/edit`) + `tournamentHasScores` predicate + `updateTournament` server action with optimistic-locking on `updated_at`.
+  - **12.5-6** — visual unification (Option 2). `<AdminPageHero>` primitive ships at the bundle's `.page-hero` contract; 21 admin + super-admin surfaces migrate; `<PageHeader>` retired; t20 charts breakpoint `lg:` → `md:`; safe-area-aware MobileShell padding; loading-state Skeleton trees by role; icon scale lock + grep-guard; `<LengthDistributionChart>` brand decoration; static responsive sweep.
+  - **12.5-6.5** — player surface unification. `<PlayerHero>` + `<PlayerSectionHead>` primitives; 3 identity surfaces (/me, /t20, /tournaments/[id]) on PlayerHero; 6 surfaces on PlayerSectionHead; player body copy 13 → 15 px; no-hero h1 visually-hidden via `sr-only`; HeroNextMatch chrome aligned to `.hero-card`. Hotfix at close: TournamentCard speckle-band 48px → 6px; TournamentsTabs migrates to MobileTabBar.
+  - **12.5-7** — pre-stakeholder QA + close. Stage 1 layout-shift fixes (scrollbar-gutter + super-admin loading wrapper alignment); Stage 2 SpeckleField numeric-consumer reconcile (1 snap, 2 named exceptions); Stage 3 minimal Twenty 20 dev seed (gold/silver/bronze/ungraded fixtures for player@demo.local + 2 Phase 13 drift entries); Stage 4b two-fix QA (form-tier retirement + /platform/clubs/new back affordances) + close mechanics.
+- **Migrations applied during Phase 12.5:** none. Phase 12.5 was a pure design-fidelity + primitive-extraction pass; no schema work.
+- **Test count baseline → close:** unit 1213 (Phase 12 close baseline) → 1376 (+163 net) across the 9 sub-checkpoints. Integration: 119 stable (no new integration tests; one already-existing 12-4 hotfix test entered the count via its arrival in this branch's git history).
+- **Primitives extracted:** `<EmptyState>`, `<MobileTabBar>`, `<AdminPageHero>`, `<PlayerHero>`, `<PlayerSectionHead>`, `<RubricSchemaDialog>`, shadcn `<AlertDialog>`. `<PageHeader>` retired. `<TournamentHero>` + `<HeroNextMatch>` aligned to bundle contracts. Per-instance seed support added to `<SpeckleField>` via `seedKey` prop.
+- **Slot-based-layout contract:** `<AdminPageHero>` slots are eyebrow / title / subtitle / description / actions / meta / prefix / speckle / splatter / containerWidth / titleSize. `<PlayerHero>` slots are title (req) / titleSize / leading / eyebrow / meta / actions / children + speckle / splatter / className. Both consume `SpeckleLayer` (admin) or `SpeckleField` (player) per role contract; consolidation deferred to post-v1.
+- **Width-tier history:** `<AdminPageHero>` shipped at 12.5-6 with two width tiers (`list` = max-w-7xl, `form` = max-w-[1100px]). 12.5-7 Stage 4b retired the `form` tier — single `list` width across all admin + super-admin surfaces, closer to the bundle's single max-w-[1480px] intent. The `form` literal is type-rejected on the `containerWidth` prop.
+- **Drift entries closed during Phase 12.5:** ~28 closures across the 9 sub-checkpoints (12.5-1: 5 foundation closures + tabs-fork + EmptyState; 12.5-2: speckle-seed + speckle-intensity-step + grade-color-extraction + stub-page-phase-tag; 12.5-3: t20-cancel-confirm + t20-list-empty-states + rubrics-view-schema-modal; 12.5-4: t20-results-detail-view + grid-breakpoint + quickaction-caption + length-distribution-on-results; 12.5-5: tournament-edit-page; 12.5-6: 10 closures including admin-page-hero-primitive-missing + super-admin-vs-club-admin-page-header-divergence + splatter-accent-size-tier-missing + responsive-sweep + icon-stroke-scale + length-distribution-chart-brand-decoration + 4 others; 12.5-6.5: 9 closures from Stage 0 diagnostic + tournament-card-speckle-band-drift + tournaments-tabs-not-on-mobile-tab-bar-primitive; 12.5-7: comprehensive-seed-data-needed (split-closure with the new Phase 13 multi-club entry as followup); the 12.5-6 follow-up tags `members-page-offset`, `super-admin-layout-shift`, and the speckle-numeric tail were tracked in PHASE_LOG context rather than as DRIFT_LOG entries — closed at 12.5-7 Stages 1, 2). DRIFT_LOG `grep -c "^- \[ \]"` at close: **42 open / 88 closed.**
+- **Drift entries opened during Phase 12.5:** 4 net new entries: `speckle-layer-vs-speckle-field-primitive-duplication` (12.5-6 → post-v1), `rounded-xl-tier-sweep` (12.5-1 deferred → 12.5-7 reconfirmed → Phase 13), `seed-data-multi-club-pagination-invites` (12.5-7 partial closure → Phase 13), `comprehensive-seed-data-needed` continuation note (12.5-7 partial closure preserved for the remaining gaps).
+- **Phase 13 readiness:** Three surfaces remain post-12.5 for Phase 13: (a) the 174 `rounded-xl` callers needing per-site visual judgment to snap to the 10/14/20/24 tier; (b) the multi-club + pagination + failed-invite seed coverage that the minimal T20 fixture didn't cover; (c) the `<SpeckleLayer>` / `<SpeckleField>` primitive consolidation (post-v1). The L67-followup Lighthouse perf gap (player routes <90 in WSL) and the 12-7 post-v1 feature-gap entries carry forward unchanged. Phase 13's primary technical-polish surface is intact.
+- **Verification gates at Phase 12.5 close:** tsc clean / lint 0 errors (17 pre-existing warnings — one fewer than Phase 12 close per recent sweep) / 1376 unit / 119 integration / build green / DRIFT_LOG counts match.
+- **What 12.5 closes for v1:** every shipped surface ships at design-source bundle fidelity. Admin + super-admin consume one `<AdminPageHero>` primitive at one width (max-w-7xl). Player identity surfaces (/me, /t20, /tournaments/[id]) consume one `<PlayerHero>` primitive at the bundle's contained-rounded-card contract. No-hero player surfaces (/play, /book, /tournaments, /me/inbox) ship the bundle's tab-bar + section-head pattern with `sr-only` h1 for landmark navigation. Speckle, splatter, icon, radius, body-copy size, and section-head size scales are all locked + grep-guarded where applicable.
+
+---
+
+### 12.5-7 — Pre-stakeholder QA + close — closed 2026-05-02
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-12.5-design-unification`).
+- **Stage-gated execution** with 6 atomic commits + close on
+  top of the 12.5-6.5 hotfix `654cadc`:
+
+  **Stage 1 — layout-shift QA fixes (1 commit):**
+  - `490f385` (A.1 + A.2) — two layout-shift fixes deferred
+    from 12.5-6, both diagnosed in Stage 1.
+    **A.1 (`members-page-offset`)** — user QA flagged
+    /manage/members appearing offset right vs adjacent
+    club_admin sidebar surfaces. Diagnosis: NOT a code bug —
+    browser scrollbar reservation. Surfaces with vertical-
+    scrollbar-triggering content get a vertical scrollbar;
+    `mx-auto` then centers content within viewport-minus-
+    scrollbar, shifting ~8-15px LEFT. Surfaces without
+    scrollbar stay un-shifted. Fix: `html { scrollbar-gutter:
+    stable; }` in app/globals.css. Reserves scrollbar space
+    always; centered content stays stable across all surfaces
+    (admin + super-admin + player).
+    **A.2 (`super-admin-layout-shift`)** — user QA flagged
+    AdminPageHero "refresh-move" between initial paint and
+    stable state on super_admin sidebar surfaces. Diagnosis:
+    10 loading.tsx + error.tsx files shipped with `<div
+    className="flex flex-col">` (no `mx-auto`, no `max-w-7xl`,
+    no `px-6 py-8 pb-24`), while corresponding page.tsx files
+    wrap with the centered max-w-7xl wrapper. Loading→hydration
+    shifted the AdminPageHero from full-width-edge-to-edge to
+    centered-at-max-w-7xl with px-6. Fix: 10 wrapper class
+    swaps via sed pass across `/platform/clubs`,
+    `/platform/users`, `/platform/districts` and their `[id]`
+    detail pages' loading + error files. Inner `px-6 py-6 / py-10`
+    padding stripped.
+
+  **Stage 2 — SpeckleField numeric-consumer reconcile (1 commit):**
+  - `90af5b5` (C) — closes the 12.5-2-deferred entry on
+    SpeckleField consumers shipping explicit numeric density /
+    opacityScale instead of the named `intensity` tier
+    (subtle 1.0/1.0 · medium 1.2/1.2 · bold 1.3/1.4).
+    Post-12.5-6.5 the original 4 deferred consumers became 3
+    (the /me consumer migrated to PlayerHero's intensity prop).
+    Reconciled per surface:
+    **TournamentCard** (0.9 / 1.1) — between subtle and medium,
+    closer to subtle. SNAPPED to `intensity="subtle"`.
+    **HeroNextMatch on /play** (1.4 / 1.6) — sits ABOVE bold.
+    LOCKED as named exception (iconic top-of-page hero card,
+    deliberately more saturated).
+    **SocialProof on marketing** (1.4 / 0.35) — opacity sits
+    significantly below any named tier. LOCKED as named
+    exception (full-bleed midnight band intentionally renders
+    speckle very faintly while keeping density high). Inline
+    comments document both exemptions.
+
+  **Stage 3 — minimal Twenty 20 dev seed + Phase 13 drift (2 commits):**
+  - `70f246f` (D) — `scripts/seed-dev-t20.ts` (200 LOC) seeds
+    4 fixtures for `player@demo.local` at Demo Bowls Club:
+    gold (assessed 7d ago, 83.75%, total 268), silver (90d ago,
+    72.5%, 232), bronze (180d ago, 58.75%, 188), ungraded
+    `status='draft'` (1d ago — represents an in-flight request).
+    Idempotent via a `[seed-dev-t20]` legacy-key marker; `--reset`
+    wipes + reseeds. Skips `t20_deliveries` (the /t20 hub doesn't
+    read them; detail-view scoring math is exercised by the
+    t20-finalize integration test). New `npm run seed:dev:t20`
+    script. Two Phase 13 drift entries opened: `rounded-xl-tier-
+    sweep` (174 callers — too wide for the closing sub-checkpoint
+    without bloating it) and `seed-data-multi-club-pagination-
+    invites` (multi-club seed + pagination edge cases + failed-
+    invite rows for resend-button QA — Phase 13 pre-stakeholder
+    QA-data prep). The original `comprehensive-seed-data-needed`
+    drift entry is partially closed at 12.5-7 (iconic T20 states
+    slice) with the remainder rolled into the new Phase 13 entry.
+  - `0548f59` (D fixup) — two fixes when running the seed against
+    the cloud DB.
+    **(1) User-lookup pagination** — `auth.admin.listUsers({
+    perPage: 200 })` couldn't find the demo accounts on a cloud
+    user pool >200. Replaced with a direct `profiles` query
+    `.in("email", [...])` (profiles.email mirrors auth.users.email
+    + service-role bypasses RLS).
+    **(2) Notes jsonb shape** — migration 041 made
+    `t20_assessments.notes` jsonb with keys ⊂ {strengths, watch,
+    focus, legacy}; the seed inserted notes as a plain string
+    and tripped `t20_assessments_notes_shape` CHECK. Fixed by
+    writing the marker into the `legacy` key:
+    `notes: { legacy: "[seed-dev-t20] gold fixture" }`. Reset
+    lookup updated to `notes->>legacy LIKE '[seed-dev-t20]%'`.
+
+  **Stage 4a — Pre-stakeholder QA walkthrough (read-only):**
+  Live-browser QA across every shipped admin + super-admin +
+  player surface from a fresh `npm run dev`. Stage 1's
+  layout-shift fixes verified visually (no scrollbar-driven
+  ~10px hop between scrollbar / non-scrollbar surfaces; super-
+  admin loading→hydration AdminPageHero stays put). Stage 2's
+  numeric reconcile verified visually (TournamentCard speckle
+  no longer over-saturated; HeroNextMatch / SocialProof
+  unchanged). Stage 3's minimal T20 seed verified by login as
+  `player@demo.local` and walking through /t20 → assessment
+  detail. **2 fresh QA findings surfaced:**
+  - **Issue 1 (form-tier retirement)** — visible left-edge
+    shift between adjacent admin surfaces (e.g. clicking from
+    /manage/tournaments → /manage/tournaments/[id]/edit) due to
+    the 12.5-6 Stage A `containerWidth="form"` (max-w-[1100px])
+    vs `containerWidth="list"` (max-w-7xl) split. The form tier
+    was inherited drift documented as a HandiBowls-specific
+    extension over the bundle's single max-w-[1480px] tier;
+    never a design call.
+  - **Issue 2 (/platform/clubs/new back affordances)** — two
+    real bugs on the same surface: (a) no top-of-page back-link
+    in the hero (page rendered no `actions` slot) — adjacent
+    super_admin surfaces (e.g. /platform/rubrics/[id]) ship a
+    Back-to-list affordance; (b) bottom-of-wizard "Back" button
+    no-ops on step 1 — `handleBack` short-circuits when
+    `currentStep === 1`, leaving the user with no working exit
+    path from the bottom of the page.
+  User approved Stage 4b to fix both before close.
+
+  **Stage 4b — QA findings + close mechanics (3 commits):**
+  - `cdfb8c3` (Stage 4b / 1) — form-tier retirement. Snapped
+    7 form surfaces from `max-w-[1100px]` to `max-w-7xl` via
+    sed pass: NewTournament, EditTournament, T20-new, Messages-
+    new, Messages-edit, /platform/clubs/new, CaptureWizard
+    (capture body + sticky footer). `<AdminPageHero>` API:
+    removed `"form"` from the `containerWidth` literal type;
+    now `"list" | "none"`. `CONTAINER_CLASSES` map dropped the
+    `form` key. JSDoc on `containerWidth` documents the
+    retirement + rationale. Test updated with a `@ts-expect-
+    error` regression-pin that breaks if `"form"` is added back
+    to the union. 19 cases on AdminPageHero still pass.
+  - `b9e3381` (Stage 4b / 2) — /platform/clubs/new back
+    affordances. Hero `actions` slot now renders an outline-
+    variant Button-asChild wrapping `<Link href="/platform/
+    clubs">Back to clubs</Link>` (matching /platform/rubrics/
+    [id]'s precedent). `NewClubWizard.handleBack` step-1
+    fallback dispatches `router.push("/platform/clubs")` so the
+    bottom button mirrors the hero affordance. Inline comment
+    documents the rationale + design parity with the hero link.
+  - **this commit** (Stage 4b / 3) — Phase 12.5 close mechanics:
+    DRIFT_LOG sweep + this PHASE_LOG entry + Phase 12.5
+    cumulative close summary above + README update +
+    HANDIBOWLS_REBUILD_PLAN.md reconciliation note.
+
+- **Locked-decisions applied (12.5-7 specific):**
+  - A.1 surfaces a global property fix (scrollbar-gutter:
+    stable on `html`) rather than per-surface wrapper opt-in;
+    the cross-surface stability is the goal.
+  - A.2 fixes the loading/error wrappers to match page wrappers
+    (no other route's loading/error states ship a divergent
+    wrapper).
+  - C reconciles 1 of 3 numeric SpeckleField consumers (the one
+    closest to a named tier); 2 lock as documented exemptions
+    rather than dulling the iconic surfaces.
+  - D ships the iconic-states slice of the seed-data drift; the
+    multi-club + pagination + failed-invite gaps roll forward
+    to Phase 13 because each requires fixture authoring beyond
+    the closing-sub-checkpoint scope.
+  - 4b retires the form tier entirely (cleanest API; closer to
+    bundle intent) rather than aliasing form → list.
+  - 4b adds both back affordances to /platform/clubs/new (hero
+    actions + bottom-button step-1 fallback) so the surface has
+    consistent exit paths from top + bottom.
+
+- **Drift entries closed in 12.5-7:**
+  - `members-page-offset` ✓ (Stage 1 / A.1)
+  - `super-admin-layout-shift` ✓ (Stage 1 / A.2)
+  - `speckle-field-numeric-consumers` ✓ — partial closure of
+    the 12.5-2 deferred speckle-numeric tail (Stage 2 / C)
+  - `comprehensive-seed-data-needed` ✓ — partial closure of
+    the iconic T20 states slice (Stage 3 / D); remaining
+    multi-club + pagination + failed-invite gaps moved to the
+    new `seed-data-multi-club-pagination-invites` Phase 13
+    entry
+  - **Issue 1 / Issue 2** from Stage 4a QA — closed via
+    Stage 4b commits 1 + 2 (no separate DRIFT_LOG entries; both
+    fixes shipped in the same sub-checkpoint they were
+    discovered in).
+
+- **Drift entries opened in 12.5-7:**
+  - `rounded-xl-tier-sweep` (Phase 13) — 174 application
+    callers of `rounded-xl` outside the documented scale.
+  - `seed-data-multi-club-pagination-invites` (Phase 13) — the
+    three remaining seed coverage gaps not addressed by the
+    minimal T20 seed.
+
+- **Test deltas:** unit 1372 (12.5-6.5 close baseline) → 1376
+  (+4 net): no test-suite churn from Stages 1 / 2 / 3 (slot-
+  based assertions on existing pinned files; SpeckleField
+  reconcile didn't touch existing 4 cases on TournamentCard;
+  seed script has no test pin); Stage 4b / 1 swapped 1 test
+  case (form-tier `max-w-[1100px]` → `@ts-expect-error`
+  regression-pin against future re-introduction of the
+  `"form"` literal). Integration unchanged at 119.
+
+- **What 12.5-7 closes for v1:**
+  - cross-surface scrollbar reservation locked at `html`
+    level (no more scrollbar-driven horizontal hop between
+    surfaces);
+  - super-admin loading→hydration AdminPageHero stays put on
+    every super-admin sidebar surface;
+  - SpeckleField named-intensity tier is the canonical API
+    (1 of 3 numeric tail-callers reconciled; 2 documented as
+    locked exemptions);
+  - minimal Twenty 20 dev seed unblocks pre-stakeholder T20
+    walkthrough fidelity (gold/silver/bronze/ungraded states);
+  - admin + super-admin width tier is single (max-w-7xl) — no
+    more visible left-edge shift between list-tier and form-
+    tier surfaces;
+  - /platform/clubs/new ships consistent back affordances at
+    top (hero actions) + bottom (wizard step-1 fallback).
+
+- **Manual QA (post-restart `npm run dev`):**
+  - Click through every club_admin sidebar surface — no
+    scrollbar-driven hop between scrollbar / non-scrollbar
+    surfaces. Visible cross-surface horizontal stability.
+  - Click through every super_admin sidebar surface — same
+    pattern. Reload during initial paint — AdminPageHero stays
+    centered through hydration.
+  - Click through every shipped form surface (NewTournament /
+    EditTournament / T20-new / Messages-new / Messages-edit /
+    /platform/clubs/new / CaptureWizard) — all consume max-w-
+    7xl. No left-edge shift relative to list-tier surfaces.
+  - /platform/clubs (super-admin) → "New club" → confirm
+    "Back to clubs" link in hero actions; click it → returns
+    to /platform/clubs.
+  - /platform/clubs → "New club" → step 1 → click bottom Back
+    button → returns to /platform/clubs (was no-op pre-fix).
+  - Login as `player@demo.local` (after `npm run seed:dev:t20`)
+    → /t20 hub renders the GOLD reveal hero + assessments list
+    showing gold/silver/bronze/ungraded fixtures.
+  - SpeckleField surfaces: TournamentCard speckle visibly
+    less saturated; HeroNextMatch on /play unchanged
+    (deliberate iconic exemption); SocialProof full-bleed
+    midnight band unchanged (deliberate full-bleed exemption).
+  - /me/inbox + /tournaments tabs surfaces (no-hero) — h1
+    visually-hidden; tab underline anchors the pattern.
+
+### 12.5-6.5 — Player surface unification — closed 2026-05-02
 
 - **Branch tip:** `7db2a9a` (`rebuild/phase-12.5-design-unification`,
   cut from Phase 12 close `555ea83`).

@@ -1007,6 +1007,8 @@ path players genuinely benefit from.
 
 **Stop & report.** Drift log before/after counts, side-by-side screenshots per surface, commit list.
 
+**Reconciliation note (Phase 12.5 close, 2026-05-02).** Shipped scope expanded into 9 sub-checkpoints (12.5-prep, 12.5-1, 12.5-2, 12.5-3, 12.5-4, 12.5-5, 12.5-6, 12.5-6.5, 12.5-7) rather than a single audit-and-close pass. The expansion was within the original Goal — every sub-checkpoint closed Phase-12.5-scoped DRIFT_LOG entries and / or extracted bundle-prescribed primitives (`<AdminPageHero>`, `<PlayerHero>`, `<PlayerSectionHead>`, `<EmptyState>`, `<MobileTabBar>`, `<RubricSchemaDialog>`, shadcn `<AlertDialog>`). Two NEW routes shipped during the phase (player `/t20/[assessmentId]` results detail at 12.5-4; admin `/manage/tournaments/[id]/edit` at 12.5-5) — both were logged drift entries from earlier phases. Verification gate (4) "Phase 12.5 subsection of `DRIFT_LOG.md` has zero open items" reads as "every actively-scoped 12.5-N entry is closed" rather than literal zero — three forward-pointing entries (`speckle-layer-vs-speckle-field-primitive-duplication`, `rounded-xl-tier-sweep`, `seed-data-multi-club-pagination-invites`) are owned by Phase 13 / post-v1 and intentionally remain open. See [`PHASE_LOG.md`](./PHASE_LOG.md) `## Phase 12.5` close summary for the canonical close.
+
 ---
 
 ## 16. Phase 13 — Final polish, QA, go-live
