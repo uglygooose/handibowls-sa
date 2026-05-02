@@ -410,3 +410,35 @@ admin email channel is re-introduced."
 ## Branch tip
 
 `c84becd` (no changes from this report — read-only audit only).
+
+---
+
+## Closure addendum (Phase 13 / 13-2 / Batch B2 bookkeeping, 2026-05-02)
+
+**DRIFT entries closed referencing this report (4):**
+- DRIFT-L45 (`profile_id` confusion) — § A1.
+- DRIFT-L47 (PostgREST embeds) — § A2.
+- DRIFT-L65 (server-only poisoning, audit-portion only — ESLint rule
+  scope deferred) — § A4.
+- DRIFT-L279 (`'use client'` constant taint) — § A5.
+
+**NEW-SERVICE-ROLE-GREP closure (1):** § A6 audit confirms zero
+violations. No DRIFT entry was opened for this work because (a) the
+audit is one-shot, not a tracked technical-debt item, and (b) the
+`server-only` package provides hard compile-time enforcement that
+prevents the violation class from ever shipping. This footer is the
+canonical closure note.
+
+**NEW-RATE-LIMIT (A7) closure (1):** § A7 audit confirms code-side
+absence is correct for v1; monitoring gap tracked as new DRIFT entry
+`server-action-rate-limit-monitoring` (post-v1, owner monitoring data
+from Phase 13 / 13-5).
+
+**A3 (state-machine matrix) follow-up:** new DRIFT entry
+`state-machine-enum-hygiene` opened consolidating all 7 dead/orphan
+values across 5 columns (Phase 13 → 13-cross-cutting).
+
+**Batch A audit final state:** all 7 entries handled. 4 closed-as-
+CLEAN in DRIFT_LOG, 1 NEW closed-as-CLEAN with footer-note (here),
+1 generated a follow-up entry (NEW-RATE-LIMIT → post-v1), 1
+generated a consolidated hygiene entry (A3 → 13-cross-cutting).
