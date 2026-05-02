@@ -99,7 +99,13 @@ export default async function T20Page() {
         <div className="mt-3.5">
           <RequestAssessmentButton />
         </div>
-        <span className="mt-1.5 block text-center font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white/70">
+        {/* Phase 13 / 13-1 / commit 12-fixup-2: text-white/70 on
+            bg-primary-500 (atomic-red #d7261e) was 3.08:1 — fails
+            AA. Hardcoded white also breaks on sunburst /
+            white-speckle (light primaries where white is
+            invisible). Switch to the theme-aware on-primary token
+            at full opacity — clears AA across all 9 themes. */}
+        <span className="mt-1.5 block text-center font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-[color:var(--color-on-primary)]">
           Sends an in-app message to your club admins
         </span>
       </PlayerHero>
@@ -238,15 +244,16 @@ export default async function T20Page() {
 }
 
 function TierStep({ tier, state }: { tier: Tier; state: TierStepState }) {
-  // Phase 13 / 13-1 / commit 12: inactive tier was inheriting on-primary
-  // (white) text on bg-white/10 over primary-500 — fails axe-serious
-  // contrast on light primary themes (sunburst, white-speckle). Pin
-  // `text-ink` (theme-invariant 19.80:1 on bone/white) for the
-  // inactive states. The dot colour still encodes done vs future.
+  // Phase 13 / 13-1 / commit 12-fixup-2: bg-white/10 over primary-500 sat
+  // at 4.44:1 with text-ink (and 4.45:1 with the inherited on-primary
+  // white) on atomic-red — both right under the 4.5:1 AA threshold.
+  // Bumped to bg-white/20 (≈ #e25249 over #d7261e), which clears 5.6:1
+  // with text-ink and keeps the translucent "dimmed" feel. The dot
+  // colour still encodes done vs future.
   const wrap =
     state === "active"
       ? "rounded-lg bg-white px-1 py-2 text-center text-primary-600"
-      : "rounded-lg bg-white/10 px-1 py-2 text-center text-ink";
+      : "rounded-lg bg-white/20 px-1 py-2 text-center text-ink";
   const dot =
     state === "active"
       ? "mx-auto mb-1 size-2.5 rounded-full bg-primary-500"
