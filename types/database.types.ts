@@ -22,6 +22,7 @@ export type Database = {
           performed_at: string
           performed_by: string | null
           reason: string | null
+          retention_category: Database["public"]["Enums"]["audit_retention_category"]
           row_id: string
           table_name: string
         }
@@ -32,6 +33,7 @@ export type Database = {
           performed_at?: string
           performed_by?: string | null
           reason?: string | null
+          retention_category?: Database["public"]["Enums"]["audit_retention_category"]
           row_id: string
           table_name: string
         }
@@ -42,6 +44,7 @@ export type Database = {
           performed_at?: string
           performed_by?: string | null
           reason?: string | null
+          retention_category?: Database["public"]["Enums"]["audit_retention_category"]
           row_id?: string
           table_name?: string
         }
@@ -966,10 +969,12 @@ export type Database = {
       }
       profiles: {
         Row: {
+          auth_banned_at: string | null
           avatar_url: string | null
           bsa_number: string | null
           created_at: string
           date_of_birth: string | null
+          deleted_at: string | null
           display_name: string | null
           dominant_hand: Database["public"]["Enums"]["dominant_hand"] | null
           email: string | null
@@ -980,16 +985,19 @@ export type Database = {
           id: string
           last_name: string | null
           novice_registered_at: string | null
+          pending_auth_ban: boolean
           phone: string | null
           profile_completed: boolean
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
         }
         Insert: {
+          auth_banned_at?: string | null
           avatar_url?: string | null
           bsa_number?: string | null
           created_at?: string
           date_of_birth?: string | null
+          deleted_at?: string | null
           display_name?: string | null
           dominant_hand?: Database["public"]["Enums"]["dominant_hand"] | null
           email?: string | null
@@ -1000,16 +1008,19 @@ export type Database = {
           id: string
           last_name?: string | null
           novice_registered_at?: string | null
+          pending_auth_ban?: boolean
           phone?: string | null
           profile_completed?: boolean
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Update: {
+          auth_banned_at?: string | null
           avatar_url?: string | null
           bsa_number?: string | null
           created_at?: string
           date_of_birth?: string | null
+          deleted_at?: string | null
           display_name?: string | null
           dominant_hand?: Database["public"]["Enums"]["dominant_hand"] | null
           email?: string | null
@@ -1020,6 +1031,7 @@ export type Database = {
           id?: string
           last_name?: string | null
           novice_registered_at?: string | null
+          pending_auth_ban?: boolean
           phone?: string | null
           profile_completed?: boolean
           role?: Database["public"]["Enums"]["user_role"]
@@ -1691,6 +1703,7 @@ export type Database = {
     }
     Enums: {
       age_group: "open" | "veteran" | "junior" | "u35"
+      audit_retention_category: "operational" | "compliance" | "financial"
       booking_purpose:
         | "roll_up"
         | "practice"
@@ -1889,6 +1902,7 @@ export const Constants = {
   public: {
     Enums: {
       age_group: ["open", "veteran", "junior", "u35"],
+      audit_retention_category: ["operational", "compliance", "financial"],
       booking_purpose: [
         "roll_up",
         "practice",
