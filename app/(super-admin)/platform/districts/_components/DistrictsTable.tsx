@@ -84,12 +84,36 @@ export function DistrictsTable({ rows }: Props) {
                 {hg.headers.map((header) => {
                   const canSort = header.column.getCanSort();
                   const sorted = header.column.getIsSorted();
+                  // Phase 13 / 13-1 / commit 7: same a11y wiring as
+                  // ClubsTable — aria-sort on TH, descriptive aria-label
+                  // on the sort-toggle button.
+                  const ariaSort: "ascending" | "descending" | "none" | undefined =
+                    canSort
+                      ? sorted === "asc"
+                        ? "ascending"
+                        : sorted === "desc"
+                          ? "descending"
+                          : "none"
+                      : undefined;
+                  const headerLabel = header.isPlaceholder
+                    ? ""
+                    : String(
+                        typeof header.column.columnDef.header === "string"
+                          ? header.column.columnDef.header
+                          : header.column.id,
+                      );
+                  const nextSort = sorted === "asc" ? "descending" : "ascending";
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead key={header.id} aria-sort={ariaSort}>
                       {header.isPlaceholder ? null : (
                         <button
                           type="button"
                           onClick={header.column.getToggleSortingHandler()}
+                          aria-label={
+                            canSort
+                              ? `Sort by ${headerLabel}, ${nextSort}`
+                              : undefined
+                          }
                           className={cn(
                             "inline-flex items-center gap-1 font-medium",
                             canSort && "cursor-pointer select-none",
@@ -99,11 +123,11 @@ export function DistrictsTable({ rows }: Props) {
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {canSort &&
                             (sorted === "asc" ? (
-                              <ArrowUp className="size-3" />
+                              <ArrowUp className="size-3" aria-hidden="true" />
                             ) : sorted === "desc" ? (
-                              <ArrowDown className="size-3" />
+                              <ArrowDown className="size-3" aria-hidden="true" />
                             ) : (
-                              <ArrowUpDown className="size-3 opacity-40" />
+                              <ArrowUpDown className="size-3 opacity-40" aria-hidden="true" />
                             ))}
                         </button>
                       )}

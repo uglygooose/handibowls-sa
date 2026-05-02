@@ -166,12 +166,37 @@ export function ClubsTable({ rows, page, pageSize, total, q, basePath }: Props) 
                 {hg.headers.map((header) => {
                   const canSort = header.column.getCanSort();
                   const sorted = header.column.getIsSorted();
+                  // Phase 13 / 13-1 / commit 7: aria-sort on the TH + a
+                  // descriptive aria-label on the sort-toggle button so SR
+                  // users discover both the current sort state and the
+                  // action the button will perform on click.
+                  const ariaSort: "ascending" | "descending" | "none" | undefined =
+                    canSort
+                      ? sorted === "asc"
+                        ? "ascending"
+                        : sorted === "desc"
+                          ? "descending"
+                          : "none"
+                      : undefined;
+                  const headerLabel = header.isPlaceholder
+                    ? ""
+                    : String(
+                        typeof header.column.columnDef.header === "string"
+                          ? header.column.columnDef.header
+                          : header.column.id,
+                      );
+                  const nextSort = sorted === "asc" ? "descending" : "ascending";
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead key={header.id} aria-sort={ariaSort}>
                       {header.isPlaceholder ? null : (
                         <button
                           type="button"
                           onClick={header.column.getToggleSortingHandler()}
+                          aria-label={
+                            canSort
+                              ? `Sort by ${headerLabel}, ${nextSort}`
+                              : undefined
+                          }
                           className={cn(
                             "inline-flex items-center gap-1 font-medium",
                             canSort && "cursor-pointer select-none",
@@ -181,11 +206,11 @@ export function ClubsTable({ rows, page, pageSize, total, q, basePath }: Props) 
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {canSort &&
                             (sorted === "asc" ? (
-                              <ArrowUp className="size-3" />
+                              <ArrowUp className="size-3" aria-hidden="true" />
                             ) : sorted === "desc" ? (
-                              <ArrowDown className="size-3" />
+                              <ArrowDown className="size-3" aria-hidden="true" />
                             ) : (
-                              <ArrowUpDown className="size-3 opacity-40" />
+                              <ArrowUpDown className="size-3 opacity-40" aria-hidden="true" />
                             ))}
                         </button>
                       )}
@@ -222,9 +247,13 @@ export function ClubsTable({ rows, page, pageSize, total, q, basePath }: Props) 
           Page {page} of {totalPages}
         </span>
         <div className="flex items-center gap-2">
+          {/* Phase 13 / 13-1 / commit 7: aria-label includes page-context
+              ("Previous page (Page X of Y)") so SR users get the sequence
+              state without having to read the sibling "Page X of Y" span. */}
           <Button asChild variant="outline" size="sm" disabled={page <= 1}>
             <Link
               href={pageHref(Math.max(1, page - 1))}
+              aria-label={`Previous page (Page ${page} of ${totalPages})`}
               aria-disabled={page <= 1}
               className={cn(page <= 1 && "pointer-events-none opacity-50")}
             >
@@ -234,6 +263,7 @@ export function ClubsTable({ rows, page, pageSize, total, q, basePath }: Props) 
           <Button asChild variant="outline" size="sm" disabled={page >= totalPages}>
             <Link
               href={pageHref(Math.min(totalPages, page + 1))}
+              aria-label={`Next page (Page ${page} of ${totalPages})`}
               aria-disabled={page >= totalPages}
               className={cn(page >= totalPages && "pointer-events-none opacity-50")}
             >

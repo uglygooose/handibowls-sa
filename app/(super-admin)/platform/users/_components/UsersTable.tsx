@@ -141,9 +141,11 @@ export function UsersTable({ rows, page, pageSize, total, q, basePath }: Props) 
           <span className="text-xs text-ink-muted tabular-nums">
             Page {page} of {totalPages}
           </span>
+          {/* Phase 13 / 13-1 / commit 7: aria-label with page-context. */}
           <Button asChild variant="outline" size="sm" disabled={page <= 1}>
             <Link
               href={buildHref(basePath, Math.max(1, page - 1), q)}
+              aria-label={`Previous page (Page ${page} of ${totalPages})`}
               aria-disabled={page <= 1}
               className={cn(page <= 1 && "pointer-events-none opacity-50")}
             >
@@ -153,6 +155,7 @@ export function UsersTable({ rows, page, pageSize, total, q, basePath }: Props) 
           <Button asChild variant="outline" size="sm" disabled={page >= totalPages}>
             <Link
               href={buildHref(basePath, Math.min(totalPages, page + 1), q)}
+              aria-label={`Next page (Page ${page} of ${totalPages})`}
               aria-disabled={page >= totalPages}
               className={cn(page >= totalPages && "pointer-events-none opacity-50")}
             >
