@@ -100,7 +100,7 @@ export function AuditLogPanel({ rows, errored = false }: Props) {
                     "inline-flex h-6 items-center rounded-md px-2",
                     "font-mono text-[10px] font-bold uppercase tracking-[0.06em]",
                     row.action === "force_cancel_booking"
-                      ? "bg-danger-500/12 text-danger-500"
+                      ? "bg-danger-500/12 text-ink"
                       : "bg-surface-muted text-ink-muted",
                   )}
                 >

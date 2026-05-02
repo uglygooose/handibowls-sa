@@ -19,8 +19,8 @@ export function FormBanner({ kind, children, className }: Props) {
       className={cn(
         "mb-5 flex items-center gap-2 rounded-[10px] border px-3.5 py-3 text-[13px] font-medium",
         error
-          ? "border-danger-500/20 bg-danger-500/8 text-danger-500"
-          : "border-success-500/20 bg-success-500/10 text-success-700",
+          ? "border-danger-500/20 bg-danger-500/8 text-ink"
+          : "border-success-500/20 bg-success-500/10 text-ink",
         className,
       )}
     >

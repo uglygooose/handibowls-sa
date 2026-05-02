@@ -849,7 +849,7 @@ function ZonesBody({
                     </div>
                   </div>
                   {v === "miss" ? (
-                    <span className="inline-flex h-6 items-center rounded-full bg-danger-500/12 px-2.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.06em] text-danger-500">
+                    <span className="inline-flex h-6 items-center rounded-full bg-danger-500/12 px-2.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.06em] text-ink">
                       Miss · 0
                     </span>
                   ) : typeof v === "number" ? (

@@ -238,10 +238,15 @@ export default async function T20Page() {
 }
 
 function TierStep({ tier, state }: { tier: Tier; state: TierStepState }) {
+  // Phase 13 / 13-1 / commit 12: inactive tier was inheriting on-primary
+  // (white) text on bg-white/10 over primary-500 — fails axe-serious
+  // contrast on light primary themes (sunburst, white-speckle). Pin
+  // `text-ink` (theme-invariant 19.80:1 on bone/white) for the
+  // inactive states. The dot colour still encodes done vs future.
   const wrap =
     state === "active"
       ? "rounded-lg bg-white px-1 py-2 text-center text-primary-600"
-      : "rounded-lg bg-white/10 px-1 py-2 text-center";
+      : "rounded-lg bg-white/10 px-1 py-2 text-center text-ink";
   const dot =
     state === "active"
       ? "mx-auto mb-1 size-2.5 rounded-full bg-primary-500"
@@ -337,5 +342,5 @@ function gradePillClass(grade: "gold" | "silver" | "bronze" | "fail"): string {
     return "bg-surface-muted text-ink border border-border";
   if (grade === "bronze")
     return "bg-[#B45309]/10 text-[#7C2D12] border border-[#B45309]/30";
-  return "bg-danger-500/10 text-danger-500 border border-danger-500/30";
+  return "bg-danger-500/10 text-ink border border-danger-500/30";
 }

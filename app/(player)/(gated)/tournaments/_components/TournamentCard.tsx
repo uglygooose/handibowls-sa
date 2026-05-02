@@ -34,22 +34,27 @@ const STATUS_PILL: Record<
   PlayerTournamentRow["status"],
   { label: string; cls: string }
 > = {
+  // Phase 13 / 13-1 / commit 12: tinted-pill foreground swept to text-ink
+  // (theme-invariant 19.80:1 on bone). The 700-tier brand-color text on
+  // bg-{tone}-500/12 fails axe-serious contrast (~3.7:1 on the composited
+  // tint) — same pattern as the OfflineSyncBadge fix in commit 9. The
+  // colored ring + tinted bg keep the at-a-glance state cue.
   draft: { label: "Draft", cls: "bg-surface-muted text-ink-muted ring-border" },
   open: {
     label: "Open",
-    cls: "bg-success-500/12 text-success-700 ring-success-500/30",
+    cls: "bg-success-500/12 text-ink ring-success-500/30",
   },
   in_progress: {
     label: "In play",
-    cls: "bg-warning-500/16 text-warning-700 ring-warning-500/40",
+    cls: "bg-warning-500/16 text-ink ring-warning-500/40",
   },
   completed: {
     label: "Completed",
-    cls: "bg-info-500/12 text-info-500 ring-info-500/30",
+    cls: "bg-info-500/12 text-ink ring-info-500/30",
   },
   cancelled: {
     label: "Cancelled",
-    cls: "bg-danger-500/12 text-danger-500 ring-danger-500/30",
+    cls: "bg-danger-500/12 text-ink ring-danger-500/30",
   },
 };
 
@@ -110,12 +115,12 @@ export function TournamentCard({ tournament: t, variant }: Props) {
             {status.label}
           </Pill>
           {t.handicap_rule === "handicap_start" && (
-            <Pill className="bg-warning-500/16 text-warning-700 ring-1 ring-inset ring-warning-500/40">
+            <Pill className="bg-warning-500/16 text-ink ring-1 ring-inset ring-warning-500/40">
               Handicap
             </Pill>
           )}
           {t.player_has_open_match && (
-            <Pill className="bg-primary-500/12 text-accent-ink ring-1 ring-inset ring-primary-500/30">
+            <Pill className="bg-primary-500/12 text-ink ring-1 ring-inset ring-primary-500/30">
               You&apos;re in play
             </Pill>
           )}

@@ -72,7 +72,7 @@ export default async function PlayHome() {
       {unreadCount > 0 && (
         <Link
           href="/me/inbox"
-          className="flex items-center gap-3 rounded-xl border border-info-500/30 bg-info-500/10 px-3 py-2.5 text-info-500 hover:bg-info-500/15"
+          className="flex items-center gap-3 rounded-xl border border-info-500/30 bg-info-500/10 px-3 py-2.5 text-ink hover:bg-info-500/15"
         >
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-info-500/15">
             <Bell className="size-3.5" aria-hidden="true" />
@@ -131,7 +131,7 @@ export default async function PlayHome() {
                 Primary membership
               </span>
             </div>
-            <span className="rounded-full bg-primary-500/12 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-accent-ink ring-1 ring-inset ring-primary-500/30">
+            <span className="rounded-full bg-primary-500/12 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-ink ring-1 ring-inset ring-primary-500/30">
               Primary
             </span>
           </Link>
@@ -144,7 +144,7 @@ export default async function PlayHome() {
 function EmptyNextMatch() {
   return (
     <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-border bg-surface px-4 py-6">
-      <span className="flex size-10 items-center justify-center rounded-full bg-primary-500/10 text-accent-ink">
+      <span className="flex size-10 items-center justify-center rounded-full bg-primary-500/10 text-ink">
         <Trophy className="size-5" aria-hidden="true" />
       </span>
       <div className="flex flex-col gap-1">

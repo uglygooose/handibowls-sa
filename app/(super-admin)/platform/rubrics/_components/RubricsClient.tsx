@@ -366,7 +366,7 @@ function UploadZone({ onUploaded }: { onUploaded: () => void }) {
         <div
           role="alert"
           data-slot="upload-error"
-          className="border-t border-danger-500/30 bg-danger-500/8 px-6 py-3 text-[13px] text-danger-500"
+          className="border-t border-danger-500/30 bg-danger-500/8 px-6 py-3 text-[13px] text-ink"
         >
           {error}
         </div>
@@ -603,7 +603,7 @@ function VersionsTable({
                         type="button"
                         onClick={() => onDeactivate(r.id)}
                         data-slot="row-deactivate-cta"
-                        className="inline-flex h-8 items-center rounded-md border border-border bg-bone px-2.5 text-[12px] font-medium text-danger-500 hover:bg-danger-500/8"
+                        className="inline-flex h-8 items-center rounded-md border border-border bg-bone px-2.5 text-[12px] font-medium text-ink hover:bg-danger-500/8"
                       >
                         Deactivate
                       </button>

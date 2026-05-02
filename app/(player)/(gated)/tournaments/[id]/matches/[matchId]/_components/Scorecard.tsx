@@ -461,7 +461,7 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
           )}
 
           {serverError && (
-            <p className="rounded-xl border border-danger-500/40 bg-danger-500/10 px-3 py-2 text-[15px] text-danger-500">
+            <p className="rounded-xl border border-danger-500/40 bg-danger-500/10 px-3 py-2 text-[15px] text-ink">
               {serverError}
             </p>
           )}
@@ -662,7 +662,7 @@ function Scoreboard({
         <span
           className={cn(
             "rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em]",
-            wetHands ? "bg-[#f5b700] text-[#0A0A0A]" : "bg-primary-500/12 text-accent-ink",
+            wetHands ? "bg-[#f5b700] text-[#0A0A0A]" : "bg-primary-500/12 text-ink",
           )}
         >
           End total
@@ -740,7 +740,7 @@ function HandicapNotice({ match, wetHands }: { match: ScorecardMatch; wetHands: 
     <div
       className={cn(
         "rounded-xl px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.06em]",
-        wetHands ? "bg-[#1a1a00] text-[#c08f00]" : "bg-warning-500/12 text-warning-700 ring-1 ring-inset ring-warning-500/30",
+        wetHands ? "bg-[#1a1a00] text-[#c08f00]" : "bg-warning-500/12 text-ink ring-1 ring-inset ring-warning-500/30",
       )}
     >
       Handicap start ·{" "}
@@ -1073,7 +1073,7 @@ function AwaitingOpponentConfirm() {
   return (
     <section
       data-slot="awaiting-opponent-confirm"
-      className="flex items-center gap-3 rounded-2xl border-2 border-info-500 bg-info-500/8 px-4 py-4 text-info-500"
+      className="flex items-center gap-3 rounded-2xl border-2 border-info-500 bg-info-500/8 px-4 py-4 text-ink"
     >
       <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-info-500/15">
         <Check className="size-5" aria-hidden="true" />
@@ -1097,7 +1097,7 @@ function AwaitingAdminVerify({ wetHands }: { wetHands: boolean }) {
         "flex items-center gap-3 rounded-2xl border-2 px-4 py-4",
         wetHands
           ? "border-[#f5b700] bg-[#1a1a00] text-[#f5b700]"
-          : "border-info-500 bg-info-500/8 text-info-500",
+          : "border-info-500 bg-info-500/8 text-ink",
       )}
     >
       <span
@@ -1127,7 +1127,7 @@ function VerifiedBanner({ playerWon, wetHands }: { playerWon: boolean; wetHands:
         "flex flex-col items-center gap-2 rounded-2xl border-2 px-4 py-6 text-center",
         wetHands
           ? "border-[#f5b700] bg-[#1a1a00] text-[#f5b700]"
-          : "border-success-500 bg-success-500/8 text-success-700",
+          : "border-success-500 bg-success-500/8 text-ink",
       )}
     >
       <span className="flex size-12 items-center justify-center rounded-full bg-success-500/20">
@@ -1157,8 +1157,8 @@ function ReadOnlyNotice({
 }) {
   const cls =
     tone === "warning"
-      ? "border-warning-500 bg-warning-500/10 text-warning-700"
-      : "border-danger-500 bg-danger-500/10 text-danger-500";
+      ? "border-warning-500 bg-warning-500/10 text-ink"
+      : "border-danger-500 bg-danger-500/10 text-ink";
   return (
     <section className={cn("flex flex-col gap-1 rounded-2xl border-2 px-4 py-4", cls)}>
       <strong className="font-display text-[18px] font-black italic uppercase tracking-tight">

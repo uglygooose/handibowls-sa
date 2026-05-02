@@ -1,0 +1,461 @@
+{
+  "capturedAt": "2026-05-02T16:14:42.956Z",
+  "label": "m3-close",
+  "previewUrl": "https://handibowls-7m5nu3dek-andrews-projects-a0c14c4f.vercel.app",
+  "results": [
+    {
+      "id": "landing",
+      "route": "/",
+      "role": null,
+      "label": "/ (landing)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 59,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "login",
+      "route": "/login",
+      "role": null,
+      "label": "/login (auth)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 81,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "play",
+      "route": "/play",
+      "role": "player",
+      "label": "/play (player home)",
+      "axe": {
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+            "help": "Elements must meet minimum color contrast ratio thresholds",
+            "nodeCount": 6,
+            "nodes": [
+              {
+                "target": [
+                  ".gap-3.justify-between.items-center:nth-child(3) > .gap-2\\.5.min-w-0.items-center > .bg-white\\/90.size-9.text-\\[12px\\]"
+                ],
+                "html": "<span aria-hidden=\"true\" class=\"flex size-9 shrink-0 items-center justify-center rounded-full bg-white/90 font-display text-[12px] font-extrabold tracking-tight text-accent-ink\">OT</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.25 (foreground color: #d7261e, background color: #f8e9e8, font size: 9.0pt (12px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".text-\\[color\\:var\\(--color-on-primary\\)\\]\\/85.tracking-\\[0\\.06em\\].text-\\[11px\\] > .gap-1\\.5.inline-flex.items-center:nth-child(1)"
+                ],
+                "html": "<span class=\"inline-flex items-center gap-1.5\">",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.94 (foreground color: #f9dedd, background color: #d7261e, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".gap-1\\.5.inline-flex.items-center:nth-child(2)"
+                ],
+                "html": "<span class=\"inline-flex items-center gap-1.5\">",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.94 (foreground color: #f9dedd, background color: #d7261e, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".hover\\:text-\\[color\\:var\\(--color-on-primary\\)\\]"
+                ],
+                "html": "<a class=\"inline-flex h-9 items-center justify-center text-[12px] font-medium text-[color:var(--color-on-primary)]/85 hover:text-[color:var(--color-on-primary)]\" href=\"/tournaments/239baed5-2e5c-4cc3-86a5-957a30ed60f1\">View match details</a",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.94 (foreground color: #f9dedd, background color: #d7261e, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".text-success-700"
+                ],
+                "html": "<span class=\"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ring-1 ring-inset bg-success-500/12 text-success-700 ring-success-500/30\">Win</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.22 (foreground color: #15803d, background color: #dff0e2, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".bg-primary-500\\/12"
+                ],
+                "html": "<span class=\"rounded-full bg-primary-500/12 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-accent-ink ring-1 ring-inset ring-primary-500/30\">Primary</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.99 (foreground color: #d7261e, background color: #f6e1dd, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+              }
+            ]
+          }
+        ],
+        "counts": {
+          "critical": 0,
+          "serious": 1,
+          "moderate": 0,
+          "minor": 0,
+          "total": 1
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 96,
+          "performance": 59,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "tournament-detail",
+      "route": "/tournaments/239baed5-2e5c-4cc3-86a5-957a30ed60f1/matches/565254c3-67eb-4514-bd2c-8cfd687a42e1",
+      "role": "player",
+      "label": "/tournaments/[id] (player detail)",
+      "axe": {
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+            "help": "Elements must meet minimum color contrast ratio thresholds",
+            "nodeCount": 1,
+            "nodes": [
+              {
+                "target": [
+                  ".py-0\\.5"
+                ],
+                "html": "<span class=\"rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] bg-primary-500/12 text-accent-ink\">End total</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.99 (foreground color: #d7261e, background color: #f6e1dd, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+              }
+            ]
+          }
+        ],
+        "counts": {
+          "critical": 0,
+          "serious": 1,
+          "moderate": 0,
+          "minor": 0,
+          "total": 1
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 96,
+          "performance": 65,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "t20",
+      "route": "/t20",
+      "role": "player",
+      "label": "/t20 (player T20 hub)",
+      "axe": {
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+            "help": "Elements must meet minimum color contrast ratio thresholds",
+            "nodeCount": 4,
+            "nodes": [
+              {
+                "target": [
+                  ".bg-white\\/10.rounded-lg.px-1:nth-child(1) > .text-\\[10px\\].tracking-\\[0\\.06em\\].block"
+                ],
+                "html": "<span class=\"block font-mono text-[10px] font-bold uppercase tracking-[0.06em]\">Bronze</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.45 (foreground color: #ffffff, background color: #db3c35, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".bg-white\\/10.rounded-lg.px-1:nth-child(2) > .text-\\[10px\\].tracking-\\[0\\.06em\\].block"
+                ],
+                "html": "<span class=\"block font-mono text-[10px] font-bold uppercase tracking-[0.06em]\">Silver</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.45 (foreground color: #ffffff, background color: #db3c35, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".bg-white\\/10.rounded-lg.px-1:nth-child(4) > .text-\\[10px\\].tracking-\\[0\\.06em\\].block"
+                ],
+                "html": "<span class=\"block font-mono text-[10px] font-bold uppercase tracking-[0.06em]\">Platinum</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.45 (foreground color: #ffffff, background color: #db3c35, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".mt-1\\.5"
+                ],
+                "html": "<span class=\"mt-1.5 block text-center font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white/70\">Sends an in-app message to your club admins</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.08 (foreground color: #f3bebb, background color: #d7261e, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+              }
+            ]
+          }
+        ],
+        "counts": {
+          "critical": 0,
+          "serious": 1,
+          "moderate": 0,
+          "minor": 0,
+          "total": 1
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 96,
+          "performance": 72,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "me",
+      "route": "/me",
+      "role": "player",
+      "label": "/me (player profile)",
+      "axe": {
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+            "help": "Elements must meet minimum color contrast ratio thresholds",
+            "nodeCount": 8,
+            "nodes": [
+              {
+                "target": [
+                  ".border-l-4.p-3.border-l-border:nth-child(1) > .flex-wrap.gap-1\\.5.items-center > .bg-info-500\\/12.text-info-500[data-slot=\"purpose-pill\"]"
+                ],
+                "html": "<span data-slot=\"purpose-pill\" class=\"rounded-md bg-info-500/12 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-info-500\">Roll-up</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.32 (foreground color: #7a9ff0, background color: #edf2fb, font size: 8.3pt (11px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".border-l-4.p-3.border-l-border:nth-child(1) > .flex-wrap.gap-1\\.5.items-center > .tracking-\\[0\\.04em\\].text-ink-muted[data-slot=\"party-meta\"]"
+                ],
+                "html": "<span data-slot=\"party-meta\" class=\"font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-ink-muted\">· <!-- -->6<!-- --> bowlers</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.13 (foreground color: #90908f, background color: #fdfdfc, font size: 8.3pt (11px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".border-l-4.p-3.border-l-border:nth-child(2) > .flex-wrap.gap-1\\.5.items-center > .bg-info-500\\/12.text-info-500[data-slot=\"purpose-pill\"]"
+                ],
+                "html": "<span data-slot=\"purpose-pill\" class=\"rounded-md bg-info-500/12 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-info-500\">Practice</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.32 (foreground color: #7a9ff0, background color: #edf2fb, font size: 8.3pt (11px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".border-l-4.p-3.border-l-border:nth-child(2) > .flex-wrap.gap-1\\.5.items-center > .tracking-\\[0\\.04em\\].text-ink-muted[data-slot=\"party-meta\"]"
+                ],
+                "html": "<span data-slot=\"party-meta\" class=\"font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-ink-muted\">· <!-- -->2<!-- --> bowlers</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.13 (foreground color: #90908f, background color: #fdfdfc, font size: 8.3pt (11px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".border-l-4.p-3.border-l-border:nth-child(3) > .flex-wrap.gap-1\\.5.items-center > .bg-info-500\\/12.text-info-500[data-slot=\"purpose-pill\"]"
+                ],
+                "html": "<span data-slot=\"purpose-pill\" class=\"rounded-md bg-info-500/12 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-info-500\">Practice</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.32 (foreground color: #7a9ff0, background color: #edf2fb, font size: 8.3pt (11px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".border-l-4.p-3.border-l-border:nth-child(3) > .flex-wrap.gap-1\\.5.items-center > .tracking-\\[0\\.04em\\].text-ink-muted[data-slot=\"party-meta\"]"
+                ],
+                "html": "<span data-slot=\"party-meta\" class=\"font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-ink-muted\">· <!-- -->1<!-- --> bowlers</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.13 (foreground color: #90908f, background color: #fdfdfc, font size: 8.3pt (11px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".bg-danger-500\\/12"
+                ],
+                "html": "<span data-slot=\"cancelled-pill\" class=\"rounded-md bg-danger-500/12 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.04em] text-danger-500\">Cancelled</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 2.44 (foreground color: #e87b7a, background color: #fbedec, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".bg-primary-500\\/12"
+                ],
+                "html": "<span class=\"rounded-full bg-primary-500/12 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-accent-ink ring-1 ring-inset ring-primary-500/30\">Primary</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.99 (foreground color: #d7261e, background color: #f6e1dd, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+              }
+            ]
+          }
+        ],
+        "counts": {
+          "critical": 0,
+          "serious": 1,
+          "moderate": 0,
+          "minor": 0,
+          "total": 1
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 96,
+          "performance": 65,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "manage",
+      "route": "/manage/overview",
+      "role": "club_admin",
+      "label": "/manage (club admin overview)",
+      "axe": {
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+            "help": "Elements must meet minimum color contrast ratio thresholds",
+            "nodeCount": 2,
+            "nodes": [
+              {
+                "target": [
+                  ".text-danger-500\\/80"
+                ],
+                "html": "<span class=\"font-mono text-[9.5px] font-bold uppercase tracking-[0.06em] text-danger-500/80 line-through\">Practice<!-- --> · <!-- -->Main 1</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.29 (foreground color: #e24d4c, background color: #f8e9e6, font size: 7.1pt (9.5px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".h-6"
+                ],
+                "html": "<span data-slot=\"audit-action-pill\" class=\"inline-flex h-6 items-center rounded-md px-2 font-mono text-[10px] font-bold uppercase tracking-[0.06em] bg-danger-500/12 text-danger-500\">Force-cancel</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.85 (foreground color: #dc2626, background color: #f6e1de, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+              }
+            ]
+          }
+        ],
+        "counts": {
+          "critical": 0,
+          "serious": 1,
+          "moderate": 0,
+          "minor": 0,
+          "total": 1
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 96,
+          "performance": 52,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "admin-tournament-detail",
+      "route": "/manage/tournaments/2c576f92-d4e4-4e8b-ac97-8f82bf366275",
+      "role": "club_admin",
+      "label": "/manage/tournaments/[id] (L67=85 surface)",
+      "axe": {
+        "violations": [
+          {
+            "id": "empty-table-header",
+            "impact": "minor",
+            "description": "Ensure table headers have discernible text",
+            "help": "Table header text should not be empty",
+            "nodeCount": 1,
+            "nodes": [
+              {
+                "target": [
+                  "div[role=\"columnheader\"]:nth-child(9)"
+                ],
+                "html": "<div role=\"columnheader\"></div>",
+                "failureSummary": "Fix any of the following:\n  Element does not have text that is visible to screen readers"
+              }
+            ]
+          }
+        ],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 1,
+          "total": 1
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 54,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "manage-members",
+      "route": "/manage/members",
+      "role": "club_admin",
+      "label": "/manage/members (Tier E anchor)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 44,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "platform-clubs",
+      "route": "/platform/clubs",
+      "role": "super_admin",
+      "label": "/platform/clubs (super admin)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 48,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    }
+  ]
+}

@@ -137,7 +137,7 @@ function BookingRow({ row }: { row: MyBookingRow }) {
         </span>
         <span
           data-slot="purpose-pill"
-          className="rounded-md bg-info-500/12 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-info-500"
+          className="rounded-md bg-info-500/12 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-ink"
         >
           {purposeLabel(row.purpose)}
         </span>
@@ -152,7 +152,7 @@ function BookingRow({ row }: { row: MyBookingRow }) {
         {row.status === "cancelled" && (
           <span
             data-slot="cancelled-pill"
-            className="rounded-md bg-danger-500/12 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.04em] text-danger-500"
+            className="rounded-md bg-danger-500/12 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.04em] text-ink"
           >
             Cancelled
           </span>

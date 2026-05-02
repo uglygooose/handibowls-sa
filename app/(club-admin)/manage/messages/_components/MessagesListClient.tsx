@@ -319,7 +319,7 @@ function EmptyDataState({ mode = "inbox" }: { mode?: "inbox" | "sent" }) {
       <div className="relative z-10 mx-auto flex max-w-md flex-col items-center gap-3">
         <span
           aria-hidden="true"
-          className="flex size-14 items-center justify-center rounded-full bg-primary-500/10 text-accent-ink"
+          className="flex size-14 items-center justify-center rounded-full bg-primary-500/10 text-ink"
         >
           <MessageSquare className="size-6" />
         </span>

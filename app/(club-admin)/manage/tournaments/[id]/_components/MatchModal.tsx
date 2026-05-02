@@ -230,7 +230,7 @@ export function MatchModal({ match, decorPreset, onClose }: Props) {
           </div>
 
           {error && (
-            <p className="rounded-md bg-danger-500/10 px-3 py-2 text-[13px] text-danger-500">
+            <p className="rounded-md bg-danger-500/10 px-3 py-2 text-[13px] text-ink">
               {error}
             </p>
           )}
@@ -357,7 +357,7 @@ function SubmissionRow({
           className={cn(
             "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] ring-1 ring-inset",
             done
-              ? "bg-success-500/10 text-success-700 ring-success-500/30"
+              ? "bg-success-500/10 text-ink ring-success-500/30"
               : "bg-surface-muted text-ink-muted ring-border",
           )}
         >

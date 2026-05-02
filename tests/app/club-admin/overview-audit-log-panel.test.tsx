@@ -102,7 +102,11 @@ describe("<AuditLogPanel /> — populated rows", () => {
       <AuditLogPanel rows={[makeRow()]} />,
     );
     const pill = container.querySelector("[data-slot='audit-action-pill']");
-    expect(pill?.className).toContain("text-danger-500");
+    // Phase 13 / 13-1 / commit 12: tinted-pill foreground swept to
+    // theme-invariant text-ink to clear axe-serious contrast. The
+    // danger semantic now travels on the bg class only — pin the bg
+    // (the visual cue), not the text colour.
+    expect(pill?.className).toContain("bg-danger-500/12");
     expect(pill?.textContent?.toLowerCase()).toContain("force-cancel");
   });
 
@@ -158,8 +162,8 @@ describe("<AuditLogPanel /> — populated rows", () => {
     );
     const pill = container.querySelector("[data-slot='audit-action-pill']");
     expect(pill?.textContent).toContain("future_action_kind");
-    // Neutral pill = NOT the danger-tinted class.
-    expect(pill?.className).not.toContain("text-danger-500");
+    // Neutral pill = NOT the danger-tinted bg.
+    expect(pill?.className).not.toContain("bg-danger-500/12");
   });
 });
 

@@ -196,7 +196,7 @@ function Slot({ slot, isFinal }: { slot: MatchCardSlot; isFinal?: boolean }) {
         slot.isWinner
           ? isFinal
             ? "text-success-700"
-            : "bg-success-500/10 text-success-700"
+            : "bg-success-500/10 text-ink"
           : isFinal
             ? "text-ink-inverse"
             : "text-ink",

@@ -136,7 +136,7 @@ function Card({
         data-slot="quick-action-top"
         className="flex w-full items-start justify-between gap-2"
       >
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary-500/10 text-accent-ink">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary-500/10 text-ink">
           {icon}
         </span>
         {topRight && (

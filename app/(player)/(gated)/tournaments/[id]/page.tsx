@@ -137,7 +137,7 @@ export default async function PlayerTournamentDetailPage({ params }: Props) {
       <div className="flex flex-col gap-5">
         {/* Inline notice — player's current in-play match summary */}
         {openMatch && (
-          <div className="flex items-center gap-3 rounded-xl border border-info-500/30 bg-info-500/10 px-3 py-2.5 text-info-500">
+          <div className="flex items-center gap-3 rounded-xl border border-info-500/30 bg-info-500/10 px-3 py-2.5 text-ink">
             <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-info-500/15">
               <Circle className="size-3.5" aria-hidden="true" />
             </span>

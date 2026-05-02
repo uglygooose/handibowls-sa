@@ -106,11 +106,18 @@ export function HeroNextMatch({ match, scorecardHref }: Props) {
       <div className="relative z-10 flex flex-col gap-3 px-[18px] pt-[18px] pb-5">
         {/* Eyebrow + live pill */}
         <div className="flex items-center justify-between gap-2">
-          <div className="font-mono text-[10.5px] font-bold uppercase tracking-[0.12em] text-[color:var(--color-on-primary)]/85">
+          {/* Phase 13 / 13-1 / commit 12: on-primary text/85 → no opacity.
+              Same axe-serious tinted-pill class-of-bug as OfflineSyncBadge
+              fix in commit 9 — opacity-modifier on top of on-primary
+              reduces effective contrast below 4.5:1 on lighter primary
+              tones (sunburst, white-speckle). on-primary at full opacity
+              passes everywhere; visual hierarchy preserved via font-size +
+              tracking + uppercase, not opacity. */}
+          <div className="font-mono text-[10.5px] font-bold uppercase tracking-[0.12em] text-[color:var(--color-on-primary)]">
             {match.tournament.name} · {match.round_label}
           </div>
           {isLive && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-accent-ink">
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-ink">
               <span className="size-1.5 rounded-full bg-primary-500" aria-hidden="true" />
               Now
             </span>
@@ -125,7 +132,7 @@ export function HeroNextMatch({ match, scorecardHref }: Props) {
             score={playerScore}
             tone="you"
           />
-          <div className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[color:var(--color-on-primary)]/70">
+          <div className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[color:var(--color-on-primary)]">
             — vs —
           </div>
           <PlayerLine
@@ -137,7 +144,7 @@ export function HeroNextMatch({ match, scorecardHref }: Props) {
         </div>
 
         {/* Meta row */}
-        <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.06em] text-[color:var(--color-on-primary)]/85">
+        <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.06em] text-[color:var(--color-on-primary)]">
           <span className="inline-flex items-center gap-1.5">
             <MapPin className="size-3.5" aria-hidden="true" />
             {match.rink ?? "Rink TBD"}
@@ -165,7 +172,7 @@ export function HeroNextMatch({ match, scorecardHref }: Props) {
         </Link>
         <Link
           href={detailHref}
-          className="inline-flex h-9 items-center justify-center text-[12px] font-medium text-[color:var(--color-on-primary)]/85 hover:text-[color:var(--color-on-primary)]"
+          className="inline-flex h-9 items-center justify-center text-[12px] font-medium text-[color:var(--color-on-primary)] hover:underline"
         >
           View match details
         </Link>
@@ -190,7 +197,7 @@ function PlayerLine({
       <div className="flex min-w-0 items-center gap-2.5">
         <span
           aria-hidden="true"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/90 font-display text-[12px] font-extrabold tracking-tight text-accent-ink"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/90 font-display text-[12px] font-extrabold tracking-tight text-ink"
         >
           {initials}
         </span>

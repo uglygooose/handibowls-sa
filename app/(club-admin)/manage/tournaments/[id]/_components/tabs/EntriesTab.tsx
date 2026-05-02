@@ -291,11 +291,11 @@ function EntriesVirtualTable({
         header: "Status",
         cell: ({ row }) =>
           row.original.withdrawn ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-warning-700 ring-1 ring-inset ring-warning-500/30">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-ink ring-1 ring-inset ring-warning-500/30">
               Withdrawn
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-success-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-success-700 ring-1 ring-inset ring-success-500/30">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-success-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-ink ring-1 ring-inset ring-success-500/30">
               Active
             </span>
           ),
@@ -367,16 +367,17 @@ function EntriesVirtualTable({
         {table.getHeaderGroups()[0]!.headers.map((h) => (
           <div key={h.id} role="columnheader">
             {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
-            {/* Phase 13 / 13-1 / commit 6 (Actions) + commit 9 (checkbox):
-                two columns have visually-empty headers by design — the
-                "actions" column ships only an inline icon menu, the
-                "checkbox" column ships only the select-all input. Both
-                trip axe's empty-table-header (the checkbox's own
-                aria-label "Select all entries" doesn't satisfy the rule
-                because axe checks the columnheader CELL's text content,
-                not its descendant inputs' aria-labels). Inject an sr-only
-                label per column; visual rendering unchanged. */}
-            {!h.isPlaceholder && h.column.id === "actions" && (
+            {/* Phase 13 / 13-1 / commit 6 (Actions) + commit 9 (checkbox)
+                + commit 12 (id fix): two columns have visually-empty
+                headers by design — the action-menu column (columnDef
+                id="menu") ships only an inline icon button, the checkbox
+                column ships only the select-all input. Both trip axe's
+                empty-table-header (the checkbox's own aria-label "Select
+                all entries" doesn't satisfy the rule because axe checks
+                the columnheader CELL's text content, not its descendant
+                inputs' aria-labels). Inject an sr-only label per column;
+                visual rendering unchanged. */}
+            {!h.isPlaceholder && h.column.id === "menu" && (
               <span className="sr-only">Actions</span>
             )}
             {!h.isPlaceholder && h.column.id === "checkbox" && (

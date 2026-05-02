@@ -248,7 +248,7 @@ export function BookingsCalendarGrid({
                                 className={cn(
                                   "font-mono text-[9.5px] font-bold uppercase tracking-[0.06em]",
                                   b.status === "cancelled"
-                                    ? "text-danger-500/80 line-through"
+                                    ? "text-danger-500 line-through"
                                     : "text-primary-600",
                                 )}
                               >

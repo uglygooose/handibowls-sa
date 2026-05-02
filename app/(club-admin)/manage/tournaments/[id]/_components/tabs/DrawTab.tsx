@@ -108,7 +108,7 @@ export function DrawTab({
       </div>
 
       {actionError && (
-        <p className="rounded-md bg-danger-500/10 px-3 py-2 text-[13px] text-danger-500">
+        <p className="rounded-md bg-danger-500/10 px-3 py-2 text-[13px] text-ink">
           {actionError}
         </p>
       )}
