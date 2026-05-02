@@ -14,7 +14,7 @@ export default async function NewClubPage() {
   const districts = await listDistricts();
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-6 px-6 py-8 pb-24">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 pb-24">
       <AdminPageHero
         eyebrow="Platform · Clubs"
         title="New club"

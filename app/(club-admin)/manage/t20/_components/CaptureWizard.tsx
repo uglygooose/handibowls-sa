@@ -366,7 +366,7 @@ export function CaptureWizard({ assessment, deliveries, rubric }: Props) {
       {/* BODY */}
       <main
         data-slot="capture-body"
-        className="mx-auto w-full max-w-[1100px] flex-1 px-6 py-6"
+        className="mx-auto w-full max-w-7xl flex-1 px-6 py-6"
       >
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -449,7 +449,7 @@ export function CaptureWizard({ assessment, deliveries, rubric }: Props) {
         data-slot="capture-footer"
         className="sticky bottom-0 z-20 border-t border-border bg-bone px-6 py-3.5"
       >
-        <div className="mx-auto flex max-w-[1100px] items-center justify-between">
+        <div className="mx-auto flex max-w-7xl items-center justify-between">
           <button
             type="button"
             onClick={prevStep}

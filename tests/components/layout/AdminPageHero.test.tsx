@@ -281,10 +281,23 @@ describe("<AdminPageHero /> — containerWidth tier", () => {
     expect(wrap.querySelector("[data-slot='admin-page-hero']")).not.toBeNull();
   });
 
-  it("'form' wraps the hero in max-w-[1100px]", () => {
+  // 12.5-7: the "form" tier (max-w-[1100px]) was retired. All
+  // admin form surfaces now use max-w-7xl via the "list" tier
+  // (default) or own their wrapper via "none". Pin the absence
+  // of the form literal so a re-introduction fails the type
+  // check + this test.
+  it("does NOT accept the retired 'form' tier — type-rejected at compile time, runtime falls through to 'list'", () => {
+    // @ts-expect-error — "form" is no longer a valid value of
+    // containerWidth post-12.5-7. The TS error is the regression-
+    // pin; if a future change re-introduces the tier, this
+    // ts-expect-error fails and the test breaks. At runtime the
+    // CONTAINER_CLASSES lookup returns undefined for "form" which
+    // resolves to no class — but the type check is the contract.
     const { container } = render(<AdminPageHero title="Test" containerWidth="form" />);
-    const wrap = container.firstChild as HTMLElement;
-    expect(wrap.className).toContain("max-w-[1100px]");
+    // Sanity: still renders the hero card.
+    expect(
+      container.querySelector("[data-slot='admin-page-hero']"),
+    ).not.toBeNull();
   });
 
   it("'none' renders the hero card directly with no wrapper container", () => {

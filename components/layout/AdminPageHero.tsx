@@ -120,16 +120,27 @@ type Props = {
    *  array to render multiple splatters (e.g. /manage/t20 has a
    *  primary L splatter + a secondary M splatter inset bottom-left). */
   splatter?: SplatterSpec | SplatterSpec[];
-  /** Wrapper width tier. "list" → max-w-7xl, "form" →
-   *  max-w-[1100px], "none" → no wrapper (caller owns the parent
-   *  container). Default "list". */
-  containerWidth?: "list" | "form" | "none";
+  /** Wrapper width tier. "list" → max-w-7xl, "none" → no wrapper
+   *  (caller owns the parent container). Default "list".
+   *
+   *  12.5-7 retired the "form" tier (was max-w-[1100px]) — the
+   *  shipped HandiBowls split was inherited drift documented as
+   *  a HandiBowls extension at 12.5-6 Stage A, never a design
+   *  call. User QA at 12.5-7 surfaced visible left-edge shift
+   *  between list-tier and form-tier surfaces (e.g. clicking
+   *  from /manage/tournaments → /manage/tournaments/[id]/edit).
+   *  Snapped all 7 form surfaces (NewTournament, EditTournament,
+   *  T20-new, Messages-new, Messages-edit, CaptureWizard,
+   *  /platform/clubs/new) to max-w-7xl for a single consistent
+   *  admin width tier closer to the bundle's single-tier
+   *  intent (`.page { max-width: 1480px }`). The "form" literal
+   *  is type-rejected — pass "list" or "none". */
+  containerWidth?: "list" | "none";
   className?: string;
 };
 
 const CONTAINER_CLASSES: Record<NonNullable<Props["containerWidth"]>, string> = {
   list: "mx-auto max-w-7xl px-6 py-8 pb-24",
-  form: "mx-auto max-w-[1100px] px-6 py-8 pb-24",
   none: "",
 };
 

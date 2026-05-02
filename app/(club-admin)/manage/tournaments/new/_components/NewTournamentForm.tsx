@@ -160,7 +160,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mx-auto flex max-w-[1100px] flex-col gap-6 px-6 py-8 pb-24"
+      className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 pb-24"
     >
       <AdminPageHero
         eyebrow="Create · Tournament"

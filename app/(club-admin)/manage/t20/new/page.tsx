@@ -40,7 +40,7 @@ export default async function ManageT20New() {
 
   if (!candidatesResult.ok) {
     return (
-      <div className="mx-auto flex max-w-[1100px] flex-col gap-6 px-6 py-8 pb-24">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 pb-24">
         <AdminPageHero
           eyebrow="Club admin"
           title="Twenty 20 setup"
@@ -72,7 +72,7 @@ export default async function ManageT20New() {
     rubricResult.ok ? rubricResult.versionLabel : "no active rubric";
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-6 px-6 py-8 pb-24">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 pb-24">
       <AdminPageHero
         eyebrow="Club admin · New assessment"
         title="Twenty 20 setup"

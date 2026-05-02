@@ -34,7 +34,7 @@ export default async function ManageMessagesNewPage() {
   ]);
   if (!hostClub) {
     return (
-      <div className="mx-auto flex max-w-[1100px] flex-col gap-6 px-6 py-8 pb-24">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 pb-24">
         <AdminPageHero
           eyebrow="Club admin"
           title="New message"
@@ -61,7 +61,7 @@ export default async function ManageMessagesNewPage() {
   const members = membersResult.ok ? membersResult.rows : [];
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-6 px-6 py-8 pb-24">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 pb-24">
       <AdminPageHero
         eyebrow="Club admin · New message"
         title="Compose"
