@@ -1,4 +1,7 @@
+import Link from "next/link";
+
 import { AdminPageHero } from "@/components/layout/AdminPageHero";
+import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/role";
 
 import { listDistricts } from "../_data";
@@ -20,6 +23,11 @@ export default async function NewClubPage() {
         title="New club"
         description="Five steps: club details, admin invite, greens & rinks, initial players, review & publish. Save a draft at any point."
         containerWidth="none"
+        actions={
+          <Button asChild variant="outline">
+            <Link href="/platform/clubs">Back to clubs</Link>
+          </Button>
+        }
       />
       <NewClubWizard districts={districts} />
     </div>

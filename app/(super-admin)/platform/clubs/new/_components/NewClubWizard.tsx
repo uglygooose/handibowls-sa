@@ -144,8 +144,17 @@ export function NewClubWizard({ districts }: Props) {
   );
 
   const handleBack = useCallback(() => {
-    if (currentStep > 1) goToStep(currentStep - 1);
-  }, [currentStep, goToStep]);
+    // 12.5-7 / Stage 4b — on step 1, "Back" exits the wizard to
+    // /platform/clubs rather than no-op'ing. The step counter
+    // can't go below 1, but the bottom-of-page button still
+    // expects to do *something* useful for the user. Mirrors the
+    // hero "Back to clubs" affordance added on the same surface.
+    if (currentStep > 1) {
+      goToStep(currentStep - 1);
+    } else {
+      router.push("/platform/clubs");
+    }
+  }, [currentStep, goToStep, router]);
 
   const handleNext = useCallback(async () => {
     const triggers = STEP_TRIGGERS[currentStep];
