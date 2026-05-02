@@ -260,7 +260,7 @@ export function BookingsCalendarGrid({
                                   b.status === "cancelled" && "line-through",
                                 )}
                               >
-                                {b.booker_name ?? "—"}
+                                {b.booker_name}
                               </span>
                             </button>
                           ))}

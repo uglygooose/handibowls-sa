@@ -109,7 +109,7 @@ export function AuditLogPanel({ rows, errored = false }: Props) {
                 <div className="min-w-0">
                   <p className="text-[13px] font-medium text-ink">
                     <span data-slot="performer-name">
-                      {row.performer_name ?? "Unknown admin"}
+                      {row.performer_name}
                     </span>
                     {row.reason && (
                       <>

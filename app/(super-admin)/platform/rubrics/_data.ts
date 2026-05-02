@@ -1,5 +1,6 @@
 import "server-only";
 
+import { formatPlayerName } from "@/lib/format/profile-display";
 import { type Rubric, RubricSchema } from "@/lib/t20/rubric";
 import { createClient } from "@/lib/supabase/server";
 
@@ -117,9 +118,9 @@ function nameOf(
     last_name?: string | null;
     display_name?: string | null;
   } | null,
-): string | null {
-  if (!p) return null;
-  if (p.display_name) return p.display_name;
-  const composed = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
-  return composed || null;
+): string {
+  // Phase 13 / 13-2b / Batch H1 — display_name preference + formatPlayerName
+  // for first/last composition + "Deleted player" anonymisation marker.
+  if (p?.display_name) return p.display_name;
+  return formatPlayerName(p ?? null);
 }

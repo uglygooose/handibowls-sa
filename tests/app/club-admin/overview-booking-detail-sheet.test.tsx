@@ -94,15 +94,24 @@ describe("<BookingDetailSheet /> — open state · render", () => {
     expect(document.querySelector("[data-slot='force-cancel-form']")).toBeNull();
   });
 
-  it("renders booker as '—' when booker_name is null", () => {
+  it("renders booker_name verbatim (data layer guarantees non-null via formatPlayerName)", () => {
+    // Phase 13 / 13-2b / Batch H1: data-layer helper bookerName
+    // now ALWAYS returns a string ("Deleted player" for
+    // anonymised profiles); the component's "—" fallback is no
+    // longer reachable. The pin moves to confirming the
+    // component renders the data-layer-supplied string verbatim.
     render(
       <BookingDetailSheet
-        booking={{ ...BASE_BOOKING, booker_name: null, booker_email: null }}
+        booking={{
+          ...BASE_BOOKING,
+          booker_name: "Deleted player",
+          booker_email: null,
+        }}
         onClose={() => {}}
       />,
     );
     const bookerCell = document.querySelector("[data-slot='booker-name']");
-    expect(bookerCell?.textContent?.trim()).toBe("—");
+    expect(bookerCell?.textContent?.trim()).toBe("Deleted player");
   });
 
   it("shows notes row only when notes are non-null", () => {

@@ -2,6 +2,7 @@ import "server-only";
 
 import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { getAuthContext } from "@/lib/auth/role";
+import { formatPlayerName } from "@/lib/format/profile-display";
 import { createClient } from "@/lib/supabase/server";
 
 // Phase 12 / 12-1 followup — fetchers for the admin booking-creation
@@ -75,7 +76,13 @@ export async function getBookingFormData(): Promise<BookingFormData> {
         bsa_number: string | null;
       } | null;
       if (!p) return null;
-      const name = nameOf(p) ?? "(unnamed member)";
+      // Phase 13 / 13-2b / Batch H1: nameOf now always returns a
+      // string (formatPlayerName handles the no-name fallback as
+      // "Deleted player" — the canonical POPIA anonymisation
+      // marker; the prior "(unnamed member)" fallback was
+      // semantically distinct but the locked decision unifies on
+      // "Deleted player" across cross-user surfaces).
+      const name = nameOf(p);
       return {
         profile_id: p.id,
         name,
@@ -116,8 +123,9 @@ function nameOf(p: {
   first_name?: string | null;
   last_name?: string | null;
   display_name?: string | null;
-}): string | null {
+}): string {
+  // Phase 13 / 13-2b / Batch H1 — display_name preference + formatPlayerName
+  // for first/last composition + "Deleted player" anonymisation marker.
   if (p.display_name) return p.display_name;
-  const composed = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
-  return composed || null;
+  return formatPlayerName(p);
 }

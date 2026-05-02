@@ -119,14 +119,22 @@ describe("<AuditLogPanel /> — populated rows", () => {
     expect(container.textContent).toContain("Resurfacing — admin override");
   });
 
-  it("falls back to 'Unknown admin' when performer_name is null", () => {
+  it("renders the formatted performer_name verbatim (data layer guarantees non-null via formatPlayerName)", () => {
+    // Phase 13 / 13-2b / Batch H1: data-layer helper bookerName /
+    // formatPlayerName now ALWAYS returns a string ("Deleted
+    // player" for anonymised profiles); the component's null
+    // fallback is no longer reachable. The pin moves from "what
+    // string the component falls back to" to "the component
+    // renders the data-layer-supplied string verbatim".
     const { container } = render(
       <AuditLogPanel
-        rows={[makeRow({ performer_name: null, performer_email: null })]}
+        rows={[
+          makeRow({ performer_name: "Deleted player", performer_email: null }),
+        ]}
       />,
     );
     const performer = container.querySelector("[data-slot='performer-name']");
-    expect(performer?.textContent).toContain("Unknown admin");
+    expect(performer?.textContent).toContain("Deleted player");
   });
 
   it("renders truncated row_id for the audited booking (first 8 chars)", () => {

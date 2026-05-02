@@ -160,7 +160,7 @@ export function BookingDetailSheet({ booking, onClose }: Props) {
                 Booker
               </dt>
               <dd className="font-medium" data-slot="booker-name">
-                {booking.booker_name ?? "—"}
+                {booking.booker_name}
                 {booking.booker_email && (
                   <span className="ml-1 text-ink-muted">
                     ({booking.booker_email})

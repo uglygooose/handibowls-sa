@@ -2,6 +2,7 @@ import "server-only";
 
 import { getAuthContext } from "@/lib/auth/role";
 import { getCurrentHostClub } from "@/lib/auth/memberships";
+import { formatPlayerName } from "@/lib/format/profile-display";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database.types";
 
@@ -38,7 +39,7 @@ export type BookingCalendarRow = {
   party_size: number | null;
   status: DbBookingStatus;
   notes: string | null;
-  booker_name: string | null;
+  booker_name: string;
   booker_email: string | null;
 };
 
@@ -129,11 +130,13 @@ function bookerName(
     last_name?: string | null;
     display_name?: string | null;
   } | null,
-): string | null {
-  if (!p) return null;
-  if (p.display_name) return p.display_name;
-  const composed = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
-  return composed || null;
+): string {
+  // Phase 13 / 13-2b / Batch H1 — cross-user display via formatPlayerName.
+  // display_name takes precedence when present (user-chosen alias);
+  // formatPlayerName handles the first/last composition + anonymisation
+  // marker when both are NULL.
+  if (p?.display_name) return p.display_name;
+  return formatPlayerName(p ?? null);
 }
 
 // Phase 9-3 — recent audit_log rows for the admin's club.
@@ -163,7 +166,7 @@ export type AuditLogRow = {
   action: AuditAction;
   reason: string | null;
   performed_at: string;
-  performer_name: string | null;
+  performer_name: string;
   performer_email: string | null;
 };
 
