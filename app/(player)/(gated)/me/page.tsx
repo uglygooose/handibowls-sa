@@ -167,7 +167,7 @@ export default async function MePage() {
                     "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full " +
                     (n.read
                       ? "bg-surface-muted text-ink-muted"
-                      : "bg-primary-500/10 text-primary-500")
+                      : "bg-primary-500/10 text-accent-ink")
                   }
                 >
                   <Bell className="size-3.5" aria-hidden="true" />
@@ -223,7 +223,7 @@ export default async function MePage() {
                 </span>
               </div>
               {m.is_primary && (
-                <span className="rounded-full bg-primary-500/12 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-primary-500 ring-1 ring-inset ring-primary-500/30">
+                <span className="rounded-full bg-primary-500/12 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-accent-ink ring-1 ring-inset ring-primary-500/30">
                   Primary
                 </span>
               )}

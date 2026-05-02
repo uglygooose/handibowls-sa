@@ -662,7 +662,7 @@ function Scoreboard({
         <span
           className={cn(
             "rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em]",
-            wetHands ? "bg-[#f5b700] text-[#0A0A0A]" : "bg-primary-500/12 text-primary-500",
+            wetHands ? "bg-[#f5b700] text-[#0A0A0A]" : "bg-primary-500/12 text-accent-ink",
           )}
         >
           End total
@@ -709,7 +709,7 @@ function SideScore({
       <span
         className={cn(
           "font-mono text-[11px] font-bold uppercase tracking-[0.12em]",
-          wetHands ? "text-[#c08f00]" : tone === "you" ? "text-primary-500" : "text-warning-700",
+          wetHands ? "text-[#c08f00]" : tone === "you" ? "text-accent-ink" : "text-warning-700",
         )}
       >
         {label}

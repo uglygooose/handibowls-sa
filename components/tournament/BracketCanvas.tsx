@@ -169,7 +169,7 @@ function RoundColumn({
         <span className="font-mono text-[11px] text-ink-muted">
           {verifiedCount}/{round.matches.length}
           {round.isCurrent && (
-            <span className="ml-2 text-primary-500">● CURRENT</span>
+            <span className="ml-2 text-accent-ink">● CURRENT</span>
           )}
         </span>
       </div>

@@ -250,7 +250,7 @@ export function InstallPromptToast() {
     >
       <span
         aria-hidden="true"
-        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-500/12 text-primary-500"
+        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-500/12 text-accent-ink"
       >
         {mode === "ios" ? (
           <Share2 className="size-4" />

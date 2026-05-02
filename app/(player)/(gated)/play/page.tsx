@@ -131,7 +131,7 @@ export default async function PlayHome() {
                 Primary membership
               </span>
             </div>
-            <span className="rounded-full bg-primary-500/12 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-primary-500 ring-1 ring-inset ring-primary-500/30">
+            <span className="rounded-full bg-primary-500/12 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-accent-ink ring-1 ring-inset ring-primary-500/30">
               Primary
             </span>
           </Link>
@@ -144,7 +144,7 @@ export default async function PlayHome() {
 function EmptyNextMatch() {
   return (
     <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-border bg-surface px-4 py-6">
-      <span className="flex size-10 items-center justify-center rounded-full bg-primary-500/10 text-primary-500">
+      <span className="flex size-10 items-center justify-center rounded-full bg-primary-500/10 text-accent-ink">
         <Trophy className="size-5" aria-hidden="true" />
       </span>
       <div className="flex flex-col gap-1">

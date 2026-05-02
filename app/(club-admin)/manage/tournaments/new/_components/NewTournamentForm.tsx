@@ -512,7 +512,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
                 charged through HandiBowls in v1. See{" "}
                 <Link
                   href="/payments"
-                  className="text-primary-500 underline-offset-2 hover:underline"
+                  className="text-accent-ink underline-offset-2 hover:underline"
                 >
                   /payments
                 </Link>{" "}

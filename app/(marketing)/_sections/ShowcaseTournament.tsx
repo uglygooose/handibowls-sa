@@ -74,7 +74,7 @@ function Bracket() {
             Pairs · Knockout · 16 pairs
           </div>
         </div>
-        <span className="inline-flex items-center gap-1 rounded-full bg-primary-500/10 px-2.5 py-1 font-mono text-[10px] font-bold tracking-[0.12em] uppercase text-primary-500">
+        <span className="inline-flex items-center gap-1 rounded-full bg-primary-500/10 px-2.5 py-1 font-mono text-[10px] font-bold tracking-[0.12em] uppercase text-accent-ink">
           <span className="h-1.5 w-1.5 rounded-full bg-primary-500" />
           Live
         </span>
@@ -119,7 +119,7 @@ export function ShowcaseTournament() {
         </div>
         <h2 className="m-0 mb-5 font-display text-[clamp(36px,4.5vw,60px)] font-black italic leading-[0.95] tracking-[-0.02em] uppercase">
           Brackets that{" "}
-          <em className="not-italic text-primary-500 italic">stay live</em> all
+          <em className="not-italic text-accent-ink italic">stay live</em> all
           day.
         </h2>
         <p className="max-w-[480px] text-[17px] leading-[1.5] text-ink-muted">

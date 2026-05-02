@@ -252,7 +252,7 @@ function ChannelToggle({
       className={cn(
         "inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-[13px] font-semibold transition-colors",
         active
-          ? "border-primary-500 bg-primary-100/40 text-primary-500"
+          ? "border-primary-500 bg-primary-100/40 text-accent-ink"
           : "border-border bg-surface text-ink-muted hover:text-ink",
       )}
     >

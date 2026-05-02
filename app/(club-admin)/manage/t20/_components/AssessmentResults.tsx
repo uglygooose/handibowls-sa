@@ -452,7 +452,7 @@ function SectionBreakdown({
               </td>
               <td
                 data-slot="breakdown-grand-pct"
-                className="px-3 py-3.5 font-mono text-[15px] font-black tabular-nums text-primary-500"
+                className="px-3 py-3.5 font-mono text-[15px] font-black tabular-nums text-accent-ink"
               >
                 {score.percentage.toFixed(1)}%
               </td>

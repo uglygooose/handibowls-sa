@@ -85,7 +85,7 @@ export function PlayerSectionHead({
           <Link
             href={action.href}
             data-slot="player-section-head-action"
-            className="font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-primary-500 hover:underline"
+            className="font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-accent-ink hover:underline"
           >
             {action.label}
           </Link>
@@ -94,7 +94,7 @@ export function PlayerSectionHead({
             type="button"
             onClick={action.onClick}
             data-slot="player-section-head-action"
-            className="font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-primary-500 hover:underline"
+            className="font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-accent-ink hover:underline"
           >
             {action.label}
           </button>

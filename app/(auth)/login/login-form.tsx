@@ -36,7 +36,7 @@ export function LoginForm({ next, initialMagicLinkSent }: Props) {
       title={
         <>
           Welcome back{" "}
-          <em className="not-italic italic text-primary-500">skip.</em>
+          <em className="not-italic italic text-accent-ink">skip.</em>
         </>
       }
       sub="Enter your email and password, or send yourself a one-time magic link."
@@ -45,7 +45,7 @@ export function LoginForm({ next, initialMagicLinkSent }: Props) {
           New to HandiBowls?{" "}
           <Link
             href="/signup"
-            className="font-semibold text-ink underline underline-offset-[3px] hover:text-primary-500"
+            className="font-semibold text-ink underline underline-offset-[3px] hover:text-accent-ink"
           >
             Create an account
           </Link>
@@ -80,7 +80,7 @@ export function LoginForm({ next, initialMagicLinkSent }: Props) {
             <button
               type="button"
               onClick={() => setMode("magic")}
-              className="font-medium text-ink underline-offset-[3px] hover:text-primary-500 hover:underline"
+              className="font-medium text-ink underline-offset-[3px] hover:text-accent-ink hover:underline"
             >
               Forgot password?
             </button>

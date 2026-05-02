@@ -41,7 +41,7 @@ const TONE: Record<DisplayState, { bg: string; fg: string; ring: string }> = {
   },
   in_progress: {
     bg: "bg-primary-500/10",
-    fg: "text-primary-500",
+    fg: "text-accent-ink",
     ring: "ring-primary-500/30",
   },
   completed: {

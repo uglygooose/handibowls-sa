@@ -81,7 +81,7 @@ export function MobileTabBar({
               // (shadcn `variant=line` ships an `::after` underline tied
               // to `data-active` — recolour it via the `[&::after]`
               // selector since the upstream uses `bg-foreground`).
-              "data-active:text-primary-500 [&::after]:!bg-primary-500 [&::after]:!h-[2px] [&::after]:!bottom-[-1px]",
+              "data-active:text-accent-ink [&::after]:!bg-primary-500 [&::after]:!h-[2px] [&::after]:!bottom-[-1px]",
             )}
           >
             <span className="flex items-center gap-1.5">
@@ -92,7 +92,7 @@ export function MobileTabBar({
                   className={cn(
                     "rounded-full bg-surface-muted px-1.5 py-0.5",
                     "font-mono text-[10px] font-bold tabular-nums text-ink-muted",
-                    "group-data-active/tabs-trigger:bg-primary-500/12 group-data-active/tabs-trigger:text-primary-500",
+                    "group-data-active/tabs-trigger:bg-primary-500/12 group-data-active/tabs-trigger:text-accent-ink",
                   )}
                 >
                   {item.count}

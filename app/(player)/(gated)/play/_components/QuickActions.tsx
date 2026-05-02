@@ -136,7 +136,7 @@ function Card({
         data-slot="quick-action-top"
         className="flex w-full items-start justify-between gap-2"
       >
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary-500/10 text-primary-500">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary-500/10 text-accent-ink">
           {icon}
         </span>
         {topRight && (
@@ -151,7 +151,7 @@ function Card({
       <span
         className={
           "font-mono text-[10px] font-bold uppercase tracking-[0.08em] " +
-          (metaTone === "info" ? "text-primary-500" : "text-ink-muted")
+          (metaTone === "info" ? "text-accent-ink" : "text-ink-muted")
         }
       >
         {meta}

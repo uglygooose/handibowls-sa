@@ -31,7 +31,7 @@ const REASON_COPY: Record<
     title: (
       <>
         Missing{" "}
-        <em className="not-italic italic text-primary-500">token.</em>
+        <em className="not-italic italic text-accent-ink">token.</em>
       </>
     ),
     sub: "This link doesn't include an invite token. Ask the club admin to resend it.",
@@ -42,7 +42,7 @@ const REASON_COPY: Record<
     title: (
       <>
         We can&apos;t find that{" "}
-        <em className="not-italic italic text-primary-500">invite.</em>
+        <em className="not-italic italic text-accent-ink">invite.</em>
       </>
     ),
     sub: "The link may be mistyped or the invite may have been cancelled.",
@@ -53,7 +53,7 @@ const REASON_COPY: Record<
     title: (
       <>
         This invite has been{" "}
-        <em className="not-italic italic text-primary-500">claimed.</em>
+        <em className="not-italic italic text-accent-ink">claimed.</em>
       </>
     ),
     sub: "If that was you, sign in below. If not, ask the club admin for a fresh invite.",
@@ -64,7 +64,7 @@ const REASON_COPY: Record<
     title: (
       <>
         This invite has{" "}
-        <em className="not-italic italic text-primary-500">expired.</em>
+        <em className="not-italic italic text-accent-ink">expired.</em>
       </>
     ),
     sub: "Invites last 14 days. Ask the club admin to issue another one.",
@@ -165,7 +165,7 @@ export default async function InvitePage({
             title={
               <>
                 Welcome to{" "}
-                <em className="not-italic italic text-primary-500">
+                <em className="not-italic italic text-accent-ink">
                   {invite.clubName}
                 </em>
                 .
@@ -179,7 +179,7 @@ export default async function InvitePage({
                 Wrong address?{" "}
                 <Link
                   href="/"
-                  className="font-semibold text-ink underline underline-offset-[3px] hover:text-primary-500"
+                  className="font-semibold text-ink underline underline-offset-[3px] hover:text-accent-ink"
                 >
                   Tell the admin
                 </Link>

@@ -145,7 +145,7 @@ export function ShowcaseT20() {
         </div>
         <h2 className="m-0 mb-5 font-display text-[clamp(36px,4.5vw,60px)] font-black italic leading-[0.95] tracking-[-0.02em] uppercase">
           Eight zones.{" "}
-          <em className="not-italic text-primary-500 italic">One jack.</em>{" "}
+          <em className="not-italic text-accent-ink italic">One jack.</em>{" "}
           Proof you&apos;re improving.
         </h2>
         <p className="max-w-[480px] text-[17px] leading-[1.5] text-ink-muted">

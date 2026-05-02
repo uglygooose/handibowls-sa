@@ -90,7 +90,7 @@ export function TournamentHero({ tournament: t }: Props) {
       }
       meta={
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-primary-500/10 px-2.5 py-1 text-[12px] font-semibold tracking-tight text-primary-500 ring-1 ring-inset ring-primary-500/30">
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary-500/10 px-2.5 py-1 text-[12px] font-semibold tracking-tight text-accent-ink ring-1 ring-inset ring-primary-500/30">
             <strong>{FORMAT_LABEL[t.format]}</strong>
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 text-[12px] font-medium text-ink-muted ring-1 ring-inset ring-border">

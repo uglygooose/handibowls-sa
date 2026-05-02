@@ -65,7 +65,7 @@ function ScoreCell({
       <span
         className={cn(
           "font-mono text-5xl leading-none font-bold tabular-nums",
-          active ? "text-primary-500" : "text-ink",
+          active ? "text-accent-ink" : "text-ink",
         )}
       >
         {value}

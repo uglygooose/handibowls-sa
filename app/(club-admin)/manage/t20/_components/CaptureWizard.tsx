@@ -511,7 +511,7 @@ export function CaptureWizard({ assessment, deliveries, rubric }: Props) {
             className="mx-auto inline-flex items-center gap-2 rounded-full border border-border bg-bone px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink"
           >
             <span>Projected:</span>
-            <span className="text-primary-500">
+            <span className="text-accent-ink">
               {GRADE_LABEL[projection.grade]}
             </span>
             <span className="tabular-nums text-ink-muted">

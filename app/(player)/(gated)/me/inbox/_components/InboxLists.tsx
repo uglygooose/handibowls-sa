@@ -134,7 +134,7 @@ export function NotificationsList({
                   "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full",
                   n.read
                     ? "bg-surface-muted text-ink-muted"
-                    : "bg-primary-500/12 text-primary-500",
+                    : "bg-primary-500/12 text-accent-ink",
                 )}
               >
                 <Icon className="size-4" />

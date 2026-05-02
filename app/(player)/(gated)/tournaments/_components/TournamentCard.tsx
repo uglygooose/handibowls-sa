@@ -115,7 +115,7 @@ export function TournamentCard({ tournament: t, variant }: Props) {
             </Pill>
           )}
           {t.player_has_open_match && (
-            <Pill className="bg-primary-500/12 text-primary-500 ring-1 ring-inset ring-primary-500/30">
+            <Pill className="bg-primary-500/12 text-accent-ink ring-1 ring-inset ring-primary-500/30">
               You&apos;re in play
             </Pill>
           )}

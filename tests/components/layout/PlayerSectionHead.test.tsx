@@ -81,7 +81,9 @@ describe("<PlayerSectionHead /> — action + caption slots", () => {
     const cls = link?.className ?? "";
     expect(cls).toContain("font-mono");
     expect(cls).toContain("text-[11px]");
-    expect(cls).toContain("text-primary-500");
+    // Phase 13 / 13-1 / Tier A — text-primary-500 → text-accent-ink to fall back
+    // to ink on sunburst + white-speckle presets where primary-500 fails AA on bone.
+    expect(cls).toContain("text-accent-ink");
     expect(cls).toContain("uppercase");
     expect(cls).toContain("tracking-[0.06em]");
   });

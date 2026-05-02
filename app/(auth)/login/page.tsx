@@ -39,12 +39,12 @@ export default async function LoginPage({
       className="grid min-h-dvh bg-surface md:grid-cols-[1.1fr_1fr]"
     >
       <AuthAside bowlPreset={asidePreset} splatterPreset={asidePreset} splatterVariant={1}>
-        <span className="block font-mono text-[10px] font-bold tracking-[0.16em] uppercase text-primary-500">
+        <span className="block font-mono text-[10px] font-bold tracking-[0.16em] uppercase text-accent-ink">
           From the green
         </span>
         <p className="mt-2.5 mb-4 font-display text-[22px] font-extrabold italic leading-[1.1] tracking-[-0.01em] uppercase">
           The shot always comes back to the hand that drew it.
-          <em className="mt-2 block font-sans text-[15px] font-bold italic normal-case tracking-normal text-primary-500">
+          <em className="mt-2 block font-sans text-[15px] font-bold italic normal-case tracking-normal text-accent-ink">
             — old skip&apos;s proverb
           </em>
         </p>
@@ -67,7 +67,7 @@ export default async function LoginPage({
             role="status"
             className="mb-6 rounded-xl border border-primary-500/30 bg-primary-500/8 px-4 py-3 text-sm"
           >
-            <div className="font-display text-[13px] font-extrabold uppercase tracking-[0.06em] text-primary-500">
+            <div className="font-display text-[13px] font-extrabold uppercase tracking-[0.06em] text-accent-ink">
               Invite accepted
             </div>
             <p className="mt-0.5 text-[13px] text-ink">

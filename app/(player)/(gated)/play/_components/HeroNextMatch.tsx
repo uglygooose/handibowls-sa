@@ -110,7 +110,7 @@ export function HeroNextMatch({ match, scorecardHref }: Props) {
             {match.tournament.name} · {match.round_label}
           </div>
           {isLive && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-primary-500">
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-accent-ink">
               <span className="size-1.5 rounded-full bg-primary-500" aria-hidden="true" />
               Now
             </span>
@@ -190,7 +190,7 @@ function PlayerLine({
       <div className="flex min-w-0 items-center gap-2.5">
         <span
           aria-hidden="true"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/90 font-display text-[12px] font-extrabold tracking-tight text-primary-500"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/90 font-display text-[12px] font-extrabold tracking-tight text-accent-ink"
         >
           {initials}
         </span>

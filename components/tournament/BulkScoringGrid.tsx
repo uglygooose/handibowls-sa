@@ -346,7 +346,7 @@ export function BulkScoringGrid({
                   <Td className="text-ink-muted">R{m.round}</Td>
                   <Td>
                     {m.rink ? (
-                      <span className="inline-flex h-6 items-center rounded-full bg-primary-500/10 px-2 font-mono text-[11px] font-bold text-primary-500 ring-1 ring-inset ring-primary-500/30">
+                      <span className="inline-flex h-6 items-center rounded-full bg-primary-500/10 px-2 font-mono text-[11px] font-bold text-accent-ink ring-1 ring-inset ring-primary-500/30">
                         {m.rink}
                       </span>
                     ) : (

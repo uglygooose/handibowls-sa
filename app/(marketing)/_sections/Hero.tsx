@@ -51,7 +51,7 @@ function Sticker({
           <span className="font-display text-[11px] font-bold tracking-[0.12em] uppercase text-ink-muted">
             End ½
           </span>
-          <span className="font-mono text-[22px] font-bold text-primary-500">
+          <span className="font-mono text-[22px] font-bold text-accent-ink">
             21–14
           </span>
         </>
@@ -87,7 +87,7 @@ function MarqueeStrip() {
       {MARQUEE_ITEMS.map((item) => (
         <span key={item} className="flex items-center gap-7">
           {item}
-          <em className="not-italic text-primary-500">✦</em>
+          <em className="not-italic text-accent-ink">✦</em>
         </span>
       ))}
     </div>
@@ -118,13 +118,13 @@ export function Hero() {
 
           <h1 className="mt-7 mb-6 font-display text-[clamp(52px,8vw,112px)] leading-[0.88] font-black italic tracking-[-0.03em] uppercase text-balance">
             Tournaments, scores, and skills in your{" "}
-            <span className="relative inline-block text-primary-500">
+            <span className="relative inline-block text-accent-ink">
               <span
                 aria-hidden="true"
                 className="absolute inset-x-[-4%] bottom-[8%] -z-10 h-[18%] -skew-x-[8deg] bg-primary-500 opacity-[0.14]"
               />
               Pocket
-              <span className="text-primary-500">.</span>
+              <span className="text-accent-ink">.</span>
             </span>
           </h1>
 

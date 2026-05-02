@@ -34,7 +34,7 @@ export default function SignupPage() {
       </main>
 
       <AuthAside bowlPreset="ocean-blue" splatterPreset="ocean-blue" splatterVariant={0} side="right">
-        <span className="block font-mono text-[10px] font-bold tracking-[0.16em] uppercase text-primary-500">
+        <span className="block font-mono text-[10px] font-bold tracking-[0.16em] uppercase text-accent-ink">
           By the numbers
         </span>
         <div className="mt-3 grid grid-cols-2 gap-5">

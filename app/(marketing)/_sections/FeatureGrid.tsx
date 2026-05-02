@@ -73,7 +73,7 @@ function FeatureCard({ feature }: { feature: Feature }) {
           {feature.title}
         </h3>
         <p className="mb-5 text-[15px] text-ink-muted">{feature.body}</p>
-        <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-[0.1em] text-primary-500">
+        <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-[0.1em] text-accent-ink">
           {feature.cta}
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </span>
@@ -92,7 +92,7 @@ export function FeatureGrid() {
         </div>
         <h2 className="m-0 font-display text-[clamp(40px,5vw,72px)] font-black italic leading-[0.95] tracking-[-0.02em] uppercase text-balance">
           Three moving parts.{" "}
-          <span className="text-primary-500">One rink.</span>
+          <span className="text-accent-ink">One rink.</span>
         </h2>
       </header>
       <div className="grid gap-6 md:grid-cols-3">

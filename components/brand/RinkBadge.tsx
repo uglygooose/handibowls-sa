@@ -27,7 +27,7 @@ export function RinkBadge({
         "inline-flex items-center justify-center gap-1 rounded-full font-display font-bold tracking-wide tabular-nums",
         variant === "solid"
           ? "bg-primary-500 text-[color:var(--color-on-primary)]"
-          : "border-2 border-primary-500 text-primary-500",
+          : "border-2 border-primary-500 text-accent-ink",
         sizes[size],
         className,
       )}

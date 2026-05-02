@@ -48,6 +48,14 @@
   --color-primary-600: var(--primary-600);
   --color-on-primary: var(--on-primary);
 
+  /* Brand-accent foreground colour for use on light (bone / surface) backgrounds.
+     Defaults to primary-500 — same visual as the existing `text-primary-500`
+     pattern. Overridden in sunburst + white-speckle presets where primary-500
+     fails WCAG AA on white (#f5b700 = 1.80:1, #f4f4f4 = 1.10:1 / invisible).
+     Use `text-accent-ink` instead of `text-primary-500` for any brand-coloured
+     text rendered on light surfaces. Phase 13 / 13-1 / Tier A. */
+  --color-accent-ink: var(--accent-ink);
+
   /* Speckle */
   --color-speckle-a: var(--speckle-a);
   --color-speckle-b: var(--speckle-b);
@@ -156,6 +164,10 @@ html[data-theme="core-black"] {
   --speckle-a: #d7261e;
   --speckle-b: #fafaf7;
 
+  /* Brand-accent text — defaults to primary-500 (overridden per preset
+     where primary-500 has insufficient contrast on bone). */
+  --accent-ink: var(--primary-500);
+
   /* Shared chrome */
   --radius: 0.625rem;
   --border: #e5e5e2;
@@ -232,6 +244,9 @@ html[data-theme="sunburst"],
   --on-primary: #0a0a0a;
   --speckle-a: #0a0a0a;
   --speckle-b: #0e7c7b;
+  /* primary-500 (#f5b700 yellow) on bone is 1.80:1 — fails WCAG AA.
+     Brand-accent text falls back to ink so accent copy stays legible. */
+  --accent-ink: var(--ink);
 }
 
 html[data-theme="midnight"],
@@ -282,6 +297,9 @@ html[data-theme="white-speckle"],
   --on-primary: #0a0a0a;
   --speckle-a: #d7261e;
   --speckle-b: #1e4dd8;
+  /* primary-500 (#f4f4f4 near-white) on bone is 1.10:1 — invisible.
+     Brand-accent text falls back to ink so accent copy stays legible. */
+  --accent-ink: var(--ink);
 }
 
 /* =========================================================================

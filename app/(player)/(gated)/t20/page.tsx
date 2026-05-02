@@ -115,17 +115,17 @@ export default async function T20Page() {
           </p>
           <ul className="m-0 grid list-none gap-2.5 p-0">
             <ExplainItem
-              icon={<Trophy className="size-4 text-primary-500" aria-hidden="true" />}
+              icon={<Trophy className="size-4 text-accent-ink" aria-hidden="true" />}
               title="Better matchmaking"
               body="Even pairings, fewer mismatches"
             />
             <ExplainItem
-              icon={<Target className="size-4 text-primary-500" aria-hidden="true" />}
+              icon={<Target className="size-4 text-accent-ink" aria-hidden="true" />}
               title="Track progress"
               body="Watch your grade improve over time"
             />
             <ExplainItem
-              icon={<Calendar className="size-4 text-primary-500" aria-hidden="true" />}
+              icon={<Calendar className="size-4 text-accent-ink" aria-hidden="true" />}
               title="Re-assess yearly"
               body="Your club hosts assessments seasonally"
             />

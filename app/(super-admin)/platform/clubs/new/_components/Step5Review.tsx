@@ -182,7 +182,7 @@ export function Step5Review({ districts, logoFile, publishError, onJumpTo }: Pro
                   </span>
                   <span className="text-ink-muted">{p.email}</span>
                   {p.is_club_admin && (
-                    <span className="rounded-full bg-primary-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-500">
+                    <span className="rounded-full bg-primary-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-ink">
                       admin
                     </span>
                   )}

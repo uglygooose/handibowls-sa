@@ -81,7 +81,7 @@ export function PlayerBottomNav({
             className={cn(
               "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1",
               "text-[11px] font-semibold transition-colors",
-              isActive ? "text-primary-500" : "text-ink-subtle hover:text-ink",
+              isActive ? "text-accent-ink" : "text-ink-subtle hover:text-ink",
             )}
           >
             <span className="relative">

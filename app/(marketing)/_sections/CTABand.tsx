@@ -16,7 +16,7 @@ export function CTABand() {
       <div className="relative z-[2] mx-auto max-w-[760px]">
         <h2 className="m-0 mb-4 font-display text-[clamp(44px,6vw,84px)] font-black italic leading-[0.92] tracking-[-0.02em] uppercase text-balance">
           It&apos;s your shot.{" "}
-          <em className="not-italic text-primary-500 italic">Take it.</em>
+          <em className="not-italic text-accent-ink italic">Take it.</em>
         </h2>
         <p className="m-0 mb-8 text-[18px] text-ink-muted">
           Stand up a club in under ten minutes. Invite your first rink by
@@ -34,7 +34,7 @@ export function CTABand() {
           Already invited?{" "}
           <Link
             href="/login"
-            className="font-semibold text-primary-500 underline underline-offset-[3px]"
+            className="font-semibold text-accent-ink underline underline-offset-[3px]"
           >
             Use your invite link
           </Link>

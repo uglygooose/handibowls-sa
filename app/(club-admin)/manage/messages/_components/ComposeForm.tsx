@@ -257,7 +257,7 @@ export function ComposeForm({ tournaments, members, edit }: ComposeFormProps) {
         >
           <span
             aria-hidden="true"
-            className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-500/10 text-primary-500"
+            className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-500/10 text-accent-ink"
           >
             <Inbox className="size-3.5" />
           </span>

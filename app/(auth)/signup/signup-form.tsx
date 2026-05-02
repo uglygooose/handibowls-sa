@@ -24,7 +24,7 @@ export function SignupForm() {
       title={
         <>
           Find your{" "}
-          <em className="not-italic italic text-primary-500">line.</em>
+          <em className="not-italic italic text-accent-ink">line.</em>
         </>
       }
       sub="Open an account, join your club, and start scoring by the end of the day."
@@ -33,7 +33,7 @@ export function SignupForm() {
           Already playing?{" "}
           <Link
             href="/login"
-            className="font-semibold text-ink underline underline-offset-[3px] hover:text-primary-500"
+            className="font-semibold text-ink underline underline-offset-[3px] hover:text-accent-ink"
           >
             Sign in instead
           </Link>
@@ -85,14 +85,14 @@ export function SignupForm() {
           I agree to the{" "}
           <Link
             href="#"
-            className="font-medium text-ink underline underline-offset-[3px] hover:text-primary-500"
+            className="font-medium text-ink underline underline-offset-[3px] hover:text-accent-ink"
           >
             terms
           </Link>{" "}
           and{" "}
           <Link
             href="#"
-            className="font-medium text-ink underline underline-offset-[3px] hover:text-primary-500"
+            className="font-medium text-ink underline underline-offset-[3px] hover:text-accent-ink"
           >
             privacy policy
           </Link>

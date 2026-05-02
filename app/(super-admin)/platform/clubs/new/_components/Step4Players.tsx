@@ -343,7 +343,7 @@ export function Step4Players() {
                   <div className="text-xs text-ink-muted">
                     {field.email}
                     {field.is_club_admin && (
-                      <span className="ml-2 rounded-full bg-primary-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-500">
+                      <span className="ml-2 rounded-full bg-primary-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-ink">
                         admin
                       </span>
                     )}

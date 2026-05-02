@@ -178,7 +178,7 @@ export function NotificationsBell({
             {unreadCount > 0 && (
               <span
                 data-slot="bell-dropdown-unread"
-                className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-primary-500"
+                className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-accent-ink"
               >
                 {unreadCount} unread
               </span>
@@ -219,7 +219,7 @@ export function NotificationsBell({
                           "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full",
                           n.read
                             ? "bg-surface-muted text-ink-muted"
-                            : "bg-primary-500/12 text-primary-500",
+                            : "bg-primary-500/12 text-accent-ink",
                         )}
                       >
                         <Icon className="size-3.5" />
@@ -261,7 +261,7 @@ export function NotificationsBell({
               href={viewAllHref(role)}
               onClick={() => setOpen(false)}
               data-slot="bell-view-all"
-              className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink hover:text-primary-500"
+              className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink hover:text-accent-ink"
             >
               View all →
             </Link>

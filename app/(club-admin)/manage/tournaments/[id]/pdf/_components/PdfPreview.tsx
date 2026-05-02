@@ -297,7 +297,7 @@ function PdfTypeChip({
       href={href}
       className={`inline-flex h-10 items-center rounded-lg border px-3 text-[13px] font-medium transition-colors ${
         active
-          ? "border-primary-500 bg-primary-100/40 text-primary-500"
+          ? "border-primary-500 bg-primary-100/40 text-accent-ink"
           : "border-border bg-surface text-ink-muted hover:text-ink"
       }`}
     >
