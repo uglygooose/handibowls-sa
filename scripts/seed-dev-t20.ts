@@ -68,8 +68,13 @@ const supabase = createClient<Database>(SUPABASE_URL!, SERVICE_ROLE_KEY!, {
 });
 
 // Marker so the seed can find / wipe its own rows on re-run without
-// touching unrelated assessments.
-const SEED_MARKER = "[seed-dev-t20]";
+// touching unrelated assessments. Stored as the `legacy` key of the
+// notes jsonb (migration 041's `t20_assessments_notes_shape` CHECK
+// allows {strengths, watch, focus, legacy}).
+const SEED_MARKER_PREFIX = "[seed-dev-t20]";
+const seedNotes = (label: string) => ({
+  legacy: `${SEED_MARKER_PREFIX} ${label} fixture`,
+});
 
 type Fixture = {
   /** Suffix appended to `assessed_on` so each fixture has a distinct
@@ -144,17 +149,18 @@ async function main() {
     );
   }
 
-  // Resolve the demo player + admin profile ids.
-  const { data: users, error: usersErr } = await supabase.auth.admin.listUsers({
-    perPage: 200,
-  });
-  if (usersErr) throw usersErr;
-  const playerId = users.users.find(
-    (u) => u.email?.toLowerCase() === PLAYER_EMAIL,
-  )?.id;
-  const adminId = users.users.find(
-    (u) => u.email?.toLowerCase() === ADMIN_EMAIL,
-  )?.id;
+  // Resolve the demo player + admin profile ids via the profiles
+  // table (profiles.email mirrors auth.users.email). Bypasses
+  // `auth.admin.listUsers({ perPage: 200 })` pagination — on the
+  // cloud DB the user pool exceeds 200 so the demo accounts can fall
+  // off the first page.
+  const { data: demoProfiles, error: profilesErr } = await supabase
+    .from("profiles")
+    .select("id, email")
+    .in("email", [PLAYER_EMAIL, ADMIN_EMAIL]);
+  if (profilesErr) throw profilesErr;
+  const playerId = demoProfiles?.find((p) => p.email === PLAYER_EMAIL)?.id;
+  const adminId = demoProfiles?.find((p) => p.email === ADMIN_EMAIL)?.id;
   if (!playerId || !adminId) {
     throw new Error(
       `Demo users not found (player=${!!playerId}, admin=${!!adminId}). Run \`npm run seed:dev\` first.`,
@@ -175,26 +181,26 @@ async function main() {
 
   if (reset) {
     console.log(
-      `[seed-dev-t20] --reset: wiping seeded assessments (notes LIKE '${SEED_MARKER}%')`,
+      `[seed-dev-t20] --reset: wiping seeded assessments (notes->>legacy LIKE '${SEED_MARKER_PREFIX}%')`,
     );
     const { error: delErr } = await supabase
       .from("t20_assessments")
       .delete()
       .eq("club_id", club.id)
       .eq("profile_id", playerId)
-      .like("notes", `${SEED_MARKER}%`);
+      .like("notes->>legacy", `${SEED_MARKER_PREFIX}%`);
     if (delErr) throw delErr;
   }
 
   // Idempotent: check if seed rows already exist (matched on the
-  // notes marker). Skip if present + non-reset.
+  // notes->>legacy marker). Skip if present + non-reset.
   if (!reset) {
     const { data: existing } = await supabase
       .from("t20_assessments")
       .select("id")
       .eq("club_id", club.id)
       .eq("profile_id", playerId)
-      .like("notes", `${SEED_MARKER}%`);
+      .like("notes->>legacy", `${SEED_MARKER_PREFIX}%`);
     if (existing && existing.length >= FIXTURES.length) {
       console.log(
         `[seed-dev-t20] ${existing.length} seeded rows already present — skipping. Pass --reset to re-seed.`,
@@ -218,7 +224,7 @@ async function main() {
       f.status === "submitted"
         ? new Date(Date.now() - f.daysAgo * 24 * 60 * 60 * 1000).toISOString()
         : null,
-    notes: `${SEED_MARKER} ${f.grade ?? "ungraded"} fixture`,
+    notes: seedNotes(f.grade ?? "ungraded"),
   }));
 
   const { error: insErr } = await supabase
