@@ -108,6 +108,7 @@ export function EntriesTab({ entries }: Props) {
           <input
             type="search"
             placeholder="Search by name, club, or BSA number…"
+            aria-label="Search entries by name, club, or BSA number"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-11 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-sm text-ink placeholder:text-ink-muted focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
