@@ -1210,6 +1210,7 @@ export type Database = {
       t20_rubric_versions: {
         Row: {
           activated_at: string | null
+          activated_by: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -1220,6 +1221,7 @@ export type Database = {
         }
         Insert: {
           activated_at?: string | null
+          activated_by?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1230,6 +1232,7 @@ export type Database = {
         }
         Update: {
           activated_at?: string | null
+          activated_by?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1239,6 +1242,13 @@ export type Database = {
           version?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "t20_rubric_versions_activated_by_fkey"
+            columns: ["activated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "t20_rubric_versions_created_by_fkey"
             columns: ["created_by"]
@@ -1533,6 +1543,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_rubric_version: {
+        Args: { p_version_id: string }
+        Returns: {
+          activated_at: string | null
+          activated_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          rubric: Json
+          updated_at: string
+          version: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "t20_rubric_versions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_finalize_matches_batch: {
         Args: { p_matches: Json; p_tournament_id: string }
         Returns: Json
@@ -1934,4 +1964,3 @@ export const Constants = {
     },
   },
 } as const
-
