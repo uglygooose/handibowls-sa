@@ -67,8 +67,12 @@ describe("<NotificationsBell /> — render gating", () => {
         initialRecent={[]}
       />,
     );
+    // Phase 13 / 13-1 / commit 8a: was asserting absence of the
+    // `notifications-bell` wrapper div. The wrapper was dropped during the
+    // shadcn-Popover refactor (Popover root has no DOM node). Equivalent
+    // contract: when profileId is null the bell button does not render.
     expect(
-      container.querySelector("[data-slot='notifications-bell']"),
+      container.querySelector("[data-slot='bell-button']"),
     ).toBeNull();
   });
 
@@ -158,7 +162,7 @@ describe("<NotificationsBell /> — dropdown", () => {
         initialRecent={[]}
       />,
     );
-    expect(container.querySelector("[data-slot='bell-dropdown']")).toBeNull();
+    expect(document.querySelector("[data-slot='bell-dropdown']")).toBeNull();
   });
 
   it("clicking the bell opens the dropdown", () => {
@@ -175,7 +179,7 @@ describe("<NotificationsBell /> — dropdown", () => {
       container.querySelector("[data-slot='bell-button']") as HTMLButtonElement,
     );
     expect(
-      container.querySelector("[data-slot='bell-dropdown']"),
+      document.querySelector("[data-slot='bell-dropdown']"),
     ).not.toBeNull();
   });
 
@@ -192,7 +196,7 @@ describe("<NotificationsBell /> — dropdown", () => {
     fireEvent.click(
       container.querySelector("[data-slot='bell-button']") as HTMLButtonElement,
     );
-    expect(container.querySelector("[data-slot='bell-empty']")).not.toBeNull();
+    expect(document.querySelector("[data-slot='bell-empty']")).not.toBeNull();
   });
 
   it("renders one row per recent notification with unread state attribute", () => {
@@ -208,7 +212,7 @@ describe("<NotificationsBell /> — dropdown", () => {
     fireEvent.click(
       container.querySelector("[data-slot='bell-button']") as HTMLButtonElement,
     );
-    const rows = container.querySelectorAll("[data-slot='bell-row']");
+    const rows = document.querySelectorAll("[data-slot='bell-row']");
     expect(rows).toHaveLength(2);
     expect(rows[0].getAttribute("data-unread")).toBe("true");
     expect(rows[1].getAttribute("data-unread")).toBe("false");
@@ -228,7 +232,7 @@ describe("<NotificationsBell /> — dropdown", () => {
       container.querySelector("[data-slot='bell-button']") as HTMLButtonElement,
     );
     expect(
-      container.querySelector("[data-slot='bell-view-all']")?.getAttribute("href"),
+      document.querySelector("[data-slot='bell-view-all']")?.getAttribute("href"),
     ).toBe("/me/inbox");
   });
 });
@@ -248,7 +252,7 @@ describe("<NotificationsBell /> — row interactions", () => {
       container.querySelector("[data-slot='bell-button']") as HTMLButtonElement,
     );
     fireEvent.click(
-      container.querySelector("[data-slot='bell-row']") as HTMLButtonElement,
+      document.querySelector("[data-slot='bell-row']") as HTMLButtonElement,
     );
     expect(mockMarkAsRead).toHaveBeenCalledWith(UNREAD.id);
     expect(routerPushMock).toHaveBeenCalled();
@@ -270,9 +274,9 @@ describe("<NotificationsBell /> — row interactions", () => {
       container.querySelector("[data-slot='bell-button']") as HTMLButtonElement,
     );
     fireEvent.click(
-      container.querySelector("[data-slot='bell-row']") as HTMLButtonElement,
+      document.querySelector("[data-slot='bell-row']") as HTMLButtonElement,
     );
-    expect(container.querySelector("[data-slot='bell-dropdown']")).toBeNull();
+    expect(document.querySelector("[data-slot='bell-dropdown']")).toBeNull();
   });
 });
 

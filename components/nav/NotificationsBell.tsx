@@ -3,8 +3,13 @@
 import { Bell, Calendar, Mail, Megaphone, Target, Trophy } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useNotificationsRealtime } from "@/lib/notifications/use-realtime";
 import type { RecentNotification } from "@/lib/notifications/types";
 import { formatRelativeZA } from "@/lib/format/relative";
@@ -76,32 +81,16 @@ export function NotificationsBell({
     initialRecent,
   });
 
+  // Phase 13 / 13-1 / commit 8a — was a manual `role="dialog"` div with
+  // useEffect-driven outside-click + ESC handlers and a wrapperRef. Replaced
+  // with shadcn Popover (Radix Popover under the hood). Radix wires
+  // aria-haspopup + aria-expanded + Escape + outside-click + focus return
+  // to trigger; we drop the manual ref + 20-line useEffect.
+  //
+  // Popover (NOT Dialog) is the right primitive: this dropdown isn't modal —
+  // it doesn't block background interaction, doesn't scroll-lock, doesn't
+  // need a scrim. Dialog's aria-modal would be a UX regression.
   const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-
-  // Close on outside click. Lightweight — no portal needed because
-  // the dropdown lives inside the sticky top-bar's stacking context
-  // (z-30 base, dropdown rises to 40 for safety).
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
 
   if (!profileId) return null;
 
@@ -119,55 +108,48 @@ export function NotificationsBell({
   }
 
   return (
-    <div
-      ref={wrapperRef}
-      data-slot="notifications-bell"
-      data-open={open}
-      className="relative"
-    >
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label={
-          unreadCount > 0
-            ? `Notifications (${unreadCount} unread)`
-            : "Notifications"
-        }
-        aria-expanded={open}
-        data-slot="bell-button"
-        data-unread-count={unreadCount}
-        className={cn(
-          "relative inline-flex size-9 cursor-pointer items-center justify-center rounded-full transition-colors",
-          isDark
-            ? "text-ink-inverse hover:bg-white/10"
-            : "text-ink hover:bg-surface-muted",
-        )}
-      >
-        <Bell className="size-4" aria-hidden="true" />
-        {unreadCount > 0 && (
-          <span
-            data-slot="bell-badge"
-            data-count={unreadCount}
-            className={cn(
-              "absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[9px] font-bold leading-none",
-              "bg-primary-500 text-on-primary",
-            )}
-          >
-            {badgeLabel}
-          </span>
-        )}
-      </button>
-
-      {open && (
-        <div
-          data-slot="bell-dropdown"
-          role="dialog"
-          aria-label="Recent notifications"
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={
+            unreadCount > 0
+              ? `Notifications (${unreadCount} unread)`
+              : "Notifications"
+          }
+          data-slot="bell-button"
+          data-unread-count={unreadCount}
           className={cn(
-            "absolute right-0 top-[calc(100%+8px)] z-40 w-[320px] overflow-hidden rounded-xl border border-border bg-bone shadow-lg",
-            "sm:w-[360px]",
+            "relative inline-flex size-9 cursor-pointer items-center justify-center rounded-full transition-colors",
+            isDark
+              ? "text-ink-inverse hover:bg-white/10"
+              : "text-ink hover:bg-surface-muted",
           )}
         >
+          <Bell className="size-4" aria-hidden="true" />
+          {unreadCount > 0 && (
+            <span
+              data-slot="bell-badge"
+              data-count={unreadCount}
+              className={cn(
+                "absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[9px] font-bold leading-none",
+                "bg-primary-500 text-on-primary",
+              )}
+            >
+              {badgeLabel}
+            </span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        sideOffset={8}
+        data-slot="bell-dropdown"
+        aria-label="Recent notifications"
+        className={cn(
+          "w-[320px] overflow-hidden p-0 sm:w-[360px]",
+        )}
+      >
           <header
             data-slot="bell-dropdown-header"
             className="flex items-center justify-between border-b border-border bg-surface-muted px-4 py-2.5"
@@ -266,9 +248,8 @@ export function NotificationsBell({
               View all →
             </Link>
           </footer>
-        </div>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
