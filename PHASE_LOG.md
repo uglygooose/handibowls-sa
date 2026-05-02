@@ -2840,6 +2840,246 @@ annotation in its Owner field per the locked structure
     6 (sr-only labels on checkbox + actions columns) plus
     commit 12's id-conditional fix.
 
+### 13-2a — Security sweep (RLS audit + test infrastructure + atomic RPC + CSP) — closed 2026-05-02
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-13-launch-prep`).
+- **Sub-checkpoint structure:** 13-2 was scoped via a read-only
+  audit pass enumerating every open DRIFT_LOG entry that
+  thematically fitted security (RLS / CSP / RPC atomicity /
+  POPIA / privacy / consent), classifying each by type
+  (AUDIT / FIX / DECISION-NEEDED / NEW-RPC), scope (S/M/L), and
+  dependencies (migration / RLS test / manual QA). The scoping
+  report grouped 14 line-items into 4 execution batches; the
+  POPIA batch (originally Batch D) carved out as 13-2b for
+  separate execution given the schema-design + decision-loaded
+  surface area. 13-2a covers Batches A through D-CSP.
+- **Headline SHAs across the full 13-2a sequence:**
+  - **Scoping pass** — read-only DRIFT survey, no commits.
+    Decision-needed items resolved by user pre-execution
+    (locked decisions captured below).
+  - **Batch A** (`38f2931`) — read-only security audits.
+    7 entries audited across 6 parallel `Explore` subagent
+    runs + 1 main-thread (rate-limit). 4 closed CLEAN
+    (DRIFT-L45 profile_id, L47 PostgREST embeds, L65 server-
+    only poisoning audit-portion, L279 'use client' taint),
+    1 NEW closed CLEAN via audit-report footer (service-role
+    bundle grep), 1 generated A3 follow-up
+    (state-machine-enum-hygiene), 1 generated A7 post-launch
+    revisit (server-action-rate-limit-monitoring). Full
+    findings at `docs/audit/phase-13/13-2-batch-a-audits.md`.
+  - **Batch B — test infrastructure** (4 commits):
+    - `e23275a` (B1a — DRIFT-L66 RLS test cleanup hardening)
+      — `tests/rls/helpers.ts:cleanup()` now handles every
+      documented `ON DELETE RESTRICT` child in dependency
+      order. Self-test at
+      `tests/rls/helpers-cleanup.test.ts` seeds the full
+      RESTRICT surface + asserts post-cleanup state is empty.
+    - `03e5d98` (B1b — DRIFT-L269 action-wrapper integration
+      tests) — adminScheduleT20Assessment (4 cases) +
+      sendMessageNow (5 cases) at
+      `tests/integration/actions/`. acceptInvite already
+      had Phase 11 / 11-4b coverage; finalizeAssessment
+      already had 12-4 hotfix coverage.
+    - `214d6e6` (B1c — DRIFT-L280 unsubscribe.test.ts flake)
+      — flips first base64url sig char (all 6 bits
+      meaningful) instead of last (which carries 4 useful +
+      2 padding bits that decode-collide).
+    - `a5d6c88` (B2 — bookkeeping) — formal closures for
+      L66 / L269 / L280 / L45 / L47 / L65 / L279, opens
+      state-machine-enum-hygiene + server-action-rate-limit-
+      monitoring, audit-report footer for service-role-grep
+      closure.
+  - **Batch C — atomic activate_rubric_version RPC** (3
+    commits, two-commit rule per locked decision):
+    - `57fd5dc` (C1 — migration 042) — atomic
+      `public.activate_rubric_version(p_version_id uuid)`
+      SECURITY DEFINER RPC + `t20_rubric_versions.activated_by`
+      audit-trail column. Cloud-applied via Supabase MCP at
+      version 20260502191044; types regen'd from cloud
+      schema.
+    - `542e1e8` (C2 — RLS coverage) — 7 RLS cases at
+      `tests/rpc/activate-rubric-version.test.ts`.
+      Cloud-state hazard handled: beforeAll snapshots
+      production-active rubric (v1-final-2026); afterAll
+      restores it after the test mutates the active state.
+    - `1c30ed1` (C3 — application rewire) — replaces
+      sequential UPDATE+UPDATE in
+      `app/(super-admin)/platform/rubrics/_actions.ts:114-158`
+      with single `supabase.rpc('activate_rubric_version', ...)`
+      call. Outward type contract unchanged
+      (`ActivateRubricInput` + `ActivateRubricResult`);
+      `RubricsClient.tsx` needs zero changes.
+  - **Batch D-CSP — Content-Security-Policy headers** (2
+    commits):
+    - `c92554b` (D-CSP-1 — config + capture script) —
+      `next.config.ts` adds `headers()` returning
+      Content-Security-Policy-Report-Only on every route.
+      Supabase host resolved at build time from
+      `NEXT_PUBLIC_SUPABASE_URL`. New
+      `scripts/csp-violations-capture.mjs` walker hits the 9
+      anchor surfaces, captures securitypolicyviolation
+      events. Local dev surfaced 2 dev-only Turbopack
+      violation classes (script-src-elem inline +
+      script-src eval — both HMR/fast-refresh artefacts);
+      Vercel preview production-build capture surfaced **0
+      violations** on /login + landing.
+    - `0f4bcea` (D-CSP-4 — bookkeeping) — formal flip of
+      L190 (Batch C closure) + opens
+      csp-style-nonce-hardening (Phase 14) +
+      csp-authenticated-surface-violation-capture (13-5).
+  - **13-2a close** (this commit) — PHASE_LOG entry +
+    README state-line.
+- **Locked decisions during 13-2a (from scoping pass):**
+  - **(a) L55 two-commit rule codified.** Schema migrations
+    land as their own atomic commit + cloud-verified via
+    RLS test BEFORE any application code that depends on
+    the new schema. Recorded inline at the migration-042
+    chain (C1 migration → C2 RLS test → C3 application
+    rewire) as the canonical pattern; future schema work
+    should mirror this shape.
+  - **(b) L65 ESLint scope: audit-only for v1.** No custom
+    `no-runtime-import-from-server-only` ESLint rule. The
+    `import "server-only"` package provides hard
+    compile-time enforcement; the audit confirmed zero
+    violations exist today; ESLint scaffolding deferred to
+    post-v1 if the violation class re-emerges.
+  - **(c) CSP mode: Report-Only at 13-2a.** Browser logs
+    violations to console (and later Sentry once 13-5
+    wires it) but does NOT block resources. Switch to
+    enforcing CSP at 13-5 / 13-7 once the report-only
+    stream is clean.
+  - **(d) CSP nonce strategy: 'unsafe-inline' for styles
+    only.** Tailwind 4 (`@import "tailwindcss"`) injects
+    inline `<style>` tags during initial paint with no
+    stable hash. Scripts strict — NO 'unsafe-inline' /
+    'unsafe-eval'. Style-src nonce hardening tracked as
+    Phase 14 DRIFT entry `csp-style-nonce-hardening`.
+  - **(e) CSP allow-list: Supabase + Vercel + Resend.**
+    Sentry deferred to 13-5 (the Sentry-init commit
+    extends connect-src + adds `report-uri`). Vercel
+    Analytics / Speed Insights NOT included today (not
+    used).
+  - **(f) Rate-limit: audit-only for v1.** Supabase Auth's
+    built-in defaults are the v1 gate. No server-action-
+    level rate-limiting middleware. Post-launch revisit
+    tracked as DRIFT `server-action-rate-limit-monitoring`
+    once 13-5 monitoring data is available.
+  - **(g) 23514 already_active is an error, not a no-op
+    (locked at C1 design check).** Re-activating an
+    already-active rubric raises the explicit error code;
+    the action wrapper maps it to `kind: "already_active"`
+    and the client renders a friendly toast instead of a
+    silent success. Cleaner audit-trail (no spurious
+    activation log entries on accidental double-clicks).
+- **Migrations applied during 13-2a:** **042** (atomic
+  `activate_rubric_version` RPC + `activated_by` column on
+  `t20_rubric_versions`). Cloud-applied + types regen'd at
+  C1. **One migration.**
+- **Drift entries closed at 13-2a close:**
+  - **Formal flip in this batch's bookkeeping:** L190
+    (`activateRubricVersion` sequential UPDATE+UPDATE).
+  - **Verified-closed (Batch B B2 already flipped them):**
+    L66 (RLS test cleanup hardening), L269 (verification
+    gates miss live-wizard E2E), L280 (unsubscribe.test.ts
+    base64url tamper-rejection flake), plus Batch A
+    audit-portion closures L45 / L47 / L65 / L279.
+  - **Total 13-2a closures:** 8 (5 from Batch B2 + 3 from
+    Batch C / D-CSP).
+- **Drift entries opened during 13-2a:** **4** —
+  `state-machine-enum-hygiene` (Phase 13 → 13-cross-cutting,
+  Batch A § A3 — 7 dead/orphan enum values across 5
+  columns; schema hygiene, not security-critical),
+  `server-action-rate-limit-monitoring` (post-v1, Batch A
+  § A7 — Sentry-driven post-launch revisit),
+  `csp-style-nonce-hardening` (Phase 14, Batch D-CSP —
+  Tailwind 4 nonce migration to retire 'unsafe-inline'),
+  `csp-authenticated-surface-violation-capture` (Phase 13
+  → 13-5, Batch D-CSP — Sentry `report-uri` integration to
+  cover gated + PDF-preview surfaces).
+- **DRIFT_LOG counts at close:** **47 open / 96 closed**
+  (was 51 / 88 entering 13-2a). Net −4 open, +8 closed
+  (8 closures + 4 new opens; partial closures on L52
+  don't move counts).
+- **Test count delta:** unit **1376 / 1376 unchanged** (no
+  unit-suite churn; B1a + B1b add integration cases only,
+  B1c flips a single test's signature byte in place).
+  Integration **119 → 136 (+17 net)**: B1a self-test (+1),
+  B1b adminScheduleT20Assessment (+4) + sendMessageNow
+  (+5), C2 activate_rubric_version RLS (+7).
+- **Verification gates at close:**
+  - `tsc --noEmit`: clean.
+  - `eslint`: 0 errors / **17 warnings** (unchanged from
+    Phase 12.5 close + 13-1 close — all 17 are pre-
+    existing TanStack `react-hooks/incompatible-library`
+    + non-app-code unused-vars; tracked at Phase 13 →
+    13-cross-cutting).
+  - `vitest`: 1376 / 1376 unit · 136 / 136 integration.
+  - 5 consecutive runs of every new test: 5/5 stable, no
+    flakes.
+  - `next build`: clean.
+  - Cloud apply: migration 042 applied + verified via MCP
+    `list_migrations`.
+  - Push: clean fast-forward across all 11 commits in
+    13-2a.
+- **What 13-2a closes for v1:**
+  - **RLS posture verified across the four highest-blast-
+    radius protected mutations** — `finalizeAssessment` (12-4
+    hotfix), `acceptInviteAction` (Phase 11 / 11-4b),
+    `adminScheduleT20Assessment` (B1b),
+    `sendMessageNow` (B1b). Real-DB integration coverage
+    verifies RLS denies unauthorised cross-club calls + role
+    rejections. The L52 broader sweep (every protected
+    mutation, not just the 4 named ones) is partial-closed
+    with a note pointing to the 4 covered mutations.
+  - **Atomic RPC pattern established for
+    `activateRubricVersion`** — Phase 9's `cancel_own_booking`
+    (030) + `admin_force_cancel_booking` (031) pattern now
+    extends to rubric activation. SECURITY DEFINER body +
+    advisory-lock serialisation + audit_log INSERT in a
+    single transaction. Concurrent-activation race
+    deterministically resolves; no unique-violation possible.
+  - **CSP Report-Only headers ship for production
+    observation.** Vercel preview confirms 0 violations on
+    unauthenticated production-build surfaces. Sentry feed
+    at 13-5 will capture authenticated-surface +
+    PDF-preview violations; allow-list mods decided at 13-7
+    before flipping Report-Only → enforcing.
+  - **Cleanup helper hardened against orphan-row leaks.**
+    Every documented `ON DELETE RESTRICT` child of test
+    users + clubs gets cleaned in dependency order; future
+    RESTRICT additions trip the self-test if cleanup isn't
+    extended. Production-shared dev DB stays tidy.
+  - **One test flake retired** (DRIFT-L280 base64url tamper
+    rejection — was 1/2 full-suite-run failure rate, now
+    5/5 stable).
+- **What 13-2b will cover (forward reference):** POPIA
+  compliance per rebuild plan §16 step 3 line 1031. Three
+  decision-loaded surfaces:
+  - **Soft-delete schema** — `profiles.deleted_at` timestamp
+    + RLS update to hide deleted profiles + scheduled job
+    for 30-day grace cleanup (locked decision: soft-delete
+    with grace, NOT immediate hard delete).
+  - **`/api/me/export` endpoint** — JSON synchronous
+    download of every row keyed by the user (locked
+    decision: JSON sync, not CSV/email).
+  - **Account deletion flow** — `/me` settings affordance
+    that schedules deletion → cron sweeps after 30 days →
+    profile + cascade rows removed. Retention policy: 7
+    years for super_admin compliance + financial records,
+    30 days for operational logs (locked decision).
+- **Manual QA outcome:** Vercel preview at
+  `handibowls-lm99oxvpc-andrews-projects-a0c14c4f.vercel.app`
+  (deployment for SHA `c92554b`) verified for CSP header
+  emission via `curl -I` — `content-security-policy-report-
+  only` is sent on every route with the resolved Supabase
+  host substituted into the wildcard slot. Local
+  `csp-violations-capture.mjs` walker confirmed
+  `securitypolicyviolation` events fire correctly in
+  Chromium against Report-Only mode (412 events on landing
+  in dev mode, 0 on Vercel preview production build —
+  evidence the dev-mode noise is Turbopack-specific).
+
 ---
 
 ## Operational conventions
