@@ -189,35 +189,68 @@ export function MembersTable({ rows }: Props) {
         </span>
       </div>
 
-      <div className="rounded-xl border border-border bg-card">
+      {/* Phase 13 / 13-1 / commit 11: virtualized div-table → ARIA grid
+          pattern (matches EntriesTab from M2 commit 6). role="grid" on
+          the outer wrapper + role="row" + role="columnheader" on header
+          + role="rowgroup" + tabIndex={0} on the scroll container +
+          role="row" + role="gridcell" on virtualized rows. TanStack
+          Virtual's `transform: translateY` row positioning is
+          incompatible with semantic <table> rows — the grid pattern
+          gives screen readers a navigable structure without breaking
+          the virtualization. */}
+      <div
+        role="grid"
+        aria-label="Members"
+        aria-rowcount={visibleRows.length + 1}
+        className="rounded-xl border border-border bg-card"
+      >
         <div
+          role="row"
           className="grid items-center border-b border-border bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-ink-muted"
           style={{ gridTemplateColumns: HEADER_GRID }}
         >
           {table.getHeaderGroups()[0].headers.map((header) => {
             const canSort = header.column.getCanSort();
             const sorted = header.column.getIsSorted();
+            const ariaSort: "ascending" | "descending" | "none" | undefined =
+              canSort
+                ? sorted === "asc"
+                  ? "ascending"
+                  : sorted === "desc"
+                    ? "descending"
+                    : "none"
+                : undefined;
+            const headerLabel = String(
+              typeof header.column.columnDef.header === "string"
+                ? header.column.columnDef.header
+                : header.column.id,
+            );
+            const nextSort = sorted === "asc" ? "descending" : "ascending";
             return (
-              <button
-                key={header.id}
-                type="button"
-                onClick={header.column.getToggleSortingHandler()}
-                className={cn(
-                  "flex items-center gap-1 text-left",
-                  canSort && "cursor-pointer select-none hover:text-ink",
-                )}
-                disabled={!canSort}
-              >
-                {flexRender(header.column.columnDef.header, header.getContext())}
-                {canSort &&
-                  (sorted === "asc" ? (
-                    <ArrowUp className="size-3" />
-                  ) : sorted === "desc" ? (
-                    <ArrowDown className="size-3" />
-                  ) : (
-                    <ArrowUpDown className="size-3 opacity-40" />
-                  ))}
-              </button>
+              <div key={header.id} role="columnheader" aria-sort={ariaSort}>
+                <button
+                  type="button"
+                  onClick={header.column.getToggleSortingHandler()}
+                  aria-label={
+                    canSort ? `Sort by ${headerLabel}, ${nextSort}` : undefined
+                  }
+                  className={cn(
+                    "flex items-center gap-1 text-left",
+                    canSort && "cursor-pointer select-none hover:text-ink",
+                  )}
+                  disabled={!canSort}
+                >
+                  {flexRender(header.column.columnDef.header, header.getContext())}
+                  {canSort &&
+                    (sorted === "asc" ? (
+                      <ArrowUp className="size-3" aria-hidden="true" />
+                    ) : sorted === "desc" ? (
+                      <ArrowDown className="size-3" aria-hidden="true" />
+                    ) : (
+                      <ArrowUpDown className="size-3 opacity-40" aria-hidden="true" />
+                    ))}
+                </button>
+              </div>
             );
           })}
         </div>
@@ -229,7 +262,10 @@ export function MembersTable({ rows }: Props) {
         ) : (
           <div
             ref={scrollRef}
-            className="max-h-[640px] overflow-y-auto"
+            role="rowgroup"
+            tabIndex={0}
+            aria-label="Members table body, scrollable"
+            className="max-h-[640px] overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
             data-testid="members-scroll"
           >
             <div
@@ -241,6 +277,7 @@ export function MembersTable({ rows }: Props) {
                 return (
                   <div
                     key={row.id}
+                    role="row"
                     style={{
                       position: "absolute",
                       top: 0,
@@ -253,7 +290,7 @@ export function MembersTable({ rows }: Props) {
                     className="grid items-center gap-x-2 border-b border-border/50 px-3 text-sm hover:bg-muted/40"
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <div key={cell.id} className="min-w-0">
+                      <div key={cell.id} role="gridcell" className="min-w-0">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </div>
                     ))}

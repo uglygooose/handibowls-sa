@@ -59,14 +59,34 @@ export function MembersTab({ members }: { members: ClubMember[] }) {
           {rows.length} of {members.length}
         </span>
       </div>
-      <div className="rounded-xl border border-border bg-card">
-        <div className="grid grid-cols-[1.5fr_2fr_8rem_6rem] items-center border-b border-border bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-ink-muted">
-          <span>Name</span>
-          <span>Email</span>
-          <span>Joined</span>
-          <span>Status</span>
+      {/* Phase 13 / 13-1 / commit 11: virtualized div-table → ARIA grid
+          pattern (matches MembersTable + EntriesTab). role="grid" on
+          the outer wrapper + role="row" + role="columnheader" on header
+          + role="rowgroup" + tabIndex={0} on the scroll container +
+          role="row" + role="gridcell" on virtualized rows. */}
+      <div
+        role="grid"
+        aria-label="Club members"
+        aria-rowcount={rows.length + 1}
+        className="rounded-xl border border-border bg-card"
+      >
+        <div
+          role="row"
+          className="grid grid-cols-[1.5fr_2fr_8rem_6rem] items-center border-b border-border bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-ink-muted"
+        >
+          <span role="columnheader">Name</span>
+          <span role="columnheader">Email</span>
+          <span role="columnheader">Joined</span>
+          <span role="columnheader">Status</span>
         </div>
-        <div ref={scrollRef} className="max-h-[480px] overflow-y-auto" data-testid="members-scroll">
+        <div
+          ref={scrollRef}
+          role="rowgroup"
+          tabIndex={0}
+          aria-label="Club members table body, scrollable"
+          className="max-h-[480px] overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+          data-testid="members-scroll"
+        >
           <div
             style={{ height: `${virtualizer.getTotalSize()}px` }}
             className="relative"
@@ -76,6 +96,7 @@ export function MembersTab({ members }: { members: ClubMember[] }) {
               return (
                 <div
                   key={m.profile_id}
+                  role="row"
                   data-testid={`member-${m.profile_id}`}
                   style={{
                     position: "absolute",
@@ -90,17 +111,19 @@ export function MembersTab({ members }: { members: ClubMember[] }) {
                     "hover:bg-muted/50",
                   )}
                 >
-                  <span className="truncate font-medium">
+                  <span role="gridcell" className="truncate font-medium">
                     {displayName(m)}
                     {m.is_primary && (
                       <span className="ml-1 text-xs text-ink-muted">(primary)</span>
                     )}
                   </span>
-                  <span className="truncate text-ink-muted">{m.email ?? "—"}</span>
-                  <span className="tabular-nums text-ink-muted">
+                  <span role="gridcell" className="truncate text-ink-muted">
+                    {m.email ?? "—"}
+                  </span>
+                  <span role="gridcell" className="tabular-nums text-ink-muted">
                     {new Date(m.joined_at).toLocaleDateString()}
                   </span>
-                  <span>
+                  <span role="gridcell">
                     <Badge variant={m.status === "active" ? "default" : "outline"}>
                       {m.status}
                     </Badge>
