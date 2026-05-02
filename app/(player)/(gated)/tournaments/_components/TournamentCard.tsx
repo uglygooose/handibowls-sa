@@ -82,10 +82,14 @@ export function TournamentCard({ tournament: t, variant }: Props) {
         data-slot="tournament-card-speckle-band"
         className="pointer-events-none absolute inset-x-0 top-0 z-0 h-1.5 opacity-60"
       >
+        {/* 12.5-7 (audit id `speckle-field-numeric-consumer-reconciliation`):
+            snapped from explicit density={0.9} opacityScale={1.1} (between
+            subtle 1.0/1.0 and medium 1.2/1.2 — closer to subtle) to the
+            named `intensity="subtle"` tier. Closes one of the three
+            12.5-2-deferred numeric consumers. */}
         <SpeckleField
           preset="atomic-red"
-          density={0.9}
-          opacityScale={1.1}
+          intensity="subtle"
           seedKey={`tournament-card-${t.id}`}
         />
       </div>

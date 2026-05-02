@@ -13,6 +13,16 @@ export function SocialProof() {
       id="clubs"
       className="relative overflow-hidden bg-[#0E1B3D] text-ink-inverse"
     >
+      {/* 12.5-7 (audit id `speckle-field-numeric-consumer-
+          reconciliation`): density={1.4} opacityScale={0.35}
+          locked as a named exception. The 0.35 opacity is
+          significantly below any named tier (subtle/medium/bold
+          all use opacityScale ≥ 1.0 — the named scale presumes
+          decorative density on a small surface, not full-bleed
+          background). SocialProof's full-bleed midnight band
+          intentionally renders the speckle very faintly (0.35×)
+          while keeping density high (1.4) for a uniformly
+          textured backdrop. Keep numeric. */}
       <SpeckleField
         preset="midnight"
         width="100%"

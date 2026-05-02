@@ -79,6 +79,14 @@ export function HeroNextMatch({ match, scorecardHref }: Props) {
       className="relative isolate overflow-hidden rounded-[20px] bg-primary-500 text-[color:var(--color-on-primary)]"
     >
       <div className="pointer-events-none absolute inset-0 z-0">
+        {/* 12.5-7 (audit id `speckle-field-numeric-consumer-
+            reconciliation`): density={1.4} opacityScale={1.6} sit
+            ABOVE the named `bold` tier (1.3 / 1.4) — locked as a
+            named exception, NOT migrated. /play's HeroNextMatch is
+            the iconic top-of-page hero card with a more saturated
+            speckle than any other surface; snapping to bold (1.3 /
+            1.4) reduces visual noise enough to dull the
+            "iconic" feel. Keep numeric. */}
         <SpeckleField
           preset={match.tournament.host_club_theme}
           density={1.4}
