@@ -4,6 +4,7 @@ import { Barlow_Condensed, Inter, JetBrains_Mono } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { ThemeApplier } from "@/components/brand/ThemeApplier";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import { SwRegistration } from "@/components/providers/SwRegistration";
 import { AuthListener } from "@/components/auth/AuthListener";
 import { SkipLink } from "@/components/layout/SkipLink";
 import { Toaster } from "@/components/ui/sonner";
@@ -77,6 +78,22 @@ export default async function RootLayout({
         <QueryProvider>
           <AuthListener />
           <ThemeApplier theme={theme} />
+          {/* Phase 13 / 13-3 / Batch I — service-worker registration.
+              Mounts after ThemeApplier so SW caching kicks in only
+              after theme tokens are stable in the document; the SW
+              caches Tailwind's CSS bundle which carries theme-token
+              custom properties, so a pre-theme cache hit could ship
+              stale tokens. SwRegistration is a "use client" shim
+              wrapping @serwist/next/react's SerwistProvider — the
+              shim is required because @serwist/next/react ships
+              without a "use client" directive of its own + Next 16
+              + Turbopack would otherwise bundle createContext()
+              into the server runtime. Closes DRIFT
+              sw-registration-missing (Phase 8d–8f offline-first
+              contract now actually honoured — reload-while-offline
+              serves from SW cache instead of the browser's cache
+              fallback). */}
+          <SwRegistration />
           {children}
           <Toaster />
         </QueryProvider>
