@@ -15,20 +15,28 @@ import { RubricSchema } from "@/lib/t20/rubric";
 //                              ensures `version` is unique. Stages
 //                              as `is_active=false`.
 //   activateRubricVersion    — flips a draft to active. Atomic via
-//                              transaction: deactivate the current
-//                              active row, set the new one's
-//                              is_active=true + activated_at=now().
-//                              Existing assessments are immutably
-//                              linked to whichever version was active
-//                              at capture time, so activation never
-//                              re-grades historical work.
+//                              the SECURITY DEFINER RPC
+//                              public.activate_rubric_version
+//                              (migration 042 / Phase 13 / 13-2 /
+//                              Batch C / DRIFT-L190 close). The RPC
+//                              wraps deactivate-current + activate-
+//                              target + audit_log INSERT in a single
+//                              transaction with a per-table advisory
+//                              lock to serialise concurrent
+//                              activators. Existing assessments are
+//                              immutably linked to whichever version
+//                              was active at capture time, so
+//                              activation never re-grades historical
+//                              work.
 //   deactivateRubricVersion  — sets is_active=false. Used for the
 //                              rare "undo activation" case before any
 //                              new captures land. Schema's partial
 //                              unique index allows zero active rows.
 //
 // All three are super-admin-only (verified at action layer; RLS on
-// t20_rubric_versions also enforces it).
+// t20_rubric_versions also enforces it; activateRubricVersion's RPC
+// re-checks the role inside the SECURITY DEFINER body for defence
+// in depth).
 
 const versionSchema = z.string().regex(/^v\d+(?:[a-z0-9-]+)?$/i, {
   message: "Version must look like 'v1-final-2026' or 'v2-draft-2026'.",
@@ -123,34 +131,35 @@ export async function activateRubricVersion(
   if (!parsed.success) {
     return { kind: "validation", error: firstZodError(parsed.error) };
   }
+
+  // Phase 13 / 13-2 / Batch C3 — DRIFT-L190 close. Atomic RPC
+  // replaces the pre-C2 sequential UPDATE+UPDATE pattern. The
+  // SECURITY DEFINER body re-checks the super_admin role,
+  // serialises concurrent activators via pg_advisory_xact_lock,
+  // and writes the audit_log entry — all in a single transaction.
+  // Error codes map onto the discriminated result kinds:
+  //   42501 not_authenticated → kind="auth"
+  //   42501 super_admin_only  → kind="auth"
+  //   P0002 not_found         → kind="not_found"
+  //   23514 already_active    → kind="already_active"
+  // The action-layer auth + role checks above stay as defence-
+  // in-depth — the RPC's role check would catch a mis-routed
+  // call, but failing fast at the action layer avoids the
+  // round-trip + keeps the discriminated kind=auth surface
+  // consistent with the other actions in this file.
   const supabase = await createClient();
-  const { data: target } = await supabase
-    .from("t20_rubric_versions")
-    .select("id, is_active")
-    .eq("id", parsed.data.rubric_id)
-    .maybeSingle();
-  if (!target) return { kind: "not_found" };
-  if (target.is_active) return { kind: "already_active" };
+  const { error } = await supabase.rpc("activate_rubric_version", {
+    p_version_id: parsed.data.rubric_id,
+  });
 
-  // Deactivate the current active row first to satisfy the partial
-  // unique index. Race window is tiny — both writes happen in
-  // sub-millisecond from the same request — but if it ever bites,
-  // wrap in a SECURITY DEFINER RPC like Phase 9's force-cancel. For
-  // now: sequential UPDATE + UPDATE.
-  const { error: deactErr } = await supabase
-    .from("t20_rubric_versions")
-    .update({ is_active: false })
-    .eq("is_active", true);
-  if (deactErr) return { kind: "error", error: deactErr.message };
-
-  const { error } = await supabase
-    .from("t20_rubric_versions")
-    .update({
-      is_active: true,
-      activated_at: new Date().toISOString(),
-    })
-    .eq("id", parsed.data.rubric_id);
-  if (error) return { kind: "error", error: error.message };
+  if (error) {
+    if (error.code === "P0002") return { kind: "not_found" };
+    if (error.code === "23514") return { kind: "already_active" };
+    if (error.code === "42501") {
+      return { kind: "auth", error: error.message };
+    }
+    return { kind: "error", error: error.message };
+  }
 
   revalidatePath("/platform/rubrics", "page");
   revalidatePath("/manage/t20", "page");

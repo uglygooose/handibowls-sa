@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 
+import type { Database } from "@/types/database.types";
 import { admin, cleanup, createTestUser, signIn } from "../rls/helpers";
 
 // Phase 13 / 13-2 / Batch C2 — DRIFT-L190.
@@ -84,8 +85,9 @@ async function seedTestVersions(n: number): Promise<string[]> {
         // Minimal valid rubric shape — tests don't exercise scoring.
         // The RubricSchema requires { version, sections } at minimum;
         // bypass via service-role direct insert to avoid having to
-        // import the full Zod shape into a test file.
-        rubric: { version: "test", sections: [] } as unknown as object,
+        // import the full Zod shape into a test file. The cast is
+        // jsonb-compatible; PostgREST accepts the literal object.
+        rubric: { version: "test", sections: [] } as unknown as Database["public"]["Tables"]["t20_rubric_versions"]["Insert"]["rubric"],
         is_active: false,
       })
       .select("id")
