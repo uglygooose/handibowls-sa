@@ -91,8 +91,21 @@ describe("verifyUnsubscribeToken — tamper rejection", () => {
     const dot = token.indexOf(".");
     const payload = token.slice(0, dot);
     const sig = token.slice(dot + 1);
-    const swap = sig[sig.length - 1] === "A" ? "B" : "A";
-    const tampered = payload + "." + sig.slice(0, -1) + swap;
+    // Phase 13 / 13-2 / Batch B1c — DRIFT-L280 flake fix.
+    // The pre-fix test swapped the LAST character of the base64url
+    // signature. HMAC-SHA256 is 32 bytes = 256 bits, base64url-
+    // encoded into 43 chars where the FINAL char only carries
+    // 4 useful bits (the low 2 bits are padding, ignored at
+    // decode). When the random HMAC happened to land on a
+    // character whose low-2-bit-stripped form matched the
+    // swap target's low-2-bit-stripped form, the decoded bytes
+    // were identical and the verifier correctly accepted the
+    // unchanged signature — flaking the assertion.
+    // Fix: flip the FIRST signature character instead. All 6 bits
+    // of the first char are meaningful, so any swap to a different
+    // base64url char always changes the decoded bytes.
+    const swap = sig[0] === "A" ? "B" : "A";
+    const tampered = payload + "." + swap + sig.slice(1);
     expect(await verifyUnsubscribeToken(tampered)).toBeNull();
   });
 
