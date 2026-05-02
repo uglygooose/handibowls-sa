@@ -19,7 +19,8 @@
     "gen:icons": "node scripts/gen-pwa-icons.mjs",
     "lighthouse:pwa": "node scripts/lighthouse-pwa.mjs",
     "seed:dev": "tsx scripts/seed-dev-users.ts",
-    "seed:dev:tournaments": "tsx scripts/seed-dev-tournaments.ts"
+    "seed:dev:tournaments": "tsx scripts/seed-dev-tournaments.ts",
+    "seed:dev:t20": "tsx scripts/seed-dev-t20.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
