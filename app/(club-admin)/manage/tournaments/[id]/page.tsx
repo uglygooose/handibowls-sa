@@ -68,7 +68,18 @@ export default async function TournamentDetailPage({
     <div className="flex flex-col gap-6 px-8 py-6">
       <TournamentHero tournament={tournament} />
       <TournamentTabs active={tab} badges={badges} />
-      <div className="pt-2">
+      {/* Phase 13 / 13-1 / commit 6: each tab content is wrapped in
+          <section role="tabpanel"> with id+aria-labelledby pointing at
+          its TournamentTabs button. Closes axe `aria-required-parent`
+          warnings + makes the tab→panel relationship discoverable to
+          screen readers. */}
+      <section
+        role="tabpanel"
+        id={`tabpanel-${tab}`}
+        aria-labelledby={`tab-${tab}`}
+        className="pt-2"
+        tabIndex={0}
+      >
         {tab === "entries" && <EntriesTab entries={entries} />}
         {tab === "draw" && (
           <DrawTab
@@ -89,7 +100,7 @@ export default async function TournamentDetailPage({
         {tab === "rinks" && <RinksTab matches={matches} />}
         {tab === "comms" && <CommsTab tournament={tournament} />}
         {tab === "audit" && <AuditTab />}
-      </div>
+      </section>
     </div>
   );
 }

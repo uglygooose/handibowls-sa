@@ -77,9 +77,12 @@ export function EntriesTab({ entries }: Props) {
       {/* Header — title / subtitle + admin actions */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-display text-2xl font-black tracking-tight">
+          {/* Phase 13 / 13-1 / commit 6: h3 → h2. Page hero h1 (tournament
+              name) → tab section h2 → in-section h3 — clears the axe
+              heading-order moderate violation that flagged the h1→h3 skip. */}
+          <h2 className="font-display text-2xl font-black tracking-tight">
             {entries.length} {entries.length === 1 ? "entry" : "entries"}
-          </h3>
+          </h2>
           <p className="mt-1 text-[13px] text-ink-muted">
             Inline-seed editable until the bracket is generated. Bulk
             actions appear when rows are selected.
@@ -345,7 +348,16 @@ function EntriesVirtualTable({
   );
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface">
+    // Phase 13 / 13-1 / commit 6: outer wrapper gets role="grid" so the
+    // descendant role="row" + role="rowgroup" + role="columnheader"
+    // descendants have a valid ARIA parent. Without the grid role, axe
+    // raises critical aria-required-parent violations.
+    <div
+      role="grid"
+      aria-label="Tournament entries"
+      aria-rowcount={rows.length + 1}
+      className="overflow-hidden rounded-xl border border-border bg-surface"
+    >
       {/* Sticky header */}
       <div
         role="row"
@@ -354,27 +366,41 @@ function EntriesVirtualTable({
       >
         {table.getHeaderGroups()[0]!.headers.map((h) => (
           <div key={h.id} role="columnheader">
-            {h.isPlaceholder
-              ? null
-              : flexRender(h.column.columnDef.header, h.getContext())}
+            {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
+            {/* Phase 13 / 13-1 / commit 6: actions column has empty visible
+                header text (visual-design intent). Inject an sr-only label
+                so axe's empty-table-header rule has an accessible name to
+                read; visual rendering unchanged. */}
+            {!h.isPlaceholder && h.column.id === "actions" && (
+              <span className="sr-only">Actions</span>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Scrollable virtual body */}
-      <div
-        ref={scrollRef}
-        role="rowgroup"
-        className="overflow-y-auto"
-        style={{ height: dynamicHeight }}
-      >
-        {rows.length === 0 ? (
+      {rows.length === 0 ? (
+        // Phase 13 / 13-1 / commit 6: empty state lives OUTSIDE the rowgroup
+        // because rowgroup must contain role="row" children (axe
+        // aria-required-children). Same scrollable-region styling
+        // preserved.
+        <div
+          ref={scrollRef}
+          className="overflow-y-auto"
+          style={{ height: dynamicHeight }}
+        >
           <div className="flex h-full items-center justify-center px-6 py-12 text-center">
             <p className="text-[13px] text-ink-muted">
               No entries match the current search.
             </p>
           </div>
-        ) : (
+        </div>
+      ) : (
+        <div
+          ref={scrollRef}
+          role="rowgroup"
+          className="overflow-y-auto"
+          style={{ height: dynamicHeight }}
+        >
           <div
             style={{ height: `${totalHeight}px`, position: "relative" }}
           >
@@ -411,8 +437,8 @@ function EntriesVirtualTable({
               );
             })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

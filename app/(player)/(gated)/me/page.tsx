@@ -155,45 +155,48 @@ export default async function MePage() {
           </div>
         ) : (
           <ul className="flex flex-col gap-1.5">
+            {/* Phase 13 / 13-1 / commit 6: <Link> wrapped in <li> so the <ul>
+                only contains <li> direct children (axe `list` serious rule). */}
             {inbox.map((n) => (
-              <Link
-                key={n.id}
-                href="/me/inbox"
-                className="flex items-start gap-3 rounded-xl border border-border bg-surface px-3 py-3 transition-colors hover:bg-surface-muted"
-              >
-                <span
-                  aria-hidden="true"
-                  className={
-                    "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full " +
-                    (n.read
-                      ? "bg-surface-muted text-ink-muted"
-                      : "bg-primary-500/10 text-accent-ink")
-                  }
+              <li key={n.id}>
+                <Link
+                  href="/me/inbox"
+                  className="flex items-start gap-3 rounded-xl border border-border bg-surface px-3 py-3 transition-colors hover:bg-surface-muted"
                 >
-                  <Bell className="size-3.5" aria-hidden="true" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <strong className="truncate text-[13px] font-bold">
-                      {n.title}
-                    </strong>
-                    <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-subtle">
-                      {formatRelativeZA(n.created_at)}
-                    </span>
-                  </div>
-                  {n.body && (
-                    <p className="mt-0.5 line-clamp-2 text-[12.5px] text-ink-muted">
-                      {n.body}
-                    </p>
-                  )}
-                </div>
-                {!n.read && (
                   <span
                     aria-hidden="true"
-                    className="mt-1 size-2 shrink-0 rounded-full bg-primary-500"
-                  />
-                )}
-              </Link>
+                    className={
+                      "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full " +
+                      (n.read
+                        ? "bg-surface-muted text-ink-muted"
+                        : "bg-primary-500/10 text-accent-ink")
+                    }
+                  >
+                    <Bell className="size-3.5" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <strong className="truncate text-[13px] font-bold">
+                        {n.title}
+                      </strong>
+                      <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-subtle">
+                        {formatRelativeZA(n.created_at)}
+                      </span>
+                    </div>
+                    {n.body && (
+                      <p className="mt-0.5 line-clamp-2 text-[12.5px] text-ink-muted">
+                        {n.body}
+                      </p>
+                    )}
+                  </div>
+                  {!n.read && (
+                    <span
+                      aria-hidden="true"
+                      className="mt-1 size-2 shrink-0 rounded-full bg-primary-500"
+                    />
+                  )}
+                </Link>
+              </li>
             ))}
           </ul>
         )}
@@ -229,14 +232,18 @@ export default async function MePage() {
               )}
             </li>
           ))}
-          <button
-            type="button"
-            disabled
-            className="flex h-11 cursor-not-allowed items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-surface text-[13px] font-medium text-ink-muted opacity-70"
-          >
-            <Plus className="size-3.5" aria-hidden="true" />
-            Join another club · invite-only
-          </button>
+          {/* Phase 13 / 13-1 / commit 6: button wrapped in <li> so the <ul>
+              only contains <li> direct children (axe `list` serious rule). */}
+          <li>
+            <button
+              type="button"
+              disabled
+              className="flex h-11 w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-surface text-[13px] font-medium text-ink-muted opacity-70"
+            >
+              <Plus className="size-3.5" aria-hidden="true" />
+              Join another club · invite-only
+            </button>
+          </li>
         </ul>
 
         {/* Settings */}

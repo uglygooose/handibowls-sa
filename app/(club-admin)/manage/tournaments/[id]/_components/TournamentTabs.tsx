@@ -92,7 +92,10 @@ export function TournamentTabs({ active, badges = {} }: Props) {
               key={tab.id}
               type="button"
               role="tab"
+              id={`tab-${tab.id}`}
               aria-selected={isActive}
+              aria-controls={`tabpanel-${tab.id}`}
+              tabIndex={isActive ? 0 : -1}
               data-active={isActive}
               data-testid={`tab-${tab.id}`}
               onClick={() => onSelect(tab.id)}
