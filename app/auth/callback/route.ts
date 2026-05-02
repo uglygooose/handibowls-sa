@@ -21,6 +21,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", url));
   }
 
+  // Phase 13 / 13-2b / Batch G1 — implicit restore-on-login. Same
+  // hook as signInAction; covers the magic-link / OAuth callback
+  // path. Failures don't block redirect.
+  const { maybeRestoreOnLogin } = await import("@/lib/auth/restore");
+  await maybeRestoreOnLogin(data.user.id, supabase);
+
   const rawRole = (data.user.app_metadata as Record<string, unknown> | undefined)?.role;
   const role: UserRole =
     rawRole === "super_admin" || rawRole === "club_admin" || rawRole === "player"
