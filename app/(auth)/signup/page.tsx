@@ -14,7 +14,7 @@ export default function SignupPage() {
       data-theme="atomic-red"
       className="grid min-h-dvh bg-surface md:grid-cols-[1fr_1.1fr]"
     >
-      <main className="mx-auto flex w-full max-w-[640px] flex-col px-5 py-8 md:px-12 md:py-8">
+      <div className="mx-auto flex w-full max-w-[640px] flex-col px-5 py-8 md:px-12 md:py-8">
         <header className="mb-10 flex items-center justify-between md:mb-12">
           <AuthWordmark />
           <Link
@@ -31,7 +31,7 @@ export default function SignupPage() {
           <span>Private · RLS on</span>
           <span>© 2026 HandiBowls</span>
         </footer>
-      </main>
+      </div>
 
       <AuthAside bowlPreset="ocean-blue" splatterPreset="ocean-blue" splatterVariant={0} side="right">
         <span className="block font-mono text-[10px] font-bold tracking-[0.16em] uppercase text-accent-ink">

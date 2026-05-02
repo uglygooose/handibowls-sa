@@ -15,5 +15,13 @@ import type { ReactNode } from "react";
 // regardless of any prior html[data-theme] resolution upstream.
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
-  return <div data-theme="core-black">{children}</div>;
+  // Phase 13 / 13-1 / Tier B / commit 3: data-theme stays as a wrapper
+  // div for theme scoping; the inner <main id="main-content"> owns the
+  // SkipLink bypass target. Public pages (e.g. /email/unsubscribe) don't
+  // render their own <main>.
+  return (
+    <div data-theme="core-black">
+      <main id="main-content">{children}</main>
+    </div>
+  );
 }

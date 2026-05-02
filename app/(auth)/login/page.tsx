@@ -50,7 +50,7 @@ export default async function LoginPage({
         </p>
       </AuthAside>
 
-      <main className="mx-auto flex w-full max-w-[640px] flex-col px-5 py-8 md:px-12 md:py-8">
+      <div className="mx-auto flex w-full max-w-[640px] flex-col px-5 py-8 md:px-12 md:py-8">
         <header className="mb-10 flex items-center justify-between md:mb-12">
           <AuthWordmark />
           <Link
@@ -83,7 +83,7 @@ export default async function LoginPage({
           <span>Secure · RLS on</span>
           <span>© 2026 HandiBowls</span>
         </footer>
-      </main>
+      </div>
     </div>
   );
 }

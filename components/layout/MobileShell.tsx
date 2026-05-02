@@ -31,6 +31,7 @@ export function MobileShell({ children, header, nav, className }: Props) {
     >
       {header}
       <main
+        id="main-content"
         data-slot="mobile-shell-main"
         className="flex-1 pb-[calc(env(safe-area-inset-bottom)+80px)]"
       >

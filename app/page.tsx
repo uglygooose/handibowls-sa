@@ -22,7 +22,7 @@ export default function RootPage() {
   return (
     <div data-theme="atomic-red" className="min-h-dvh bg-surface text-ink">
       <LandingTopBar />
-      <main>
+      <main id="main-content">
         <Hero />
         <FeatureGrid />
         <SocialProof />

@@ -364,7 +364,11 @@ export function CaptureWizard({ assessment, deliveries, rubric }: Props) {
       </header>
 
       {/* BODY */}
-      <main
+      {/* Phase 13 / 13-1 / commit 3: was `<main>` — demoted to `<div>` because
+          (club-admin)/layout.tsx already provides a single canonical
+          `<main id="main-content">` landmark per WCAG 2.4.1. Avoiding nested
+          main elements. */}
+      <div
         data-slot="capture-body"
         className="mx-auto w-full max-w-7xl flex-1 px-6 py-6"
       >
@@ -442,7 +446,7 @@ export function CaptureWizard({ assessment, deliveries, rubric }: Props) {
             }
           />
         )}
-      </main>
+      </div>
 
       {/* BOTTOM STICKY CONTROLS */}
       <footer

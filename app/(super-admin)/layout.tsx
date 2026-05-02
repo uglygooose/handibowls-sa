@@ -20,15 +20,18 @@ export default async function SuperAdminLayout({
 
   return (
     <div className="flex min-h-dvh bg-surface">
-      <aside className="hidden lg:block">
+      {/* Phase 13 / 13-1 / commit 3: was wrapped in `<aside>`; demoted to
+          plain div because AdminSidebar itself uses `<aside>` as its outer
+          element. Avoids landmark-complementary-is-top-level violations. */}
+      <div className="hidden lg:block">
         <AdminSidebar variant="super_admin" identity={identity} />
-      </aside>
+      </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar variant="light" title="Platform" />
         <div className="bg-surface-muted px-4 py-2 text-xs text-ink-muted lg:hidden">
           Platform admin is optimised for desktop.
         </div>
-        <main className="flex-1 overflow-x-hidden">{children}</main>
+        <main id="main-content" className="flex-1 overflow-x-hidden">{children}</main>
       </div>
     </div>
   );

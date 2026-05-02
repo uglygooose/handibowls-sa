@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { ThemeApplier } from "@/components/brand/ThemeApplier";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { AuthListener } from "@/components/auth/AuthListener";
+import { SkipLink } from "@/components/layout/SkipLink";
 import { Toaster } from "@/components/ui/sonner";
 import { resolveActiveTheme } from "@/lib/brand/theme-from-user";
 
@@ -69,6 +70,10 @@ export default async function RootLayout({
       )}
     >
       <body className="font-sans">
+        {/* WCAG 2.1 / 2.4.1: skip link must be the first focusable element
+            on the page so keyboard users can bypass repeated nav chrome.
+            Each role layout's `<main>` carries id="main-content". */}
+        <SkipLink />
         <QueryProvider>
           <AuthListener />
           <ThemeApplier theme={theme} />

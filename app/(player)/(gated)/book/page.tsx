@@ -47,17 +47,17 @@ export default async function BookPage({ searchParams }: Props) {
 
   if (!data) {
     return (
-      <main className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-5 pb-24">
+      <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-5 pb-24">
         <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-8 text-center text-[13px] text-ink-muted">
           You&apos;re not a member of any club yet — once a club admin invites
           you, booking opens up.
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-5 pb-24">
+    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-5 pb-24">
       {/* Visually hidden — bundle's PageBook has no h1 in the
           visible chrome (player-pages.jsx). h1 stays in the a11y
           tree for landmark navigation (12.5-6.5 Stage D). */}
@@ -84,7 +84,7 @@ export default async function BookPage({ searchParams }: Props) {
         variant="compact"
         heading="Your bookings"
       />
-    </main>
+    </div>
   );
 }
 
