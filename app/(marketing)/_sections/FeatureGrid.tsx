@@ -46,8 +46,21 @@ const FEATURES: Feature[] = [
 
 function FeatureCard({ feature }: { feature: Feature }) {
   const Icon = feature.icon;
+  // Phase 13 / 13-1 / commit 10: aria-labelledby on <article> pointing
+  // at the inner h3. Without this, SR users get "article" as the
+  // landmark announcement; with it, the article advertises its
+  // accessible name as the feature title ("Tournaments", "Scoring",
+  // "Twenty 20 skills"). Article landmarks don't auto-derive name
+  // from contained headings per WAI-ARIA AAM.
+  // ID is derived from the feature preset (stable, slug-safe, unique
+  // per feature) so this stays a Server Component — useId() would
+  // require "use client".
+  const titleId = `feature-${feature.preset}-title`;
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-3xl border-2 border-ink bg-bone transition-[transform,box-shadow] duration-200 hover:translate-x-[-2px] hover:translate-y-[-4px] hover:shadow-[8px_10px_0_var(--color-ink)]">
+    <article
+      aria-labelledby={titleId}
+      className="group relative flex flex-col overflow-hidden rounded-3xl border-2 border-ink bg-bone transition-[transform,box-shadow] duration-200 hover:translate-x-[-2px] hover:translate-y-[-4px] hover:shadow-[8px_10px_0_var(--color-ink)]"
+    >
       <div className="relative h-[200px] overflow-hidden">
         <SpeckleField
           preset={feature.preset}
@@ -69,7 +82,10 @@ function FeatureCard({ feature }: { feature: Feature }) {
         <div className="mb-2.5 font-mono text-[11px] tracking-[0.1em] text-ink-subtle">
           {feature.kicker}
         </div>
-        <h3 className="mb-3 font-display text-[32px] font-black italic leading-none tracking-[-0.01em] uppercase">
+        <h3
+          id={titleId}
+          className="mb-3 font-display text-[32px] font-black italic leading-none tracking-[-0.01em] uppercase"
+        >
           {feature.title}
         </h3>
         <p className="mb-5 text-[15px] text-ink-muted">{feature.body}</p>

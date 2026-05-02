@@ -34,8 +34,16 @@ export function AuthAside({
     >
       <SpeckleLayer seed={`auth-aside-${bowlPreset}`} density="med" opacity={0.08} />
 
-      {/* The bowl peeks in from the aside's outer edge. */}
+      {/* The bowl peeks in from the aside's outer edge.
+          Phase 13 / 13-1 / commit 10: wrapped in aria-hidden="true" so
+          SR users don't hear "Atomic Red bowl" / "Ocean Blue bowl"
+          announcements — this Bowl is purely decorative chrome on the
+          auth split-panel, NOT informative content. The Bowl primitive
+          ships its own role="img" + aria-label by default (correct for
+          non-decorative consumers); aria-hidden on the wrapper is the
+          per-instance opt-out. */}
       <div
+        aria-hidden="true"
         className={cn(
           "absolute top-1/2 -translate-y-1/2",
           right ? "-right-[240px]" : "-left-[240px]",

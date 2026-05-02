@@ -42,9 +42,14 @@ function Col({
 }) {
   return (
     <div>
-      <h4 className="m-0 mb-4 font-display text-[18px] font-extrabold italic tracking-[0.04em] uppercase text-white">
+      {/* Phase 13 / 13-1 / commit 10: was h4 — bumped to h3 to close
+          the axe `heading-order` moderate violation on /landing. Page
+          outline goes h1 (Hero) → h2 (sections) → h3 (cards + footer
+          cols). Visual size locked at 18px via className unchanged;
+          only the heading rank moved. */}
+      <h3 className="m-0 mb-4 font-display text-[18px] font-extrabold italic tracking-[0.04em] uppercase text-white">
         {title}
-      </h4>
+      </h3>
       {items.map((i) => (
         <Link
           key={i.label}
