@@ -1,0 +1,278 @@
+{
+  "capturedAt": "2026-05-02T17:22:07.398Z",
+  "label": "m3-residual-sweep",
+  "previewUrl": "https://handibowls-ee9iwpvd5-andrews-projects-a0c14c4f.vercel.app",
+  "results": [
+    {
+      "id": "landing",
+      "route": "/",
+      "role": null,
+      "label": "/ (landing)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 69,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "login",
+      "route": "/login",
+      "role": null,
+      "label": "/login (auth)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 78,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "play",
+      "route": "/play",
+      "role": "player",
+      "label": "/play (player home)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 64,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "tournament-detail",
+      "route": "/tournaments/239baed5-2e5c-4cc3-86a5-957a30ed60f1/matches/565254c3-67eb-4514-bd2c-8cfd687a42e1",
+      "role": "player",
+      "label": "/tournaments/[id] (player detail)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 80,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "t20",
+      "route": "/t20",
+      "role": "player",
+      "label": "/t20 (player T20 hub)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 66,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "me",
+      "route": "/me",
+      "role": "player",
+      "label": "/me (player profile)",
+      "axe": {
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+            "help": "Elements must meet minimum color contrast ratio thresholds",
+            "nodeCount": 3,
+            "nodes": [
+              {
+                "target": [
+                  ".border-l-4.p-3.border-l-border:nth-child(1) > .flex-wrap.gap-1\\.5.items-center > .tracking-\\[0\\.04em\\].text-ink-muted[data-slot=\"party-meta\"]"
+                ],
+                "html": "<span data-slot=\"party-meta\" class=\"font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-ink-muted\">· <!-- -->6<!-- --> bowlers</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.13 (foreground color: #90908f, background color: #fdfdfc, font size: 8.3pt (11px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".border-l-4.p-3.border-l-border:nth-child(2) > .flex-wrap.gap-1\\.5.items-center > .tracking-\\[0\\.04em\\].text-ink-muted[data-slot=\"party-meta\"]"
+                ],
+                "html": "<span data-slot=\"party-meta\" class=\"font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-ink-muted\">· <!-- -->2<!-- --> bowlers</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.13 (foreground color: #90908f, background color: #fdfdfc, font size: 8.3pt (11px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".border-l-4.p-3.border-l-border:nth-child(3) > .flex-wrap.gap-1\\.5.items-center > .tracking-\\[0\\.04em\\].text-ink-muted[data-slot=\"party-meta\"]"
+                ],
+                "html": "<span data-slot=\"party-meta\" class=\"font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-ink-muted\">· <!-- -->1<!-- --> bowlers</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 3.13 (foreground color: #90908f, background color: #fdfdfc, font size: 8.3pt (11px), font weight: bold). Expected contrast ratio of 4.5:1"
+              }
+            ]
+          }
+        ],
+        "counts": {
+          "critical": 0,
+          "serious": 1,
+          "moderate": 0,
+          "minor": 0,
+          "total": 1
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 96,
+          "performance": 70,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "manage",
+      "route": "/manage/overview",
+      "role": "club_admin",
+      "label": "/manage (club admin overview)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 43,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "admin-tournament-detail",
+      "route": "/manage/tournaments/2c576f92-d4e4-4e8b-ac97-8f82bf366275",
+      "role": "club_admin",
+      "label": "/manage/tournaments/[id] (L67=85 surface)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 41,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "manage-members",
+      "route": "/manage/members",
+      "role": "club_admin",
+      "label": "/manage/members (Tier E anchor)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 33,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "platform-clubs",
+      "route": "/platform/clubs",
+      "role": "super_admin",
+      "label": "/platform/clubs (super admin)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 38,
+          "bestPractices": 100,
+          "seo": 60
+        }
+      }
+    }
+  ]
+}

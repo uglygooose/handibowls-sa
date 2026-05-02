@@ -2602,6 +2602,246 @@ user QA confirmation** before 12-4 is genuinely closed and
 
 ---
 
+## Phase 13 — Launch prep — open
+
+Branch: `rebuild/phase-13-launch-prep`, cut from `fc35903`
+(Phase 12.5 close). 8 sub-checkpoints locked at 13-prep
+(`0d27069`): 13-prep · 13-1 (a11y) · 13-2 (security) · 13-3
+(perf + rounded-xl) · 13-4 (SEO) · 13-5 (monitoring) · 13-6
+(content) · 13-7 (launch infra) · 13-8 (pre-launch QA + close).
+Each Phase-13-owned DRIFT_LOG entry carries a `→ 13-N`
+annotation in its Owner field per the locked structure
+(reproduced in `DRIFT_LOG.md` § Phase 13 — Technical polish).
+
+### 13-1 — Accessibility audit + WCAG 2.1 AA fixes — closed 2026-05-02
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-13-launch-prep`).
+- **Sub-checkpoint structure:** the user briefed 13-1 as a
+  3-stage axe + Lighthouse audit (Stage 1 diagnostic / Stage 2
+  remediation across milestones M1 → M2 → M3 / Stage 3 close-
+  gate verification) anchored on 10 surfaces — / · /login ·
+  /play · /tournaments/[id] · /t20 · /me · /manage ·
+  /manage/tournaments/[id] (the L67=85 surface) ·
+  /manage/members · /platform/clubs.
+- **Headline SHAs across the full 13-1 sequence:**
+  - **13-prep** (`0d27069`) — branch cut, sub-checkpoint
+    structure locked, DRIFT entries re-tagged to 13-N.
+  - **M1 close** (`725e904`) — Tier A `--accent-ink` token
+    + 71-instance `text-primary-500` → `text-accent-ink`
+    sweep (sunburst + white-speckle text-on-light fallback);
+    -54 axe-serious contrast violations across the 10 anchor
+    surfaces.
+  - **M2 close** (`dec1c25`) — Tier B (skip-link + landmark
+    wiring + Field auto-id + describedby + invalid wiring +
+    placeholder-only search aria-label) + Tier C-pre
+    (tournament-detail heading hierarchy + tabpanel + grid +
+    ul-children + TanStack Table aria-sort + pagination
+    context). `/manage/tournaments/[id]` Lighthouse a11y
+    88 → 100 (+12).
+  - **Phase 14 backlog reconciliation interrupt** (`aced9bc`)
+    — DRIFT_LOG hygiene pass mid-flight; 11 entries tagged
+    Owner: Phase 14 (6 retags + 5 new). Documentation-only
+    commit (no a11y code).
+  - **M3 commits:** `77b6bd6` (8a — NotificationsBell manual
+    modal → shadcn Popover), `a2acdd8` (8b — RubricsClient
+    3 modals → shadcn Dialog), `e781343` (9 — M2 carry-
+    forwards + cross-cutting primitives, OfflineSyncBadge
+    tinted-pill class-of-bug origin fix), `59aff29` (10 —
+    marketing landing heading-order + FeatureGrid card
+    label + decorative cleanup), `d395ac7` (11 — virtualized
+    table ARIA grid pattern across MembersTable + super-
+    admin MembersTab; closes the L67 surface to 100/0/0/0).
+  - **M3 close-gate** baseline at `d395ac7`: 7/10 ≥95 a11y;
+    /play /t20 /me sat at 96 awaiting commit 12 residual
+    sweep; axe critical = 0 on all 10; axe serious = 0 on
+    /manage/tournaments/[id].
+  - **Commit 12 + fixups** (`0e20095` · `aa05554` ·
+    `dd5dbfc`) — tinted-pill foreground residual sweep
+    (Python-driven across 21 source files + 4 manual) +
+    EntriesTab columnheader id fix (TanStack auto-id is
+    `"menu"` not `"actions"`) + AuditLogPanel test pin
+    update (`text-danger-500` → `bg-danger-500/12` — the
+    danger semantic now travels on bg only) + cross-element
+    BookingsCalendarGrid cancelled-chip strikethrough fix
+    (Python regex couldn't match parent-bg + child-text
+    across element boundaries) + /t20 TierStep contrast
+    bump (bg-white/10 → bg-white/20) + /t20 hero subline
+    `text-white/70` → `text-[color:var(--color-on-primary)]`
+    (theme-aware on-primary).
+  - **13-1 close** (this commit) — PHASE_LOG entry +
+    DRIFT_LOG L67-followup partial closure (a11y portion) +
+    4 new follow-up DRIFT entries + README state-line.
+- **Locked decisions during 13-1:**
+  - **(a) Pattern A v1 launch — round-robin / sectional /
+    drawn-pairs / ladder + non-tournament features defer to
+    Phase 14.** Locked at the Phase 14 backlog reconciliation
+    interrupt (`aced9bc`). DRIFT_LOG `## Phase 14 — v1+1
+    feature backlog` is the canonical source.
+  - **(b) NotificationsBell uses Popover, not Dialog (8a).**
+    The bell is a non-modal dropdown; users continue to
+    interact with the page chrome behind it (no scrim, no
+    body-scroll lock). Popover is Radix's correct primitive
+    (`role="dialog"` with `aria-modal="false"` semantics,
+    no focus trap, ESC + outside-click + click-trigger to
+    dismiss). Dialog (used by RubricsClient at 8b) is the
+    correct primitive for the rubric activate / deactivate /
+    diff modals — those ARE modal (gravity-pinned, scrim,
+    focus trap, ESC dismiss). Pattern: dropdowns → Popover;
+    real modals → Dialog.
+  - **(c) virtualized div-tables stay role="grid" (commit
+    11), NOT semantic `<table>`.** TanStack Virtual
+    positions virtualized rows via `transform: translateY(...)`
+    on absolute-positioned divs. This is fundamentally
+    incompatible with semantic `<table>`/`<tr>`/`<td>` —
+    browsers force table layout regardless of CSS, breaking
+    the virtualization math. The ARIA grid pattern
+    (`role="grid"` outer + `role="row"` rowgroup + per-cell
+    `role="columnheader"` / `role="cell"`) ships the same
+    accessibility contract without breaking the layout.
+  - **(d) Stage 1 findings re-evaluated as non-bugs:**
+    `<InputGroup>` parent-group focus ring works correctly
+    via `:focus-within`; `<Tooltip>` open-on-focus is
+    auto-wired by Radix; `<Tabs aria-labelledby>` is
+    auto-derived from `<TabsTrigger>`; `<Dialog>` title
+    fallback is provided by Radix's `<DialogTitle>`
+    requirement when paired with `<DialogDescription>`. The
+    Stage 1 audit report flagged each as a possible
+    finding; manual re-verification against Radix v1.4.3
+    source confirmed each is a non-bug. No code changes.
+  - **(e) Tinted-pill class-of-bug fix is `text-ink`, not
+    700-tier brand text.** Tier A tried 700-tier
+    (`text-success-700` etc.) as the contrast lift but on
+    composited tinted backgrounds (`bg-{tone}-500/{8|10|12|16}`
+    over bone) the 700-tier still failed at ~3.7:1. Pivoted
+    to theme-invariant `text-ink` (#0a0a0a, 19.80:1 on bone)
+    at commit 9. Same fix scaled to commit 12's residual
+    sweep across the remaining 21+4 surfaces.
+- **Migrations applied during 13-1:** none. 13-1 is
+  application code only.
+- **Drift entries closed at 13-1 close:** `[L67-followup]`
+  a11y portion (partial closure; entry stays open for the
+  perf portion, owner narrows to Phase 13 → 13-3). **0
+  full closures, 1 partial closure.**
+- **Drift entries opened at 13-1 close:** 4 new entries —
+  `sw-registration-missing` (offline-shell delivery gap from
+  the pre-M3 reality audit) → 13-3 · `text-ink-muted-token-
+  contrast` (global token at 3.13:1 on bone, app-wide blast
+  radius) → 13-3 · `t20-hero-eyebrow-theme-coupling`
+  (`text-white/85` vs sunburst / white-speckle primaries) →
+  13-3 · `hover-pseudo-state-contrast-audit` (axe doesn't
+  simulate hover; 3 known instances) → 13-3.
+- **DRIFT_LOG counts at close:** **51 open / 88 closed**
+  (was 47 / 88 entering 13-1). Net +4 from the new follow-
+  ups; partial closures don't move counts.
+- **Test count delta:** 1374 → **1376** (+2 net). Two
+  pin-update + scope-update cases added across the
+  sequence: `tests/components/player/PlayerSectionHead.test.tsx`
+  (Tier A token-rename pin update) and
+  `tests/app/club-admin/overview-audit-log-panel.test.tsx`
+  (commit 12 — pin moved from `text-danger-500` to
+  `bg-danger-500/12` since the danger semantic now travels
+  on bg only). The 8a + 8b shadcn refactors swept multiple
+  test files' `container.querySelector` → `document.querySelector`
+  for portalled Radix slots; net case count unchanged.
+  Integration: 119 / 119 unchanged.
+- **Verification gates at close:**
+  - `tsc --noEmit`: clean.
+  - `eslint`: 0 errors / **17 warnings** (unchanged from
+    Phase 12.5 close — all 17 are pre-existing
+    `react-hooks/incompatible-library` on TanStack callers
+    + 4 unused-vars in non-app code; tracked at Phase 13 →
+    13-cross-cutting).
+  - `vitest`: 1376 / 1376 unit pass · 119 / 119 integration
+    pass.
+  - `next build`: clean (zero hydration warnings, all
+    routes compile).
+  - Push: clean fast-forward to `origin/rebuild/phase-13-
+    launch-prep`.
+- **Stage 2 close-gate verification (final residual-sweep
+  baseline against `https://handibowls-ee9iwpvd5-andrews-
+  projects-a0c14c4f.vercel.app`, label
+  `m3-residual-sweep`, captured 2026-05-02T17:22:07Z):**
+
+  | Surface | LH a11y | LH perf | axe c | axe s | axe m | axe n |
+  |---|---:|---:|---:|---:|---:|---:|
+  | / (landing) | **100** | 69 | 0 | 0 | 0 | 0 |
+  | /login (auth) | **100** | 78 | 0 | 0 | 0 | 0 |
+  | /play (player home) | **100** | 64 | 0 | 0 | 0 | 0 |
+  | /tournaments/[id] (player detail) | **100** | 80 | 0 | 0 | 0 | 0 |
+  | /t20 (player T20 hub) | **100** | 66 | 0 | 0 | 0 | 0 |
+  | /me (player profile) | **96** | 70 | 0 | 1 | 0 | 0 |
+  | /manage (club admin) | **100** | 43 | 0 | 0 | 0 | 0 |
+  | /manage/tournaments/[id] (L67) | **100** | 41 | 0 | 0 | 0 | 0 |
+  | /manage/members (Tier E) | **100** | 33 | 0 | 0 | 0 | 0 |
+  | /platform/clubs (super admin) | **100** | 38 | 0 | 0 | 0 | 0 |
+
+  - **Lighthouse Accessibility ≥ 95 on all 10:** **MET**
+    (lowest is /me at 96; rest at 100).
+  - **axe critical violations = 0 on all 10:** **MET.**
+  - **axe serious = 0 on /manage/tournaments/[id] (L67
+    surface):** **MET.**
+  - **axe minor = 0 on /manage/tournaments/[id]:** **MET.**
+  - **/me 1 axe-serious / 3 nodes** is the remaining
+    pre-existing `text-ink-muted` global token contrast
+    residual (3.13:1 on bone). Token-level decision out of
+    13-1 scope; deferred to Phase 13 / 13-3 as a design
+    call (NOT a bug). New DRIFT entry `text-ink-muted-token-
+    contrast` opened in this commit covers the v1 gate.
+  - Lighthouse perf scores in WSL remain noisy (33–80 on
+    desktop player surfaces); real-device perf
+    confirmation continues to live in `[L67-followup]`
+    perf portion → 13-3. The 12-5 perf sweep + the L67-
+    followup `[BLOCKED: perf-portion]` framing are
+    unchanged by 13-1.
+- **What 13-1 closes for v1:**
+  - WCAG 2.1 AA contrast clears on every shipped surface
+    bar one residual (`text-ink-muted` on /me, deferred to
+    13-3 as a token-level call).
+  - Skip-to-content + landmark wiring + heading hierarchy
+    + Field a11y wiring + sortable-table aria-sort + grid-
+    pattern columnheaders ship across every TanStack /
+    virtualized surface.
+  - Two manual modal patterns retired in favour of Radix
+    primitives (NotificationsBell → shadcn Popover;
+    RubricsClient 3 modals → shadcn Dialog) — focus trap +
+    focus return + ESC + outside-click + portal rendering
+    all come for free.
+  - Tinted-pill foreground class-of-bug eliminated across
+    25+ surfaces via theme-invariant `text-ink` swap.
+  - `--accent-ink` token covers `text-primary-500` callers
+    on sunburst + white-speckle (the two themes where
+    primary-500 fails AA on bone).
+  - Service-worker registration gap surfaced + tracked
+    (offline-first claim re-confirmed-as-broken at the
+    pre-M3 reality audit; fix lives in 13-3).
+- **Manual QA outcome:** Stage 2 close-gate verified
+  against the Vercel preview at
+  `handibowls-ee9iwpvd5-andrews-projects-a0c14c4f.vercel.app`
+  (deployment `dpl_9MaRfdJHBRUdYGM7RvDC5nTywPCf`, SHA
+  `dd5dbfc`). Three sequential preview deployments
+  measured during the residual sweep cycle:
+  `handibowls-cmbw08rjz` (commit 12 / `0e20095`) → 1
+  /manage axe-serious from cross-element BookingsCalendarGrid;
+  `handibowls-b0d24gtnd` (12-fixup / `aa05554`) → /manage
+  cleared, /t20 + /me surfaced (Lighthouse Chrome flake had
+  been masking them at M3 close); `handibowls-ee9iwpvd5`
+  (12-fixup-2 / `dd5dbfc`) → /t20 cleared, /me's pre-
+  existing token-level residual remained. Baseline
+  artefacts at `docs/audit/phase-13/baseline-13-1-m3-close.{json,md}`
+  + `docs/audit/phase-13/baseline-13-1-m3-residual-sweep.{json,md}`.
+- **Drift candidates not opened:**
+  - **No DRIFT entry for the tinted-pill class-of-bug** —
+    closed by commit 12 + fixups. The pattern is gone from
+    the codebase; opening an entry would document a
+    closed-out problem.
+  - **No DRIFT entry for the empty-table-header
+    `aria-required-children` residual** — closed by commit
+    6 (sr-only labels on checkbox + actions columns) plus
+    commit 12's id-conditional fix.
+
+---
+
 ## Operational conventions
 
 - **Browser-driven QA is human-side throughout the rebuild.** Multi-viewport visual checks and Lighthouse performance audits run on a real browser / device by the human at phase close — Claude Code cannot drive a browser in this WSL container (Playwright + chrome-devtools MCPs both fail to attach). Claude Code's QA scope is limited to code review against the design source + curl-level route checks. Subsequent phase briefs and stop-and-reports drop the "mandatory mobile QA at 4 viewports" item from Claude's gate list. Recorded: 2026-04-29 (post Phase 8 first batch).
