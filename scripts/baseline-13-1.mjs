@@ -334,7 +334,7 @@ function renderSummary(results, ts) {
     lines.push(`| Rule | Impact | Nodes | Description |`);
     lines.push(`|---|---|---:|---|`);
     for (const v of r.axe.violations) {
-      lines.push(`| \`${v.id}\` | ${v.impact} | ${v.nodes} | ${v.help} |`);
+      lines.push(`| \`${v.id}\` | ${v.impact} | ${v.nodeCount} | ${v.help} |`);
     }
     lines.push(``);
   }
