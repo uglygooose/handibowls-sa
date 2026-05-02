@@ -1,3 +1,7 @@
+"use client";
+
+import { cloneElement, isValidElement, useId, type ReactElement } from "react";
+
 import { cn } from "@/lib/utils";
 
 // Phase 12.5 / 12.5-5 — shared layout primitives for the create
@@ -8,9 +12,12 @@ import { cn } from "@/lib/utils";
 // now consume `<Section>` / `<Field>` / `<ChipRow>` / `<Chip>` and
 // the shared `inputClass` constant.
 //
-// Pure presentational — no client-state, no server-only — so this
-// file lives outside the per-route `_components/` folders to make
-// the cross-route consumption obvious.
+// Phase 13 / 13-1 / Tier B / commit 4: client-component because Field
+// uses useId() to generate unique input ids + cloneElement() to inject
+// id + aria-invalid + aria-describedby onto the wrapped input child.
+// Server components can call useId, but cloneElement on a JSX child
+// passed via prop crosses the server-to-client boundary cleanly only
+// when this file itself is the client island.
 
 export const inputClass =
   "h-11 w-full rounded-lg border border-border bg-surface px-3 text-[14px] text-ink placeholder:text-ink-subtle focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone disabled:cursor-not-allowed disabled:opacity-60";
@@ -55,17 +62,51 @@ export function Field({
   error?: string;
   children: React.ReactNode;
 }) {
+  // Generate a stable per-instance id so error/helper spans can be linked
+  // via aria-describedby on the input. Implicit label association (input
+  // wrapped in <label>) handles the label, but error/helper announcement
+  // requires aria-describedby on the input itself.
+  const reactId = useId();
+  const fieldId = `${reactId}-field`;
+  const errorId = `${reactId}-error`;
+  const helperId = `${reactId}-helper`;
+  const describedBy = error ? errorId : helper ? helperId : undefined;
+  const invalid = Boolean(error);
+
+  // Inject id + aria-invalid + aria-describedby onto the (single) input/
+  // textarea/select child. Falls through to a wrapping label-only render if
+  // the child isn't a valid React element (defensive — the caller pattern
+  // is always `<Field><input ... /></Field>`).
+  const enhancedChild =
+    isValidElement(children)
+      ? cloneElement(children as ReactElement<Record<string, unknown>>, {
+          id: (children.props as { id?: string }).id ?? fieldId,
+          "aria-invalid":
+            (children.props as { ["aria-invalid"]?: boolean })["aria-invalid"] ??
+            (invalid || undefined),
+          "aria-describedby":
+            (children.props as { ["aria-describedby"]?: string })["aria-describedby"] ??
+            describedBy,
+        })
+      : children;
+
   return (
     <label className="flex flex-col gap-1.5">
       <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
         {label}
         {required && <span className="ml-0.5 text-danger-500">*</span>}
       </span>
-      {children}
+      {enhancedChild}
       {helper && !error && (
-        <span className="text-[11px] italic text-ink-subtle">{helper}</span>
+        <span id={helperId} className="text-[11px] italic text-ink-subtle">
+          {helper}
+        </span>
       )}
-      {error && <span className="text-[11px] text-danger-500">{error}</span>}
+      {error && (
+        <span id={errorId} role="alert" className="text-[11px] text-danger-500">
+          {error}
+        </span>
+      )}
     </label>
   );
 }
