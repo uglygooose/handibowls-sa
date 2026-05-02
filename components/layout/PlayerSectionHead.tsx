@@ -40,13 +40,21 @@ type ActionProp =
   | { label: string; onClick: () => void; href?: never };
 
 type Props = {
-  /** Required — the section heading content. Renders as an h3 per
-   *  bundle markup (h2 if the consumer needs to control heading
-   *  level — overridable via `as` prop below). */
+  /** Required — the section heading content. Renders as an h2 by
+   *  default (Phase 13 / 13-1 / commit 9 — was h3 per the design
+   *  bundle's `.section-head h3` CSS rule, but the visible-h1-is-
+   *  sr-only pattern on /play /book /tournaments /me/inbox plus the
+   *  in-section h3 children pattern means h2 is the right semantic
+   *  level for the document outline. The bundle's `h3` was a CSS
+   *  selector convenience, not a heading-rank prescription. Visual
+   *  styling stays at 22px font-display italic uppercase via className,
+   *  identical between h2 and h3 — only the role changes. axe
+   *  heading-order on /play, /t20, /me clears with this swap.). */
   children: ReactNode;
-  /** Heading level. Defaults to "h3" per bundle. Use "h2" only when
-   *  the section needs to outrank a sibling. Doesn't change visual
-   *  size — that's locked at 22px. */
+  /** Heading level. Defaults to "h2" so the in-section h3 children
+   *  preserve a clean h1 → h2 → h3 outline. Override to "h3" only
+   *  when the section sits inside an existing h2-anchored region
+   *  (rare). Doesn't change visual size — locked at 22px. */
   as?: "h2" | "h3";
   /** Optional inline-right "View all" link / action. Renders mono
    *  11px primary-500 uppercase per bundle's `.section-head a`. */
@@ -60,7 +68,7 @@ type Props = {
 
 export function PlayerSectionHead({
   children,
-  as = "h3",
+  as = "h2",
   action,
   caption,
   className,

@@ -154,7 +154,7 @@ describe("<NotificationsBell /> — unread badge", () => {
 describe("<NotificationsBell /> — dropdown", () => {
   it("dropdown is closed by default", () => {
     setRealtime({ unreadCount: 0, recent: [] });
-    const { container } = render(
+    render(
       <NotificationsBell
         role="player"
         profileId={PROFILE}

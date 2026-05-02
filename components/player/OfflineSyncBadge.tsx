@@ -29,6 +29,17 @@ type Props = {
   className?: string;
 };
 
+// Phase 13 / 13-1 / commit 9 — text foreground swept from
+// text-{success,warning,danger}-{500,700} → text-ink. The previous 700-tier
+// foreground (Tier-A swap from 500-tier) cleared 4.5:1 against bone but
+// not against the tinted-pill background `bg-{tone}-500/{12,16}` which
+// resolves to a near-surface tint when composited over bg-bone or
+// bg-surface-muted (the M2 axe baseline flagged 7-9 nodes per player route
+// across /play, /tournaments/[id], /t20, /me, /manage, /manage/members).
+// text-ink is theme-invariant high contrast (19.80:1 on bone, 18.93:1 on
+// surface) so the badge passes AA on every theme + every chrome context.
+// The colored dot stays brand-tinted to retain at-a-glance state cue;
+// state-meaning is communicated by both dot color AND label text.
 const TONE: Record<
   SyncState,
   { bg: string; ring: string; text: string; dot: string }
@@ -36,19 +47,19 @@ const TONE: Record<
   synced: {
     bg: "bg-success-500/12",
     ring: "ring-success-500/30",
-    text: "text-success-700",
+    text: "text-ink",
     dot: "bg-success-500",
   },
   pending: {
     bg: "bg-warning-500/16",
     ring: "ring-warning-500/40",
-    text: "text-warning-700",
+    text: "text-ink",
     dot: "bg-warning-500",
   },
   error: {
     bg: "bg-danger-500/16",
     ring: "ring-danger-500/40",
-    text: "text-danger-500",
+    text: "text-ink",
     dot: "bg-danger-500",
   },
 };

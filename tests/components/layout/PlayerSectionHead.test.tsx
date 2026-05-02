@@ -10,14 +10,19 @@ import { PlayerSectionHead } from "@/components/layout/PlayerSectionHead";
 afterEach(cleanup);
 
 describe("<PlayerSectionHead /> — bundle CSS contract", () => {
-  it("renders h3 by default at text-[22px] font-display font-black italic uppercase (per .section-head h3)", () => {
+  it("renders h2 by default at text-[22px] font-display font-black italic uppercase (per .section-head h3 visual rule, h2 semantic rank)", () => {
+    // Phase 13 / 13-1 / commit 9 — default level flipped h3 → h2 to
+    // close axe heading-order on /play /t20 /me (sr-only h1 → visible h3
+    // skips a level). Visual styling locked at 22px is unchanged; only
+    // the heading rank moved. The bundle's `.section-head h3` CSS
+    // selector was a styling convenience, not a heading-rank prescription.
     const { container } = render(
       <PlayerSectionHead>Recent results</PlayerSectionHead>,
     );
     const heading = container.querySelector(
       "[data-slot='player-section-head-title']",
     );
-    expect(heading?.tagName).toBe("H3");
+    expect(heading?.tagName).toBe("H2");
     expect(heading?.textContent).toBe("Recent results");
     const cls = heading?.className ?? "";
     expect(cls).toContain("text-[22px]");
@@ -27,14 +32,14 @@ describe("<PlayerSectionHead /> — bundle CSS contract", () => {
     expect(cls).toContain("uppercase");
   });
 
-  it("supports as='h2' for sections that outrank a sibling — visual size stays at 22px", () => {
+  it("supports as='h3' for sections nested inside an existing h2-anchored region — visual size stays at 22px", () => {
     const { container } = render(
-      <PlayerSectionHead as="h2">Inbox</PlayerSectionHead>,
+      <PlayerSectionHead as="h3">Sub-section</PlayerSectionHead>,
     );
     const heading = container.querySelector(
       "[data-slot='player-section-head-title']",
     );
-    expect(heading?.tagName).toBe("H2");
+    expect(heading?.tagName).toBe("H3");
     expect(heading?.className).toContain("text-[22px]");
   });
 

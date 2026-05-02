@@ -22,7 +22,18 @@ export function Scoreboard({
   className,
 }: Props) {
   return (
+    // Phase 13 / 13-1 / commit 9 — role="status" + aria-live="polite"
+    // so screen readers announce score changes during live scoring
+    // (the home/away values are the canonical state of an in-progress
+    // match; without a live region, captains using SR get no audible
+    // confirmation when an end commits).
     <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      aria-label={`Score: ${homeLabel} ${home}, ${awayLabel} ${away}${
+        ends != null && totalEnds != null ? `, end ${ends} of ${totalEnds}` : ""
+      }`}
       className={cn(
         "grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-lg border border-border bg-surface p-4",
         className,

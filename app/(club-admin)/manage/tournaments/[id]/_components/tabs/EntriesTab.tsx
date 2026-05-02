@@ -367,12 +367,20 @@ function EntriesVirtualTable({
         {table.getHeaderGroups()[0]!.headers.map((h) => (
           <div key={h.id} role="columnheader">
             {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
-            {/* Phase 13 / 13-1 / commit 6: actions column has empty visible
-                header text (visual-design intent). Inject an sr-only label
-                so axe's empty-table-header rule has an accessible name to
-                read; visual rendering unchanged. */}
+            {/* Phase 13 / 13-1 / commit 6 (Actions) + commit 9 (checkbox):
+                two columns have visually-empty headers by design — the
+                "actions" column ships only an inline icon menu, the
+                "checkbox" column ships only the select-all input. Both
+                trip axe's empty-table-header (the checkbox's own
+                aria-label "Select all entries" doesn't satisfy the rule
+                because axe checks the columnheader CELL's text content,
+                not its descendant inputs' aria-labels). Inject an sr-only
+                label per column; visual rendering unchanged. */}
             {!h.isPlaceholder && h.column.id === "actions" && (
               <span className="sr-only">Actions</span>
+            )}
+            {!h.isPlaceholder && h.column.id === "checkbox" && (
+              <span className="sr-only">Selection</span>
             )}
           </div>
         ))}

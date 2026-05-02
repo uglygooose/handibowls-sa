@@ -32,7 +32,10 @@ export function PasswordStrength({ value }: { value: string }) {
 
   return (
     <div className="mt-2">
-      <div className="grid grid-cols-4 gap-1">
+      <div
+        className="grid grid-cols-4 gap-1"
+        aria-hidden="true"
+      >
         {[1, 2, 3, 4].map((lvl) => (
           <div
             key={lvl}
@@ -40,8 +43,16 @@ export function PasswordStrength({ value }: { value: string }) {
           />
         ))}
       </div>
-      <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-subtle">
-        {LABELS[s]}
+      {/* Phase 13 / 13-1 / commit 9 — role="status" + aria-live="polite"
+          so screen readers announce strength changes as the user types.
+          The 4-bar visual is aria-hidden because the textual label
+          carries the same state with a clearer SR-readable signal. */}
+      <div
+        role="status"
+        aria-live="polite"
+        className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-subtle"
+      >
+        Password strength: {LABELS[s]}
       </div>
     </div>
   );
