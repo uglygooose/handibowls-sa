@@ -223,7 +223,7 @@ describe("<RubricsClient /> — draft banner", () => {
         "[data-slot='draft-compare-cta']",
       ) as HTMLButtonElement,
     );
-    expect(container.querySelector("[data-slot='diff-modal']")).not.toBeNull();
+    expect(document.querySelector("[data-slot='diff-modal']")).not.toBeNull();
   });
 
   it("Activate CTA opens the activate modal", () => {
@@ -236,7 +236,7 @@ describe("<RubricsClient /> — draft banner", () => {
       ) as HTMLButtonElement,
     );
     expect(
-      container.querySelector("[data-slot='activate-modal']"),
+      document.querySelector("[data-slot='activate-modal']"),
     ).not.toBeNull();
   });
 });
@@ -287,13 +287,11 @@ describe("<RubricsClient /> — activate modal", () => {
         "[data-slot='draft-activate-cta']",
       ) as HTMLButtonElement,
     );
-    const cta = container.querySelector(
-      "[data-slot='activate-confirm-cta']",
+    const cta = document.querySelector("[data-slot='activate-confirm-cta']",
     ) as HTMLButtonElement;
     expect(cta.disabled).toBe(true);
     fireEvent.click(
-      container.querySelector(
-        "[data-slot='activate-acknowledge-input']",
+      document.querySelector("[data-slot='activate-acknowledge-input']",
       ) as HTMLInputElement,
     );
     expect(cta.disabled).toBe(false);
@@ -310,14 +308,12 @@ describe("<RubricsClient /> — activate modal", () => {
       ) as HTMLButtonElement,
     );
     fireEvent.click(
-      container.querySelector(
-        "[data-slot='activate-acknowledge-input']",
+      document.querySelector("[data-slot='activate-acknowledge-input']",
       ) as HTMLInputElement,
     );
     await act(async () => {
       (
-        container.querySelector(
-          "[data-slot='activate-confirm-cta']",
+        document.querySelector("[data-slot='activate-confirm-cta']",
         ) as HTMLButtonElement
       ).click();
       await new Promise((r) => setTimeout(r, 0));
@@ -327,7 +323,7 @@ describe("<RubricsClient /> — activate modal", () => {
     });
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledTimes(1));
     expect(
-      container.querySelector("[data-slot='activate-modal']"),
+      document.querySelector("[data-slot='activate-modal']"),
     ).toBeNull();
   });
 
@@ -344,23 +340,21 @@ describe("<RubricsClient /> — activate modal", () => {
       ) as HTMLButtonElement,
     );
     fireEvent.click(
-      container.querySelector(
-        "[data-slot='activate-acknowledge-input']",
+      document.querySelector("[data-slot='activate-acknowledge-input']",
       ) as HTMLInputElement,
     );
     await act(async () => {
       (
-        container.querySelector(
-          "[data-slot='activate-confirm-cta']",
+        document.querySelector("[data-slot='activate-confirm-cta']",
         ) as HTMLButtonElement
       ).click();
       await new Promise((r) => setTimeout(r, 0));
     });
     expect(
-      container.querySelector("[data-slot='activate-error']"),
+      document.querySelector("[data-slot='activate-error']"),
     ).not.toBeNull();
     expect(
-      container.querySelector("[data-slot='activate-modal']"),
+      document.querySelector("[data-slot='activate-modal']"),
     ).not.toBeNull();
   });
 
@@ -374,12 +368,11 @@ describe("<RubricsClient /> — activate modal", () => {
       ) as HTMLButtonElement,
     );
     fireEvent.click(
-      container.querySelector(
-        "[data-slot='activate-cancel-cta']",
+      document.querySelector("[data-slot='activate-cancel-cta']",
       ) as HTMLButtonElement,
     );
     expect(
-      container.querySelector("[data-slot='activate-modal']"),
+      document.querySelector("[data-slot='activate-modal']"),
     ).toBeNull();
     expect(activateRubricVersionSpy).not.toHaveBeenCalled();
   });
@@ -395,19 +388,22 @@ describe("<RubricsClient /> — diff modal → activate hand-off", () => {
         "[data-slot='draft-compare-cta']",
       ) as HTMLButtonElement,
     );
-    expect(container.querySelector("[data-slot='diff-modal']")).not.toBeNull();
+    expect(document.querySelector("[data-slot='diff-modal']")).not.toBeNull();
     fireEvent.click(
-      container.querySelector(
-        "[data-slot='diff-modal-activate-cta']",
+      document.querySelector("[data-slot='diff-modal-activate-cta']",
       ) as HTMLButtonElement,
     );
-    expect(container.querySelector("[data-slot='diff-modal']")).toBeNull();
+    expect(document.querySelector("[data-slot='diff-modal']")).toBeNull();
     expect(
-      container.querySelector("[data-slot='activate-modal']"),
+      document.querySelector("[data-slot='activate-modal']"),
     ).not.toBeNull();
   });
 
   it("Diff close button dismisses the modal", () => {
+    // Phase 13 / 13-1 / commit 8b — the manual `diff-modal-close` X button
+    // was dropped during the shadcn-Dialog refactor. shadcn DialogContent
+    // ships its own close affordance with data-slot="dialog-close" + an
+    // sr-only "Close" label, which is the new contract target.
     const { container } = render(
       <RubricsClient rows={[ROW_DRAFT, ROW_ACTIVE]} />,
     );
@@ -416,12 +412,13 @@ describe("<RubricsClient /> — diff modal → activate hand-off", () => {
         "[data-slot='draft-compare-cta']",
       ) as HTMLButtonElement,
     );
+    // The dialog renders a single close button; query it via the shadcn-
+    // dialog data-slot. There may be multiple if other dialogs are mounted,
+    // but this test only opens the diff modal so the first match is correct.
     fireEvent.click(
-      container.querySelector(
-        "[data-slot='diff-modal-close']",
-      ) as HTMLButtonElement,
+      document.querySelector("[data-slot='dialog-close']") as HTMLButtonElement,
     );
-    expect(container.querySelector("[data-slot='diff-modal']")).toBeNull();
+    expect(document.querySelector("[data-slot='diff-modal']")).toBeNull();
   });
 });
 
@@ -459,12 +456,11 @@ describe("<RubricsClient /> — deactivate flow", () => {
       ) as HTMLButtonElement,
     );
     expect(
-      container.querySelector("[data-slot='deactivate-modal']"),
+      document.querySelector("[data-slot='deactivate-modal']"),
     ).not.toBeNull();
     await act(async () => {
       (
-        container.querySelector(
-          "[data-slot='deactivate-confirm-cta']",
+        document.querySelector("[data-slot='deactivate-confirm-cta']",
         ) as HTMLButtonElement
       ).click();
       await new Promise((r) => setTimeout(r, 0));
@@ -474,7 +470,7 @@ describe("<RubricsClient /> — deactivate flow", () => {
     });
     await waitFor(() =>
       expect(
-        container.querySelector("[data-slot='deactivate-modal']"),
+        document.querySelector("[data-slot='deactivate-modal']"),
       ).toBeNull(),
     );
   });
@@ -489,12 +485,11 @@ describe("<RubricsClient /> — deactivate flow", () => {
       ) as HTMLButtonElement,
     );
     fireEvent.click(
-      container.querySelector(
-        "[data-slot='deactivate-cancel-cta']",
+      document.querySelector("[data-slot='deactivate-cancel-cta']",
       ) as HTMLButtonElement,
     );
     expect(
-      container.querySelector("[data-slot='deactivate-modal']"),
+      document.querySelector("[data-slot='deactivate-modal']"),
     ).toBeNull();
     expect(deactivateRubricVersionSpy).not.toHaveBeenCalled();
   });

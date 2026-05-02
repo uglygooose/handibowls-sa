@@ -15,6 +15,13 @@ import { toast } from "sonner";
 
 import { AdminPageHero } from "@/components/layout/AdminPageHero";
 import { RubricDiff } from "@/components/t20/RubricDiff";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { formatDateZA } from "@/lib/format/dates";
 import { diffRubrics, summariseDiff } from "@/lib/t20/diff";
@@ -750,44 +757,32 @@ function DiffModal({
   onClose: () => void;
   onActivate: () => void;
 }) {
+  // Phase 13 / 13-1 / commit 8b — was a manual `role="dialog"` div with
+  // overlay onClick + stopPropagation + manual close button. Replaced with
+  // shadcn Dialog (Radix Dialog under the hood) for proper focus trap +
+  // aria-modal + aria-labelledby + ESC handling. The DialogContent ships
+  // its own close button (X icon, top-right) so the manual one is dropped.
   return (
-    <div
-      data-slot="diff-modal-overlay"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/55 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Rubric diff"
-    >
-      <div
+    <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent
         data-slot="diff-modal"
-        onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-bone shadow-2xl"
+        className="flex max-h-[85vh] w-full max-w-5xl flex-col gap-0 overflow-hidden rounded-2xl bg-bone p-0 sm:max-w-5xl"
       >
-        <div className="flex items-start justify-between border-b border-border px-7 py-5">
+        <DialogHeader className="flex-row items-start justify-between gap-3 border-b border-border px-7 py-5">
           <div>
             <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
               Side-by-side diff
             </div>
-            <h3 className="mt-1 font-display text-[24px] font-black italic leading-tight tracking-tight">
+            <DialogTitle className="mt-1 font-display text-[24px] font-black italic leading-tight tracking-tight">
               {activeLabel.split(" · ")[0]} → {incomingLabel.split(" · ")[0]}
-            </h3>
-            <p className="mt-1 max-w-[58ch] text-[12px] text-ink-muted">
+            </DialogTitle>
+            <DialogDescription className="mt-1 max-w-[58ch] text-[12px] text-ink-muted">
               Activating will lock all <strong>new</strong> captures to its
               rules. Existing assessments retain their original rubric
               forever.
-            </p>
+            </DialogDescription>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close diff"
-            data-slot="diff-modal-close"
-            className="inline-flex size-9 items-center justify-center rounded-md hover:bg-surface-muted"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
+        </DialogHeader>
         <div className="overflow-auto px-7 py-5">
           <RubricDiff
             changes={changes}
@@ -819,8 +814,8 @@ function DiffModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -871,22 +866,16 @@ function ActivateModal({
     });
   }
 
+  // Phase 13 / 13-1 / commit 8b — manual modal → shadcn Dialog. See
+  // DiffModal above for the rationale; same swap pattern.
   return (
-    <div
-      data-slot="activate-modal-overlay"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/55 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Activate ${target.version}`}
-    >
-      <div
+    <Dialog open onOpenChange={(next) => { if (!next && !pending) onClose(); }}>
+      <DialogContent
         data-slot="activate-modal"
         data-target-id={target.id}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[560px] overflow-hidden rounded-2xl border border-border bg-bone shadow-2xl"
+        className="w-full max-w-[560px] gap-0 overflow-hidden rounded-2xl bg-bone p-0 sm:max-w-[560px]"
       >
-        <div className="px-7 pb-2 pt-7">
+        <DialogHeader className="px-7 pb-2 pt-7">
           <span
             aria-hidden="true"
             className="mb-4 flex size-[54px] items-center justify-center rounded-xl"
@@ -897,14 +886,16 @@ function ActivateModal({
           >
             <AlertTriangle className="size-5" />
           </span>
-          <h3 className="mb-2 font-display text-[24px] font-black italic leading-tight tracking-tight">
+          <DialogTitle className="mb-2 font-display text-[24px] font-black italic leading-tight tracking-tight">
             Activate {target.version}?
-          </h3>
-          <p className="mb-3.5 text-[14px] leading-[1.55] text-ink-muted">
+          </DialogTitle>
+          <DialogDescription className="mb-3.5 text-[14px] leading-[1.55] text-ink-muted">
             This becomes the active rubric across all clubs immediately. Captures
             already in progress are not affected — they keep{" "}
             <strong className="text-ink">{active?.version ?? "—"}</strong>.
-          </p>
+          </DialogDescription>
+        </DialogHeader>
+        <div className="px-7 pb-2">
           <div className="rounded-xl border border-border bg-surface-muted p-4">
             <Stat label="Captures locked to active" value={lockedCount} />
             <Stat label="Drafts pending review" value={1} />
@@ -964,8 +955,8 @@ function ActivateModal({
             {pending ? "Activating…" : "Activate now"}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1035,36 +1026,31 @@ function DeactivateModal({
     });
   }
 
+  // Phase 13 / 13-1 / commit 8b — manual modal → shadcn Dialog.
   return (
-    <div
-      data-slot="deactivate-modal-overlay"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/55 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Deactivate ${target.version}`}
-    >
-      <div
+    <Dialog open onOpenChange={(next) => { if (!next && !pending) onClose(); }}>
+      <DialogContent
         data-slot="deactivate-modal"
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[520px] overflow-hidden rounded-2xl border border-border bg-bone shadow-2xl"
+        className="w-full max-w-[520px] gap-0 overflow-hidden rounded-2xl bg-bone p-0 sm:max-w-[520px]"
       >
-        <div className="px-7 pb-3 pt-7">
+        <DialogHeader className="px-7 pb-3 pt-7">
           <span
             aria-hidden="true"
             className="mb-4 flex size-[54px] items-center justify-center rounded-xl bg-danger-500/15 text-danger-500"
           >
             <X className="size-5" />
           </span>
-          <h3 className="mb-2 font-display text-[22px] font-black italic leading-tight tracking-tight">
+          <DialogTitle className="mb-2 font-display text-[22px] font-black italic leading-tight tracking-tight">
             Deactivate {target.version}?
-          </h3>
-          <p className="text-[13.5px] leading-[1.55] text-ink-muted">
+          </DialogTitle>
+          <DialogDescription className="text-[13.5px] leading-[1.55] text-ink-muted">
             New captures cannot begin until another rubric is activated. This
             is rare — usually you activate a replacement first, which auto-
             deactivates the current one.
-          </p>
-          {error && (
+          </DialogDescription>
+        </DialogHeader>
+        {error && (
+          <div className="px-7">
             <p
               role="alert"
               data-slot="deactivate-error"
@@ -1072,9 +1058,9 @@ function DeactivateModal({
             >
               {error}
             </p>
-          )}
-        </div>
-        <div className="flex justify-end gap-2 border-t border-border bg-surface-muted px-7 py-4">
+          </div>
+        )}
+        <div className="mt-3 flex justify-end gap-2 border-t border-border bg-surface-muted px-7 py-4">
           <button
             type="button"
             onClick={onClose}
@@ -1098,8 +1084,8 @@ function DeactivateModal({
             {pending ? "Deactivating…" : "Deactivate"}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
