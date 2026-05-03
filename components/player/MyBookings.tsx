@@ -116,15 +116,18 @@ function BookingRow({ row }: { row: MyBookingRow }) {
       data-booking-id={row.id}
       data-past={row.is_past}
       className={cn(
-        "rounded-xl border border-l-4 border-border bg-bone p-3",
+        "rounded-xl border border-l-4 border-border p-3",
         row.is_past
-          ? "border-l-border opacity-60"
-          : "border-l-primary-500",
+          ? "border-l-border bg-surface-muted"
+          : "border-l-primary-500 bg-bone",
       )}
     >
       <div
         data-slot="when-label"
-        className="mb-1.5 text-[14px] font-extrabold text-ink"
+        className={cn(
+          "mb-1.5 text-[14px] font-extrabold",
+          row.is_past ? "text-ink-subtle" : "text-ink",
+        )}
       >
         {row.when_label}
       </div>

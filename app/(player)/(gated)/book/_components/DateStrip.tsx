@@ -16,7 +16,10 @@ import type { BookingDate } from "../slots";
 //   • day-of-week mono caps (10px) above day-number Barlow Condensed
 //     (22px, 900 weight)
 //   • active pill: ink background + ink-inverse text + ink border
-//   • closed pill: 0.4 opacity + tiny "CLOSED" tag in danger-500
+//   • closed pill: ink-subtle text + tiny "CLOSED" tag in danger-500
+//     (design source spec'd 0.4 opacity for the closed pill; replaced
+//     at Phase 13 / 13-3 / Batch K with token-driven dimming because
+//     parent-opacity composited the tag fg/bg below WCAG AA)
 
 export type Props = {
   dates: BookingDate[];
@@ -40,11 +43,12 @@ function DatePill({ date }: { date: BookingDate }) {
   const baseClasses = cn(
     "flex shrink-0 w-14 flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-center transition-colors",
     "border-[1.5px]",
-    date.closed && !date.is_selected && "opacity-40",
   );
   const variantClasses = date.is_selected
     ? "bg-ink text-ink-inverse border-ink"
-    : "bg-bone text-ink border-border hover:border-ink/40";
+    : date.closed
+      ? "bg-bone text-ink-subtle border-border"
+      : "bg-bone text-ink border-border hover:border-ink/40";
 
   if (date.closed) {
     // Closed dates render as a non-interactive span — design's `disabled`

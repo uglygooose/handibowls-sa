@@ -139,12 +139,15 @@ function SlotCard({
       data-starts-at={slot.starts_at}
       className={cn(
         "rounded-xl border border-border bg-bone p-3",
-        isFullyBooked && "bg-surface-muted opacity-70",
+        isFullyBooked && "bg-surface-muted",
       )}
     >
       <div
         data-slot="slot-time"
-        className="mb-2 flex items-center gap-2 font-mono text-[16px] font-extrabold tabular-nums text-ink"
+        className={cn(
+          "mb-2 flex items-center gap-2 font-mono text-[16px] font-extrabold tabular-nums",
+          isFullyBooked ? "text-ink-subtle" : "text-ink",
+        )}
       >
         <Clock className="size-3.5" aria-hidden="true" />
         <span>
