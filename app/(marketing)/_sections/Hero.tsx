@@ -71,14 +71,14 @@ function Sticker({
 
 const MARQUEE_ITEMS = [
   "Knockouts",
-  "Round robins",
   "Pairs",
   "Triples",
   "Fours",
   "Singles",
-  "Twenty 20",
-  "Ladder league",
-  "Drawn pairs",
+  "Mixed Pairs",
+  "Greenside scoring",
+  "Offline-first",
+  "BSA-native",
 ];
 
 function MarqueeStrip() {
@@ -129,9 +129,9 @@ export function Hero() {
           </h1>
 
           <p className="mb-9 max-w-[560px] text-[20px] leading-[1.45] text-ink-muted">
-            Run a knockout, score a Twenty 20, post a ladder, DM the skip.
-            HandiBowls is the bowls-first operating system for South African
-            clubs — fluid, fast, and made for the green.
+            Run a knockout, score a match, capture a Twenty 20, keep the club
+            connected. HandiBowls is the bowls-first operating system for
+            South African clubs — fluid, fast, and made for the green.
           </p>
 
           <div className="flex flex-wrap gap-3">
@@ -146,10 +146,10 @@ export function Hero() {
           <div className="mt-12 flex gap-9 border-t border-border pt-7">
             <div className="flex flex-col gap-0.5">
               <strong className="font-display text-xl font-extrabold italic tracking-[-0.01em]">
-                20+ clubs
+                Built for BSA
               </strong>
               <span className="text-[11px] tracking-[0.12em] uppercase text-ink-subtle">
-                Live in WP &amp; Northerns
+                20 districts, 5 disciplines
               </span>
             </div>
             <div className="flex flex-col gap-0.5">

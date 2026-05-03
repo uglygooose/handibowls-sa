@@ -21,7 +21,7 @@ const FEATURES: Feature[] = [
     kicker: "01 · Compete",
     title: "Tournaments",
     number: "01",
-    body: "Knockouts, round robins, pairs, triples, fours. Live brackets, auto-seeding, score capture that survives a dropped Wi-Fi.",
+    body: "Knockouts, pairs, triples, fours, singles, mixed pairs. Live brackets, auto-seeding, score capture that survives a dropped Wi-Fi.",
     cta: "Run a tournament",
   },
   {
@@ -39,7 +39,7 @@ const FEATURES: Feature[] = [
     kicker: "03 · Improve",
     title: "Twenty 20 skills",
     number: "03",
-    body: "Eight-zone compass, graded jacks, rubrics locked by district. Players see where they land; coaches see who's progressing.",
+    body: "Eight-zone compass, graded jacks, locked rubric versions for fair assessment. Players see where they land; coaches see who's progressing.",
     cta: "Explore the compass",
   },
 ];

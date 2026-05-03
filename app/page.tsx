@@ -3,7 +3,6 @@ import { FeatureGrid } from "./(marketing)/_sections/FeatureGrid";
 import { Footer } from "./(marketing)/_sections/Footer";
 import { Hero } from "./(marketing)/_sections/Hero";
 import { LandingTopBar } from "./(marketing)/_sections/LandingTopBar";
-import { Quote } from "./(marketing)/_sections/Quote";
 import { ShowcaseT20 } from "./(marketing)/_sections/ShowcaseT20";
 import { ShowcaseTournament } from "./(marketing)/_sections/ShowcaseTournament";
 import { SocialProof } from "./(marketing)/_sections/SocialProof";
@@ -28,7 +27,6 @@ export default function RootPage() {
         <SocialProof />
         <ShowcaseTournament />
         <ShowcaseT20 />
-        <Quote />
         <CTABand />
       </main>
       <Footer />

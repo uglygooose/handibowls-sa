@@ -129,8 +129,8 @@ export function ShowcaseTournament() {
         </p>
         <ul className="mt-8 flex list-none flex-col gap-3 p-0">
           {[
-            "Knockout, round robin, double-elim",
-            "Auto-seeding from handicap or ladder",
+            "Knockout — single-elim, BSA-style draws",
+            "Auto-seeding from team-sheet or handicap (club-internal)",
             "Offline score capture, auto-sync",
             "Printable sheet for the secretary's desk",
           ].map((item) => (

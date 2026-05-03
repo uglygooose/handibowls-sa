@@ -1,10 +1,10 @@
 import { SpeckleField } from "@/components/brand/SpeckleField";
 
 const STATS = [
-  { n: "20", l: "Clubs in pilot" },
-  { n: "5", l: "Districts onboard" },
-  { n: "4", l: "Formats supported" },
-  { n: "∞", l: "Ends per match" },
+  { n: "20", l: "BSA districts mapped" },
+  { n: "5", l: "Disciplines supported" },
+  { n: "✓", l: "BSA-native terminology" },
+  { n: "✓", l: "POPIA compliant" },
 ];
 
 export function SocialProof() {
@@ -37,16 +37,16 @@ export function SocialProof() {
         <div>
           <div className="mb-4 inline-flex items-center gap-2 font-mono text-[12px] font-bold tracking-[0.16em] uppercase text-white/70">
             <span className="h-1.5 w-1.5 rounded-full bg-[#F5B700]" />
-            The rollout
+            Built for BSA
           </div>
           <h2 className="m-0 font-display text-[clamp(36px,4.5vw,56px)] font-black italic leading-none tracking-[-0.02em] uppercase text-balance">
-            Backed by clubs from Cape Town to{" "}
-            <span className="text-[#F5B700]">Pretoria</span>.
+            Built for BSA, ready for{" "}
+            <span className="text-[#F5B700]">your club</span>.
           </h2>
           <p className="mt-5 max-w-[480px] text-[17px] leading-[1.5] text-white/75">
-            HandiBowls started with the Western Province pilot and now runs
-            knockouts, Twenty 20 cards, and ladder leagues at 20+ clubs across
-            five districts.
+            HandiBowls speaks the bowls community&apos;s language — districts,
+            disciplines, scoresheets, handicaps. Designed around BSA structure,
+            ready for your club to adopt.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-x-10 gap-y-8">
