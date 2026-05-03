@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getAuthContext } from "@/lib/auth/role";
 import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { revalidateBookingSurfaces } from "@/lib/bookings/revalidate";
+import { captureWithAuditContext } from "@/lib/observability/captureWithAuditContext";
 import { createClient } from "@/lib/supabase/server";
 
 // Phase 8e-2 — createBooking server action.
@@ -258,6 +259,16 @@ export async function cancelBooking(
         return { kind: "wrong_state" };
       }
     }
+    // Unmatched errcode — Sentry capture with audit context so the
+    // unexpected RPC failure shape gets triaged. Mapped errcodes
+    // (NOT_FOUND / INSUFFICIENT_PRIVILEGE / INVALID_PARAMETER) are
+    // deterministic kinds and stay out of the telemetry stream.
+    captureWithAuditContext(error, {
+      table_name: "bookings",
+      action: "cancel_own_booking",
+      row_id: parsed.data.booking_id,
+      actor_id: ctx.userId,
+    });
     return { kind: "error", error: msg || "Cancel failed" };
   }
 

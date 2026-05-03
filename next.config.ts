@@ -9,40 +9,76 @@ import { withSentryConfig } from "@sentry/nextjs";
 // into the server build. No webpack plugin path because Next 16 is
 // Turbopack-first.
 
-// Phase 13 / 13-2 / Batch D-CSP — Content-Security-Policy headers.
+// Phase 13 / 13-2 / Batch D-CSP → 13-5 / Batch B — Content-Security-
+// Policy headers.
 //
 // Mode: Content-Security-Policy-Report-Only. Browser logs violations
-// to console (and later to Sentry once 13-5 wires it) but does NOT
-// block resources. Switch to enforcing CSP (drop the `-Report-Only`
-// suffix) at 13-5 / 13-7 once the report-only stream is clean.
+// to Sentry's CSP collector (wired at Batch B via report-uri +
+// report-to) but does NOT block resources. Switch to enforcing CSP
+// (drop the `-Report-Only` suffix) at 13-7 once the report-only
+// stream is clean for a full QA cycle.
 //
 // Locked allow-list:
 //   default-src 'self'
 //   connect-src — Supabase REST + Storage (https) + Realtime (wss)
-//                 + Resend (locked decision; SDK is server-side
-//                 only so this entry is defence-in-depth for any
-//                 future browser-side resend.com call).
+//                 + Resend (defence-in-depth) + Sentry ingest host
+//                 (browser SDK error transport).
 //   script-src 'self' — NO 'unsafe-inline' / 'unsafe-eval'.
-//   style-src 'self' 'unsafe-inline' — Tailwind 4's inline <style>
-//                 injection trade-off. Phase 14 hardening DRIFT
-//                 entry (csp-style-nonce-hardening) tracks the
-//                 middleware-based nonce migration.
-//   img-src — 'self' + data: + blob: covers inline SVGs, client-
-//                 generated previews, and Supabase storage URLs.
-//   font-src — 'self' + data: — fonts are self-hosted via next/font.
+//   style-src 'self' 'unsafe-inline' — Tailwind 4 inline <style>
+//                 injection trade-off (csp-style-nonce-hardening
+//                 DRIFT entry tracks the Phase 14 nonce migration).
+//   img-src — 'self' + data: + blob: + Supabase storage URLs.
+//   font-src — 'self' + data: — fonts self-hosted via next/font.
 //   object-src 'none' — disables Flash + other plugins.
 //   base-uri / form-action / frame-ancestors — defensive defaults.
-//
-// NOT in the allow-list:
-//   - Sentry (deferred to 13-5; that commit extends connect-src).
-//   - Vercel Analytics / Speed Insights (deferred until added).
-//   - Any third-party CDN (none used today).
+//   report-uri / report-to — Sentry CSP collector for the
+//                 authenticated-surface coverage gap (closes DRIFT
+//                 csp-authenticated-surface-violation-capture).
 
-function buildContentSecurityPolicy(): string {
-  // Resolve the Supabase host from the public env so the policy
-  // tracks whichever project the deploy is wired to. Falls back
-  // to the wildcard if the env is absent at build time (covers
-  // local dev where .env.local hasn't been loaded yet).
+// Sentry CSP collector + browser SDK ingest host. Parsed from the
+// public DSN at build time with a hardcoded fallback that matches
+// the production project — so dev / preview without the env var
+// still emit a working policy. DSN format:
+// https://<public_key>@<host>/<project_id> →
+// CSP report URL: https://<host>/api/<project_id>/security/?sentry_key=<public_key>
+type SentryEndpoint = {
+  host: string;
+  projectId: string;
+  publicKey: string;
+  reportUrl: string;
+};
+
+function resolveSentryEndpoint(): SentryEndpoint {
+  // Hardcoded production values — fallback when the DSN env var isn't
+  // resolvable at build time. Stable per project; rotate if the
+  // Sentry project is recreated.
+  const fallback: SentryEndpoint = {
+    host: "o4511319521558528.ingest.de.sentry.io",
+    projectId: "4511319531389008",
+    publicKey: "0962a2cf918960eedaf6d2cc8ded69c4",
+    reportUrl: "",
+  };
+  fallback.reportUrl = `https://${fallback.host}/api/${fallback.projectId}/security/?sentry_key=${fallback.publicKey}`;
+
+  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+  if (!dsn) return fallback;
+  try {
+    const u = new URL(dsn);
+    const projectId = u.pathname.replace(/^\//, "");
+    const publicKey = u.username;
+    if (!projectId || !publicKey) return fallback;
+    return {
+      host: u.host,
+      projectId,
+      publicKey,
+      reportUrl: `https://${u.host}/api/${projectId}/security/?sentry_key=${publicKey}`,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function buildContentSecurityPolicy(sentry: SentryEndpoint): string {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   let supabaseHost = "*.supabase.co";
   if (supabaseUrl) {
@@ -55,7 +91,7 @@ function buildContentSecurityPolicy(): string {
 
   const directives = [
     "default-src 'self'",
-    `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://resend.com`,
+    `connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://resend.com https://${sentry.host}`,
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: https://${supabaseHost}`,
@@ -64,6 +100,8 @@ function buildContentSecurityPolicy(): string {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
+    `report-uri ${sentry.reportUrl}`,
+    "report-to csp-endpoint",
   ];
   return directives.join("; ");
 }
@@ -71,13 +109,24 @@ function buildContentSecurityPolicy(): string {
 const baseConfig: NextConfig = {
   turbopack: {},
   async headers() {
+    const sentry = resolveSentryEndpoint();
+    // Reporting-Endpoints is a separate HTTP header that defines the
+    // named groups referenced by CSP's `report-to` directive. Modern
+    // browsers (Chrome / Edge) prefer this; older browsers fall back
+    // to the legacy `report-uri`. Both reference the same Sentry
+    // collector URL — Sentry accepts both report shapes.
+    const reportingEndpoints = `csp-endpoint="${sentry.reportUrl}"`;
     return [
       {
         source: "/(.*)",
         headers: [
           {
             key: "Content-Security-Policy-Report-Only",
-            value: buildContentSecurityPolicy(),
+            value: buildContentSecurityPolicy(sentry),
+          },
+          {
+            key: "Reporting-Endpoints",
+            value: reportingEndpoints,
           },
         ],
       },
@@ -85,15 +134,19 @@ const baseConfig: NextConfig = {
   },
 };
 
-// Phase 13 / 13-5 / Batch A — wrap composition: withSerwist innermost
-// (transforms NextConfig with the PWA service-worker injection) and
-// withSentryConfig outermost (instruments build for Sentry). Source-map
-// upload is OFF here — `sourcemaps.disable: true` skips the Sentry CLI
-// step entirely. Batch B flips `disable: false` and passes `authToken`
-// to enable upload + symbolicated stack traces in the Sentry dashboard.
+// Phase 13 / 13-5 / Batch A → Batch B — wrap composition: withSerwist
+// innermost (PWA SW injection), withSentryConfig outermost (Sentry
+// build instrumentation). Batch B enables source-map upload —
+// authToken from Vercel env unlocks the Sentry CLI upload step;
+// deleteSourcemapsAfterUpload prevents .map files from shipping in
+// the production bundle (kept privately on Sentry for symbolication).
 export default withSentryConfig(withSerwist(baseConfig), {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: false,
-  sourcemaps: { disable: true },
+  sourcemaps: {
+    disable: false,
+    deleteSourcemapsAfterUpload: true,
+  },
 });

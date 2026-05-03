@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getAuthContext } from "@/lib/auth/role";
+import { captureWithAuditContext } from "@/lib/observability/captureWithAuditContext";
 import { createClient } from "@/lib/supabase/server";
 
 // Phase 9-2 — admin force-cancel server action. Thin wrapper around
@@ -110,6 +111,15 @@ export async function adminForceCancelBooking(
     ) {
       return { kind: "wrong_state" };
     }
+    // Unmatched errcode — Sentry capture with audit context. Mapped
+    // errcodes above are deterministic kinds and stay out of the
+    // telemetry stream.
+    captureWithAuditContext(error, {
+      table_name: "bookings",
+      action: "admin_force_cancel_booking",
+      row_id: parsed.data.booking_id,
+      actor_id: ctx.userId,
+    });
     return { kind: "error", error: msg || "Cancel failed" };
   }
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getAuthContext } from "@/lib/auth/role";
+import { captureWithAuditContext } from "@/lib/observability/captureWithAuditContext";
 import { createClient } from "@/lib/supabase/server";
 import { RubricSchema } from "@/lib/t20/rubric";
 
@@ -158,6 +159,15 @@ export async function activateRubricVersion(
     if (error.code === "42501") {
       return { kind: "auth", error: error.message };
     }
+    // Unmatched errcode — Sentry capture with audit context. The 3
+    // mapped errcodes above are deterministic kinds and stay out of
+    // the telemetry stream.
+    captureWithAuditContext(error, {
+      table_name: "t20_rubric_versions",
+      action: "activate_rubric_version",
+      row_id: parsed.data.rubric_id,
+      actor_id: ctx.userId,
+    });
     return { kind: "error", error: error.message };
   }
 
