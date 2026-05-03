@@ -3878,6 +3878,107 @@ annotation in its Owner field per the locked structure
   `csp-authenticated-surface-violation-capture` DRIFT
   entry that 13-2a opened for 13-5 ownership.
 
+### 13-4.5 — Home/Tournaments IA tweak — closed 2026-05-03
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-13-launch-prep`).
+- **Sub-checkpoint structure:** small contained IA reshuffle slotted
+  between 13-4 close and 13-5 scoping. Addresses the "empty Home for
+  players without active matches" UX hole flagged at 13-4 close
+  operator-side review. Single execution commit (Path 1 from
+  pre-execution survey: replicate /me's identity-card pattern on /play,
+  no compound-primitive extraction; light pattern duplication accepted)
+  + this close commit.
+- **Headline SHAs across the full 13-4.5 sequence:**
+  - **13-5 scoping pass** (`db5057e`) — read-only audit committed
+    BEFORE 13-4.5 was queued; ordering is meta-vs-execution. The 13-5
+    scoping doc lives independently and isn't affected by 13-4.5's
+    code changes.
+  - **Execution** (`1184aae`) — `feat(player): /play welcome surface
+    + HeroNextMatch moves to /tournaments`. Six files modified, one
+    created (`components/player/StatCell.tsx` extracted from /me/page).
+    /play now mounts `<PlayerHero>` (identity card with speckle +
+    splatter, mirroring /me's pattern) + 3-cell stats grid (active
+    matches / upcoming bookings / tournaments entered). HeroNextMatch
+    surfaces at the top of /tournaments (the bottom nav's Play tab).
+    New quiet `<NextMatchEmpty>` component on /tournaments for the
+    no-active-match state — bg-surface dashed-border tile, NOT
+    flooded-primary chrome (empty state shouldn't dominate page
+    header). New `getPlayHomeStats()` data-layer function in
+    `play/_data.ts`. /me page touched only for the StatCell extraction
+    swap. Bottom nav unchanged (Home → /play, Play → /tournaments
+    already correct pre-tweak). +259 / -110 lines net.
+  - **Test pin update** — `tests/app/player/no-hero-h1-landmark.test.ts`
+    drops /play from the no-hero SURFACES list (3 surfaces remain:
+    /book, /tournaments, /me/inbox). /play now mounts a visible h1
+    via PlayerHero's title prop, so the sr-only-h1 landmark pin no
+    longer applies. Test count: 1393 → 1390 (3 it.each cases × 1
+    surface dropped).
+  - **13-4.5 close** (this commit) — PHASE_LOG entry + README
+    state-line. No DRIFT entries opened or closed (none surfaced
+    during the survey or execution).
+- **Locked decisions during 13-4.5:**
+  - **(a) Path 1 — replicate pattern, no compound-primitive
+    extraction.** Pre-execution survey surfaced two reasonable paths
+    (Path 1 replicate / Path 2 extract `<PlayerProfileHero>`); user
+    confirmed Path 1. The `<PlayerHero>` + stats grid composition is
+    duplicated between /me + /play; promotable to a shared primitive
+    later if it earns its keep. /me's render path stays untouched
+    beyond the StatCell extraction.
+  - **(b) StatCell extracted to a shared module.** ~17-line
+    component; trivial extraction with zero "material complexity"
+    cost (the brief's escape clause). Both /me + /play import from
+    `components/player/StatCell.tsx`.
+  - **(c) /play stat config: `active_matches` / `upcoming_bookings` /
+    `tournaments_entered`.** Player-context-aware "what's on your
+    plate today" metrics, distinct from /me's lifetime-summary
+    `matches_played` / `win_rate` / `club_count`.
+  - **(d) HeroNextMatch visual treatment unchanged.** Flooded-primary
+    chrome stays per the bundle `.hero-card` contract (locked at 13-3
+    Batch C; the visual revamp question remains forked to Phase 14
+    DRIFT entry `hero-next-match-iconic-flood-vs-bone-card-design-call`).
+    The component just consumes from a new caller.
+  - **(e) Empty-state for /tournaments quiet card.** No flooded-primary
+    when there's no active match — separate `<NextMatchEmpty>`
+    component that visually reads as a small notice, not a hero.
+- **Migrations applied during 13-4.5:** none. Pure code work.
+- **Drift entries closed at 13-4.5 close:** **0** — none surfaced
+  during survey or execution that map to existing entries.
+- **Drift entries opened during 13-4.5:** **0** — no new findings;
+  everything stayed inside the locked scope.
+- **DRIFT_LOG counts at close:** **51 / 103** (unchanged from 13-4
+  close).
+- **Test count delta:** unit **1393 → 1390 (-3)**, due to the 3
+  dropped no-hero-h1-landmark assertions for /play. Integration
+  unchanged at 166. No tests added; no test failures introduced.
+- **Verification gates at close:**
+  - `tsc --noEmit`: clean.
+  - `eslint`: 0 errors / **17 warnings** (unchanged baseline).
+  - `vitest run` (unit): 1390 / 1390 in 124 files (293s most recent).
+  - `vitest run -c vitest.rls.config.ts`: 166 / 166 in 27 files
+    (436s most recent).
+  - `next build`: clean.
+- **What 13-4.5 closes for v1:**
+  - **/play is now an always-useful welcome surface** for players
+    regardless of active-match state. Identity card + 3 stats
+    + Quick actions + Recent results + Primary club card.
+  - **HeroNextMatch lives on the Play tab's destination
+    (`/tournaments`)** with proper iconic-hero treatment when there
+    is a match + a quiet `<NextMatchEmpty>` card otherwise.
+  - **Bottom nav semantics preserved** — no nav changes; tabs and
+    routes unchanged from pre-tweak.
+  - **/me unchanged** beyond the StatCell extraction (pure refactor;
+    visual + behaviour identical to pre-tweak).
+- **Manual QA outcome:** browser-driven QA stays human-side per
+  locked operational convention. /play + /tournaments visual
+  spot-checks expected on the next Vercel preview (auto-triggered by
+  the push). Theme-switching behaviour on /play's PlayerHero should
+  follow the viewer's active club preset (same `resolveActiveTheme`
+  pattern as /tournaments + Batch C HeroNextMatch).
+- **What 13-5 will cover next (forward reference):** unchanged from
+  the 13-4 close forward reference. Sentry + Better Stack monitoring
+  per `docs/audit/phase-13/13-5-scoping.md` (committed at db5057e).
+
 ---
 
 ## Operational conventions

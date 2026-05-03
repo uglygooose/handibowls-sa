@@ -6,7 +6,7 @@ HandiBowls is a Bowls South Africa–native platform for running club, district,
 
 ## Status
 
-**Rebuild in progress — Phase 13 / 13-4 fully closed (landing truthfulness rewrite + Twenty 20 reframe + mobile landing layout fix + /play tournament card viewer-driven theme-coupling + canonical favicon set across simple/rich tiers + atomic-red theme-color + SEO surfaces greenfield: sitemap + robots + OG image + metadataBase + openGraph + twitter). Phase 13 / 13-5 (Sentry + Supabase log drain + Better Stack uptime monitoring) next.** This repository is being rebuilt from a fresh Supabase project, fresh routing, a fresh design system, and a three-role architecture. See [`HANDIBOWLS_REBUILD_PLAN.md`](HANDIBOWLS_REBUILD_PLAN.md) for the phase-gated plan and [`PHASE_LOG.md`](PHASE_LOG.md) for the canonical progress tracker.
+**Rebuild in progress — Phase 13 / 13-4.5 fully closed (small contained IA tweak: /play now always-useful welcome surface with player identity hero + 3 stat tiles regardless of active-match state; HeroNextMatch moved to /tournaments — the bottom nav's Play tab — with quiet empty-state card for no-active-match). Phase 13 / 13-5 (Sentry + Better Stack uptime monitoring; Supabase log drain deferred post-launch) next.** This repository is being rebuilt from a fresh Supabase project, fresh routing, a fresh design system, and a three-role architecture. See [`HANDIBOWLS_REBUILD_PLAN.md`](HANDIBOWLS_REBUILD_PLAN.md) for the phase-gated plan and [`PHASE_LOG.md`](PHASE_LOG.md) for the canonical progress tracker.
 
 Phases shipped to date:
 
