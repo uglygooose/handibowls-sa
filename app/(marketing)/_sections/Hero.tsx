@@ -163,12 +163,12 @@ export function Hero() {
           </div>
         </div>
 
-        {/* Art column */}
-        <div className="relative z-[1] min-h-[340px] md:min-h-[540px]">
+        {/* Art column — mobile min-h matches visual content height (~260px); the 620px main bowl is clipped less aggressively on the right edge to fill the gap. */}
+        <div className="relative z-[1] min-h-[260px] md:min-h-[540px]">
           <HeroLane />
 
           <div
-            className="hb-roll absolute top-[-20px] right-[-80px]"
+            className="hb-roll absolute top-[-10px] right-[-30px] md:top-[-20px] md:right-[-80px]"
             style={{ filter: "drop-shadow(0 30px 50px rgba(10,10,10,0.18))" }}
           >
             <Bowl preset="atomic-red" size={620} seed="hero-main" idSuffix="hero-main" />
