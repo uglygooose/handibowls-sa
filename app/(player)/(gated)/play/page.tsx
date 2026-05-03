@@ -5,6 +5,7 @@ import { Bowl } from "@/components/brand/Bowl";
 import { PlayerSectionHead } from "@/components/layout/PlayerSectionHead";
 import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { getCurrentProfile } from "@/lib/auth/profile";
+import { resolveActiveTheme } from "@/lib/brand/theme-from-user";
 
 import { getCurrentPlayerT20Profile } from "@/app/(player)/(gated)/t20/_data";
 
@@ -33,15 +34,23 @@ export const metadata = {
 };
 
 export default async function PlayHome() {
-  const [profile, hostClub, nextMatch, recentResults, unreadCount, t20Profile] =
-    await Promise.all([
-      getCurrentProfile(),
-      getCurrentHostClub(),
-      getNextMatchForCurrentPlayer(),
-      getRecentResultsForCurrentPlayer(5),
-      getUnreadNotificationCount(),
-      getCurrentPlayerT20Profile(),
-    ]);
+  const [
+    profile,
+    hostClub,
+    nextMatch,
+    recentResults,
+    unreadCount,
+    t20Profile,
+    viewerTheme,
+  ] = await Promise.all([
+    getCurrentProfile(),
+    getCurrentHostClub(),
+    getNextMatchForCurrentPlayer(),
+    getRecentResultsForCurrentPlayer(5),
+    getUnreadNotificationCount(),
+    getCurrentPlayerT20Profile(),
+    resolveActiveTheme(),
+  ]);
 
   // 12.5-4 amendment (Finding 1): pipe latest T20 grade + date into
   // the QuickAction caption. `t20Profile.latest` is the same row the
@@ -92,6 +101,7 @@ export default async function PlayHome() {
       {nextMatch ? (
         <HeroNextMatch
           match={nextMatch}
+          viewerTheme={viewerTheme}
           scorecardHref={`/tournaments/${nextMatch.tournament.id}/matches/${nextMatch.match_id}`}
         />
       ) : (

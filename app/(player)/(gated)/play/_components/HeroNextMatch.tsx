@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { SpeckleField } from "@/components/brand/SpeckleField";
 import { SplatterAccent } from "@/components/brand/SplatterAccent";
+import type { ThemePreset } from "@/components/brand/ThemeApplier";
 
 import type { PlayerNextMatch } from "../_data";
 
@@ -37,6 +38,8 @@ import type { PlayerNextMatch } from "../_data";
 
 type Props = {
   match: PlayerNextMatch;
+  /** Viewer's resolved active theme — drives SpeckleField + SplatterAccent so the hero card chrome follows the viewer's club preset rather than the tournament host club's preset. Locked at Phase 13 / 13-4 / Batch C (D4.1 viewer-driven). */
+  viewerTheme: ThemePreset;
   /** Fallback target while the scorecard route ships in 8c. */
   scorecardHref?: string;
 };
@@ -55,7 +58,7 @@ function initialsOf(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function HeroNextMatch({ match, scorecardHref }: Props) {
+export function HeroNextMatch({ match, viewerTheme, scorecardHref }: Props) {
   const playerScore = match.player_is_home ? match.home_shots : match.away_shots;
   const opponentScore = match.player_is_home
     ? match.away_shots
@@ -88,7 +91,7 @@ export function HeroNextMatch({ match, scorecardHref }: Props) {
             1.4) reduces visual noise enough to dull the
             "iconic" feel. Keep numeric. */}
         <SpeckleField
-          preset={match.tournament.host_club_theme}
+          preset={viewerTheme}
           density={1.4}
           opacityScale={1.6}
           seedKey={`hero-next-match-${match.match_id}`}
@@ -96,7 +99,7 @@ export function HeroNextMatch({ match, scorecardHref }: Props) {
       </div>
       <div className="pointer-events-none absolute -right-10 -top-10 z-0 opacity-55">
         <SplatterAccent
-          preset={match.tournament.host_club_theme}
+          preset={viewerTheme}
           variant={1}
           size={150}
           rotate={20}
