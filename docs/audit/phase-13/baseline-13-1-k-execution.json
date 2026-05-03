@@ -1,0 +1,24 @@
+{
+  "capturedAt": "2026-05-03T13:01:59.571Z",
+  "label": "k-execution",
+  "previewUrl": "https://handibowls-fjpw6fi6g-andrews-projects-a0c14c4f.vercel.app",
+  "results": [
+    {
+      "id": "me",
+      "route": "/me",
+      "role": "player",
+      "label": "/me (player profile)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": null
+    }
+  ]
+}
