@@ -3979,6 +3979,228 @@ annotation in its Owner field per the locked structure
   the 13-4 close forward reference. Sentry + Better Stack monitoring
   per `docs/audit/phase-13/13-5-scoping.md` (committed at db5057e).
 
+### 13-5 — Observability (Sentry + Better Stack) — closed 2026-05-04
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-13-launch-prep`).
+- **Sub-checkpoint structure:** four execution batches + scoping
+  pass + this close. Plan §16 step 5 scope: Sentry init (browser +
+  server + edge + source maps + CSP report-uri) + Better Stack
+  uptime monitoring. Supabase log drain explicitly DEFERRED to
+  post-launch per user lock (Hobby tier doesn't expose drains; Pro
+  upgrade gate when usage warrants).
+- **Headline SHAs across the full 13-5 sequence:**
+  - **Scoping pass** (`db5057e`) — read-only audit document at
+    `docs/audit/phase-13/13-5-scoping.md`. Surveyed observability
+    surface (greenfield), surfaced 23 decisions across 11 items
+    (Sentry browser/server/edge SDK + source maps + CSP report-uri
+    + PII scrubbing + Better Stack uptime + health endpoint + alert
+    routing + status page + CSP enforcement mode + audit-log
+    telemetry helper). 8 unexpected findings flagged. Note: scoping
+    landed BEFORE 13-4.5 was queued; doc is meta-vs-execution
+    so the ordering doesn't conflict.
+  - **Batch A** (`939ed7f`) — `feat(observability): Sentry SDK
+    install + browser/server/edge config + PII scrubbing`. Pinned
+    `@sentry/nextjs@10.51.0` via --save-exact. Four config files
+    created at app root: `instrumentation.ts` (16 LOC; runtime-
+    gated import + `onRequestError = Sentry.captureRequestError`),
+    `instrumentation-client.ts` (61 LOC; browser SDK with
+    sendDefaultPii: false, tracesSampleRate 0.5, ResizeObserver +
+    extension-stack-frame + blocked-network-error filter,
+    `onRouterTransitionStart` export), `sentry.server.config.ts`
+    (60 LOC; server SDK with belt-and-braces `event.request.data
+    = undefined` + filters for "Not authenticated" / Postgres
+    42501 / NEXT_REDIRECT digest), `sentry.edge.config.ts` (28
+    LOC; edge SDK shipped for completeness per D2.3, RLS-denial +
+    NEXT_REDIRECT filter only). `components/auth/AuthListener.tsx`
+    bridges Supabase auth state to `Sentry.setUser({ id })` — id-
+    only per D5.2 (POPIA), cleared on SIGNED_OUT.
+    `next.config.ts` wraps `withSentryConfig(withSerwist(baseConfig),
+    { org, project, silent: false, sourcemaps: { disable: true } })`
+    — wrap composition validated; source-map upload OFF for Batch
+    A (B flips it on).
+  - **Batch B** (`ffae1a3`) — `feat(observability): Sentry source
+    maps + CSP report-uri + audit-log capture helper`. Three
+    concerns shipped together: (1) CSP `connect-src` extended to
+    allow the Sentry ingest host (`https://${sentry.host}`); (2)
+    CSP `report-uri ${sentry.reportUrl}` (legacy directive) +
+    `report-to csp-endpoint` (CSP3 directive) + `Reporting-Endpoints:
+    csp-endpoint="..."` HTTP header — DSN parsed at build time
+    into host/projectId/publicKey with hardcoded production-stable
+    fallback; mode stays Report-Only per D10.1; (3) source-map
+    upload enabled in withSentryConfig (`sourcemaps.disable: false`
+    + `deleteSourcemapsAfterUpload: true` + `authToken: process.env.SENTRY_AUTH_TOKEN`)
+    — local builds skip with the "No auth token" warning, Vercel
+    builds upload via the env-var token and delete .map files
+    post-upload so they don't ship in the production bundle. Plus
+    `lib/observability/captureWithAuditContext.ts` helper (40 LOC)
+    wired into 3 audit_log RPC action sites (cancelBooking /
+    cancelBookingAdmin / activateRubricVersion) at the unmatched-
+    errcode return paths — adds `audit_table` + `audit_action`
+    tags + `audit_context` extra to Sentry events from those
+    paths. Mapped errcodes (NOT_FOUND / INSUFFICIENT_PRIVILEGE /
+    INVALID_PARAMETER) stay out of the telemetry stream; only
+    genuinely unexpected RPC failures get captured.
+  - **Batch C** (`b7bc9d5`) — `feat(observability): /api/health
+    endpoint + integration coverage`. Public health endpoint at
+    `app/api/health/route.ts` (55 LOC; `dynamic = "force-dynamic"`,
+    Cache-Control no-store, service-role probe over the
+    `districts` reference table with 2s timeout via Promise.race,
+    200/503 status discriminator, version derived from
+    `VERCEL_GIT_COMMIT_SHA` truncated to 7 chars or "unknown"
+    fallback). Integration test (59 LOC, 4 cases) covers happy
+    path + Cache-Control header + version derivation + 503-path
+    via vi.doMock on the service client. Service-role chosen for
+    the probe per the same rationale `/api/cron/anonymise-pending`
+    uses (system-level, no auth context, no PII surface — head:true
+    select skips row payload).
+  - **Batch D** (`76f2971`) — `chore(audit): Phase 13 / 13-5
+    Better Stack monitor configuration`. Pure documentation
+    commit at `docs/audit/phase-13/13-5-better-stack-config.md`
+    (75 LOC). Captures the Better Stack uptime configuration
+    operator-side: 2 monitors (landing + /api/health) at 3-min
+    cadence (free tier minimum), email-only alerts, no SMS /
+    phone / Slack (deferred post-launch), no escalation policy
+    (single-operator launch), no status page (D9.1 deferred
+    post-launch). Both monitors will alert DOWN until 13-7 DNS
+    pointing — expected behaviour, documented for operator
+    awareness.
+  - **13-5 close** (this commit) — PHASE_LOG entry + DRIFT
+    bookkeeping + README state-line.
+- **Locked decisions during 13-5 (23 from scoping; summarized):**
+  - **(D1.1) SDK approach: hand-rolled, not wizard.** No
+    /sentry-example-page artifacts; clean explicit config.
+  - **(D1.2 / D2.1) tracesSampleRate: 0.5 on browser + server +
+    edge.** Revisit at the 30-day post-launch quota check.
+  - **(D1.3) Replay integration: OFF.** POPIA + bandwidth + low
+    diagnostic-value-vs-cost ratio at v1 scale.
+  - **(D5.1) `sendDefaultPii: false` on browser + server + edge.**
+    POPIA-conscious default; flipping to `true` would re-attach
+    IP / headers / body without explicit opt-in.
+  - **(D5.2) `Sentry.setUser({ id })` only.** Opaque profile UUID,
+    no email / IP / display_name. Cleared on SIGNED_OUT.
+  - **(D5.3) Belt-and-braces `event.request.data = undefined`** in
+    server `beforeSend` — defence against future contributor
+    flipping `sendDefaultPii: true` without realising the PII
+    implications on PII-touching routes.
+  - **(D2.2) RLS-denial filter** — Postgres code 42501 +
+    "Not authenticated" + NEXT_REDIRECT digest filtered at the
+    SDK level. Security-boundary working as intended; not bugs.
+  - **(D2.3) Edge config shipped for completeness** — v1 doesn't
+    actively use edge runtime, but future edge route handlers
+    land instrumented.
+  - **(D3.1) Source-map upload enabled day one.** Full
+    debuggability immediately; build-time cost ~6s acceptable.
+  - **(D4.1) Sentry-hosted report-uri.** No self-hosted forwarder
+    for v1; if Sentry quota becomes a concern post-launch, swap
+    to a `/api/csp-report` route.
+  - **(D4.2) Both `report-uri` (legacy) + `report-to` (CSP3)
+    directives shipped.** Cross-browser support (Firefox prefers
+    legacy; Chrome/Edge prefer CSP3); Sentry accepts both shapes.
+  - **(D6.1) Better Stack monitor list: `/` + `/api/health`.**
+    Auth-gated routes excluded — would just hit the redirect.
+  - **(D6.2) Check frequency: 3 min (free tier minimum).**
+    Latency-of-detection trade-off acceptable for v1.
+  - **(D7.1 / D7.2) Health endpoint shipped** at `/api/health`
+    with `{ ok, version, db_ok, ts }` shape + 200/503 contract.
+    Better Stack monitors hit it at 3-min cadence.
+  - **(D8.1) Email-only alerts for v1.** SMS / phone / Slack
+    deferred until concrete demand emerges.
+  - **(D8.2) Better Stack defaults for recovery period + grace.**
+    Tighten if real flapping emerges.
+  - **(D9.1) Status page DEFERRED post-launch.** No incidents to
+    display in v1 launch month; spin up reactively.
+  - **(D10.1) CSP enforcement mode: stay Report-Only at 13-5;
+    flip to enforcing at 13-7** after Sentry observation period
+    confirms the feed is clean for one full QA cycle. Tracked in
+    new DRIFT entry `csp-enforcement-flip-13-7` opened at this
+    close.
+  - **(D11.1) `captureWithAuditContext` helper at
+    `lib/observability/captureWithAuditContext.ts`.** Wired into
+    3 audit_log RPC action sites at unmatched-errcode return
+    paths.
+- **Migrations applied during 13-5:** none. Pure code + config
+  + docs work.
+- **Drift entries closed at 13-5 close:** **2** —
+  `csp-authenticated-surface-violation-capture` (closed by Batch
+  B's CSP report-uri/report-to wiring at next.config.ts) +
+  `audit-log-error-telemetry` (closed by Batch A's server-side
+  `onRequestError` instrumentation covering every Server-Component
+  error branch + Batch B's net-new explicit `captureWithAuditContext`
+  helper for the 3 audit_log RPC action sites).
+- **Drift entries opened during 13-5:** **1** —
+  `csp-enforcement-flip-13-7` (Phase 13 → 13-7 launch infra task,
+  XS scope, banks the locked D10.1 decision; trigger condition is
+  Sentry CSP feed clean across one full QA cycle).
+- **DRIFT_LOG counts at close:** **50 open / 105 closed** (was
+  51 open / 103 closed entering 13-5). Net -1 open, +2 closed,
+  +1 total entry.
+- **Test count delta:** unit unchanged at **1390 / 1390**.
+  Integration **166 → 170 (+4 net)**: all from
+  `tests/integration/api/health.test.ts` (Batch C).
+- **Verification gates at close:**
+  - `tsc --noEmit`: clean across all 4 batches.
+  - `eslint`: 0 errors / **17 warnings** (unchanged baseline).
+  - `vitest run` (unit): 1390 / 1390 in 124 files (most recent
+    runs 304-374s; one Batch B run hit 2 flakes from concurrent
+    build+test contention at 647s, re-ran serially clean).
+  - `vitest run -c vitest.rls.config.ts` (integration): 170 / 170
+    in 28 files (most recent 427s).
+  - `next build`: clean across all 4 batches. Sentry telemetry
+    warning surfaces locally (no auth token) — Vercel builds pick
+    up the env var and upload source maps successfully (operator-
+    side verified).
+  - Push: clean fast-forward across all 13-5 commits.
+- **What 13-5 closes for v1:**
+  - **Server + browser + edge error telemetry** lands in Sentry
+    automatically. POPIA-safe — no IP, no email, no request body,
+    opaque user.id only.
+  - **CSP violation collector wired** to the same Sentry project.
+    Gated surfaces (/play, /me, /manage/*, /platform/*) now
+    contribute violation data that the pre-13-5 anonymous CSP
+    walker couldn't reach.
+  - **Symbolicated stack traces** on every Sentry event from
+    Vercel deploys forward — production bugs get triaged against
+    real source paths + line numbers, not minified Next.js
+    chunks.
+  - **Audit-log RPC errors get explicit context tags** when they
+    fail with unmatched errcodes — `audit_table` + `audit_action`
+    in tags + `audit_context: { table_name, row_id, action,
+    actor_id }` in extra. Compliance triage gets enough context
+    to identify the affected row + actor without DB access.
+  - **Public health endpoint** at `/api/health` with 2-second DB
+    probe + 200/503 contract. Better Stack monitors flip on as
+    soon as DNS lands at 13-7.
+  - **Better Stack uptime monitoring** configured for 2 surfaces
+    at 3-min cadence with email alerts. Operator-side dashboard
+    work captured in repo for audit trail.
+- **Operator-side actions banked for 13-7:**
+  1. **CSP enforcement flip** — drop `-Report-Only` suffix on
+     header key in next.config.ts:79 once Sentry CSP feed is
+     clean across one full QA cycle. Tracked at DRIFT
+     `csp-enforcement-flip-13-7`.
+  2. **`CRON_SECRET` env var** — already covered at DRIFT
+     `vercel-cron-secret-pre-deploy-checklist` (opened at 13-2b);
+     was set during 13-3 cron-schedule fix work.
+  3. **DNS pointing for `app.handibowls.co.za`** — Better Stack
+     monitors will alert UP within ~5 min of DNS propagation.
+     Tracked at the 13-7 launch infra plan.
+  4. **Sentry quota watch at week 1 + week 2 post-launch.**
+     `tracesSampleRate: 0.5` may need tapering to 0.1 if quota
+     usage trends toward limits.
+  5. **Status page** — defer to post-launch (D9.1); spin up if
+     enterprise/club-admin demand emerges or first real incident
+     happens.
+- **Manual QA outcome:** browser-driven smoke tests are operator-
+  side per locked operational convention. Smoke-test recipes for
+  each batch landed in the per-batch reports. Sentry dashboard
+  observation period at 13-7 precedes the CSP enforcement flip.
+- **What 13-6 will cover next (forward reference):** content +
+  copy polish — onboarding checklists per role; `/help` seed
+  articles (creating a tournament, scoring a match, booking a
+  rink, T20 walkthrough); legal / privacy copy. Per plan §16
+  step 6.
+
 ---
 
 ## Operational conventions
