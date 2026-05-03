@@ -223,3 +223,17 @@ This update can be applied via `auto memory` once approved — saves to a single
 - Counts verified independently per surface (`ls -d ... | wc -l`): standalone 20, vercel 25, superpowers 14 = **59 total**.
 - Cross-skill dependency check covered all 59 SKILL.md files via `grep -F` substring match (hyphenated skill names broke the original `\b` word-boundary regex; corrected during audit).
 - Reference list provenance — userMemories 15-base from user-supplied prompt; Phase-13-lens 5 from user-supplied prompt; Vercel 25 from installed plugin manifest at `~/.claude/plugins/cache/claude-plugins-official/vercel/0.40.1/skills/`.
+
+---
+
+## Resolution (2026-05-03, pre-K-prep close)
+
+Decisions locked at the close of the skills-inventory thread:
+
+- **`product-self-knowledge` MISSING entry: RETIRED.** Not installed; reference dropped from the Phase-13-lens prompt template. The original reference was to an Anthropic-product-knowledge wrapper (Claude Code / Claude API / claude.ai feature awareness), which is not applicable to work inside the HandiBowls codebase. The practical product surface for HandiBowls work is fully covered by the existing `bsa-terminology` skill (canonical user-facing strings + domain enums) plus `handibowls-standards` (review + update discipline). The `product-manager-toolkit` standalone stays installed as generic PM tooling for any future PRD / RICE / interview-synthesis work but is not promoted to the canonical HandiBowls product-knowledge slot.
+- **`superpowers:*` plugin: KEEP, no formal evaluation gate.** Active baseline since 2026-04-24 install; the 14 foundational workflow skills (brainstorming, writing-plans, executing-plans, TDD, debugging, code review, git worktrees) are retained as the working layer. No 13-7 / 13-8 keep-or-remove decision needed; revisit only if a concrete friction emerges.
+- **`vercel:*` plugin: KEEP-OR-REMOVE evaluation deferred to the 13-7 → 13-8 boundary.** Per existing tracking in auto-memory at `phase-13-7-vercel-plugin.md`. This audit confirms the install is clean (25 / 25 skills present, no duplicate names, only one soft-broken cross-ref which is in the superpowers plugin not vercel). Decision driver at 13-8 will be: did the Vercel skills materially help across 13-7 launch infra (domain / DNS / SSL / Resend DMARC / Vercel deployment dry-run) — or did the existing Vercel CLI / docs path suffice?
+
+The "Pending decision" note in the **Recommended memory update** section above is now resolved by the `product-self-knowledge` retirement; treat the 3-layer skill model in that section as the active canonical list with the entry retired (no replacement needed).
+
+No skill files modified or removed during resolution. No DRIFT_LOG modifications (audit + resolution are project-memory hygiene, not drift). No code changes. No userMemories changes — drift surfaces in-thread if a future prompt re-references `product-self-knowledge`.
