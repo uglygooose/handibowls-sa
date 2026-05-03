@@ -188,6 +188,81 @@ export async function getRecentResultsForCurrentPlayer(
   });
 }
 
+// Aggregate counts for the /play home identity-card stat row. Three
+// numbers — same shape as /me's stats grid but the metrics are
+// player-context-aware ("what's on your plate today") rather than
+// lifetime-summary ("matches / win rate / clubs"). Each query is
+// RLS-scoped and small (head:true count where possible to avoid
+// pulling row data we don't need).
+export type PlayHomeStats = {
+  /** Matches the player is part of with status pending or in-progress. */
+  active_matches: number;
+  /** Bookings booked-by the player with starts_at in the future. */
+  upcoming_bookings: number;
+  /** Tournament entries the player is in (active + open tournaments). */
+  tournaments_entered: number;
+};
+
+export async function getPlayHomeStats(): Promise<PlayHomeStats> {
+  const ctx = await getAuthContext();
+  const empty: PlayHomeStats = {
+    active_matches: 0,
+    upcoming_bookings: 0,
+    tournaments_entered: 0,
+  };
+  if (!ctx) return empty;
+
+  const supabase = await createClient();
+  const teamIds = await teamIdsForCurrentPlayer();
+  const nowIso = new Date().toISOString();
+
+  // Active matches — head:true count over the same lifecycle predicates
+  // the next-match query uses (status scheduled/in_progress + submission
+  // pending), but counts every match the player has on their plate
+  // rather than just the earliest one.
+  let activeMatches = 0;
+  if (teamIds.length > 0) {
+    const { count } = await supabase
+      .from("matches")
+      .select("*", { count: "exact", head: true })
+      .or(
+        `home_team_id.in.(${teamIds.join(",")}),away_team_id.in.(${teamIds.join(",")})`,
+      )
+      .in("status", ["scheduled", "in_progress"])
+      .eq("submission_status", "pending");
+    activeMatches = count ?? 0;
+  }
+
+  // Upcoming bookings — the player's own bookings with starts_at after
+  // now. RLS scopes to booked_by = auth.uid() automatically.
+  const { count: upcomingBookings } = await supabase
+    .from("bookings")
+    .select("*", { count: "exact", head: true })
+    .eq("booked_by", ctx.userId)
+    .gt("starts_at", nowIso)
+    .in("status", ["booked"]);
+
+  // Tournaments entered — entries the player has on tournaments that
+  // aren't completed/cancelled, excluding withdrawn entries. Joins to
+  // tournaments to filter terminal states; RLS allows the player to
+  // read their own entries.
+  const { count: tournamentsEntered } = await supabase
+    .from("tournament_entries")
+    .select("tournament:tournaments!inner(status)", {
+      count: "exact",
+      head: true,
+    })
+    .eq("profile_id", ctx.userId)
+    .eq("withdrawn", false)
+    .not("tournament.status", "in", "(completed,cancelled)");
+
+  return {
+    active_matches: activeMatches,
+    upcoming_bookings: upcomingBookings ?? 0,
+    tournaments_entered: tournamentsEntered ?? 0,
+  };
+}
+
 // Unread-notification count for the unread dot on the Me tab + the
 // banner at the top of /play. Tiny query, cached per request via the
 // natural Server Component dedup.

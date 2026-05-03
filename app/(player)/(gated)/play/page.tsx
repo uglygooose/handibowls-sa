@@ -1,56 +1,50 @@
-import { ArrowRight, Bell, Trophy } from "lucide-react";
+import { ArrowRight, Bell } from "lucide-react";
 import Link from "next/link";
 
 import { Bowl } from "@/components/brand/Bowl";
+import { PlayerHero } from "@/components/layout/PlayerHero";
 import { PlayerSectionHead } from "@/components/layout/PlayerSectionHead";
+import { StatCell } from "@/components/player/StatCell";
 import { getCurrentHostClub } from "@/lib/auth/memberships";
 import { getCurrentProfile } from "@/lib/auth/profile";
-import { resolveActiveTheme } from "@/lib/brand/theme-from-user";
+import { getAuthContext } from "@/lib/auth/role";
 
 import { getCurrentPlayerT20Profile } from "@/app/(player)/(gated)/t20/_data";
 
 import {
-  getNextMatchForCurrentPlayer,
+  getPlayHomeStats,
   getRecentResultsForCurrentPlayer,
   getUnreadNotificationCount,
 } from "./_data";
-import { HeroNextMatch } from "./_components/HeroNextMatch";
 import { QuickActions } from "./_components/QuickActions";
 import { RecentResults } from "./_components/RecentResults";
 
-// Phase 8a — player home /play. Server Component composes:
+// Phase 8a → 13-4.5 — player home /play. Server Component composes:
+//   • Player identity hero (PlayerHero) + 3-cell stats grid
 //   • Notification banner (when unread > 0)
-//   • Hero next match card OR empty-state when no upcoming match
-//   • Quick actions row (3 cards)
+//   • Quick actions row
 //   • Recent results horizontal strip
 //   • Primary club card
 //
-// Real data source — RLS-scoped via the SSR Supabase client. Empty
-// states are explicit: a player with no entries renders the empty
-// hero, no notification banner, and a "no recent results" panel.
+// 13-4.5 IA tweak: HeroNextMatch moved to /tournaments (the bottom
+// nav's Play tab); /play is now the always-useful welcome surface
+// regardless of whether the player has an active match.
 
 export const metadata = {
   title: "Home · HandiBowls",
 };
 
 export default async function PlayHome() {
-  const [
-    profile,
-    hostClub,
-    nextMatch,
-    recentResults,
-    unreadCount,
-    t20Profile,
-    viewerTheme,
-  ] = await Promise.all([
-    getCurrentProfile(),
-    getCurrentHostClub(),
-    getNextMatchForCurrentPlayer(),
-    getRecentResultsForCurrentPlayer(5),
-    getUnreadNotificationCount(),
-    getCurrentPlayerT20Profile(),
-    resolveActiveTheme(),
-  ]);
+  const ctx = await getAuthContext();
+  const [profile, hostClub, stats, recentResults, unreadCount, t20Profile] =
+    await Promise.all([
+      getCurrentProfile(),
+      getCurrentHostClub(),
+      getPlayHomeStats(),
+      getRecentResultsForCurrentPlayer(5),
+      getUnreadNotificationCount(),
+      getCurrentPlayerT20Profile(),
+    ]);
 
   // 12.5-4 amendment (Finding 1): pipe latest T20 grade + date into
   // the QuickAction caption. `t20Profile.latest` is the same row the
@@ -62,20 +56,67 @@ export default async function PlayHome() {
       }
     : null;
 
-  const greeting = greetingFor(profile?.first_name ?? profile?.display_name);
+  const fullName = displayName(
+    profile?.first_name,
+    profile?.last_name,
+    profile?.display_name,
+    ctx?.email ?? null,
+  );
+  const initials = initialsOf(fullName);
+  const primaryThemePreset = hostClub?.club_theme_preset ?? "atomic-red";
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 pb-24 pt-5">
-      {/* Greeting eyebrow + h1 — visually hidden via sr-only so the
-          first visible content is the notif banner + HeroNextMatch +
-          section-heads (matches design source PagePlay shape per
-          player-pages.jsx — no h1 in the visible chrome). h1 stays
-          in the a11y tree as the page landmark for screen readers
-          (12.5-6.5 Stage D / `player-h1-landmark`). */}
-      <header className="sr-only">
-        <span>Today</span>
-        <h1>{greeting}</h1>
-      </header>
+    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-4 pb-24">
+      {/* Identity hero — same chassis as /me with /play-context stats below. */}
+      <PlayerHero
+        titleSize="identity"
+        title={fullName}
+        leading={
+          <span
+            aria-hidden="true"
+            data-slot="play-hero-avatar"
+            className="flex size-[84px] items-center justify-center rounded-full border-[3px] border-[color:var(--color-on-primary)] bg-black/25 font-display text-[36px] font-black leading-none tracking-tight"
+          >
+            {initials}
+          </span>
+        }
+        meta={
+          hostClub && (
+            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-[color:var(--color-on-primary)]/90">
+              Member {hostClub.club_name}
+            </span>
+          )
+        }
+        speckle={{
+          preset: primaryThemePreset,
+          seedKey: "play-home-hero",
+          intensity: "medium",
+          borderRadius: 0,
+        }}
+        splatter={{
+          preset: primaryThemePreset,
+          variant: 1,
+          size: "S",
+          right: -50,
+          bottom: -60,
+          opacity: 0.5,
+        }}
+      />
+
+      {/* /play stats: active matches, upcoming bookings, tournaments
+          entered. Same StatCell chassis as /me but with on-your-plate-
+          today metrics rather than lifetime-summary. */}
+      <div className="grid grid-cols-3 gap-2">
+        <StatCell value={String(stats.active_matches)} label="Active matches" />
+        <StatCell
+          value={String(stats.upcoming_bookings)}
+          label={stats.upcoming_bookings === 1 ? "Booking" : "Bookings"}
+        />
+        <StatCell
+          value={String(stats.tournaments_entered)}
+          label="Entered"
+        />
+      </div>
 
       {/* Notification banner — only when there's at least one unread. */}
       {unreadCount > 0 && (
@@ -87,25 +128,11 @@ export default async function PlayHome() {
             <Bell className="size-3.5" aria-hidden="true" />
           </span>
           <span className="flex-1 text-[15px]">
-            <strong className="font-extrabold">
-              {unreadCount} unread
-            </strong>{" "}
+            <strong className="font-extrabold">{unreadCount} unread</strong>{" "}
             {unreadCount === 1 ? "notification" : "notifications"}
-            {nextMatch?.status === "in_progress" && " · match in play"}
           </span>
           <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
         </Link>
-      )}
-
-      {/* Hero — next match or empty state. */}
-      {nextMatch ? (
-        <HeroNextMatch
-          match={nextMatch}
-          viewerTheme={viewerTheme}
-          scorecardHref={`/tournaments/${nextMatch.tournament.id}/matches/${nextMatch.match_id}`}
-        />
-      ) : (
-        <EmptyNextMatch />
       )}
 
       {/* Quick actions */}
@@ -151,33 +178,21 @@ export default async function PlayHome() {
   );
 }
 
-function EmptyNextMatch() {
-  return (
-    <div className="flex flex-col items-start gap-3 rounded-[14px] border border-dashed border-border bg-surface px-4 py-6">
-      <span className="flex size-10 items-center justify-center rounded-full bg-primary-500/10 text-ink">
-        <Trophy className="size-5" aria-hidden="true" />
-      </span>
-      <div className="flex flex-col gap-1">
-        <h2 className="font-display text-xl font-black italic tracking-tight">
-          No matches scheduled.
-        </h2>
-        <p className="text-[15px] text-ink-muted">
-          You&apos;re not currently entered in any open tournaments. Browse
-          available competitions to enter your first one.
-        </p>
-      </div>
-      <Link
-        href="/tournaments"
-        className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary-500 px-4 text-[13px] font-semibold text-[color:var(--color-on-primary)] hover:bg-primary-600"
-      >
-        Browse tournaments
-        <ArrowRight className="size-4" aria-hidden="true" />
-      </Link>
-    </div>
-  );
+function displayName(
+  first: string | null | undefined,
+  last: string | null | undefined,
+  display: string | null | undefined,
+  email: string | null,
+): string {
+  if (display) return display;
+  const composed = [first, last].filter(Boolean).join(" ").trim();
+  return composed || email || "Player";
 }
 
-function greetingFor(firstName: string | null | undefined): string {
-  if (!firstName) return "G'day, bowler";
-  return `G'day, ${firstName.split(" ")[0]}`;
+function initialsOf(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return "?";
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }

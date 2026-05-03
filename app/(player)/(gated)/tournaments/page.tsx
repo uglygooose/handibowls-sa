@@ -1,6 +1,11 @@
 import { Trophy } from "lucide-react";
 import Link from "next/link";
 
+import { resolveActiveTheme } from "@/lib/brand/theme-from-user";
+
+import { getNextMatchForCurrentPlayer } from "@/app/(player)/(gated)/play/_data";
+import { HeroNextMatch } from "@/app/(player)/(gated)/play/_components/HeroNextMatch";
+
 import {
   getAvailableTournamentsForPlayer,
   getEnteredTournamentsForPlayer,
@@ -12,11 +17,17 @@ import {
   type AvailableEnteredTab,
 } from "./_components/TournamentsTabs";
 
-// Phase 8b — /tournaments player list. Default tab is "Entered" so a
-// returning player lands on what they're already in. Filter chips
-// (Club/District/National scope) are visual-only in 8b — the count of
-// non-club tournaments seeded in dev is zero, so the chips are scaffold
-// for when seed data grows.
+// Phase 8b → 13-4.5 — /tournaments player list. Default tab is
+// "Entered" so a returning player lands on what they're already in.
+// Filter chips (Club/District/National scope) are visual-only in 8b —
+// the count of non-club tournaments seeded in dev is zero, so the
+// chips are scaffold for when seed data grows.
+//
+// 13-4.5 IA tweak: HeroNextMatch surfaces here at the top of the
+// page (moved from /play, which is now the welcome surface). When
+// the player has no active match a quiet bg-surface card stands in
+// — calmer visual treatment than the iconic flooded-primary hero so
+// the empty state doesn't dominate the page chrome.
 
 export const metadata = {
   title: "Tournaments · HandiBowls",
@@ -32,9 +43,11 @@ export default async function TournamentsListPage({ searchParams }: Props) {
   const active: AvailableEnteredTab =
     tabParam === "available" ? "available" : "entered";
 
-  const [available, entered] = await Promise.all([
+  const [available, entered, nextMatch, viewerTheme] = await Promise.all([
     getAvailableTournamentsForPlayer(),
     getEnteredTournamentsForPlayer(),
+    getNextMatchForCurrentPlayer(),
+    resolveActiveTheme(),
   ]);
 
   const rows = active === "available" ? available : entered;
@@ -49,6 +62,17 @@ export default async function TournamentsListPage({ searchParams }: Props) {
         <span>Tournaments</span>
         <h1>{active === "available" ? "Open entries" : "Your tournaments"}</h1>
       </header>
+
+      {/* Next-match hero or quiet empty-state — 13-4.5 IA tweak. */}
+      {nextMatch ? (
+        <HeroNextMatch
+          match={nextMatch}
+          viewerTheme={viewerTheme}
+          scorecardHref={`/tournaments/${nextMatch.tournament.id}/matches/${nextMatch.match_id}`}
+        />
+      ) : (
+        <NextMatchEmpty />
+      )}
 
       <TournamentsTabs
         active={active}
@@ -76,6 +100,30 @@ export default async function TournamentsListPage({ searchParams }: Props) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+// Quiet empty-state for the next-match slot when the player has no
+// scoreable match. Calm bg-surface card, NOT flooded-primary —
+// HeroNextMatch's iconic chrome is reserved for the populated case.
+function NextMatchEmpty() {
+  return (
+    <div className="flex items-start gap-3 rounded-[14px] border border-dashed border-border bg-surface px-4 py-4">
+      <span
+        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-500/10 text-ink"
+        aria-hidden="true"
+      >
+        <Trophy className="size-4" />
+      </span>
+      <div className="flex flex-col gap-0.5">
+        <span className="font-display text-[16px] font-extrabold italic tracking-tight">
+          No active match
+        </span>
+        <span className="text-[13px] text-ink-muted">
+          Pick one below to enter.
+        </span>
+      </div>
     </div>
   );
 }

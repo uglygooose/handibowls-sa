@@ -6,6 +6,7 @@ import { Bowl } from "@/components/brand/Bowl";
 import { PlayerHero } from "@/components/layout/PlayerHero";
 import { PlayerSectionHead } from "@/components/layout/PlayerSectionHead";
 import { MyBookings } from "@/components/player/MyBookings";
+import { StatCell } from "@/components/player/StatCell";
 import { getCurrentMemberships } from "@/lib/auth/memberships";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { getAuthContext } from "@/lib/auth/role";
@@ -263,19 +264,6 @@ export default async function MePage() {
           More settings coming soon.
         </p>
       </div>
-    </div>
-  );
-}
-
-function StatCell({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="flex flex-col items-start gap-0.5 rounded-[14px] border border-border bg-surface px-3 py-3">
-      <span className="font-display text-[28px] font-black italic leading-none tabular-nums">
-        {value}
-      </span>
-      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-ink-muted">
-        {label}
-      </span>
     </div>
   );
 }
