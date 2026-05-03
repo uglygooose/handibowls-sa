@@ -1,0 +1,177 @@
+{
+  "capturedAt": "2026-05-03T14:39:53.962Z",
+  "label": "13-3-close-verify",
+  "previewUrl": "https://handibowls-dduowpasz-andrews-projects-a0c14c4f.vercel.app",
+  "results": [
+    {
+      "id": "landing",
+      "route": "/",
+      "role": null,
+      "label": "/ (landing)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": null
+    },
+    {
+      "id": "login",
+      "route": "/login",
+      "role": null,
+      "label": "/login (auth)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": null
+    },
+    {
+      "id": "play",
+      "route": "/play",
+      "role": "player",
+      "label": "/play (player home)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": null
+    },
+    {
+      "id": "tournament-detail",
+      "route": "/tournaments/239baed5-2e5c-4cc3-86a5-957a30ed60f1/matches/565254c3-67eb-4514-bd2c-8cfd687a42e1",
+      "role": "player",
+      "label": "/tournaments/[id] (player detail)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": null
+    },
+    {
+      "id": "t20",
+      "route": "/t20",
+      "role": "player",
+      "label": "/t20 (player T20 hub)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": null
+    },
+    {
+      "id": "me",
+      "route": "/me",
+      "role": "player",
+      "label": "/me (player profile)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": null
+    },
+    {
+      "id": "manage",
+      "route": "/manage/overview",
+      "role": "club_admin",
+      "label": "/manage (club admin overview)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": null
+    },
+    {
+      "id": "admin-tournament-detail",
+      "route": "/manage/tournaments/2c576f92-d4e4-4e8b-ac97-8f82bf366275",
+      "role": "club_admin",
+      "label": "/manage/tournaments/[id] (L67=85 surface)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": null
+    },
+    {
+      "id": "manage-members",
+      "route": "/manage/members",
+      "role": "club_admin",
+      "label": "/manage/members (Tier E anchor)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": null
+    },
+    {
+      "id": "platform-clubs",
+      "route": "/platform/clubs",
+      "role": "super_admin",
+      "label": "/platform/clubs (super admin)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": null
+    }
+  ]
+}
