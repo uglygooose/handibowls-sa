@@ -1,0 +1,326 @@
+{
+  "capturedAt": "2026-05-03T13:59:27.255Z",
+  "label": "m-execution",
+  "previewUrl": "https://handibowls-gsjs7gody-andrews-projects-a0c14c4f.vercel.app",
+  "results": [
+    {
+      "id": "landing",
+      "route": "/",
+      "role": null,
+      "label": "/ (landing)",
+      "axe": {
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+            "help": "Elements must meet minimum color contrast ratio thresholds",
+            "nodeCount": 1,
+            "nodes": [
+              {
+                "target": [
+                  ".gap-1"
+                ],
+                "html": "<span class=\"inline-flex items-center gap-1 rounded-full bg-primary-500/10 px-2.5 py-1 font-mono text-[10px] font-bold tracking-[0.12em] uppercase text-primary-500\"><span class=\"h-1.5 w-1.5 rounded-full bg-primary-500\"></span>Live</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.28 (foreground color: #d7261e, background color: #fbe9e8, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+              }
+            ]
+          }
+        ],
+        "counts": {
+          "critical": 0,
+          "serious": 1,
+          "moderate": 0,
+          "minor": 0,
+          "total": 1
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 96,
+          "performance": 46,
+          "bestPractices": 92,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "login",
+      "route": "/login",
+      "role": null,
+      "label": "/login (auth)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 74,
+          "bestPractices": 92,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "play",
+      "route": "/play",
+      "role": "player",
+      "label": "/play (player home)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 55,
+          "bestPractices": 92,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "tournament-detail",
+      "route": "/tournaments/239baed5-2e5c-4cc3-86a5-957a30ed60f1/matches/565254c3-67eb-4514-bd2c-8cfd687a42e1",
+      "role": "player",
+      "label": "/tournaments/[id] (player detail)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 54,
+          "bestPractices": 92,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "t20",
+      "route": "/t20",
+      "role": "player",
+      "label": "/t20 (player T20 hub)",
+      "axe": {
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+            "help": "Elements must meet minimum color contrast ratio thresholds",
+            "nodeCount": 3,
+            "nodes": [
+              {
+                "target": [
+                  ".bg-white\\/20.rounded-lg.px-1:nth-child(1) > .text-\\[10px\\].tracking-\\[0\\.06em\\].block"
+                ],
+                "html": "<span class=\"block font-mono text-[10px] font-bold uppercase tracking-[0.06em]\">Bronze</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.46 (foreground color: #0a0a0a, background color: #4b71e0, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".bg-white\\/20.rounded-lg.px-1:nth-child(2) > .text-\\[10px\\].tracking-\\[0\\.06em\\].block"
+                ],
+                "html": "<span class=\"block font-mono text-[10px] font-bold uppercase tracking-[0.06em]\">Silver</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.46 (foreground color: #0a0a0a, background color: #4b71e0, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".bg-white\\/20.rounded-lg.px-1:nth-child(4) > .text-\\[10px\\].tracking-\\[0\\.06em\\].block"
+                ],
+                "html": "<span class=\"block font-mono text-[10px] font-bold uppercase tracking-[0.06em]\">Platinum</span>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.46 (foreground color: #0a0a0a, background color: #4b71e0, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+              }
+            ]
+          }
+        ],
+        "counts": {
+          "critical": 0,
+          "serious": 1,
+          "moderate": 0,
+          "minor": 0,
+          "total": 1
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 96,
+          "performance": 53,
+          "bestPractices": 92,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "me",
+      "route": "/me",
+      "role": "player",
+      "label": "/me (player profile)",
+      "axe": {
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+            "help": "Elements must meet minimum color contrast ratio thresholds",
+            "nodeCount": 3,
+            "nodes": [
+              {
+                "target": [
+                  ".border-l-4.p-3.border-l-border:nth-child(1) > .mb-1\\.5.font-extrabold[data-slot=\"when-label\"]"
+                ],
+                "html": "<div data-slot=\"when-label\" class=\"mb-1.5 text-[14px] font-extrabold text-ink-subtle\">Wed 29 Apr · 10:00 – 12:00</div>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.28 (foreground color: #717171, background color: #f1f0ec, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".border-l-4.p-3.border-l-border:nth-child(2) > .mb-1\\.5.font-extrabold[data-slot=\"when-label\"]"
+                ],
+                "html": "<div data-slot=\"when-label\" class=\"mb-1.5 text-[14px] font-extrabold text-ink-subtle\">Wed 29 Apr · 08:00 – 10:00</div>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.28 (foreground color: #717171, background color: #f1f0ec, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".border-l-4.p-3.border-l-border:nth-child(3) > .mb-1\\.5.font-extrabold[data-slot=\"when-label\"]"
+                ],
+                "html": "<div data-slot=\"when-label\" class=\"mb-1.5 text-[14px] font-extrabold text-ink-subtle\">Wed 29 Apr · 08:00 – 10:00</div>",
+                "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 4.28 (foreground color: #717171, background color: #f1f0ec, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+              }
+            ]
+          }
+        ],
+        "counts": {
+          "critical": 0,
+          "serious": 1,
+          "moderate": 0,
+          "minor": 0,
+          "total": 1
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 96,
+          "performance": 68,
+          "bestPractices": 92,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "manage",
+      "route": "/manage/overview",
+      "role": "club_admin",
+      "label": "/manage (club admin overview)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 39,
+          "bestPractices": 92,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "admin-tournament-detail",
+      "route": "/manage/tournaments/2c576f92-d4e4-4e8b-ac97-8f82bf366275",
+      "role": "club_admin",
+      "label": "/manage/tournaments/[id] (L67=85 surface)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 42,
+          "bestPractices": 92,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "manage-members",
+      "route": "/manage/members",
+      "role": "club_admin",
+      "label": "/manage/members (Tier E anchor)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 50,
+          "bestPractices": 92,
+          "seo": 60
+        }
+      }
+    },
+    {
+      "id": "platform-clubs",
+      "route": "/platform/clubs",
+      "role": "super_admin",
+      "label": "/platform/clubs (super admin)",
+      "axe": {
+        "violations": [],
+        "counts": {
+          "critical": 0,
+          "serious": 0,
+          "moderate": 0,
+          "minor": 0,
+          "total": 0
+        }
+      },
+      "lighthouse": {
+        "scores": {
+          "accessibility": 100,
+          "performance": 46,
+          "bestPractices": 92,
+          "seo": 60
+        }
+      }
+    }
+  ]
+}
