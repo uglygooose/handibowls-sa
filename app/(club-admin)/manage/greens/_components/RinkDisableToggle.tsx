@@ -125,9 +125,17 @@ export function RinkDisableToggle({ rinkId, rinkLabel, active }: Props) {
             className={cn(
               "inline-flex h-8 items-center gap-1.5 rounded-md border px-3",
               "text-[12px] font-extrabold uppercase tracking-[0.04em]",
+              // Phase 13 / 13-3 / Batch J — hover-state contrast fix.
+              // Default-state text-{tone}-700 on bg-bone passes AA, but
+              // composited contrast drops below 4.5:1 when hover:bg-{tone}-500/8
+              // tints the bg. Mirror the hover:bg variant with hover:text-ink
+              // so the foreground swaps to theme-invariant ink only mid-hover
+              // — preserves the brand-tone cue in default state (carried by
+              // border + text colour) and only intervenes when the bg shift
+              // breaks the contrast pair.
               active
-                ? "border-warning-500/60 bg-bone text-warning-700 hover:bg-warning-500/8"
-                : "border-success-500/60 bg-bone text-success-700 hover:bg-success-500/8",
+                ? "border-warning-500/60 bg-bone text-warning-700 hover:bg-warning-500/8 hover:text-ink"
+                : "border-success-500/60 bg-bone text-success-700 hover:bg-success-500/8 hover:text-ink",
               "disabled:cursor-not-allowed disabled:opacity-50",
             )}
           >

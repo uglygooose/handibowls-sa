@@ -73,7 +73,13 @@ export function OpponentConfirmationCard({
           type="button"
           onClick={onDispute}
           disabled={pending}
-          className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-danger-500/40 bg-surface text-[13px] font-bold text-danger-500 transition-colors hover:bg-danger-500/8 disabled:opacity-60"
+          // Phase 13 / 13-3 / Batch J — hover-state contrast fix.
+          // text-danger-500 on bg-surface (bone-equivalent) passes AA, but
+          // hover:bg-danger-500/8 tints the bg and the composited foreground
+          // drops below 4.5:1. hover:text-ink swaps the foreground to
+          // theme-invariant ink only on hover — same surgical pattern as
+          // RinkDisableToggle.
+          className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-danger-500/40 bg-surface text-[13px] font-bold text-danger-500 transition-colors hover:bg-danger-500/8 hover:text-ink disabled:opacity-60"
         >
           <Flag className="size-3.5" aria-hidden="true" />
           Dispute

@@ -86,7 +86,15 @@ export default async function T20Page() {
           opacity: 0.45,
         }}
       >
-        <span className="mt-2.5 block font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white/85">
+        {/* Phase 13 / 13-3 / Batch J — eyebrow theme-coupling fix.
+            text-white/85 was hardcoded — invisible on light primaries
+            (sunburst #f5b700, white-speckle #f4f4f4) where white text
+            against the primary-tinted hero bg drops below AA contrast.
+            text-[color:var(--color-on-primary)] is the theme-aware
+            token used by the rest of the hero (heroCopy header,
+            tier-ladder labels) and reads correctly across all 9
+            presets. Same fix template as 12-fixup-2 line 102. */}
+        <span className="mt-2.5 block font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-[color:var(--color-on-primary)]">
           {heroCopy.subline}
         </span>
 
