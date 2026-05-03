@@ -3654,6 +3654,230 @@ annotation in its Owner field per the locked structure
   cards revamp opened at this close folds in opportunistically
   if 13-4 surface-area fits.
 
+### 13-4 — SEO + landing brand story + favicon — closed 2026-05-03
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-13-launch-prep`).
+- **Sub-checkpoint structure:** five execution batches +
+  scoping pass + close-verify + close. 13-4 originally scoped
+  at Phase 13 / 13-prep as plan §16 step 4 (SEO / marketing).
+  Reality at execution: extended scope to include the queued
+  `/play` tournament card theme-coupling fix from 13-3 close,
+  the favicon asset refresh per the design bundle delivered
+  during 13-3, and the mobile landing whitespace audit
+  surfaced as part of the visual review.
+- **Headline SHAs across the full 13-4 sequence:**
+  - **Scoping pass** (`611af99`) — comprehensive 385-line
+    audit document at `docs/audit/phase-13/13-4-scoping.md`.
+    Surveyed all marketing _sections, /play HeroNextMatch +
+    RecentResults + QuickActions, app/layout.tsx, public/
+    icons + manifest, app/apple-icon.png. Surfaced 20
+    decisions (D1.1 - D1.6, D3.1 - D3.3, D4.1 - D4.2,
+    D5.1 - D5.4, D6.1 - D6.5) for user lock + 6
+    unexpected findings (design bundle build-ready,
+    apple-icon already exists, theme-color hardcoded ink,
+    sitemap/robots/OG greenfield, /play tournament card
+    "theme-coupling" not actually a code bug).
+  - **Batch A** (`4d511b8`) — `fix(marketing): landing
+    truthfulness rewrite + Twenty 20 reframe`. Six files
+    modified, one deleted (Quote.tsx). Hero MARQUEE drops 4
+    fictional formats, swaps Twenty 20 out of formats marquee,
+    adds 3 substantive items (Mixed Pairs / Greenside scoring
+    / Offline-first / BSA-native). Hero copy line + stat
+    block rewritten. FeatureGrid Tournaments + Twenty 20
+    bodies tightened. ShowcaseTournament feature list
+    truthfulness pass. SocialProof full content rewrite to
+    "Built for BSA" credibility band (4 stats: 20 districts /
+    5 disciplines / ✓ BSA-native terminology / ✓ POPIA
+    compliant). Quote.tsx deleted entirely + import removed
+    from app/page.tsx. +23 / -56 lines.
+  - **Batch B** (`6c9f26d`) — `fix(marketing): mobile
+    landing whitespace`. Hero.tsx art column min-h tightened
+    340px → 260px on mobile + main bowl mobile offset
+    `top-[-20px]/right-[-80px]` → `top-[-10px]/right-[-30px]`
+    via responsive variants. Desktop md: positioning
+    untouched. +3 / -3 lines.
+  - **Batch C** (`d506866`) — `fix(play): viewer-driven
+    theme on HeroNextMatch tournament card (Path 1)`. Pre-
+    execution survey surfaced design-source conflict: the
+    bundle's `.hero-card` contract locks HeroNextMatch to
+    flooded-primary chrome; D4.2's "wide bone/white revamp"
+    would override that contract. User redirected to Path 1
+    (theme-coupling only) — visual revamp deferred to Phase
+    14. Theme-coupling shipped via option α (prop drilling):
+    `resolveActiveTheme()` server-side in `play/page.tsx`,
+    passed as `viewerTheme` prop into `<HeroNextMatch>`,
+    threaded into SpeckleField + SplatterAccent at the 2
+    consumer sites. +25 / -12 lines.
+  - **Batch D** (`955388e`) — `feat(brand): canonical
+    favicon set + atomic-red theme-color`. Replaced
+    placeholder solid-disc-with-accent-circle mark with
+    canonical HandiBowls bowls glyph from the design bundle.
+    Two-tier asset generation: simple variant (≤64px, no
+    speckle) + rich variant (≥180px, with 90-dot
+    deterministic speckle field + radial gradient shine).
+    Generated 10 assets via extended `gen:icons` script:
+    public/favicon.svg + favicon-{16,32,48,64}.png +
+    icons/icon-{192,512}.png + icons/maskable-{192,512}.png +
+    app/apple-icon.png. layout.tsx viewport.themeColor
+    `#0A0A0A` → `#D7261E` + explicit metadata.icons for SVG
+    + 16/32 PNG fallbacks. Manifest theme_color
+    `#0A0A0A` → `#D7261E`; background_color unchanged. +156
+    / -46 lines (script grew 60 → 182, past the brief's
+    50-LOC ceiling — overshoot inherent to two-variant spec,
+    surfaced transparently in the batch report).
+  - **Batch E** (`35b765a`) — `feat(seo): sitemap + robots
+    + OG image + metadata`. Greenfield SEO surfaces. New
+    files: `app/sitemap.ts` (3 public routes — / + /login
+    + /signup; auth-gated routes excluded), `app/robots.ts`
+    (allow / + disallow auth-gated prefixes + sitemap
+    reference), `app/opengraph-image.tsx` (1200×630 PNG via
+    next/og's ImageResponse — bone bg + 24px atomic-red
+    accent strip + 380px bowl mark + HANDIBOWLS wordmark in
+    ink/red split + tagline + footer URL). layout.tsx adds
+    metadataBase + openGraph + twitter blocks. Build emit
+    confirmed: /sitemap.xml + /robots.txt static + /opengraph-image
+    route handler. +217 / 0 lines.
+  - **Close-verify baseline** (`4a8e137`) — `chore(audit):
+    baseline-13-1 13-4-close-verify`. Full anchor set scan
+    against fresh preview at 35b765a: **0 critical / 0
+    serious / 0 moderate / 0 minor across all 10 surfaces.**
+  - **13-4 close** (this commit) — PHASE_LOG entry +
+    DRIFT bookkeeping + README state-line.
+- **Locked decisions during 13-4 (from scoping pass + user
+  approve-all + Batch C path-pivot):**
+  - **(a) D1.1 - D1.6 — landing truthfulness all approved
+    as written.** SocialProof repurposed to "Built for BSA"
+    credibility band (option b); Quote testimonial deleted
+    entirely (option a); Twenty 20 reframed by removing
+    from formats marquee (option b); "rubrics by district"
+    qualifier dropped from FeatureGrid copy.
+  - **(b) D3.1 — Mobile landing fix shape: option B**
+    (min-h tighten + bowl positioning), smallest code
+    change addressing the specific cause Code identified in
+    scoping. Single mobile/desktop split at md:768px (D3.2);
+    operator-side runtime QA on 375 / 390 / 412 banked at
+    13-7 / 13-8 (D3.3).
+  - **(c) D4.1 — /play tournament card theme-coupling:
+    viewer-driven (option ii).** Cards reflect viewer's
+    active theme; host-driven theming retained as design
+    intent for /tournaments/[id] (Phase 14 reconsideration).
+  - **(d) D4.2 — Visual revamp: DEFERRED.** Pre-execution
+    survey at Batch C surfaced design-source conflict
+    (bundle locks .hero-card to flooded-primary chrome);
+    user redirected to Path 1 only. Visual revamp portion
+    forks to new Phase 14 DRIFT entry
+    `hero-next-match-iconic-flood-vs-bone-card-design-call`.
+  - **(e) D5.1 - D5.4 — Favicon all locked.** Static PNG-
+    per-size export via extended gen:icons script (D5.1 b);
+    theme-color #D7261E atomic-red per design spec
+    (D5.2 α); manifest theme_color matches (D5.3); manifest
+    background_color stays #FAFAF7 (D5.4).
+  - **(f) D6.1 - D6.5 — SEO all approved as written.**
+    Sitemap 3 routes; robots auth-gated disallow; OG image
+    via single root `app/opengraph-image.tsx`; tagline
+    locked at "Tournaments, scores, and skills in your
+    pocket — for South African lawn bowls."; metadataBase
+    set to `https://app.handibowls.co.za` (operator-side
+    DNS pointing happens at 13-7).
+- **Migrations applied during 13-4:** none. Pure code +
+  config + audit work.
+- **Drift entries closed at 13-4 close:** **1** —
+  `play-tournament-cards-revamp` (PARTIAL CLOSE: theme-
+  coupling resolved at Batch C; visual revamp portion
+  retired in favour of new Phase 14 entry).
+- **Drift entries opened during 13-4:** **2** —
+  `hero-next-match-iconic-flood-vs-bone-card-design-call`
+  (Phase 14 DISCUSSION; forks the visual revamp portion of
+  the closed entry above for proper design call), and
+  `og-image-barlow-condensed-font-loading` (Phase 14 POLISH;
+  Satori font-loading deferral, banked because system
+  fallback is acceptable).
+- **DRIFT_LOG counts at close:** **51 open / 103 closed**
+  (was 50 / 102 entering 13-4). Net +1 open, +1 closed, +2
+  total entries.
+- **Test count delta:** unchanged. Unit **1393 / 1393**,
+  integration **166 / 166**.
+- **Verification gates at close:**
+  - `tsc --noEmit`: clean.
+  - `eslint`: 0 errors / **17 warnings** (unchanged
+    baseline across 13-1 / 13-2a / 13-2b / 13-3 / 13-4).
+  - `vitest run` (unit): 1393 / 1393 in 124 files (most
+    recent at Batch E, 330s).
+  - `vitest run -c vitest.rls.config.ts`: 166 / 166 in 27
+    files (most recent at Batch E, 439s).
+  - `next build`: clean — `/sitemap.xml`, `/robots.txt`,
+    `/opengraph-image` all emitted into build output.
+  - 13-4-close-verify scan: **0 critical / 0 serious / 0
+    moderate / 0 minor** across all 10 anchor surfaces
+    (`baseline-13-1-13-4-close-verify.json`).
+  - Push: clean fast-forward across all 13-4 commits.
+- **What 13-4 closes for v1:**
+  - **Zero fictional claims in landing copy.** Hero,
+    FeatureGrid, ShowcaseTournament, SocialProof rewritten
+    or repurposed; Quote testimonial deleted. Every visible
+    claim now maps to a shipping feature or a verifiable
+    BSA / product attribute.
+  - **Twenty 20 framed as skill-assessment offering**, not
+    a tournament format. FeatureGrid card carries the
+    framing; marquee no longer lumps it with formats.
+  - **Mobile landing whitespace fixed.** Hero art column
+    on <768px tightens to match actual visual content
+    height; main bowl reads as a deliberate visual element
+    rather than off-frame accident.
+  - **/play tournament cards follow viewer's active
+    theme.** Theme-switching surface chrome update now
+    extends to the iconic HeroNextMatch card
+    (SpeckleField + SplatterAccent). Visual hierarchy
+    against the page background stays cohesive across
+    theme swaps.
+  - **Canonical brand mark ships everywhere.** Browser tab
+    favicon (SVG primary + 16/32/48/64 PNG fallbacks),
+    Apple touch icon (180×180 rich), PWA install icons
+    (192/512 rich + maskable), all derived from the design
+    bundle's FavBowl + FavBowlRich constructions. Address
+    bar tint is atomic-red (#D7261E) per design spec, not
+    ink.
+  - **SEO surfaces greenfield-shipped.** sitemap.xml +
+    robots.txt + 1200×630 OG image at /opengraph-image +
+    metadataBase + openGraph + twitter metadata. Production
+    domain pointing happens at 13-7; until then absolute
+    URLs reference a non-resolving host (non-blocking for
+    14-day-after-13-7 social-share validation window).
+- **Class-of-bug lessons banked for future phases:**
+  1. **Design-source bundle conflicts surface during
+     pre-execution survey, not after the fix lands.** Batch
+     C's flooded-primary contract conflict was caught by
+     the survey step; reverting work that conflicts with a
+     locked bundle is more expensive than pivoting before
+     implementation. Survey-first discipline pays.
+  2. **Truthfulness sweeps are a v1-launch counterpart to
+     Phase 14 backlog reconciliation.** When Phase 14
+     decides which features ship vs. defer, marketing copy
+     advertising the deferred features becomes fiction.
+     The truthfulness audit should run alongside any
+     forward-feature reclassification.
+  3. **Satori-rendered OG images don't pick up next/font
+     loaders.** Custom fonts in ImageResponse need
+     ArrayBuffer pass via `ImageResponse({ fonts })`; v1
+     ships with system fallback for the wordmark, banked
+     for Phase 14 polish.
+- **Manual QA outcome:** browser-driven QA stays human-
+  side per locked operational convention. 13-4-close-verify
+  axe scan + visual spot-checks expected on the preview at
+  `handibowls-n699oiyw6-andrews-projects-a0c14c4f.vercel.app`.
+  Operator-side recipes for OG share previews + favicon
+  rendering across iOS/Android PWA install live in the
+  per-batch reports.
+- **What 13-5 will cover next (forward reference):**
+  monitoring + analytics — Sentry init (with the CSP
+  `report-uri` extension flagged at 13-2a Batch D-CSP),
+  Supabase log drain, Better Stack uptime. Plus the M3 /
+  L42 desktop-perf sub-task and L67-followup real-device
+  perf gate that 13-3 banked here. Plus the
+  `csp-authenticated-surface-violation-capture` DRIFT
+  entry that 13-2a opened for 13-5 ownership.
+
 ---
 
 ## Operational conventions
