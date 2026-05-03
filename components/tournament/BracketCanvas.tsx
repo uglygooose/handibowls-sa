@@ -110,7 +110,7 @@ export function BracketCanvas({
           style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
         >
           {rounds.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-surface px-6 py-10 text-center text-[13px] text-ink-muted">
+            <div className="rounded-[14px] border border-dashed border-border bg-surface px-6 py-10 text-center text-[13px] text-ink-muted">
               No rounds to render yet — generate the bracket from the
               entries tab.
             </div>

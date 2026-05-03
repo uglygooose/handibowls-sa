@@ -114,7 +114,7 @@ export default async function PlatformUserDetail({ params }: { params: Params })
           {user.memberships.length === 0 ? (
             <p className="mt-4 text-sm text-ink-muted">No club memberships.</p>
           ) : (
-            <div className="mt-4 rounded-xl border border-border">
+            <div className="mt-4 rounded-[14px] border border-border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -172,7 +172,7 @@ export default async function PlatformUserDetail({ params }: { params: Params })
           {user.admin_assignments.length === 0 ? (
             <p className="mt-4 text-sm text-ink-muted">No admin assignments.</p>
           ) : (
-            <div className="mt-4 rounded-xl border border-border">
+            <div className="mt-4 rounded-[14px] border border-border">
               <Table>
                 <TableHeader>
                   <TableRow>

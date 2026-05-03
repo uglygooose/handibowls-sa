@@ -355,7 +355,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
           </div>
 
           {/* Handicap card — chips + explainer. */}
-          <div className="rounded-xl border border-border bg-surface-muted p-4">
+          <div className="rounded-[14px] border border-border bg-surface-muted p-4">
             <Field label="Handicap rule">
               <ChipRow>
                 <Chip
@@ -445,7 +445,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
             </ChipRow>
           </Field>
 
-          <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3.5">
+          <div className="flex items-center justify-between rounded-[14px] border border-border px-4 py-3.5">
             <div>
               <div className="text-[14px] font-semibold">
                 Fair Rink allocation
@@ -500,7 +500,7 @@ export function NewTournamentForm({ hostClub, greens }: Props) {
                 />
               </div>
             </Field>
-            <div className="rounded-xl border border-dashed border-border bg-surface-muted p-3.5">
+            <div className="rounded-[14px] border border-dashed border-border bg-surface-muted p-3.5">
               <div className="flex items-center gap-1.5">
                 <AlertCircle className="size-4 shrink-0 text-warning-700" />
                 <strong className="text-[13px]">

@@ -14,7 +14,7 @@ export default function Error({
     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 pb-24">
       <AdminPageHero containerWidth="none" eyebrow="Platform" title="Clubs" />
       <div>
-        <div className="max-w-xl rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm">
+        <div className="max-w-xl rounded-[14px] border border-destructive/30 bg-destructive/5 p-6 text-sm">
           <p className="font-medium text-destructive">Could not load clubs.</p>
           <p className="mt-1 text-ink-muted">{error.message || "Unknown error."}</p>
           <div className="mt-4">

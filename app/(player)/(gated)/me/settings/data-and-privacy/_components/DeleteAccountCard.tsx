@@ -72,7 +72,7 @@ export function DeleteAccountCard() {
 
   return (
     <section
-      className="flex flex-col gap-3 rounded-xl border border-danger-500/40 bg-danger-500/5 p-5"
+      className="flex flex-col gap-3 rounded-[14px] border border-danger-500/40 bg-danger-500/5 p-5"
       data-slot="delete-account-card"
     >
       <div className="flex flex-col gap-1">

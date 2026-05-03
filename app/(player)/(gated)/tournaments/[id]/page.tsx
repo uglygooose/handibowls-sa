@@ -110,7 +110,7 @@ export default async function PlayerTournamentDetailPage({ params }: Props) {
           openMatch && (
             <Link
               href={`/tournaments/${tournament.id}/matches/${openMatch.id}`}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-ink px-4 text-[13px] font-extrabold uppercase tracking-[0.04em] text-ink-inverse"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-[14px] bg-ink px-4 text-[13px] font-extrabold uppercase tracking-[0.04em] text-ink-inverse"
             >
               {isLiveForPlayer ? "Score next match" : "Open next match"}
               <ArrowRight className="size-4" aria-hidden="true" />
@@ -137,7 +137,7 @@ export default async function PlayerTournamentDetailPage({ params }: Props) {
       <div className="flex flex-col gap-5">
         {/* Inline notice — player's current in-play match summary */}
         {openMatch && (
-          <div className="flex items-center gap-3 rounded-xl border border-info-500/30 bg-info-500/10 px-3 py-2.5 text-ink">
+          <div className="flex items-center gap-3 rounded-[14px] border border-info-500/30 bg-info-500/10 px-3 py-2.5 text-ink">
             <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-info-500/15">
               <Circle className="size-3.5" aria-hidden="true" />
             </span>
@@ -165,7 +165,7 @@ export default async function PlayerTournamentDetailPage({ params }: Props) {
         {/* Standings — placeholder; round-robin / sectional standings ship
             when those formats are unlocked engine-wide. */}
         <PlayerSectionHead>Standings</PlayerSectionHead>
-        <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-6 text-[15px] text-ink-muted">
+        <div className="rounded-[14px] border border-dashed border-border bg-surface px-4 py-6 text-[15px] text-ink-muted">
           Standings will be available once the tournament is in progress.
           Knockout tournaments use the bracket above; round-robin and
           sectional formats will surface their tables when those formats

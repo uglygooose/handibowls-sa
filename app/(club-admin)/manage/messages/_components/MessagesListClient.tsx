@@ -183,7 +183,7 @@ function MessageRow({ row }: { row: MessageListRow }) {
       data-slot="message-row"
       data-status={row.status}
       data-t20-request={t20Request ? "true" : undefined}
-      className="scroll-mt-24 rounded-xl border border-border bg-bone px-4 py-3.5 transition-colors hover:border-ink/40 target:ring-2 target:ring-primary-500"
+      className="scroll-mt-24 rounded-[14px] border border-border bg-bone px-4 py-3.5 transition-colors hover:border-ink/40 target:ring-2 target:ring-primary-500"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -355,7 +355,7 @@ function EmptyFilteredState({
   return (
     <div
       data-slot="messages-empty-filtered"
-      className="rounded-xl border border-dashed border-border bg-surface px-6 py-10 text-center"
+      className="rounded-[14px] border border-dashed border-border bg-surface px-6 py-10 text-center"
     >
       <div className="mx-auto flex max-w-md flex-col items-center gap-3">
         <span

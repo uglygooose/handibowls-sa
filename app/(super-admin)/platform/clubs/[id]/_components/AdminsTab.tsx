@@ -17,13 +17,13 @@ function displayName(a: ClubAdmin) {
 export function AdminsTab({ admins }: { admins: ClubAdmin[] }) {
   if (admins.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border p-6 text-sm text-ink-muted">
+      <div className="rounded-[14px] border border-dashed border-border p-6 text-sm text-ink-muted">
         No club admins yet. Invite one from the list view action menu.
       </div>
     );
   }
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="rounded-[14px] border border-border bg-card">
       <Table>
         <TableHeader>
           <TableRow>

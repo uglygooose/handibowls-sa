@@ -72,7 +72,7 @@ export default async function PlayHome() {
       {unreadCount > 0 && (
         <Link
           href="/me/inbox"
-          className="flex items-center gap-3 rounded-xl border border-info-500/30 bg-info-500/10 px-3 py-2.5 text-ink hover:bg-info-500/15"
+          className="flex items-center gap-3 rounded-[14px] border border-info-500/30 bg-info-500/10 px-3 py-2.5 text-ink hover:bg-info-500/15"
         >
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-info-500/15">
             <Bell className="size-3.5" aria-hidden="true" />
@@ -120,7 +120,7 @@ export default async function PlayHome() {
           <PlayerSectionHead>Your club</PlayerSectionHead>
           <Link
             href="/me"
-            className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-3 hover:bg-surface-muted"
+            className="flex items-center gap-3 rounded-[14px] border border-border bg-surface px-3 py-3 hover:bg-surface-muted"
           >
             <Bowl preset={hostClub.club_theme_preset} size={48} />
             <div className="flex min-w-0 flex-1 flex-col">
@@ -143,7 +143,7 @@ export default async function PlayHome() {
 
 function EmptyNextMatch() {
   return (
-    <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-border bg-surface px-4 py-6">
+    <div className="flex flex-col items-start gap-3 rounded-[14px] border border-dashed border-border bg-surface px-4 py-6">
       <span className="flex size-10 items-center justify-center rounded-full bg-primary-500/10 text-ink">
         <Trophy className="size-5" aria-hidden="true" />
       </span>

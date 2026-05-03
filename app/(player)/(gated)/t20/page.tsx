@@ -121,7 +121,7 @@ export default async function T20Page() {
       <div className="flex flex-col gap-5">
         {/* "What is Twenty 20?" explainer */}
         <PlayerSectionHead>What is Twenty 20?</PlayerSectionHead>
-        <div className="rounded-xl border border-border bg-surface px-5 py-5">
+        <div className="rounded-[14px] border border-border bg-surface px-5 py-5">
           <p className="m-0 mb-3 text-[13.5px] leading-[1.5] text-ink-muted">
             Twenty 20 is the official handicap and grading system for South
             African bowls. Your grade affects which tournaments you can enter
@@ -153,7 +153,7 @@ export default async function T20Page() {
             {upcoming.map((u) => (
               <li
                 key={u.id}
-                className="rounded-xl border border-border bg-bone px-4 py-3"
+                className="rounded-[14px] border border-border bg-bone px-4 py-3"
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-primary-600">
@@ -183,7 +183,7 @@ export default async function T20Page() {
             ))}
           </ul>
         ) : (
-          <div className="rounded-xl border border-dashed border-border bg-surface px-5 py-5 text-[13px] text-ink-muted">
+          <div className="rounded-[14px] border border-dashed border-border bg-surface px-5 py-5 text-[13px] text-ink-muted">
             <p className="m-0 mb-1 font-display text-[15px] font-bold tracking-tight text-ink">
               No assessments scheduled.
             </p>
@@ -213,7 +213,7 @@ export default async function T20Page() {
                     href={`/t20/${a.id}`}
                     data-slot="past-assessment-row"
                     data-assessment-id={a.id}
-                    className="block rounded-xl border border-border bg-bone px-4 py-3 transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
+                    className="block rounded-[14px] border border-border bg-bone px-4 py-3 transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
                   >
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-primary-600">

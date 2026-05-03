@@ -38,7 +38,7 @@ export function CommsTab({ tournament }: Props) {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Composer */}
-        <div className="flex flex-col gap-4 rounded-xl border border-border bg-surface px-5 py-5">
+        <div className="flex flex-col gap-4 rounded-[14px] border border-border bg-surface px-5 py-5">
           <Field label="Recipients">
             <div className="flex flex-wrap gap-1.5">
               <RecipientChip
@@ -129,7 +129,7 @@ export function CommsTab({ tournament }: Props) {
             <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
               Email preview
             </div>
-            <div className="overflow-hidden rounded-xl border border-border bg-surface">
+            <div className="overflow-hidden rounded-[14px] border border-border bg-surface">
               <div className="h-2 bg-primary-500" />
               <div className="px-6 py-5">
                 <div className="mb-3 flex items-center gap-2">
@@ -174,7 +174,7 @@ export function CommsTab({ tournament }: Props) {
             <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
               Past messages
             </div>
-            <div className="rounded-xl border border-dashed border-border bg-surface px-5 py-6 text-center">
+            <div className="rounded-[14px] border border-dashed border-border bg-surface px-5 py-6 text-center">
               <p className="text-[13px] text-ink-muted">
                 Past-message history activates with the Resend integration
                 (Phase 11). Messages sent today land here once the

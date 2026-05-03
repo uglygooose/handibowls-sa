@@ -158,7 +158,7 @@ export function ClubsTable({ rows, page, pageSize, total, q, basePath }: Props) 
         </span>
       </div>
 
-      <div className="rounded-xl border border-border bg-card">
+      <div className="rounded-[14px] border border-border bg-card">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (

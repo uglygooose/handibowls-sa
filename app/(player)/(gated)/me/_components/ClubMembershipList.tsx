@@ -32,7 +32,7 @@ export function ClubMembershipList({ memberships }: Props) {
 
   if (memberships.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border p-6 text-sm text-ink-muted">
+      <div className="rounded-[14px] border border-dashed border-border p-6 text-sm text-ink-muted">
         Not a member of any club yet. Ask a club admin to invite you.
       </div>
     );

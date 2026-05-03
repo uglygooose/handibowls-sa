@@ -394,7 +394,7 @@ export function CaptureWizard({ assessment, deliveries, rubric }: Props) {
           </div>
           <div
             data-slot="subtotal-chip"
-            className="flex items-center gap-3.5 rounded-xl border border-border bg-surface-muted px-4 py-2.5"
+            className="flex items-center gap-3.5 rounded-[14px] border border-border bg-surface-muted px-4 py-2.5"
           >
             <div>
               <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-subtle">
@@ -664,7 +664,7 @@ function LineOutcomeBody({
               data-recorded={v != null}
               data-next={isNext}
               className={cn(
-                "overflow-hidden rounded-xl border-[1.5px] transition",
+                "overflow-hidden rounded-[14px] border-[1.5px] transition",
                 isNext && !v ? "border-primary-500" : "border-border",
                 isNext && !v &&
                   "shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary-500)_20%,transparent)]",
@@ -754,7 +754,7 @@ function ZonesBody({
       data-slot="zones-body"
       className="grid grid-cols-1 gap-6 lg:grid-cols-[1.2fr_1fr]"
     >
-      <div className="rounded-xl border border-border bg-bone p-6">
+      <div className="rounded-[14px] border border-border bg-bone p-6">
         <div className="mb-3.5 flex items-center justify-between gap-3">
           <div>
             <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-subtle">
@@ -933,7 +933,7 @@ function OnLengthBody({
               data-slot="ladder-card"
               data-distance={len}
               data-rung={idx + 1}
-              className="overflow-hidden rounded-xl border-[1.5px] border-border bg-bone"
+              className="overflow-hidden rounded-[14px] border-[1.5px] border-border bg-bone"
             >
               <div className="bg-ink px-3.5 py-3 text-ink-inverse">
                 <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] opacity-60">

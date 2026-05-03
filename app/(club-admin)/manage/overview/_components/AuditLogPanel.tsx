@@ -59,7 +59,7 @@ export function AuditLogPanel({ rows, errored = false }: Props) {
 
       <div
         data-slot="audit-log-wrap"
-        className="overflow-hidden rounded-xl border border-border bg-surface"
+        className="overflow-hidden rounded-[14px] border border-border bg-surface"
       >
         {errored ? (
           <div

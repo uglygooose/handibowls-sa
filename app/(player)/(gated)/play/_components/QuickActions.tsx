@@ -130,7 +130,7 @@ function Card({
   return (
     <Link
       href={href}
-      className="flex min-h-[112px] flex-col items-start justify-between gap-2 rounded-xl border border-border bg-surface p-3 transition-colors hover:bg-surface-muted"
+      className="flex min-h-[112px] flex-col items-start justify-between gap-2 rounded-[14px] border border-border bg-surface p-3 transition-colors hover:bg-surface-muted"
     >
       <div
         data-slot="quick-action-top"

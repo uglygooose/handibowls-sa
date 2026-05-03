@@ -46,7 +46,7 @@ export function AssessmentCard({ row, className }: Props) {
       data-assessment-id={row.id}
       data-state={row.ui_state}
       className={cn(
-        "group relative block overflow-hidden rounded-xl border border-border bg-bone p-0 transition",
+        "group relative block overflow-hidden rounded-[14px] border border-border bg-bone p-0 transition",
         "hover:-translate-y-0.5 hover:border-primary-500 hover:shadow-[0_12px_24px_-10px_rgba(0,0,0,0.18)]",
         row.ui_state === "draft" && "opacity-90",
         className,

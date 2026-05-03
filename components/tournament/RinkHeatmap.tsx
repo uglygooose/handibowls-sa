@@ -46,7 +46,7 @@ export function RinkHeatmap({ rounds, rinks, maxCellCount, className }: Props) {
       <div
         data-slot="rink-heatmap"
         className={cn(
-          "rounded-xl border border-dashed border-border bg-surface px-6 py-10 text-center text-[13px] text-ink-muted",
+          "rounded-[14px] border border-dashed border-border bg-surface px-6 py-10 text-center text-[13px] text-ink-muted",
           className,
         )}
       >
@@ -59,7 +59,7 @@ export function RinkHeatmap({ rounds, rinks, maxCellCount, className }: Props) {
   return (
     <div
       data-slot="rink-heatmap"
-      className={cn("overflow-x-auto rounded-xl border border-border bg-surface", className)}
+      className={cn("overflow-x-auto rounded-[14px] border border-border bg-surface", className)}
     >
       <table className="w-full min-w-[640px] border-collapse text-left text-[13px]">
         <thead>

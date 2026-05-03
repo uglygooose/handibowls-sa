@@ -125,7 +125,7 @@ export function HeroNextMatch({ match, scorecardHref }: Props) {
         </div>
 
         {/* VS stack */}
-        <div className="flex flex-col gap-2.5 rounded-xl bg-black/15 p-3">
+        <div className="flex flex-col gap-2.5 rounded-[14px] bg-black/15 p-3">
           <PlayerLine
             initials="YOU"
             name={match.player_is_home ? "Your team" : "You"}
@@ -165,7 +165,7 @@ export function HeroNextMatch({ match, scorecardHref }: Props) {
         {/* CTAs */}
         <Link
           href={ctaHref}
-          className="inline-flex h-14 items-center justify-center gap-2 rounded-xl bg-ink px-5 text-[14px] font-extrabold uppercase tracking-[0.04em] text-ink-inverse shadow-md transition-colors hover:bg-ink/90"
+          className="inline-flex h-14 items-center justify-center gap-2 rounded-[14px] bg-ink px-5 text-[14px] font-extrabold uppercase tracking-[0.04em] text-ink-inverse shadow-md transition-colors hover:bg-ink/90"
         >
           {isLive ? "Score this match" : "Open match"}
           <ArrowRight className="size-4" aria-hidden="true" />

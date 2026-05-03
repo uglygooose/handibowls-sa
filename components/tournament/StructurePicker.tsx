@@ -93,7 +93,7 @@ export function StructurePicker({
               title={s.enabled ? undefined : DISABLED_TOOLTIP}
               onClick={() => s.enabled && onChange(s.id)}
               className={cn(
-                "group relative flex flex-col gap-1 rounded-xl border px-3.5 py-3 text-left transition-colors",
+                "group relative flex flex-col gap-1 rounded-[14px] border px-3.5 py-3 text-left transition-colors",
                 "border-border bg-surface text-ink",
                 s.enabled && !isDisabled && "hover:bg-surface-muted",
                 active && "border-primary-500 bg-primary-100/40",

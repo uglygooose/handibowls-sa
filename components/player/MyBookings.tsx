@@ -34,7 +34,7 @@ export function MyBookings({ rows, variant, heading }: Props) {
     return (
       <section data-slot="my-bookings" data-variant={variant}>
         {heading && <SectionHead title={heading} />}
-        <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-5 text-center text-[13px] text-ink-muted">
+        <div className="rounded-[14px] border border-dashed border-border bg-surface px-4 py-5 text-center text-[13px] text-ink-muted">
           No bookings yet — pick a slot from the date strip above to get
           started.
         </div>
@@ -116,7 +116,7 @@ function BookingRow({ row }: { row: MyBookingRow }) {
       data-booking-id={row.id}
       data-past={row.is_past}
       className={cn(
-        "rounded-xl border border-l-4 border-border p-3",
+        "rounded-[14px] border border-l-4 border-border p-3",
         row.is_past
           ? "border-l-border bg-surface-muted"
           : "border-l-primary-500 bg-bone",

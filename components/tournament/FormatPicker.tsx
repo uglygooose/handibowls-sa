@@ -74,7 +74,7 @@ export function FormatPicker({
               disabled={disabled}
               onClick={() => onChange(f)}
               className={cn(
-                "group relative flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-colors",
+                "group relative flex flex-col items-start gap-1 rounded-[14px] border px-3 py-2.5 text-left transition-colors",
                 "border-border bg-surface text-ink hover:bg-surface-muted",
                 active && "border-primary-500 bg-primary-100/40",
                 disabled && "cursor-not-allowed opacity-50",

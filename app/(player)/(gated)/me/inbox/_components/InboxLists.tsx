@@ -88,7 +88,7 @@ export function NotificationsList({
     return (
       <div
         data-slot="inbox-notifications-empty"
-        className="rounded-xl border border-dashed border-border bg-surface px-4 py-8 text-center text-[13px] text-ink-muted"
+        className="rounded-[14px] border border-dashed border-border bg-surface px-4 py-8 text-center text-[13px] text-ink-muted"
       >
         No notifications yet. Match reminders, draws, Twenty 20 prompts,
         and booking confirmations land here.
@@ -111,8 +111,8 @@ export function NotificationsList({
             className={cn(
               "transition-colors",
               n.read
-                ? "rounded-xl border border-border bg-surface"
-                : "rounded-xl border border-primary-500/30 bg-surface ring-1 ring-inset ring-primary-500/10",
+                ? "rounded-[14px] border border-border bg-surface"
+                : "rounded-[14px] border border-primary-500/30 bg-surface ring-1 ring-inset ring-primary-500/10",
             )}
           >
             <button
@@ -121,7 +121,7 @@ export function NotificationsList({
               disabled={n.read}
               data-slot="inbox-notification-tap"
               className={cn(
-                "flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors",
+                "flex w-full items-start gap-3 rounded-[14px] px-3 py-3 text-left transition-colors",
                 n.read
                   ? "cursor-default"
                   : "cursor-pointer hover:bg-primary-500/8",
@@ -199,7 +199,7 @@ export function MessagesList({ rows }: { rows: InboxMessage[] }) {
     return (
       <div
         data-slot="inbox-messages-empty"
-        className="rounded-xl border border-dashed border-border bg-surface px-4 py-8 text-center text-[13px] text-ink-muted"
+        className="rounded-[14px] border border-dashed border-border bg-surface px-4 py-8 text-center text-[13px] text-ink-muted"
       >
         No messages yet. Club admins post announcements and tournament
         updates here.
@@ -216,8 +216,8 @@ export function MessagesList({ rows }: { rows: InboxMessage[] }) {
           data-unread={m.in_app_status === "unread"}
           className={cn(
             m.in_app_status === "unread"
-              ? "rounded-xl border border-primary-500/30 bg-surface ring-1 ring-inset ring-primary-500/10"
-              : "rounded-xl border border-border bg-surface",
+              ? "rounded-[14px] border border-primary-500/30 bg-surface ring-1 ring-inset ring-primary-500/10"
+              : "rounded-[14px] border border-border bg-surface",
           )}
         >
           <button
@@ -226,7 +226,7 @@ export function MessagesList({ rows }: { rows: InboxMessage[] }) {
             disabled={m.in_app_status === "read"}
             data-slot="inbox-message-tap"
             className={cn(
-              "flex w-full flex-col gap-1.5 rounded-xl px-3 py-3 text-left transition-colors",
+              "flex w-full flex-col gap-1.5 rounded-[14px] px-3 py-3 text-left transition-colors",
               m.in_app_status === "unread"
                 ? "cursor-pointer hover:bg-primary-500/8"
                 : "cursor-default",

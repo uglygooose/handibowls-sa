@@ -114,7 +114,7 @@ export function EntriesTab({ entries }: Props) {
             aria-label="Search entries by name, club, or BSA number"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-11 w-full rounded-xl border border-border bg-surface pl-11 pr-3 text-sm text-ink placeholder:text-ink-muted focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+            className="h-11 w-full rounded-[14px] border border-border bg-surface pl-11 pr-3 text-sm text-ink placeholder:text-ink-muted focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
           />
         </div>
         <ActionButton variant="secondary">
@@ -124,7 +124,7 @@ export function EntriesTab({ entries }: Props) {
 
       {/* Bulk action bar — shows only when rows are selected */}
       {selected.size > 0 && (
-        <div className="flex items-center justify-between rounded-xl bg-ink px-4 py-2.5 text-ink-inverse">
+        <div className="flex items-center justify-between rounded-[14px] bg-ink px-4 py-2.5 text-ink-inverse">
           <span className="text-[13px] font-medium">
             {selected.size} selected
           </span>
@@ -356,7 +356,7 @@ function EntriesVirtualTable({
       role="grid"
       aria-label="Tournament entries"
       aria-rowcount={rows.length + 1}
-      className="overflow-hidden rounded-xl border border-border bg-surface"
+      className="overflow-hidden rounded-[14px] border border-border bg-surface"
     >
       {/* Sticky header */}
       <div

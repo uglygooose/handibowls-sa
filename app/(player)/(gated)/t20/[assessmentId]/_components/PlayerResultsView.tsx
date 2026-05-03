@@ -153,7 +153,7 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
         className="mx-auto mt-6 max-w-3xl px-5"
       >
         <PlayerSectionHead>Section breakdown</PlayerSectionHead>
-        <div className="overflow-hidden rounded-xl border border-border bg-bone">
+        <div className="overflow-hidden rounded-[14px] border border-border bg-bone">
           {/* Desktop / wide table */}
           <table
             data-slot="breakdown-table"
@@ -272,7 +272,7 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
         {notes?.legacy && (
           <div
             data-slot="note-tile-legacy"
-            className="mt-3 rounded-xl border border-dashed border-border bg-surface px-4 py-3 text-[13px] text-ink-muted"
+            className="mt-3 rounded-[14px] border border-dashed border-border bg-surface px-4 py-3 text-[13px] text-ink-muted"
           >
             <span className="eyebrow mb-1.5 block">Legacy notes</span>
             <p className="whitespace-pre-wrap">{notes.legacy}</p>
@@ -294,7 +294,7 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
       >
         <div data-slot="player-results-heatmap">
           <PlayerSectionHead>Where your bowls landed</PlayerSectionHead>
-          <div className="rounded-xl border border-border bg-bone px-5 py-5">
+          <div className="rounded-[14px] border border-border bg-bone px-5 py-5">
             <HeatmapMount counts={zoneCounts} size={240} />
             <p
               data-slot="heatmap-note"
@@ -306,7 +306,7 @@ export function PlayerResultsView({ detail, hasClubMembership }: Props) {
         </div>
         <div data-slot="player-results-length">
           <PlayerSectionHead>Length distribution</PlayerSectionHead>
-          <div className="rounded-xl border border-border bg-bone px-5 py-5">
+          <div className="rounded-[14px] border border-border bg-bone px-5 py-5">
             <LengthDistributionChart data={lengthDist} />
             <p
               data-slot="length-note"
@@ -358,7 +358,7 @@ function NoteTile({
       data-kind={kind}
       data-empty={empty}
       className={cn(
-        "rounded-xl border bg-bone px-4 py-3.5",
+        "rounded-[14px] border bg-bone px-4 py-3.5",
         empty
           ? "border-dashed border-border text-ink-muted"
           : "border-border text-ink",

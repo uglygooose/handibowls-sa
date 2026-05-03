@@ -74,7 +74,7 @@ export function TournamentCard({ tournament: t, variant }: Props) {
   return (
     <Link
       href={`/tournaments/${t.id}`}
-      className="relative isolate flex flex-col gap-2.5 overflow-hidden rounded-xl border border-border bg-surface p-4 transition-colors hover:bg-surface-muted"
+      className="relative isolate flex flex-col gap-2.5 overflow-hidden rounded-[14px] border border-border bg-surface p-4 transition-colors hover:bg-surface-muted"
     >
       {/* Speckle band — bundle's `.t-card .speckle-band` (player-styles
           .css:362-369) is a 6px-tall thin top-edge accent stripe, NOT

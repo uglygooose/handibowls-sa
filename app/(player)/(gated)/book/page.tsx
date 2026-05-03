@@ -48,7 +48,7 @@ export default async function BookPage({ searchParams }: Props) {
   if (!data) {
     return (
       <div className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-5 pb-24">
-        <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-8 text-center text-[13px] text-ink-muted">
+        <div className="rounded-[14px] border border-dashed border-border bg-surface px-4 py-8 text-center text-[13px] text-ink-muted">
           You&apos;re not a member of any club yet — once a club admin invites
           you, booking opens up.
         </div>
@@ -66,7 +66,7 @@ export default async function BookPage({ searchParams }: Props) {
         <h1>Book a rink</h1>
       </header>
 
-      <section className="flex flex-col gap-3 rounded-xl bg-surface p-3 shadow-sm">
+      <section className="flex flex-col gap-3 rounded-[14px] bg-surface p-3 shadow-sm">
         <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
           Select a date
         </span>

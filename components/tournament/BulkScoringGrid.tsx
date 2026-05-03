@@ -289,7 +289,7 @@ export function BulkScoringGrid({
       </div>
 
       {/* Grid */}
-      <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+      <div className="overflow-x-auto rounded-[14px] border border-border bg-surface">
         <table className="w-full min-w-[1080px] border-collapse text-left text-[13px] tabular-nums">
           <thead>
             <tr className="border-b border-border bg-surface-muted/50">

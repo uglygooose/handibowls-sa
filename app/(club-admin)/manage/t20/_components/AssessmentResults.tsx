@@ -727,7 +727,7 @@ function NotesSection({
       {persisted?.legacy && (
         <div
           data-slot="notes-legacy"
-          className="mt-4 rounded-xl border border-border bg-surface-muted px-4 py-3 text-[13px] text-ink-muted"
+          className="mt-4 rounded-[14px] border border-border bg-surface-muted px-4 py-3 text-[13px] text-ink-muted"
         >
           <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-subtle">
             Legacy notes (pre-12-4 import)
@@ -815,7 +815,7 @@ function NoteCategoryTile({
       data-category={category}
       data-editing={editing ? "true" : undefined}
       data-has-value={hasValue ? "true" : "false"}
-      className="flex min-h-[160px] flex-col rounded-xl border border-border bg-surface px-4 py-3"
+      className="flex min-h-[160px] flex-col rounded-[14px] border border-border bg-surface px-4 py-3"
     >
       <div className="flex items-start justify-between gap-2">
         <div>

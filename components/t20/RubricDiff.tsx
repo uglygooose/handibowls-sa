@@ -54,7 +54,7 @@ export function RubricDiff({
     <div
       data-slot="rubric-diff"
       className={cn(
-        "overflow-hidden rounded-xl border border-border bg-bone",
+        "overflow-hidden rounded-[14px] border border-border bg-bone",
         className,
       )}
     >

@@ -25,7 +25,7 @@ const OUTCOME_TONE: Record<PlayerRecentResult["outcome"], string> = {
 export function RecentResults({ results }: Props) {
   if (results.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-6 text-center">
+      <div className="rounded-[14px] border border-dashed border-border bg-surface px-4 py-6 text-center">
         <p className="text-[15px] text-ink-muted">
           No completed matches yet. Your results land here once the first one
           finishes.
@@ -40,7 +40,7 @@ export function RecentResults({ results }: Props) {
         {results.map((r) => (
           <li
             key={r.match_id}
-            className="flex min-w-[180px] flex-col gap-1.5 rounded-xl border border-border bg-surface p-3"
+            className="flex min-w-[180px] flex-col gap-1.5 rounded-[14px] border border-border bg-surface p-3"
           >
             <div className="flex items-center justify-between gap-2">
               <span className="truncate text-[13px] font-bold text-ink">

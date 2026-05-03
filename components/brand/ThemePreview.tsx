@@ -21,7 +21,7 @@ export function ThemePreview({
   return (
     <div
       className={cn(
-        "relative isolate flex h-40 items-end overflow-hidden rounded-xl p-4 ring-1 ring-foreground/10",
+        "relative isolate flex h-40 items-end overflow-hidden rounded-[14px] p-4 ring-1 ring-foreground/10",
         className,
       )}
       style={{ backgroundColor: swatch.base, color: swatch.on }}

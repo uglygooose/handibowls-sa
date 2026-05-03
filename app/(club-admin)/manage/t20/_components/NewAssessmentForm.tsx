@@ -320,7 +320,7 @@ export function NewAssessmentForm({
       >
         <div
           data-slot="rubric-card"
-          className="rounded-xl border bg-primary-500/4 px-5 py-4"
+          className="rounded-[14px] border bg-primary-500/4 px-5 py-4"
           style={{
             borderColor: "color-mix(in srgb, var(--color-primary-500) 25%, var(--color-border))",
           }}

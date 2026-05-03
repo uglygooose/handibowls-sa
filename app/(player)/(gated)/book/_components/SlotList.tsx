@@ -52,7 +52,7 @@ export function SlotList({ slots, clubName, allRinksCount }: Props) {
     return (
       <section
         data-slot="slot-list-no-rinks"
-        className="rounded-xl border border-dashed border-border bg-surface px-4 py-6 text-center"
+        className="rounded-[14px] border border-dashed border-border bg-surface px-4 py-6 text-center"
       >
         <p className="text-[14px] font-bold text-ink">
           No rinks configured at this club yet.
@@ -68,7 +68,7 @@ export function SlotList({ slots, clubName, allRinksCount }: Props) {
     return (
       <div
         data-slot="slot-list-empty"
-        className="rounded-xl border border-dashed border-border bg-surface px-4 py-6 text-center text-[13px] text-ink-muted"
+        className="rounded-[14px] border border-dashed border-border bg-surface px-4 py-6 text-center text-[13px] text-ink-muted"
       >
         No slots available — date may be closed for bookings.
       </div>
@@ -138,7 +138,7 @@ function SlotCard({
       data-fully-booked={isFullyBooked}
       data-starts-at={slot.starts_at}
       className={cn(
-        "rounded-xl border border-border bg-bone p-3",
+        "rounded-[14px] border border-border bg-bone p-3",
         isFullyBooked && "bg-surface-muted",
       )}
     >

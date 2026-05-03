@@ -65,7 +65,7 @@ export default async function LoginPage({
           <div
             data-slot="login-invited-banner"
             role="status"
-            className="mb-6 rounded-xl border border-primary-500/30 bg-primary-500/8 px-4 py-3 text-sm"
+            className="mb-6 rounded-[14px] border border-primary-500/30 bg-primary-500/8 px-4 py-3 text-sm"
           >
             <div className="font-display text-[13px] font-extrabold uppercase tracking-[0.06em] text-accent-ink">
               Invite accepted

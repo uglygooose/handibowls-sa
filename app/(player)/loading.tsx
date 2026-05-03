@@ -12,8 +12,8 @@ export default function PlayerLoading() {
         <Skeleton className="h-3 w-24" />
         <Skeleton className="h-9 w-56" />
       </div>
-      <Skeleton className="h-32 w-full rounded-xl" />
-      <Skeleton className="h-32 w-full rounded-xl" />
+      <Skeleton className="h-32 w-full rounded-[14px]" />
+      <Skeleton className="h-32 w-full rounded-[14px]" />
     </div>
   );
 }

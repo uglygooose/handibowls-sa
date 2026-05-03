@@ -18,7 +18,7 @@ export default async function ManageMembers() {
     return (
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-8 pb-24">
         <AdminPageHero eyebrow="Club admin" title="Members" containerWidth="none" />
-        <div className="rounded-xl border border-dashed border-border p-8 text-center">
+        <div className="rounded-[14px] border border-dashed border-border p-8 text-center">
           <p className="text-sm text-ink-muted">
             No club is in scope for this account. Use{" "}
             <Link href="/platform/clubs" className="font-medium text-ink underline">

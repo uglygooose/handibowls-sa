@@ -202,7 +202,7 @@ export function MembersTable({ rows }: Props) {
         role="grid"
         aria-label="Members"
         aria-rowcount={visibleRows.length + 1}
-        className="rounded-xl border border-border bg-card"
+        className="rounded-[14px] border border-border bg-card"
       >
         <div
           role="row"

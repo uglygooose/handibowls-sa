@@ -223,7 +223,7 @@ export function AssessmentsListClient({ rows }: Props) {
       {/* FILTER CARD */}
       <div
         data-slot="filter-card"
-        className="rounded-xl border border-border bg-bone px-5 py-3.5"
+        className="rounded-[14px] border border-border bg-bone px-5 py-3.5"
       >
         <div className="flex flex-wrap items-start gap-x-5 gap-y-3">
           <div data-slot="status-filter" className="min-w-0">

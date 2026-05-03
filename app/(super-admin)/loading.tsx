@@ -21,9 +21,9 @@ export default function SuperAdminLoading() {
       </div>
 
       <div className="flex flex-col gap-3">
-        <Skeleton className="h-20 w-full rounded-xl" />
-        <Skeleton className="h-20 w-full rounded-xl" />
-        <Skeleton className="h-20 w-full rounded-xl" />
+        <Skeleton className="h-20 w-full rounded-[14px]" />
+        <Skeleton className="h-20 w-full rounded-[14px]" />
+        <Skeleton className="h-20 w-full rounded-[14px]" />
       </div>
     </div>
   );

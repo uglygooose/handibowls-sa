@@ -179,7 +179,7 @@ export function TournamentsList({ tournaments, clubName }: Props) {
           aria-label="Search tournaments by name, format, or date"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-12 w-full rounded-xl border border-border bg-surface pl-11 pr-12 text-sm text-ink placeholder:text-ink-muted focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+          className="h-12 w-full rounded-[14px] border border-border bg-surface pl-11 pr-12 text-sm text-ink placeholder:text-ink-muted focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
         />
         <span
           aria-hidden="true"
@@ -190,7 +190,7 @@ export function TournamentsList({ tournaments, clubName }: Props) {
       </div>
 
       {/* Filter card — 4 groups separated by left-border dividers. */}
-      <div className="flex flex-wrap items-start gap-x-4 gap-y-3 rounded-xl border border-border bg-surface p-4">
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-3 rounded-[14px] border border-border bg-surface p-4">
         <FilterGroup label="Status">
           <div className="flex flex-wrap gap-1.5">
             {STATUS_FILTER_OPTIONS.map((opt) => (
@@ -500,7 +500,7 @@ function ListView({ tournaments }: { tournaments: TournamentListRow[] }) {
   });
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+    <div className="overflow-x-auto rounded-[14px] border border-border bg-surface">
       <table className="w-full min-w-[920px] border-collapse text-left text-[13px]">
         <thead>
           {table.getHeaderGroups().map((hg) => (

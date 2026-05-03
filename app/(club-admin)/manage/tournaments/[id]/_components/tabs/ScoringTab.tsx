@@ -126,7 +126,7 @@ export function ScoringTab({
   return (
     <div className="flex flex-col gap-4">
       {/* Engine note — explains the RPC that lands in migrations 024+025 */}
-      <div className="flex items-start gap-2 rounded-xl border border-warning-500/30 bg-warning-500/10 px-4 py-2.5 text-[13px] text-ink">
+      <div className="flex items-start gap-2 rounded-[14px] border border-warning-500/30 bg-warning-500/10 px-4 py-2.5 text-[13px] text-ink">
         <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         <div>
           <strong>Engine note:</strong> Save batch uses{" "}

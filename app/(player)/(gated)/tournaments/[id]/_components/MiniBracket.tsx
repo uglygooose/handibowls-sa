@@ -42,7 +42,7 @@ type Props = {
 export function MiniBracket({ rounds }: Props) {
   if (rounds.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-8 text-center text-[15px] text-ink-muted">
+      <div className="rounded-[14px] border border-dashed border-border bg-surface px-4 py-8 text-center text-[15px] text-ink-muted">
         Bracket lands once the draw is generated.
       </div>
     );
@@ -81,7 +81,7 @@ function MatchTile({ match: m }: { match: PlayerMatchRow }) {
     <div
       data-player-match={m.player_is_in}
       className={cn(
-        "flex flex-col gap-1.5 rounded-xl border bg-surface p-2",
+        "flex flex-col gap-1.5 rounded-[14px] border bg-surface p-2",
         m.player_is_in
           ? "border-primary-500 ring-2 ring-primary-500/15"
           : m.display_status === "OPEN"

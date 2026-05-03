@@ -320,7 +320,7 @@ function UploadZone({ onUploaded }: { onUploaded: () => void }) {
           <span
             aria-hidden="true"
             className={cn(
-              "flex size-[54px] items-center justify-center rounded-xl transition",
+              "flex size-[54px] items-center justify-center rounded-[14px] transition",
               hover
                 ? "bg-primary-500 text-on-primary"
                 : "bg-ink text-ink-inverse",
@@ -878,7 +878,7 @@ function ActivateModal({
         <DialogHeader className="px-7 pb-2 pt-7">
           <span
             aria-hidden="true"
-            className="mb-4 flex size-[54px] items-center justify-center rounded-xl"
+            className="mb-4 flex size-[54px] items-center justify-center rounded-[14px]"
             style={{
               background: "var(--color-warning-500)",
               color: "#0a0a0a",
@@ -896,7 +896,7 @@ function ActivateModal({
           </DialogDescription>
         </DialogHeader>
         <div className="px-7 pb-2">
-          <div className="rounded-xl border border-border bg-surface-muted p-4">
+          <div className="rounded-[14px] border border-border bg-surface-muted p-4">
             <Stat label="Captures locked to active" value={lockedCount} />
             <Stat label="Drafts pending review" value={1} />
             <Stat
@@ -1036,7 +1036,7 @@ function DeactivateModal({
         <DialogHeader className="px-7 pb-3 pt-7">
           <span
             aria-hidden="true"
-            className="mb-4 flex size-[54px] items-center justify-center rounded-xl bg-danger-500/15 text-danger-500"
+            className="mb-4 flex size-[54px] items-center justify-center rounded-[14px] bg-danger-500/15 text-danger-500"
           >
             <X className="size-5" />
           </span>

@@ -43,7 +43,7 @@ export function RinksTab({ matches }: Props) {
 
       {/* Two-card summary row — usage bar chart + fair-rink score panel */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface px-5 py-4">
+        <div className="flex flex-col gap-3 rounded-[14px] border border-border bg-surface px-5 py-4">
           <div>
             <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
               Rink usage
@@ -88,7 +88,7 @@ export function RinksTab({ matches }: Props) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface px-5 py-4">
+        <div className="flex flex-col gap-3 rounded-[14px] border border-border bg-surface px-5 py-4">
           <div>
             <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
               Fair-rink score

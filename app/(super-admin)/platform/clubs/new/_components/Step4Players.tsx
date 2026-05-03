@@ -149,7 +149,7 @@ export function Step4Players() {
       </p>
 
       {/* Single-row form */}
-      <div className="rounded-xl border border-border p-4">
+      <div className="rounded-[14px] border border-border p-4">
         <h3 className="mb-3 font-mono text-[11px] tracking-[0.12em] uppercase text-ink-muted">
           Add one player
         </h3>
@@ -215,7 +215,7 @@ export function Step4Players() {
       </div>
 
       {/* CSV import */}
-      <div className="rounded-xl border border-border p-4">
+      <div className="rounded-[14px] border border-border p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-muted">
             Import from CSV
@@ -320,7 +320,7 @@ export function Step4Players() {
 
       {/* Added players table */}
       {fields.length > 0 && (
-        <div className="rounded-xl border border-border" data-testid="players-table">
+        <div className="rounded-[14px] border border-border" data-testid="players-table">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <h3 className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-muted">
               Players added ({fields.length} / {MAX_PLAYERS})

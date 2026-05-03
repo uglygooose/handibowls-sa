@@ -31,7 +31,7 @@ function SummaryCard({ step, title, onJumpTo, children }: SummaryCardProps) {
   return (
     <div
       data-testid={`review-card-${step}`}
-      className="rounded-xl border border-border p-4"
+      className="rounded-[14px] border border-border p-4"
     >
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -96,7 +96,7 @@ export function Step5Review({ districts, logoFile, publishError, onJumpTo }: Pro
         <div
           data-testid="publish-error"
           role="alert"
-          className="flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm"
+          className="flex items-start gap-3 rounded-[14px] border border-destructive/40 bg-destructive/10 p-4 text-sm"
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
           <div>

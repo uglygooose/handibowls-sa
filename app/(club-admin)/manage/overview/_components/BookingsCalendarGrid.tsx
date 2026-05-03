@@ -161,7 +161,7 @@ export function BookingsCalendarGrid({
 
       <div
         data-slot="bookings-grid-wrap"
-        className="overflow-x-auto rounded-xl border border-border bg-surface"
+        className="overflow-x-auto rounded-[14px] border border-border bg-surface"
       >
         <table
           className="w-full min-w-[860px] border-collapse text-left text-[13px]"

@@ -108,7 +108,7 @@ export function DisputeForm({
           {...register("reason")}
           rows={4}
           placeholder="e.g. End 6 — we both played 3 bowls, scored 2 not 3"
-          className="rounded-xl border border-border bg-surface px-3 py-2 text-[14px] focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="rounded-[14px] border border-border bg-surface px-3 py-2 text-[14px] focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
         {errors.reason && (
           <span className="text-[12px] text-danger-500">
@@ -122,14 +122,14 @@ export function DisputeForm({
           type="button"
           onClick={onCancel}
           disabled={isSubmitting}
-          className="inline-flex h-11 flex-1 items-center justify-center rounded-xl border border-border bg-surface text-[13px] font-medium text-ink hover:bg-surface-muted disabled:opacity-60"
+          className="inline-flex h-11 flex-1 items-center justify-center rounded-[14px] border border-border bg-surface text-[13px] font-medium text-ink hover:bg-surface-muted disabled:opacity-60"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="inline-flex h-11 flex-[2] items-center justify-center rounded-xl bg-danger-500 text-[13px] font-extrabold uppercase tracking-[0.04em] text-white hover:opacity-90 disabled:opacity-60"
+          className="inline-flex h-11 flex-[2] items-center justify-center rounded-[14px] bg-danger-500 text-[13px] font-extrabold uppercase tracking-[0.04em] text-white hover:opacity-90 disabled:opacity-60"
         >
           {isSubmitting ? "Submitting…" : "Submit dispute"}
         </button>
@@ -156,7 +156,7 @@ function ScoreField({
         inputMode="numeric"
         min={0}
         max={99}
-        className="h-12 rounded-xl border border-border bg-surface px-3 text-center font-display text-[28px] font-black italic tabular-nums focus:outline-none focus:ring-2 focus:ring-primary-500"
+        className="h-12 rounded-[14px] border border-border bg-surface px-3 text-center font-display text-[28px] font-black italic tabular-nums focus:outline-none focus:ring-2 focus:ring-primary-500"
         {...rest}
       />
       {error && <span className="text-[12px] text-danger-500">{error}</span>}

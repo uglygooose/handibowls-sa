@@ -62,7 +62,7 @@ export default async function ManageMessagesEditPage({
           title="Edit draft"
           containerWidth="none"
         />
-        <div className="rounded-xl border border-dashed border-border p-8 text-center">
+        <div className="rounded-[14px] border border-dashed border-border p-8 text-center">
           <p className="text-sm text-ink-muted">
             No club is in scope for this account. Use{" "}
             <Link

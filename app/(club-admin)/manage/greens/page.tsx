@@ -30,7 +30,7 @@ export default async function ManageGreens() {
     return (
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-8 pb-24">
         <AdminPageHero eyebrow="Club admin" title="Greens" containerWidth="none" />
-        <div className="rounded-xl border border-dashed border-border p-8 text-center">
+        <div className="rounded-[14px] border border-dashed border-border p-8 text-center">
           <p className="text-sm text-ink-muted">
             No club is in scope for this account. Use{" "}
             <Link
@@ -72,7 +72,7 @@ export default async function ManageGreens() {
         </header>
 
         {data.greens.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-8 text-center text-[13px] text-ink-muted">
+          <div className="rounded-[14px] border border-dashed border-border bg-surface px-4 py-8 text-center text-[13px] text-ink-muted">
             No greens configured for this club yet. The seed script + super-
             admin tooling create greens; this surface manages availability
             once they exist.
@@ -84,7 +84,7 @@ export default async function ManageGreens() {
                 key={green.id}
                 data-slot="green-panel"
                 data-green-id={green.id}
-                className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4"
+                className="flex flex-col gap-3 rounded-[14px] border border-border bg-surface p-4"
               >
                 <header className="flex items-baseline justify-between gap-3">
                   <div>

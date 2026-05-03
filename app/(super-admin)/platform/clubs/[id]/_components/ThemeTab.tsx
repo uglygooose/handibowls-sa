@@ -94,7 +94,7 @@ export function ThemeTab({ clubId, clubName, current }: Props) {
                     data-current={isCurrent ? "true" : undefined}
                     onClick={() => handlePick(preset)}
                     className={cn(
-                      "flex w-full flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors",
+                      "flex w-full flex-col items-center gap-2 rounded-[14px] border p-3 text-center transition-colors",
                       "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       isSelected
                         ? "border-foreground bg-muted/60"

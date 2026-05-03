@@ -47,7 +47,7 @@ export default async function ManageT20() {
           subtitle="skills assessment"
           containerWidth="none"
         />
-        <div className="rounded-xl border border-dashed border-border p-8 text-center">
+        <div className="rounded-[14px] border border-dashed border-border p-8 text-center">
           <p className="text-sm text-ink-muted">
             No club is in scope for this account. Use{" "}
             <Link
@@ -190,7 +190,7 @@ function StatCard({
     <div
       data-slot="stat-card"
       data-stat={label.toLowerCase().replace(/\s+/g, "-").replace(/\./g, "")}
-      className="relative overflow-hidden rounded-xl border border-border bg-bone px-5 py-4"
+      className="relative overflow-hidden rounded-[14px] border border-border bg-bone px-5 py-4"
     >
       <div
         aria-hidden="true"

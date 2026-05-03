@@ -136,7 +136,7 @@ function StepperButton({
         // Touch target: 56×56 default, 64×64 wet-hands (per brief).
         // Border thickness amped in wet-hands mode for a high-contrast
         // visible edge in sunlight.
-        "inline-flex shrink-0 items-center justify-center rounded-xl transition-colors active:scale-95",
+        "inline-flex shrink-0 items-center justify-center rounded-[14px] transition-colors active:scale-95",
         wetHands
           ? "size-16 border-[8px] border-[#f5b700] bg-[#0A0A0A] text-[#f5b700] disabled:opacity-50"
           : "size-14 border border-border bg-surface text-ink hover:bg-surface-muted disabled:opacity-50",

@@ -461,7 +461,7 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
           )}
 
           {serverError && (
-            <p className="rounded-xl border border-danger-500/40 bg-danger-500/10 px-3 py-2 text-[15px] text-ink">
+            <p className="rounded-[14px] border border-danger-500/40 bg-danger-500/10 px-3 py-2 text-[15px] text-ink">
               {serverError}
             </p>
           )}
@@ -491,7 +491,7 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
               Locking this end will be hard to undo. The admin can still
               override final scores.
             </BottomSheet.Description>
-            <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-surface p-3 font-mono text-[13px]">
+            <div className="flex flex-col gap-1.5 rounded-[14px] border border-border bg-surface p-3 font-mono text-[13px]">
               <ConfRow
                 label={initialMatch.home_team_name}
                 from={localHomeTotal - pendingHome}
@@ -507,14 +507,14 @@ export function Scorecard({ match: initialMatch, backHref }: Props) {
               <button
                 type="button"
                 onClick={() => setConfirmOpen(false)}
-                className="inline-flex h-11 flex-1 items-center justify-center rounded-xl border border-border bg-surface text-[13px] font-medium text-ink hover:bg-surface-muted"
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-[14px] border border-border bg-surface text-[13px] font-medium text-ink hover:bg-surface-muted"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => void commitEnd()}
-                className="inline-flex h-11 flex-[2] items-center justify-center gap-1 rounded-xl bg-primary-500 text-[13px] font-extrabold uppercase tracking-[0.04em] text-[color:var(--color-on-primary)]"
+                className="inline-flex h-11 flex-[2] items-center justify-center gap-1 rounded-[14px] bg-primary-500 text-[13px] font-extrabold uppercase tracking-[0.04em] text-[color:var(--color-on-primary)]"
               >
                 Save end <ArrowRight className="size-4" aria-hidden="true" />
               </button>
@@ -705,7 +705,7 @@ function SideScore({
   wetHands: boolean;
 }) {
   return (
-    <div className={cn("flex flex-col items-center gap-1 rounded-xl px-2 py-2", wetHands ? "bg-[#161000]" : "bg-surface-muted/40")}>
+    <div className={cn("flex flex-col items-center gap-1 rounded-[14px] px-2 py-2", wetHands ? "bg-[#161000]" : "bg-surface-muted/40")}>
       <span
         className={cn(
           "font-mono text-[11px] font-bold uppercase tracking-[0.12em]",
@@ -739,7 +739,7 @@ function HandicapNotice({ match, wetHands }: { match: ScorecardMatch; wetHands: 
   return (
     <div
       className={cn(
-        "rounded-xl px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.06em]",
+        "rounded-[10px] px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.06em]",
         wetHands ? "bg-[#1a1a00] text-[#c08f00]" : "bg-warning-500/12 text-ink ring-1 ring-inset ring-warning-500/30",
       )}
     >
@@ -877,7 +877,7 @@ function EndsHistory({
   return (
     <section
       className={cn(
-        "rounded-xl border",
+        "rounded-[14px] border",
         wetHands ? "border-[#2a2a00] bg-[#0A0A0A]" : "border-border bg-surface",
       )}
     >

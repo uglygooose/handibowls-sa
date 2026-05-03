@@ -41,7 +41,7 @@ export function DateStrip({ dates }: Props) {
 
 function DatePill({ date }: { date: BookingDate }) {
   const baseClasses = cn(
-    "flex shrink-0 w-14 flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-center transition-colors",
+    "flex shrink-0 w-14 flex-col items-center gap-0.5 rounded-[14px] px-1 py-2 text-center transition-colors",
     "border-[1.5px]",
   );
   const variantClasses = date.is_selected

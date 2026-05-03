@@ -68,7 +68,7 @@ export function DrawTab({
   return (
     <div className="flex flex-col gap-4">
       {/* Tab toolbar — Advance / Print + verified count */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-border bg-surface px-4 py-3">
         <button
           type="button"
           onClick={handleAdvance}
@@ -120,7 +120,7 @@ export function DrawTab({
       />
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-bone px-4 py-3 text-[12.5px]">
+      <div className="flex flex-wrap items-center gap-4 rounded-[14px] border border-border bg-bone px-4 py-3 text-[12.5px]">
         <Legend label="Verified by admin" tone="success" />
         <Legend label="Match underway" tone="warning" />
         <Legend label="Awaiting players or results" tone="neutral" />

@@ -63,7 +63,7 @@ export function OpponentConfirmationCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 rounded-xl bg-surface p-3">
+      <div className="grid grid-cols-2 gap-2 rounded-[14px] bg-surface p-3">
         <ScoreBox label={yourLabel} value={yourScore} />
         <ScoreBox label={opponentLabel} value={opponentScore} />
       </div>
@@ -79,7 +79,7 @@ export function OpponentConfirmationCard({
           // drops below 4.5:1. hover:text-ink swaps the foreground to
           // theme-invariant ink only on hover — same surgical pattern as
           // RinkDisableToggle.
-          className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-danger-500/40 bg-surface text-[13px] font-bold text-danger-500 transition-colors hover:bg-danger-500/8 hover:text-ink disabled:opacity-60"
+          className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-[14px] border border-danger-500/40 bg-surface text-[13px] font-bold text-danger-500 transition-colors hover:bg-danger-500/8 hover:text-ink disabled:opacity-60"
         >
           <Flag className="size-3.5" aria-hidden="true" />
           Dispute
@@ -88,7 +88,7 @@ export function OpponentConfirmationCard({
           type="button"
           onClick={onConfirm}
           disabled={pending}
-          className="inline-flex h-11 flex-[2] items-center justify-center gap-1.5 rounded-xl bg-success-500 text-[13px] font-extrabold uppercase tracking-[0.04em] text-white transition-colors hover:opacity-90 disabled:opacity-60"
+          className="inline-flex h-11 flex-[2] items-center justify-center gap-1.5 rounded-[14px] bg-success-500 text-[13px] font-extrabold uppercase tracking-[0.04em] text-white transition-colors hover:opacity-90 disabled:opacity-60"
         >
           <Check className="size-4" aria-hidden="true" />
           Confirm result

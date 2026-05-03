@@ -149,7 +149,7 @@ export default async function MePage() {
           Inbox
         </PlayerSectionHead>
         {inbox.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-surface px-4 py-5 text-center text-[13px] text-ink-muted">
+          <div className="rounded-[14px] border border-dashed border-border bg-surface px-4 py-5 text-center text-[13px] text-ink-muted">
             No notifications yet. Match reminders, draws, and announcements
             land here.
           </div>
@@ -161,7 +161,7 @@ export default async function MePage() {
               <li key={n.id}>
                 <Link
                   href="/me/inbox"
-                  className="flex items-start gap-3 rounded-xl border border-border bg-surface px-3 py-3 transition-colors hover:bg-surface-muted"
+                  className="flex items-start gap-3 rounded-[14px] border border-border bg-surface px-3 py-3 transition-colors hover:bg-surface-muted"
                 >
                   <span
                     aria-hidden="true"
@@ -214,7 +214,7 @@ export default async function MePage() {
           {memberships.map((m) => (
             <li
               key={m.membership_id}
-              className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-3"
+              className="flex items-center gap-3 rounded-[14px] border border-border bg-surface px-3 py-3"
             >
               <Bowl preset={m.club_theme_preset} size={36} />
               <div className="flex min-w-0 flex-1 flex-col">
@@ -238,7 +238,7 @@ export default async function MePage() {
             <button
               type="button"
               disabled
-              className="flex h-11 w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-surface text-[13px] font-medium text-ink-muted opacity-70"
+              className="flex h-11 w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-[14px] border border-dashed border-border bg-surface text-[13px] font-medium text-ink-muted opacity-70"
             >
               <Plus className="size-3.5" aria-hidden="true" />
               Join another club · invite-only
@@ -248,7 +248,7 @@ export default async function MePage() {
 
         {/* Settings */}
         <PlayerSectionHead>Settings</PlayerSectionHead>
-        <ul className="flex flex-col gap-1 rounded-xl border border-border bg-surface">
+        <ul className="flex flex-col gap-1 rounded-[14px] border border-border bg-surface">
           <SettingRow icon={<User className="size-4" />} label="Personal details" trailing="—" />
           <SettingRow icon={<Bell className="size-4" />} label="Notifications" trailing="—" />
           <SettingRow icon={<Eye className="size-4" />} label="Wet hands default" trailing="Auto" />
@@ -269,7 +269,7 @@ export default async function MePage() {
 
 function StatCell({ value, label }: { value: string; label: string }) {
   return (
-    <div className="flex flex-col items-start gap-0.5 rounded-xl border border-border bg-surface px-3 py-3">
+    <div className="flex flex-col items-start gap-0.5 rounded-[14px] border border-border bg-surface px-3 py-3">
       <span className="font-display text-[28px] font-black italic leading-none tabular-nums">
         {value}
       </span>

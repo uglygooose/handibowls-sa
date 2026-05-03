@@ -351,7 +351,7 @@ export function EditTournamentForm({
           {formatLocked && (
             <div
               data-slot="format-locked-notice"
-              className="flex items-start gap-2.5 rounded-xl border border-danger-500/40 bg-danger-500/5 px-4 py-3"
+              className="flex items-start gap-2.5 rounded-[14px] border border-danger-500/40 bg-danger-500/5 px-4 py-3"
             >
               <Lock className="mt-0.5 size-4 shrink-0 text-danger-500" aria-hidden="true" />
               <div className="flex-1 text-[13px] leading-[1.45]">
@@ -465,7 +465,7 @@ export function EditTournamentForm({
             </Field>
           </div>
 
-          <div className="rounded-xl border border-border bg-surface-muted p-4">
+          <div className="rounded-[14px] border border-border bg-surface-muted p-4">
             <Field label="Handicap rule">
               <ChipRow>
                 <Chip
@@ -547,7 +547,7 @@ export function EditTournamentForm({
             </ChipRow>
           </Field>
 
-          <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3.5">
+          <div className="flex items-center justify-between rounded-[14px] border border-border px-4 py-3.5">
             <div>
               <div className="text-[14px] font-semibold">
                 Fair Rink allocation
@@ -602,7 +602,7 @@ export function EditTournamentForm({
                 />
               </div>
             </Field>
-            <div className="rounded-xl border border-dashed border-border bg-surface-muted p-3.5">
+            <div className="rounded-[14px] border border-dashed border-border bg-surface-muted p-3.5">
               <div className="flex items-center gap-1.5">
                 <AlertCircle className="size-4 shrink-0 text-warning-700" />
                 <strong className="text-[13px]">

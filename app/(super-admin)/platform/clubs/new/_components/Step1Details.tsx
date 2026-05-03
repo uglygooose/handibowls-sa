@@ -267,7 +267,7 @@ export function Step1Details({ districts, logoFile, onLogoChange }: Props) {
         </FormLabel>
         <div className="flex items-start gap-4">
           {logoPreview ? (
-            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl ring-1 ring-border">
+            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-[14px] ring-1 ring-border">
               <Image
                 src={logoPreview}
                 alt="Logo preview"
@@ -279,7 +279,7 @@ export function Step1Details({ districts, logoFile, onLogoChange }: Props) {
               />
             </div>
           ) : (
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-muted text-xs text-muted-foreground ring-1 ring-border">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[14px] bg-muted text-xs text-muted-foreground ring-1 ring-border">
               No logo
             </div>
           )}
@@ -342,7 +342,7 @@ export function Step1Details({ districts, logoFile, onLogoChange }: Props) {
                           data-testid={`theme-preset-${preset}`}
                           onClick={() => field.onChange(preset)}
                           className={cn(
-                            "flex w-full flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors",
+                            "flex w-full flex-col items-center gap-2 rounded-[14px] border p-3 text-center transition-colors",
                             "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             isSelected
                               ? "border-foreground bg-muted/60"
@@ -378,7 +378,7 @@ export function Step1Details({ districts, logoFile, onLogoChange }: Props) {
             />
           ) : (
             <div
-              className="flex h-40 items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground"
+              className="flex h-40 items-center justify-center rounded-[14px] border border-dashed border-border text-sm text-muted-foreground"
               data-testid="theme-preview-empty"
             >
               Pick a preset to preview.

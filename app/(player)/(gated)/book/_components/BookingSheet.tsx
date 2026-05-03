@@ -200,7 +200,7 @@ export function BookingSheet({ open, onOpenChange, slot, clubName }: Props) {
               Party size
             </legend>
             <div
-              className="inline-flex items-center gap-3 rounded-xl border border-border bg-bone px-3 py-2"
+              className="inline-flex items-center gap-3 rounded-[14px] border border-border bg-bone px-3 py-2"
               data-slot="party-stepper"
             >
               <button

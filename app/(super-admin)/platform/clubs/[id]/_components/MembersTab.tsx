@@ -39,7 +39,7 @@ export function MembersTab({ members }: { members: ClubMember[] }) {
 
   if (members.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border p-6 text-sm text-ink-muted">
+      <div className="rounded-[14px] border border-dashed border-border p-6 text-sm text-ink-muted">
         No members yet. Invite players from the admin flow once accepted.
       </div>
     );
@@ -68,7 +68,7 @@ export function MembersTab({ members }: { members: ClubMember[] }) {
         role="grid"
         aria-label="Club members"
         aria-rowcount={rows.length + 1}
-        className="rounded-xl border border-border bg-card"
+        className="rounded-[14px] border border-border bg-card"
       >
         <div
           role="row"

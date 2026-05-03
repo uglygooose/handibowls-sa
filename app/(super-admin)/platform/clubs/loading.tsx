@@ -7,7 +7,7 @@ export default function Loading() {
       <AdminPageHero containerWidth="none" eyebrow="Platform" title="Clubs" />
       <div className="flex flex-col gap-3">
         <Skeleton className="h-9 w-64" />
-        <Skeleton className="h-80 w-full rounded-xl" />
+        <Skeleton className="h-80 w-full rounded-[14px]" />
       </div>
     </div>
   );

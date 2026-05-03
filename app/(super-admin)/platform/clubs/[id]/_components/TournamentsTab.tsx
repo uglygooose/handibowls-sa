@@ -13,13 +13,13 @@ import type { ClubTournament } from "../_data";
 export function TournamentsTab({ tournaments }: { tournaments: ClubTournament[] }) {
   if (tournaments.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border p-6 text-sm text-ink-muted">
+      <div className="rounded-[14px] border border-dashed border-border p-6 text-sm text-ink-muted">
         No tournaments hosted by this club yet.
       </div>
     );
   }
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="rounded-[14px] border border-border bg-card">
       <Table>
         <TableHeader>
           <TableRow>

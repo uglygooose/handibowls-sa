@@ -104,7 +104,7 @@ function Chip({
 function EmptyState({ tab }: { tab: AvailableEnteredTab }) {
   if (tab === "available") {
     return (
-      <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-border bg-surface px-4 py-6">
+      <div className="flex flex-col items-start gap-3 rounded-[14px] border border-dashed border-border bg-surface px-4 py-6">
         <span className="flex size-10 items-center justify-center rounded-full bg-primary-500/10 text-ink">
           <Trophy className="size-5" aria-hidden="true" />
         </span>
@@ -119,7 +119,7 @@ function EmptyState({ tab }: { tab: AvailableEnteredTab }) {
     );
   }
   return (
-    <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-border bg-surface px-4 py-6">
+    <div className="flex flex-col items-start gap-3 rounded-[14px] border border-dashed border-border bg-surface px-4 py-6">
       <span className="flex size-10 items-center justify-center rounded-full bg-primary-500/10 text-ink">
         <Trophy className="size-5" aria-hidden="true" />
       </span>

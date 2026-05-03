@@ -125,7 +125,7 @@ export function MatchModal({ match, decorPreset, onClose }: Props) {
 
         <div className="flex flex-col gap-5 p-6">
           {/* Score grid */}
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-xl border border-border bg-surface-muted px-5 py-5">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-[14px] border border-border bg-surface-muted px-5 py-5">
             <ScoreSide
               align="left"
               eyebrow={`Home${homeWinner ? " · Winner" : ""}`}
@@ -154,7 +154,7 @@ export function MatchModal({ match, decorPreset, onClose }: Props) {
             <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-muted">
               Submissions
             </div>
-            <div className="overflow-hidden rounded-xl border border-border">
+            <div className="overflow-hidden rounded-[14px] border border-border">
               <SubmissionRow
                 label="Captain submitted"
                 done={match.status === "in_progress" || match.status === "completed" || isFinal}
@@ -189,7 +189,7 @@ export function MatchModal({ match, decorPreset, onClose }: Props) {
           </div>
 
           {/* Action row */}
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-muted px-5 py-4">
+          <div className="flex items-center justify-between gap-3 rounded-[14px] border border-border bg-surface-muted px-5 py-4">
             <FinalizedToggle
               finalized={finalized}
               onChange={setFinalized}

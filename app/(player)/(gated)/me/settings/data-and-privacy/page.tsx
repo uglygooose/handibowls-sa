@@ -53,7 +53,7 @@ export default function DataAndPrivacyPage() {
       </header>
 
       <PlayerSectionHead>Export my data</PlayerSectionHead>
-      <section className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-5">
+      <section className="flex flex-col gap-3 rounded-[14px] border border-border bg-surface p-5">
         <div className="flex flex-col gap-1">
           <h2 className="font-display text-[18px] font-bold tracking-tight">
             Download a copy
@@ -72,7 +72,7 @@ export default function DataAndPrivacyPage() {
         <a
           href="/api/me/export"
           download
-          className="inline-flex h-11 w-fit items-center justify-center gap-2 rounded-xl bg-ink px-5 text-[13.5px] font-bold uppercase tracking-[0.04em] text-ink-inverse hover:bg-ink/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+          className="inline-flex h-11 w-fit items-center justify-center gap-2 rounded-[14px] bg-ink px-5 text-[13.5px] font-bold uppercase tracking-[0.04em] text-ink-inverse hover:bg-ink/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
           data-slot="export-data-link"
         >
           <Download className="size-4" aria-hidden="true" />

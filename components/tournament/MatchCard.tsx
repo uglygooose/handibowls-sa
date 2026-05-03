@@ -70,7 +70,7 @@ export function MatchCard({
       data-current={isCurrent ?? false}
       data-final={isFinal ?? false}
       className={cn(
-        "flex w-[230px] flex-col overflow-hidden rounded-xl border text-left transition-all",
+        "flex w-[230px] flex-col overflow-hidden rounded-[14px] border text-left transition-all",
         isFinal
           ? "border-ink bg-ink text-ink-inverse"
           : "border-border bg-surface text-ink",

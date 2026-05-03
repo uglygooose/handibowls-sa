@@ -54,7 +54,7 @@ export function UsersTable({ rows, page, pageSize, total, q, basePath }: Props) 
 
   return (
     <div className="flex flex-col gap-3" data-slot="users-table">
-      <div className="rounded-xl border border-border bg-card">
+      <div className="rounded-[14px] border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
