@@ -32,6 +32,10 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  // Resolves OG/manifest URLs absolutely. Operator-side: domain pointing
+  // to Vercel happens at Phase 13 / 13-7; until then social previews
+  // reference a host that doesn't yet resolve (non-blocking).
+  metadataBase: new URL("https://app.handibowls.co.za"),
   title: "HandiBowls",
   description: "HandiBowls — tournaments, scores, and skills in your pocket.",
   manifest: "/manifest.webmanifest",
@@ -49,6 +53,21 @@ export const metadata: Metadata = {
       { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
       { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
     ],
+  },
+  openGraph: {
+    title: "HandiBowls",
+    description:
+      "Tournaments, scores, and skills in your pocket — for South African lawn bowls.",
+    url: "https://app.handibowls.co.za",
+    siteName: "HandiBowls",
+    locale: "en_ZA",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "HandiBowls",
+    description:
+      "Tournaments, scores, and skills in your pocket — for South African lawn bowls.",
   },
 };
 
