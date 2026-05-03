@@ -253,15 +253,16 @@ export default async function T20Page() {
 
 function TierStep({ tier, state }: { tier: Tier; state: TierStepState }) {
   // Phase 13 / 13-1 / commit 12-fixup-2: bg-white/10 over primary-500 sat
-  // at 4.44:1 with text-ink (and 4.45:1 with the inherited on-primary
-  // white) on atomic-red — both right under the 4.5:1 AA threshold.
-  // Bumped to bg-white/20 (≈ #e25249 over #d7261e), which clears 5.6:1
-  // with text-ink and keeps the translucent "dimmed" feel. The dot
-  // colour still encodes done vs future.
+  // at 4.44:1 with text-ink on atomic-red — under the 4.5:1 AA threshold.
+  // Phase 13 / 13-3 / Batch M-fixup: prior bg-white/20 cleared 5.6:1 on
+  // atomic-red but only 4.46:1 on ocean-blue (the seed-user's club at
+  // baseline-13-1-m-execution capture). Bumped to bg-white/30 to clear
+  // AA across all 9 presets — atomic-red 6.0:1, ocean-blue 5.45:1,
+  // sunburst 12.8:1, white-speckle ~17:1.
   const wrap =
     state === "active"
       ? "rounded-lg bg-white px-1 py-2 text-center text-primary-600"
-      : "rounded-lg bg-white/20 px-1 py-2 text-center text-ink";
+      : "rounded-lg bg-white/30 px-1 py-2 text-center text-ink";
   const dot =
     state === "active"
       ? "mx-auto mb-1 size-2.5 rounded-full bg-primary-500"

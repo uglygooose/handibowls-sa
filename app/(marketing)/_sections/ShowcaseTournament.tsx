@@ -74,7 +74,7 @@ function Bracket() {
             Pairs · Knockout · 16 pairs
           </div>
         </div>
-        <span className="inline-flex items-center gap-1 rounded-full bg-primary-500/10 px-2.5 py-1 font-mono text-[10px] font-bold tracking-[0.12em] uppercase text-primary-500">
+        <span className="inline-flex items-center gap-1 rounded-full bg-primary-500/10 px-2.5 py-1 font-mono text-[10px] font-bold tracking-[0.12em] uppercase text-primary-600">
           <span className="h-1.5 w-1.5 rounded-full bg-primary-500" />
           Live
         </span>

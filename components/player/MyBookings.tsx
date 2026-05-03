@@ -126,7 +126,7 @@ function BookingRow({ row }: { row: MyBookingRow }) {
         data-slot="when-label"
         className={cn(
           "mb-1.5 text-[14px] font-extrabold",
-          row.is_past ? "text-ink-subtle" : "text-ink",
+          row.is_past ? "text-ink-muted" : "text-ink",
         )}
       >
         {row.when_label}
