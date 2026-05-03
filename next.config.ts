@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { withSerwist } from "@serwist/turbopack";
+import { withSentryConfig } from "@sentry/nextjs";
 
 // Phase 8d — wrap with `@serwist/turbopack`. The wrapper adds esbuild
 // + esbuild-wasm to `serverExternalPackages` so the Serwist build
@@ -84,4 +85,15 @@ const baseConfig: NextConfig = {
   },
 };
 
-export default withSerwist(baseConfig);
+// Phase 13 / 13-5 / Batch A — wrap composition: withSerwist innermost
+// (transforms NextConfig with the PWA service-worker injection) and
+// withSentryConfig outermost (instruments build for Sentry). Source-map
+// upload is OFF here — `sourcemaps.disable: true` skips the Sentry CLI
+// step entirely. Batch B flips `disable: false` and passes `authToken`
+// to enable upload + symbolicated stack traces in the Sentry dashboard.
+export default withSentryConfig(withSerwist(baseConfig), {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: false,
+  sourcemaps: { disable: true },
+});
