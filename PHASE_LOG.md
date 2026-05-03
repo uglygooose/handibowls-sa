@@ -3167,6 +3167,10 @@ annotation in its Owner field per the locked structure
     doesn't block others. `vercel.json` (NEW) + `.env.example`
     extended. 4 endpoint integration cases including end-to-end
     actual-ban verification.
+    Schedule changed from hourly to daily at 13-3 (this
+    commit) for Hobby-plan compatibility. Daily cadence is
+    permanent. See DRIFT entry
+    `vercel-cron-daily-cadence-permanent`.
   - **Batch H1** (`d9d8b92`) — `lib/format/profile-display.ts:formatPlayerName`
     helper (9 unit cases) + cross-user surface sweep across 6
     `_data.ts` helpers (nameOf / bookerName) + 3 component
