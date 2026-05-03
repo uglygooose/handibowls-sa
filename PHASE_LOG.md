@@ -3352,6 +3352,308 @@ annotation in its Owner field per the locked structure
   coupling, hover-pseudo-state-contrast-audit) all
   scheduled for 13-3.
 
+### 13-3 — perf measurement + visual residuals + a11y class-of-bug — closed 2026-05-03
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-13-launch-prep`).
+- **Sub-checkpoint structure:** 13-3 originally scoped at
+  Phase 13 / 13-prep as "performance + Lighthouse + real-
+  device confirmation + rounded-xl tier sweep". Reality at
+  execution: 13-3 carved into thirteen commits across six
+  logical batches (I / J / J-fixup / K-prep / K / L /
+  M-fixup) plus three audit baselines and one
+  infrastructure correction. Perf threshold gate ended up
+  deferred to 13-8 per the locked DRIFT-L67-followup
+  acceptance criterion (WSL Chrome instability contaminates
+  measurement uniformly across all 10 anchor surfaces); the
+  rest of 13-3's a11y / visual / tier-sweep scope landed in
+  full.
+- **Headline SHAs across the full 13-3 sequence:**
+  - **Scoping pass** (`a1a5dde`) — 6 entries triaged into
+    batch shape; perf vehicle locked to Vercel preview
+    Lighthouse with real-device deferred to 13-8.
+  - **Batch I** (`c126983`) — `feat(pwa): service-worker
+    registration via @serwist/next SerwistProvider`. Closes
+    `sw-registration-missing` (the offline-first claim from
+    Phase 8d–8f wasn't holding for reload-while-offline
+    because the SW was never registered against the client).
+    Mounted at root layout; runtime caching strategies
+    already shipped in `app/sw.ts`.
+  - **Batch J** (`c513c1f`) — `fix(a11y): hover-state
+    contrast (3 surfaces) + /t20 hero eyebrow theme-coupling`.
+    Closes `t20-hero-eyebrow-theme-coupling` (eyebrow
+    `text-white/85` swap to `text-[color:var(--color-on-primary)]`
+    for theme-invariance) + `hover-pseudo-state-contrast-audit`
+    (RinkDisableToggle warning + success hover pairs +
+    OpponentConfirmationCard danger pair swapped to
+    theme-invariant `text-ink` on hover).
+  - **Batch J-fixup** (`319b9b6`) — `revert(marketing):
+    landing accent words to preset-primary`. Marketing
+    route group reverted from theme-invariant `--accent-ink`
+    back to preset-primary because the landing is fixed-
+    preset to atomic-red (5.02:1 on bone, AA-safe). Opens
+    `accent-word-per-preset-rendering-design-discussion`
+    (Phase 14 discussion entry — three directions to
+    evaluate post-launch).
+  - **Skills inventory side-quest** (`2918840` + `7faeca0`)
+    — read-only audit of all installed skills + resolution.
+    Vercel plugin install evaluation banked for 13-7 → 13-8
+    boundary.
+  - **Batch K-prep diagnostic** (`6719fa3`) — `chore(audit):
+    13-3 K-prep rediagnostic — text-ink-muted root cause`.
+    Pulled M3 axe-node detail from
+    `baseline-13-1-m3-residual-sweep.json`. Original
+    DRIFT-L291 diagnosis (per-preset `--ink-muted` token
+    shipping `#90908f`) was wrong: token has been `#4a4a4a`
+    since Phase 1, theme-invariant. Real cause: parent
+    `opacity-60` on past-row `<li>` in `MyBookings.tsx:121`
+    composited token × α=0.6 over bg-surface = `#90908f`
+    rendered foreground / 3.13:1. Class-of-bug, not a
+    token problem.
+  - **Batch K** (`278a305`) — `fix(a11y): drop parent-
+    opacity-on-text dimming on 3 player surfaces`. Replaced
+    parent opacity-60/70/40 with token-driven surface tiers
+    on MyBookings (past rows: `bg-surface-muted` +
+    `text-ink-subtle` heading) + book/SlotList (fully-booked:
+    `bg-surface-muted` + `text-ink-subtle` slot-time) +
+    book/DateStrip (closed dates: `bg-bone` + `text-ink-subtle`
+    via new variantClasses branch + drop opacity-40).
+    Class-of-bug fix at the dimming pattern itself, not at
+    the `--ink-muted` token. Investigated MatchModal.tsx:105
+    (light-text-over-dark-bg `opacity-70`) and confirmed
+    NOT a 4th instance — different math (composite ~9:1,
+    passes AA).
+  - **vercel.json cron daily schedule** (`a357656`) —
+    `chore(infra): vercel.json cron daily schedule (Hobby-
+    plan compatibility, daily is permanent)`. Hobby plan
+    rejects sub-daily cron expressions; the hourly schedule
+    shipped at Batch G3b blocked every deploy from
+    `e6b5506` forward (Vercel returned `"Hobby accounts
+    are limited to daily cron jobs"` at deploy stage,
+    surfaced by CLI not dashboard). Schedule changed to
+    `0 4 * * *` (04:00 UTC daily, paired with pg_cron's
+    03:00 UTC `popia_anonymise_pending_run` with 1-hour
+    offset to prevent the race window). Decision locked:
+    stay on Hobby plan, daily cadence permanent, Pro
+    upgrade rejected. CRON_SECRET set in Production
+    (sensitive) + Preview (encrypted) via API direct after
+    CLI's non-interactive disambiguation refused the
+    "all preview branches" path. Opens
+    `vercel-cron-daily-cadence-permanent` (DOCUMENTATION,
+    13-7 housekeeping confirmation only).
+  - **Batch K audit baseline** (`a9a2e6d`) — `chore(audit):
+    baseline-13-1 k-execution close`. /me 0 axe-serious
+    (was 3 pre-K); /book clean (no regressions from
+    SlotList + DateStrip class-of-bug fix).
+  - **Batch L** (`2f1991c`) — `refactor(ui): rounded-xl →
+    rounded-[14px]/[10px] tier sweep`. 175 in-scope
+    callers across 88 files swept in a single atomic
+    commit. 174 → `rounded-[14px]` (default warm) + 1 →
+    `rounded-[10px]` (chip-tight: Scorecard.tsx:742
+    HandicapNotice). 6 callers in `components/ui/` deferred
+    per scoping § 5.3 (shadcn primitives — touched only on
+    shadcn version bumps). Closes `rounded-xl-tier-sweep`.
+    Calibration finding: scoping's "~30% chip-tight"
+    estimate was ~50× too high (actual 0.6%); chip-tight
+    patterns predominantly use `rounded-md`.
+  - **M-execution baseline** (`79f5061`) — `chore(audit):
+    baseline-13-1 m-execution close`. Full Lighthouse +
+    axe scan against fresh preview at 2f1991c. Lighthouse
+    perf scored 39-74 across all 10 surfaces — universally
+    below threshold, consistent with WSL CPU throttling
+    pattern documented in DRIFT-L67-followup. Three new
+    axe-serious findings at this baseline: `/me` 3 nodes
+    (`text-ink-subtle` on `bg-surface-muted` = 4.28:1 —
+    Batch K's K-execution missed this because the seed
+    user's club theme was different at K-execution time
+    vs. M-execution; `--surfaces=me` filter narrowed scope
+    too aggressively); `/t20` 3 nodes (TierStep grade
+    pills `bg-white/20` cleared 5.6:1 on atomic-red but
+    only 4.46:1 on ocean-blue, the M-execution seed-user
+    club); `/` 1 node (`text-primary-500` on
+    `bg-primary-500/10` = 4.28:1 — Batch J-fixup carve-out
+    missed ShowcaseTournament.tsx:77 sibling site).
+  - **Batch M-fixup** (`950c8f3`) — `fix(a11y): three
+    contrast residuals surfaced at M-execution`. /me past-
+    row when-label: `text-ink-subtle` → `text-ink-muted`
+    (4.28:1 → 7.8:1 on bg-surface-muted; token stays
+    `#717171`, consumer swap because `--ink-muted #4a4a4a`
+    is AA-clear on surface-muted while `--ink-subtle
+    #717171` is not). /t20 grade pills: `bg-white/20` →
+    `bg-white/30` (verified across 4 spot-checked presets:
+    atomic-red 6.0:1, ocean-blue 5.45:1, sunburst 12.8:1,
+    white-speckle ~17:1). / landing: ShowcaseTournament
+    "Live" pill `text-primary-500` → `text-primary-600`
+    (#d7261e → #b01a14 on bg-primary-500/10 / bone
+    composite #fbe9e8 → 6.07:1 passes; brand red preserved,
+    just darker; inner dot stays `bg-primary-500` —
+    decorative, AA's 3:1 graphics threshold).
+  - **Close-verify baseline** (`96bd31e`) — `chore(audit):
+    baseline-13-1 13-3-close-verify`. Full anchor set scan
+    against fresh preview at 950c8f3: **0 critical / 0
+    serious / 0 moderate / 0 minor across all 10 surfaces.**
+  - **13-3 close** (this commit) — PHASE_LOG entry +
+    DRIFT bookkeeping + README state-line.
+- **Locked decisions during 13-3:**
+  - **(a) Perf vehicle: Vercel preview Lighthouse via
+    baseline-13-1.mjs.** Threshold per surface ≥90 for
+    /, /login, /play, /tournaments/[id], /t20, /me; ≥80
+    for /manage, /manage/tournaments/[id], /manage/members,
+    /platform/clubs. Real-device Android Chrome
+    confirmation banked for 13-8 per L67-followup.
+  - **(b) Perf threshold gate at 13-3 close: deferred to
+    13-8 real-device.** WSL CPU throttling contaminated
+    M-execution scores uniformly (39-74 across all 10
+    surfaces, including a near-static auth page at 74).
+    When all surfaces fail by similar margins, that's
+    measurement-environment bias not surface-specific
+    issues; targeted fixes against WSL-noisy data risk
+    false positives + false negatives. Real-device gate
+    runs at 13-8 with the L42 desktop-perf sub-task folded
+    in.
+  - **(c) Class-of-bug fix shape: token-driven surface
+    tiers, no parent-opacity on text-bearing parents.**
+    The `--ink-muted` token stays at `#4a4a4a` (theme-
+    invariant since Phase 1, AA-clear on bone/surface). No
+    token bump. Fix shipped at the consumer level
+    (MyBookings + book/SlotList + book/DateStrip); class-
+    of-bug pattern eliminated from /me + /book.
+  - **(d) `text-ink-subtle` (#717171) consumer scope:
+    bg-bone only.** M-execution proved it fails AA on
+    bg-surface-muted (4.28:1 vs claimed AA-clear in
+    Tier A note). Consumer swap on the one surface-muted
+    site (MyBookings past-row when-label) to text-ink-
+    muted; token-bump deferred to Phase 14 housekeeping
+    pass.
+  - **(e) Vercel cron schedule: daily permanent.** Hobby
+    plan blocks sub-daily; Pro upgrade rejected. 04:00 UTC
+    paired with pg_cron's 03:00 UTC anonymise run via
+    1-hour offset.
+  - **(f) `rounded-xl` tier discipline:** 14px default-
+    warm + 10px chip-tight; 50/50 borderline → default;
+    `components/ui/` shadcn primitives deferred to shadcn-
+    version-bump cadence.
+- **Migrations applied during 13-3:** none. Pure code +
+  config + audit work.
+- **Drift entries closed at 13-3 close:** 5 — `sw-
+  registration-missing`, `t20-hero-eyebrow-theme-coupling`,
+  `hover-pseudo-state-contrast-audit`, `rounded-xl-tier-
+  sweep`, `text-ink-muted-token-contrast` (correct-in-
+  place then close).
+- **Drift entries opened during 13-3:** 4 — `vercel-cron-
+  daily-cadence-permanent` (DOCUMENTATION, 13-7 housekeeping;
+  opened at a357656), `accent-word-per-preset-rendering-
+  design-discussion` (Phase 14 discussion; opened at
+  319b9b6 / J-fixup), plus 3 at this close: `play-
+  tournament-cards-revamp` (Phase 13 → 13-4 polish),
+  `book-surfaces-fixture-coverage-phase-14` (Phase 14
+  belt-and-braces), `tier-a-ink-subtle-comment-inaccuracy`
+  (Phase 14 housekeeping). Net: +5 closed, +5 new opens
+  (3 at close + 2 mid-sequence) = -0 net but 152 total
+  entries (was 149).
+- **DRIFT_LOG counts at close:** **50 open / 102 closed**
+  (was 52 open / 97 closed entering 13-3). Net -2 open,
+  +5 closed.
+- **Test count delta:** unchanged. Unit **1393 / 1393**,
+  integration **166 / 166**.
+- **Verification gates at close:**
+  - `tsc --noEmit`: clean.
+  - `eslint`: 0 errors / **17 warnings** (unchanged
+    baseline — same pre-existing TanStack `react-hooks/
+    incompatible-library` + `_args`/`_seeding` unused-vars
+    in non-app code that have ridden through 13-1, 13-2a,
+    13-2b, and 13-3 untouched).
+  - `vitest run` (unit): 1393 / 1393 in 124 files (456s
+    most recent at M-fixup).
+  - `vitest run -c vitest.rls.config.ts` (integration):
+    166 / 166 in 27 files (432s most recent at M-fixup).
+  - `next build`: clean.
+  - 13-3-close-verify scan: **0 critical / 0 serious / 0
+    moderate / 0 minor** across all 10 anchor surfaces
+    (`baseline-13-1-13-3-close-verify.json`).
+  - Push: clean fast-forward across all 13-3 commits.
+- **What 13-3 closes for v1:**
+  - **Offline-first claim now actually holds.** The
+    Phase 8d–8f offline-shell guarantee was structurally
+    broken from inception until Batch I — `app/sw.ts`
+    declared the runtime caching strategies but no client
+    ever registered the SW. Reload-while-offline now
+    serves cached HTML/JS/fonts/images per the strategies.
+  - **Class-of-bug eliminated from text-bearing surfaces.**
+    Parent-`opacity-N` on a parent containing text composites
+    BOTH foreground AND background through alpha-blend
+    math, crushing contrast in the resulting render. The
+    pattern is gone from /me + /book; remaining `opacity-*`
+    callers are decorative absolutes (CTABand,
+    TournamentCard top accent, MatchModal corner art,
+    splatter accents) or disabled-state UI (pagination,
+    disabled CTAs — axe-exempt).
+  - **`rounded-xl` unified across the codebase.** 175
+    callers across 88 files snapped to the 14px default /
+    10px chip-tight tier per scoping § 5.3 (Option A). Zero
+    `rounded-xl` in scope post-Batch L; only the deferred
+    6 in `components/ui/` remain, governed by shadcn
+    version bumps.
+  - **Marketing landing brand energy preserved at AA-safe
+    contrast.** Batch J-fixup reverted 11 marketing accent
+    sites from theme-invariant `--accent-ink` to preset-
+    primary; landing is fixed-preset to atomic-red so the
+    revert is contrast-safe (5.02:1 on bone). M-fixup
+    caught one missed sibling on ShowcaseTournament's
+    "Live" pill. Phase 14 design discussion entry tracks
+    the in-app `--accent-ink` decision for sunburst +
+    white-speckle presets.
+  - **Vercel deploys unblocked + cron secret in place.**
+    Daily cadence + CRON_SECRET set on both Production +
+    Preview environments. Vercel-Cron auth-ban handler
+    will fire at 04:00 UTC nightly, 1 hour after pg_cron's
+    PII-null run, with no race window.
+  - **Three new audit baselines** at
+    `docs/audit/phase-13/baseline-13-1-{k-execution,m-
+    execution,13-3-close-verify}.{json,md}` — pre/post
+    snapshots for the 13-3 a11y trail + the M-execution
+    perf-and-axe scan that surfaced the M-fixup three.
+- **Class-of-bug lessons banked for future phases:**
+  1. **Parent-opacity-on-text cascade**: opacity applied
+     to a parent containing text composites the rendered
+     colour through alpha-blend math; rendered hex doesn't
+     equal token hex. axe sees the rendered colour, not
+     the token. Pattern eliminated from /me + /book at
+     Batch K.
+  2. **Vercel CLI > dashboard for deploy diagnostics**:
+     the dashboard hides plan-rejection deploys (or only
+     surfaces them if you click into the failed entry);
+     CLI returns the structured `"Hobby accounts are
+     limited to daily cron jobs"` error in seconds. Banked
+     for 13-7 launch infra.
+  3. **Hobby-plan cron limit**: Vercel-Cron capped at
+     daily on free tier. Daily cadence permanent for v1;
+     revisit if Pro becomes worth $20/mo at later phase.
+  4. **WSL Lighthouse measurement is unreliable**: WSL CPU
+     throttling drags scores 16-44 points uniformly across
+     surfaces. Real-device Android Chrome is the
+     authoritative gate — banked for 13-8.
+  5. **Surface-filter scope can hide regressions**:
+     K-execution's `--surfaces=me` filter showed 0 axe-
+     serious on /me, but M-execution's full anchor scan
+     found 3 fresh /me serious nodes (consumer-token mismatch
+     on bg-surface-muted) that K's narrow filter missed.
+     Either surface set should match the full anchor
+     baseline, or filtered scans should be paired with
+     a final close-verify against the full set.
+- **Manual QA outcome:** browser-driven QA stays human-
+  side per locked operational convention (WSL container
+  can't drive Playwright + chrome-devtools MCPs). 13-3-
+  close-verify scan + visual spot-checks expected on the
+  preview at `handibowls-dduowpasz-andrews-projects-
+  a0c14c4f.vercel.app`.
+- **What 13-4 will cover next (forward reference):** SEO
+  + landing brand story rewrite + favicon / logo asset
+  refresh (operator-side design files referenced mid-13-3)
+  + OG images + sitemap + robots.txt. The /play tournament
+  cards revamp opened at this close folds in opportunistically
+  if 13-4 surface-area fits.
+
 ---
 
 ## Operational conventions
