@@ -22,7 +22,7 @@ const PRODUCT = [
 const CLUB = [
   { href: "/login", label: "Sign in" },
   { href: "/signup", label: "Create club" },
-  { href: "#about", label: "Docs" },
+  { href: "/help", label: "Help" },
   { href: "#", label: "Status" },
 ];
 
