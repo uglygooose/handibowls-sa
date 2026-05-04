@@ -125,7 +125,7 @@ export default async function T20Page() {
           <p className="m-0 mb-3 text-[13.5px] leading-[1.5] text-ink-muted">
             Twenty 20 is the official handicap and grading system for South
             African bowls. Your grade affects which tournaments you can enter
-            and how handicap points are applied.
+            and how handicap shots are applied.
           </p>
           <ul className="m-0 grid list-none gap-2.5 p-0">
             <ExplainItem

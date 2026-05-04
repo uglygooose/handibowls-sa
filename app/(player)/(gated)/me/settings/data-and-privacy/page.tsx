@@ -69,7 +69,7 @@ export default function DataAndPrivacyPage() {
           <p className="text-[13.5px] text-ink-muted">
             We&rsquo;ll generate a JSON file containing your profile,
             consents, club memberships, tournament entries, match
-            history, T20 assessments, bookings, messages,
+            history, Twenty 20 assessments, bookings, messages,
             notifications, and audit-log entries. The file is safe
             to keep — it contains only data tied to your account.
           </p>

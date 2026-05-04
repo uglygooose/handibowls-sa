@@ -184,7 +184,7 @@ export function ShowcaseT20() {
           <header className="mb-4 flex items-start justify-between">
             <div>
               <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-subtle">
-                BSA T20 · Draw shot
+                BSA Twenty 20 · Draw shot
               </div>
               <div className="mt-1 font-display text-[22px] font-extrabold italic uppercase">
                 End 4 of 20

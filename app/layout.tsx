@@ -57,7 +57,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "HandiBowls",
     description:
-      "Tournaments, scores, and skills in your pocket — for South African lawn bowls.",
+      "Tournaments, scores, and skills in your pocket — for South African bowls.",
     url: "https://app.handibowls.co.za",
     siteName: "HandiBowls",
     locale: "en_ZA",
@@ -67,7 +67,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "HandiBowls",
     description:
-      "Tournaments, scores, and skills in your pocket — for South African lawn bowls.",
+      "Tournaments, scores, and skills in your pocket — for South African bowls.",
   },
 };
 

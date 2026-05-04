@@ -132,7 +132,7 @@ export default async function Image() {
               }}
             >
               Tournaments, scores, and skills in your pocket — for South
-              African lawn bowls.
+              African bowls.
             </div>
 
             {/* Footer URL */}

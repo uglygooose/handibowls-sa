@@ -113,7 +113,7 @@ export function Hero() {
               className="h-2 w-2 rounded-full bg-primary-500"
               style={{ boxShadow: "0 0 0 3px rgba(215,38,30,0.18)" }}
             />
-            South African lawn bowls — built for clubs
+            South African bowls — built for clubs
           </span>
 
           <h1 className="mt-7 mb-6 font-display text-[clamp(52px,8vw,112px)] leading-[0.88] font-black italic tracking-[-0.03em] uppercase text-balance">
