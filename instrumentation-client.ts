@@ -58,6 +58,14 @@ Sentry.init({
       return null;
     }
 
+    // Phase 13 / 13-7 — React 19 RSC streaming reader emits
+    // `TypeError: Connection closed.` when its ReadableStream ends
+    // abnormally (bfcache restoration mid-stream, navigation cancel,
+    // SW intercept of prerendered RSC payload). Documented benign on
+    // force-static surfaces (/privacy, /terms, /help, /help/[slug]);
+    // user-visible page state is unaffected. Suppress entirely.
+    if (/^Connection closed\.?$/i.test(message)) return null;
+
     return event;
   },
 });
