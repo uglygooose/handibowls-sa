@@ -34,6 +34,18 @@ describe("isPublicPath", () => {
     "/design/bowls",
     "/payments",
     "/payments/peach",
+    // Phase 11 / 11-1c — POPIA unsubscribe (HMAC token IS the auth).
+    "/email/unsubscribe",
+    // Phase 13 / 13-6 — public legal/privacy + help surfaces. Regression
+    // pinned 2026-05-04 after the operator's first preview deploy showed
+    // /privacy redirecting to /login?next=%2Fprivacy.
+    "/privacy",
+    "/terms",
+    "/help",
+    "/help/creating-a-tournament",
+    "/help/scoring-a-match",
+    "/help/booking-a-rink",
+    "/help/twenty-20-walkthrough",
   ])("%s is public", (p) => {
     expect(isPublicPath(p)).toBe(true);
   });
@@ -95,6 +107,31 @@ describe("decideRedirect", () => {
     expect(decideRedirect("/signup", null)).toBeNull();
     expect(decideRedirect("/invite/xyz", null)).toBeNull();
     expect(decideRedirect("/payments", null)).toBeNull();
+  });
+
+  it("passes /privacy + /terms + /help through for anonymous users (regression — Phase 13 / 13-6)", () => {
+    // Pre-fix: these routes shipped at 13-6 Batch A (cc21ddf — privacy/terms)
+    // and Batch B (59d1604 — help) under app/(public)/ but were never added
+    // to isPublicPath, so the proxy bounced anonymous visitors to /login?next=
+    // — broken since the day they shipped, surfaced when the operator first
+    // browsed them on a preview deploy at 13-7.
+    expect(decideRedirect("/privacy", null)).toBeNull();
+    expect(decideRedirect("/terms", null)).toBeNull();
+    expect(decideRedirect("/help", null)).toBeNull();
+    expect(decideRedirect("/help/creating-a-tournament", null)).toBeNull();
+  });
+
+  it("passes /privacy + /terms + /help through for logged-in users", () => {
+    // Authenticated users navigating from the footer or signup agree-link
+    // also need these surfaces to land cleanly — the public-path branch in
+    // decideRedirect short-circuits BEFORE the role-based gating logic, so
+    // any role hitting these routes should pass through.
+    for (const role of ["player", "club_admin", "super_admin"] as const) {
+      expect(decideRedirect("/privacy", { role })).toBeNull();
+      expect(decideRedirect("/terms", { role })).toBeNull();
+      expect(decideRedirect("/help", { role })).toBeNull();
+      expect(decideRedirect("/help/booking-a-rink", { role })).toBeNull();
+    }
   });
 
   it("passes /payments through for logged-in users (regression — Finding 7)", () => {

@@ -30,6 +30,18 @@ export function isPublicPath(pathname: string): boolean {
   // signing in. The HMAC token on `?t=` IS the auth (verified
   // server-side in lib/email/actions.ts).
   if (pathname === "/email/unsubscribe") return true;
+  // Phase 13 / 13-6 — public legal/privacy + help surfaces. These
+  // routes live under app/(public)/ for layout/chrome purposes but
+  // the proxy/middleware routing decision is independent — without
+  // explicit entries here the proxy (proxy.ts → decideRedirect)
+  // bounces anonymous visitors to /login. The footer + signup
+  // agree-checkbox + the marketing landing all link out to these
+  // surfaces; they MUST be reachable without a session. Discovered
+  // 2026-05-04 when the operator's first preview deploy surfaced
+  // /privacy redirecting to /login?next=%2Fprivacy.
+  if (pathname === "/privacy") return true;
+  if (pathname === "/terms") return true;
+  if (pathname === "/help" || pathname.startsWith("/help/")) return true;
   return false;
 }
 
