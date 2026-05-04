@@ -128,7 +128,7 @@ const baseConfig: NextConfig = {
         source: "/(.*)",
         headers: [
           {
-            key: "Content-Security-Policy",
+            key: "Content-Security-Policy-Report-Only",
             value: buildContentSecurityPolicy(sentry),
           },
           {
