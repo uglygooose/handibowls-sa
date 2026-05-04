@@ -4389,6 +4389,370 @@ annotation in its Owner field per the locked structure
   DMARC/DKIM/SPF DNS wiring; Vercel `CRON_SECRET` env-var
   verification. Per plan §16 step 7.
 
+### 13-7 — Launch infrastructure — closed 2026-05-05
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-13-launch-prep`).
+- **Sub-checkpoint structure:** three execution batches (A / B / C)
+  + revert + reattack + latent-defect hotfix + observability
+  filter + DRIFT bookkeeping commits + close-blocker PII scrub +
+  this close. The CSP enforcement work hit a real-world gap on
+  the first preview deploy and required a revert-and-reattack
+  cycle — the only sub-checkpoint in Phase 13 to do so. Plan §16
+  step 7 scope: CSP enforcement flip + Resend graceful-failure +
+  cron-secret verification + operator launch docs + (deferred)
+  DNS / domain / Supabase template branding / production cutover
+  for post-DNS-access launch.
+- **Headline SHAs across the full 13-7 sequence:**
+  - **Batch A initial** (`8eed2b6`) — `feat(security): CSP
+    enforcing flip — drop -Report-Only suffix`. Header key
+    `Content-Security-Policy-Report-Only` → `Content-Security-Policy`
+    at `next.config.ts:131`. Pre-flip safety: zero inline `<script>`,
+    `eval(`, `new Function(`, `dangerouslySetInnerHTML` across
+    `app/` + `components/`. Trusted Report-Only output across
+    13-1 → 13-6. First-attempt closure of DRIFT
+    `csp-enforcement-flip-13-7`.
+  - **Batch B** (`2849ee3`) — `feat(email,env): Resend
+    graceful-failure hardening + Sentry env vars`. New
+    `SendEmailFailureKind` `'domain_not_verified'` classifier
+    matching Resend SDK error names (`invalid_from_address`,
+    `restricted_api_key`) + message-text variants. `logSkippedSend`
+    helper emits structured
+    `[email:skipped] kind=... to=... subject="..."` `console.warn`
+    line on every non-success path for `vercel logs` triage.
+    `.env.example` — `RESEND_FROM` default flipped to
+    `"HandiBowls <onboarding@resend.dev>"` (Resend's shared
+    testing sender; works without DNS verification); 5 Sentry env
+    vars added (`NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_DSN`
+    browser/server DSN; `SENTRY_AUTH_TOKEN` + `SENTRY_ORG` +
+    `SENTRY_PROJECT` for source-map upload). 7 new graceful-
+    failure unit cases pinned at `tests/lib/email/client.test.ts`.
+    Closes DRIFT `vercel-cron-secret-pre-deploy-checklist` on
+    existing integration coverage (4 cases at
+    `tests/integration/actions/cron-anonymise-pending.test.ts`).
+  - **Batch C** (`e17493e`) — `docs(launch): operator deploy
+    dry-run + DNS checklist`. Two operator-facing artefacts
+    banking the post-DNS launch sequence.
+    `docs/LAUNCH_DEPLOY_DRY_RUN.md` (220 lines): env-var
+    inventory + smoke-test checklist + Sentry verification via
+    `SENTRY_TEST=throw` env-gated pattern + cron verification
+    via 24h watch or manual curl + 3 rollback procedures
+    including a single-line `sed` revert for the CSP enforcement
+    flip. `docs/LAUNCH_DNS_CHECKLIST.md` (200 lines): Vercel
+    custom domain + Resend domain verification + DMARC `p=none`
+    monitor + Better Stack monitor swap + post-DNS `RESEND_FROM`
+    swap + final smoke-test sequence + 10 common failure modes
+    with first-check debug pointers.
+  - **Batch A revert** (`25a34f7`) — `revert(security): CSP
+    enforcing flip`. Operator's first preview deploy after Batch A
+    surfaced ~60 inline-script CSP violations on the landing page
+    alone. Pre-flip grep at `8eed2b6` was source-level and missed
+    two real violation sources: (1) **Next.js runtime-injected
+    inline scripts** (hydration boundaries, route prefetch wiring)
+    — not source-greppable because Next emits them at render
+    time; (2) **Vercel feedback widget** (`vercel.live/_next-live/
+    feedback/feedback.js`) — third-party origin not in
+    `script-src`; loads on every Vercel deployment that isn't
+    aliased to the production custom domain. DRIFT
+    `csp-enforcement-flip-13-7` reopened with the new findings.
+  - **Batch A reattack** (`e2028bc`) — `feat(security):
+    nonce-based CSP via proxy + vercel.live allowlist for
+    non-prod`. Four coordinated changes: (i) per-request nonce
+    CSP via `proxy.ts` (Next 16's `middleware.ts` → `proxy.ts`
+    rename) + new `lib/security/csp.ts` module — proxy generates
+    a nonce, sets `x-nonce` on request headers (so Next's
+    framework picks it up for its inline scripts + Server
+    Components can read via `headers()`), and stamps
+    `Content-Security-Policy` + `Reporting-Endpoints` onto every
+    response shape (initial pass-through, supabase cookie-rotation
+    rebuild, role-redirect); (ii) conditional `https://vercel.live`
+    on `script-src` + `connect-src` when
+    `process.env.VERCEL_ENV !== 'production'` (covers Vercel
+    preview, `vercel dev`, and the unset case for local
+    `next dev`); (iii) `'unsafe-eval'` on `script-src` when
+    `process.env.NODE_ENV === 'development'` (Next dev HMR uses
+    eval); (iv) `next.config.ts:headers()` removed — both CSP
+    and `Reporting-Endpoints` now emit from the proxy so they
+    stay coordinated. 18 new unit cases pin the nonce/builder
+    contract + the env-conditional allowlist matrix.
+  - **Public-route allowlist hotfix** (`d04654e`) — `fix(auth):
+    register /privacy + /terms + /help in isPublicPath`. Latent
+    defect from 13-6 Batches A+B that surfaced during preview
+    verification of the e2028bc reattack: `/privacy` (cc21ddf),
+    `/terms` (cc21ddf), `/help` + `/help/[slug]` (59d1604)
+    shipped under `app/(public)/` for layout chrome but were
+    never registered in the proxy's public-path allowlist
+    (`lib/auth/routing.ts:isPublicPath`). Anonymous visitors hit
+    `decideRedirect` → returned `"/login"` → bounce. Pre-
+    regression `proxy.ts` (25a34f7:proxy.ts) and post-regression
+    `proxy.ts` (e2028bc:proxy.ts) are byte-identical in routing
+    logic — operator's "Commit 2 caused the regression"
+    diagnosis was inverted; the bug had been latent since 13-6
+    `cc21ddf` and surfaced when the operator first browsed those
+    routes on a Vercel preview at the 13-7 reattack. Fix: 3 new
+    entries in `isPublicPath` (`/privacy` exact, `/terms` exact,
+    `/help` startsWith covering both `/help` and `/help/<slug>`).
+    9 new test cases in `tests/auth/routing.test.ts` (it.each
+    expanded 12 → 20 entries + 2 new `it()` blocks pinning the
+    public-path short-circuit for both anonymous and
+    authenticated users on the new routes).
+  - **DRIFT entry: signup email-clearing** (`983f655`) —
+    `chore(audit): open signup-form-error-state-clears-invalid-email
+    DRIFT entry`. Operator surfaced during preview verification:
+    `/signup` clears the email input on validation error. Owner
+    Phase 13 / 13-8 pre-launch QA.
+  - **Connection closed Sentry filter** (`bdd2d6f`) —
+    `fix(observability): suppress benign 'Connection closed.'
+    from Sentry`. React 19 RSC streaming reader emits
+    `TypeError: Connection closed.` when its ReadableStream ends
+    abnormally — typically bfcache restoration mid-stream,
+    navigation cancel, or SW intercept of a prerendered RSC
+    payload. Surfaces specifically on force-static routes
+    (`/privacy`, `/terms`, `/help`, `/help/[slug]`) because
+    they're bfcache-eligible (no Set-Cookie / Cache-Control:
+    no-store). Dynamic routes write Supabase session cookies
+    excluding them from bfcache. Two-line filter alongside the
+    existing ResizeObserver / extension / fetch-failure filters
+    in `beforeSend`.
+  - **Three DRIFT entries opened** (`1c38556`) — `chore(audit):
+    open 3 DRIFT entries from 13-7 Batch A preview verification`.
+    `signup-confirmation-redirects-to-login-instead-of-app`
+    (confirmation link verifies email but doesn't establish a
+    session; user lands on `/login` instead of `homeFor(role)`),
+    `supabase-default-email-templates-unbranded` (all 6 Supabase
+    auth emails ship default "powered by Supabase ⚡" template +
+    Supabase shared sender; operator-side dashboard work),
+    `csp-static-prerender-edge-bypass-confirmed-or-refuted`
+    (banks the 13-7 verification question on whether Vercel CDN
+    bypasses middleware on prerendered routes).
+  - **CSP-bypass DRIFT closure** (`695a36c`) — `chore(audit):
+    close csp-static-prerender-edge-bypass — REFUTED via curl`.
+    Edge-bypass hypothesis (a) refuted via `curl -i` against
+    `/privacy`, `/terms`, `/help`, `/help/creating-a-tournament`,
+    `/`, `/login` on the `d04654e` preview — all 6 routes return
+    enforcing CSP with unique per-request nonces in `script-src`.
+    `Cache-Control: public, max-age=0, must-revalidate` on the
+    static routes tells the CDN to revalidate every request —
+    middleware runs every hit, body from cache, response through
+    proxy for header attachment. The demo-facing surfaces ARE
+    protected.
+  - **Close-blocker PII scrub** (`3610ce5`) — `chore(content):
+    PII scrub on public marketing surfaces`. Operator's full name
+    (Andrew Els) and personal Gmail (a.thomas.els@gmail.com) were
+    visible across public marketing pages from 13-6 Batch A's
+    legal/privacy + Footer wiring. Operator-locked posture for
+    v1: brand-only references, no human name; placeholder contact
+    email at the not-yet-live `support@handibowls.co.za`.
+    Replacements: `Andrew Els` → `HandiBowls`,
+    `a.thomas.els@gmail.com` → `support@handibowls.co.za`. User-
+    visible files modified: `privacy/page.tsx` (Section 1
+    controller paragraph + Section 13 contact block + 4 mailto/
+    visible-text email occurrences), `terms/page.tsx` (Section 1
+    acceptance paragraph + 3 mailto/visible-text email
+    occurrences), `Footer.tsx` (COMPANY column "Contact" mailto).
+    Skipped: `InviteEmail.tsx:144` PreviewProps (react-email dev-
+    server preview only; runtime `invitedBy` is resolved from the
+    inviter profile per `lib/invites/email.ts:resolveInviterName`)
+    + 4 test fixtures using "Andrew Els" as a generic display
+    name. New DRIFT entry
+    `support-handibowls-co-za-not-deliverable-pre-DNS` banks the
+    bounce risk: address isn't a live mailbox yet,
+    `handibowls.co.za` has no MX records, no email forwarder
+    configured. Forwarder registration is operator-side launch
+    infra debt for `LAUNCH_DNS_CHECKLIST.md`.
+  - **13-7 close** (this commit) — PHASE_LOG entry + README
+    state-line + DRIFT `csp-enforcement-flip-13-7` re-closure
+    annotation against the reattack work at `e2028bc` +
+    `d04654e`.
+- **Locked operator decisions during 13-7:**
+  - **(D1) Email posture: Resend wired NOW with graceful-failure
+    mode.** v1 launch sends NO mass email — first weeks are demo
+    + manual pilot-club onboarding. Resend stays wired but quiet.
+    When DNS lands post-launch, flipping the domain verified is
+    config-only.
+  - **(D2) Domain posture: v1 ships on the Vercel preview URL.**
+    No custom domain cutover in 13-7. Operator decides at 13-7
+    close or 13-8 close whether to push DNS access.
+  - **(D3) DMARC/DKIM/SPF + Resend domain verification: deferred**
+    to `LAUNCH_DNS_CHECKLIST.md` for action when DNS access lands.
+  - **(D4) CSP enforcement flip: action now per drift entry**
+    rather than waiting on a full Sentry-CSP-feed clean cycle.
+    Trust the Report-Only output across 13-1 → 13-6.
+  - **(D5) Cron-secret verification: action per drift entry.**
+    Code-side verified at Batch B; operator-side env-var setting
+    banked in `LAUNCH_DEPLOY_DRY_RUN.md`.
+  - **(D6) Connection closed Sentry filter: ship now** (vs defer
+    to 13-8 bundle) — single-file 2-line addition, atomic, low
+    risk.
+  - **(D7) PII scrub posture: brand-only.** No human name, no
+    personal Gmail on public surfaces. Placeholder contact at
+    `support@handibowls.co.za` even though the address isn't live
+    yet — operator handles inbound contact via direct outreach
+    during demo / pilot phase.
+- **Migrations applied during 13-7:** none. Pure config +
+  middleware + middleware-supporting code + content + docs work.
+- **Drift entries closed at 13-7 close:** **3** —
+  `csp-enforcement-flip-13-7` (initial close at `8eed2b6`,
+  reopened at `25a34f7` revert, re-closed in this commit per the
+  reattack work at `e2028bc` + `d04654e` plus operator's preview
+  verification);
+  `vercel-cron-secret-pre-deploy-checklist` (closed at Batch B
+  `2849ee3` on existing integration coverage at
+  `tests/integration/actions/cron-anonymise-pending.test.ts`);
+  `csp-static-prerender-edge-bypass-confirmed-or-refuted` (closed
+  at `695a36c` via `curl` evidence — refuted edge-bypass
+  hypothesis).
+- **Drift entries opened during 13-7:** **5 net-new + 1 reopened**
+  — `csp-enforcement-flip-13-7` reopened at `25a34f7` revert,
+  re-closed in this commit (net 0 on the open delta);
+  `signup-form-error-state-clears-invalid-email` (Phase 13 /
+  13-8 pre-launch QA);
+  `signup-confirmation-redirects-to-login-instead-of-app`
+  (Phase 13 / 13-8 pre-launch QA);
+  `supabase-default-email-templates-unbranded` (Phase 13 / 13-8
+  pre-launch QA — operator-side Supabase Dashboard work);
+  `csp-static-prerender-edge-bypass-confirmed-or-refuted` (opened
+  at `1c38556`, closed at `695a36c` — net-zero on the open
+  delta);
+  `support-handibowls-co-za-not-deliverable-pre-DNS` (opened at
+  `3610ce5` close-blocker PII scrub — banks the not-yet-live-
+  mailbox bounce risk; LAUNCH_DNS_CHECKLIST.md addendum).
+- **DRIFT_LOG counts at close:** **53 open / 108 closed**
+  (entering 13-7 at 51 open / 105 closed per the 13-6 close
+  summary). Net 13-7 delta: **+2 open / +3 closed**. Reconciled
+  via `grep -c` against the actual file state — final empirical
+  count is authoritative.
+- **Test count delta:** unit **1407 → 1442** (+35 across the CSP
+  reattack tests at `e2028bc`, public-route allowlist tests at
+  `d04654e`, Resend graceful-failure tests at `2849ee3`).
+  Integration unchanged at **170 / 170**.
+- **Verification gates at close:**
+  - `tsc --noEmit`: clean across the full 13-7 sequence.
+  - `eslint`: 0 errors / **17 warnings** (unchanged baseline).
+  - `vitest run` (unit): 1442 / 1442 in 129 files.
+  - `next build`: clean across the full sequence.
+  - **Operator-confirmed Vercel preview smoke test (`d04654e` at
+    `handibowls-mcau1hqqh-andrews-projects-a0c14c4f.vercel.app`)**
+    — 9 routes (`/`, `/privacy`, `/terms`, `/help`,
+    `/help/creating-a-tournament`, `/login`, `/signup`, `/me`
+    auth-redirect, `/manage/overview` auth-redirect) all
+    behaviour-correct, **zero CSP violations on inline scripts
+    across all 4 force-static routes** (DevTools console
+    inspection).
+  - **Curl-verified CSP per-route nonces** at 13-7 Batch B
+    verification: `/privacy`, `/terms`, `/help`,
+    `/help/creating-a-tournament`, `/`, `/login` all return
+    enforcing CSP with unique per-request nonces; static routes
+    carry `Cache-Control: public, max-age=0, must-revalidate` so
+    the CDN serves cached HTML body but middleware runs every
+    hit for header attachment.
+  - **Vercel preview toolbar's `vercel.live` frame-src violation**
+    confirmed as expected non-blocker (production deploy won't
+    include the preview toolbar).
+  - **`sw.js` 401** confirmed as Vercel preview password
+    protection (production deploy won't have it).
+  - Push: clean fast-forward across the full 13-7 sequence.
+- **What 13-7 closes for v1:**
+  - **CSP enforcement live across the full route inventory** —
+    nonce-based per-request CSP via `proxy.ts` middleware + the
+    `lib/security/csp.ts` builder; no `'unsafe-inline'` on
+    scripts; Vercel feedback widget allow-listed conditionally
+    for non-production deploys; HMR `'unsafe-eval'` allow-listed
+    conditionally for local dev. Sentry CSP collector still
+    receives violation reports via `report-uri` + `report-to` so
+    any post-flip regression surfaces immediately.
+  - **Resend graceful-failure mode shipped** — `sendEmail`
+    returns discriminated `{ok,kind,error}` results (config /
+    `domain_not_verified` / validation / rate_limit / network /
+    unknown); user-visible flows do NOT block on email send;
+    operator can grep `[email:skipped]` in `vercel logs` to
+    triage. v1 testing-sender default at `onboarding@resend.dev`
+    works without DNS verification.
+  - **Sentry observability hardened** — env vars documented in
+    `.env.example`; React 19 RSC `Connection closed.` benign
+    bfcache noise suppressed at the SDK level via `beforeSend`
+    filter.
+  - **Operator-facing launch artefacts written and reviewable**
+    — `LAUNCH_DEPLOY_DRY_RUN.md` (env-var inventory + smoke-test
+    checklist + Sentry verification + cron verification + 3
+    rollback procedures); `LAUNCH_DNS_CHECKLIST.md` (post-DNS
+    sequence covering Vercel custom domain + Resend domain
+    verification + DMARC + Better Stack swap + `RESEND_FROM`
+    swap + final smoke-test sequence + 10 common failure modes).
+  - **Cron auth contract verified** —
+    `app/api/cron/anonymise-pending/route.ts:52-63` enforces
+    `Authorization: Bearer ${CRON_SECRET}` header check;
+    `.env.example` documents the variable; integration tests
+    pin all auth-rejection paths.
+  - **Public-route allowlist hardened** — `/privacy`, `/terms`,
+    `/help`, `/help/[slug]` now in `isPublicPath` alongside the
+    existing `/`, `/login`, `/signup`, `/invite/<token>`,
+    `/auth/<callback>`, `/api/auth/<...>`, `/design`,
+    `/payments`, `/email/unsubscribe`.
+  - **PII-clean public surfaces** — `Andrew Els` and
+    `a.thomas.els@gmail.com` no longer appear in user-visible
+    JSX, mailto hrefs, footer copy, or signup terms-link copy
+    on `/privacy`, `/terms`, footer, or `/me/settings/data-and-
+    privacy`. Brand-only references with placeholder contact at
+    `support@handibowls.co.za`.
+- **Operator-side actions completed during 13-7 close
+  verification:**
+  1. Generated `CRON_SECRET` + `EMAIL_UNSUBSCRIBE_SIGNING_SECRET`
+     via `openssl rand -hex 32`.
+  2. Wired all env vars in Vercel project settings (Supabase /
+     Sentry / Resend / cron / unsubscribe / app URL).
+  3. Triggered preview deploys for each batch's commits,
+     confirmed builds green across the full sequence.
+  4. Walked the 9-route smoke-test on the final preview deploy
+     (incognito, DevTools open) — all routes behaviour-correct,
+     zero CSP violations on inline scripts across all 4 force-
+     static routes.
+  5. Confirmed Vercel preview toolbar's `vercel.live` frame-src
+     violation as expected non-blocker.
+  6. Confirmed `sw.js` 401 as Vercel preview password protection.
+- **Operator-side actions banked for 13-8:**
+  1. **Sentry one-shot test verification** —
+     `LAUNCH_DEPLOY_DRY_RUN.md` §4 one-time `SENTRY_TEST=throw`
+     env var pattern (temporary edit, deploy, verify Sentry
+     captures, revert).
+  2. **04:00 UTC scheduled cron run watch** — first scheduled
+     run should log `{processed:0, succeeded:0, failed:0}` shape
+     with no 500. OR manual curl per
+     `LAUNCH_DEPLOY_DRY_RUN.md` §4 if you'd rather verify
+     immediately.
+- **What stays deferred until DNS access lands:**
+  - **Vercel custom domain wiring** for `app.handibowls.co.za`
+    (Better Stack monitors flip UP within ~5 min of
+    propagation).
+  - **Resend domain verification** + DMARC/DKIM/SPF DNS records.
+  - **All 6 Supabase email-template branding** (Confirm signup,
+    Invite user, Magic Link, Change Email, Reset Password,
+    Reauthenticate) — operator-side Supabase Dashboard →
+    Authentication → Email Templates work. DRIFT entry
+    `supabase-default-email-templates-unbranded` banks the scope.
+  - **`support@handibowls.co.za` forwarder registration** —
+    DRIFT entry `support-handibowls-co-za-not-deliverable-pre-DNS`
+    banks the scope; covered in `LAUNCH_DNS_CHECKLIST.md` §2
+    alongside Resend domain verification.
+  - **Production cutover** — operator decides at 13-8 close
+    whether to push DNS access or stage v1 on the preview URL
+    through 13-8 close + first pilot-club onboarding cycle.
+- **Manual QA outcome:** browser-driven smoke tests are
+  operator-side per locked operational convention. Smoke-test
+  recipes from `LAUNCH_DEPLOY_DRY_RUN.md` §3 walked on the final
+  preview at `d04654e`; results above.
+- **What 13-8 will cover next (forward reference):** pre-launch
+  QA — full-scope close-verify scans against the final preview;
+  13-3 real-device perf gate (Lighthouse on Android Chrome on a
+  real device, the L67-followup acceptance criterion); the four
+  QA-banked DRIFT entries (`signup-form-error-state-clears-
+  invalid-email`, `signup-confirmation-redirects-to-login-
+  instead-of-app`, `supabase-default-email-templates-unbranded`,
+  `t20-explainer-handicap-system-implication`); a final operator
+  decision on whether to push DNS access for the v1 launch or
+  ship the v1 cohort onto the preview URL through stakeholder
+  pilot. Per plan §16 step 8.
+
 ---
 
 ## Operational conventions
