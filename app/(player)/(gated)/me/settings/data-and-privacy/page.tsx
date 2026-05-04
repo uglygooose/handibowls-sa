@@ -48,7 +48,15 @@ export default function DataAndPrivacyPage() {
           a complete copy of every record we hold about you. Account
           deletion is final after a 30-day grace window — you can
           restore the account by signing in any time during the
-          window.
+          window. For the full disclosure of how we collect and
+          handle your data, read our{" "}
+          <Link
+            href="/privacy"
+            className="font-medium text-ink underline underline-offset-[3px] decoration-border hover:decoration-ink"
+          >
+            privacy policy
+          </Link>
+          .
         </p>
       </header>
 

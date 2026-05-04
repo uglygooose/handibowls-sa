@@ -84,14 +84,14 @@ export function SignupForm() {
         <Checkbox name="agree" required>
           I agree to the{" "}
           <Link
-            href="#"
+            href="/terms"
             className="font-medium text-ink underline underline-offset-[3px] hover:text-accent-ink"
           >
             terms
           </Link>{" "}
           and{" "}
           <Link
-            href="#"
+            href="/privacy"
             className="font-medium text-ink underline underline-offset-[3px] hover:text-accent-ink"
           >
             privacy policy

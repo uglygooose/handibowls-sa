@@ -28,9 +28,9 @@ const CLUB = [
 
 const COMPANY = [
   { href: "#about", label: "About" },
-  { href: "#", label: "Contact" },
-  { href: "#", label: "Privacy" },
-  { href: "#", label: "Terms" },
+  { href: "mailto:support@handibowls.co.za", label: "Contact" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/terms", label: "Terms" },
 ];
 
 function Col({
