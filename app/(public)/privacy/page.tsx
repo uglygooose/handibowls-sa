@@ -37,13 +37,12 @@ export default function PrivacyPage() {
 
       <Section n={1} title="Who we are">
         <p>
-          HandiBowls is a trading name operated by Andrew Els (sole proprietor),
-          based in the Western Cape, Republic of South Africa.
+          HandiBowls operates from the Western Cape, Republic of South Africa.
         </p>
         <p>
           For privacy questions or to exercise any of the rights below, contact{" "}
-          <a className={LINK} href="mailto:a.thomas.els@gmail.com">
-            a.thomas.els@gmail.com
+          <a className={LINK} href="mailto:support@handibowls.co.za">
+            support@handibowls.co.za
           </a>
           .
         </p>
@@ -223,8 +222,8 @@ export default function PrivacyPage() {
         </ul>
         <p>
           For any of the above, contact{" "}
-          <a className={LINK} href="mailto:a.thomas.els@gmail.com">
-            a.thomas.els@gmail.com
+          <a className={LINK} href="mailto:support@handibowls.co.za">
+            support@handibowls.co.za
           </a>
           .
         </p>
@@ -292,8 +291,8 @@ export default function PrivacyPage() {
           users aged roughly 16 and above. We do not knowingly collect data
           from children under 13. If you are a parent or guardian and believe
           your child has provided personal information to us, contact{" "}
-          <a className={LINK} href="mailto:a.thomas.els@gmail.com">
-            a.thomas.els@gmail.com
+          <a className={LINK} href="mailto:support@handibowls.co.za">
+            support@handibowls.co.za
           </a>{" "}
           and we will delete the relevant records.
         </p>
@@ -317,12 +316,10 @@ export default function PrivacyPage() {
         <p>
           <strong>HandiBowls</strong>
           <br />
-          Andrew Els (sole proprietor)
-          <br />
           Western Cape, Republic of South Africa
           <br />
-          <a className={LINK} href="mailto:a.thomas.els@gmail.com">
-            a.thomas.els@gmail.com
+          <a className={LINK} href="mailto:support@handibowls.co.za">
+            support@handibowls.co.za
           </a>
         </p>
       </Section>

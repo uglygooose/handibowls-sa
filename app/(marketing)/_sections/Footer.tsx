@@ -28,7 +28,7 @@ const CLUB = [
 
 const COMPANY = [
   { href: "#about", label: "About" },
-  { href: "mailto:a.thomas.els@gmail.com", label: "Contact" },
+  { href: "mailto:support@handibowls.co.za", label: "Contact" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
 ];

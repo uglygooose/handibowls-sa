@@ -40,11 +40,11 @@ export default function TermsPage() {
           don&apos;t use the service.
         </p>
         <p>
-          The service is operated by Andrew Els (sole proprietor) trading as
-          HandiBowls, based in the Western Cape, Republic of South Africa.
+          The service is operated by HandiBowls, based in the Western Cape,
+          Republic of South Africa.
           Contact:{" "}
-          <a className={LINK} href="mailto:a.thomas.els@gmail.com">
-            a.thomas.els@gmail.com
+          <a className={LINK} href="mailto:support@handibowls.co.za">
+            support@handibowls.co.za
           </a>
           .
         </p>
@@ -70,8 +70,8 @@ export default function TermsPage() {
           <li>
             <strong>Notify us of compromise.</strong> If you believe your
             account has been accessed without your permission, contact{" "}
-            <a className={LINK} href="mailto:a.thomas.els@gmail.com">
-              a.thomas.els@gmail.com
+            <a className={LINK} href="mailto:support@handibowls.co.za">
+              support@handibowls.co.za
             </a>{" "}
             promptly.
           </li>
@@ -170,8 +170,8 @@ export default function TermsPage() {
       <Section n={8} title="Contact">
         <p>
           For questions about these terms, contact{" "}
-          <a className={LINK} href="mailto:a.thomas.els@gmail.com">
-            a.thomas.els@gmail.com
+          <a className={LINK} href="mailto:support@handibowls.co.za">
+            support@handibowls.co.za
           </a>
           .
         </p>
