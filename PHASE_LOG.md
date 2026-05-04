@@ -4201,6 +4201,194 @@ annotation in its Owner field per the locked structure
   rink, T20 walkthrough); legal / privacy copy. Per plan §16
   step 6.
 
+### 13-6 — Content + copy polish — closed 2026-05-04
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-13-launch-prep`).
+- **Sub-checkpoint structure:** four execution batches + scoping
+  pass + this close. Plan §16 step 6 scope: onboarding checklist +
+  `/help` seed articles + legal / privacy copy + BSA terminology
+  pass. Player onboarding deliberately skipped (already covered by
+  `/me/setup`); super-admin onboarding skipped (operator-only
+  surface, doesn't need it).
+- **Headline SHAs across the full 13-6 sequence:**
+  - **Scoping pass** (`ec39a52`) — read-only audit document at
+    `docs/audit/phase-13/13-6-scoping.md`. Surveyed onboarding
+    surface coverage + help-content gaps + legal / privacy
+    posture + BSA terminology drift; locked decisions across 4
+    items (legal/privacy POPIA-aligned shape, no template lift,
+    governing law RSA / Western Cape, single-page-per-document;
+    /help route group + slug-stable contract; admin-only
+    checklist scope; BSA sweep mechanical posture).
+  - **Batch A** (`cc21ddf` + amendment `beed53c`) — `feat(legal):
+    /privacy + /terms public pages + footer/signup/data-and-privacy
+    wiring`. Two force-static Server Components under
+    `app/(public)/`: `privacy/page.tsx` (364 LOC, 13 numbered POPIA
+    sections — controller identity, data inventory mapped to
+    actual schema, lawful basis, retention with 30-day grace,
+    third-party processors Supabase + Vercel + Resend + Sentry,
+    POPIA rights with deep links, cookies, security, cross-border
+    transfers, children's privacy, change policy, contact) and
+    `terms/page.tsx` (214 LOC, 8 sections — acceptance, account
+    responsibility, acceptable use, termination, modifications,
+    as-is service with CPA carve-out, governing law RSA / Western
+    Cape, contact). Footer COMPANY column wired to {About, Contact,
+    Privacy, Terms}; signup-form agree-checkbox links repointed
+    from `#` to `/terms` + `/privacy`; `/me/settings/data-and-privacy`
+    header gains inline /privacy deep-link. Operator entity locked:
+    HandiBowls (sole proprietor: Andrew Els). Amendment commit
+    swept 15 occurrences of placeholder `support@handibowls.co.za`
+    → `a.thomas.els@gmail.com` (operator's actual personal Gmail)
+    across the 3 wired files.
+  - **Batch B** (`59d1604`) — `feat(help): /help route + 4 seed
+    articles + footer wire`. Static index at
+    `app/(public)/help/page.tsx` + slug-mapped article renderer at
+    `app/(public)/help/[slug]/page.tsx` with `generateStaticParams`
+    + `notFound()` on miss + per-article `generateMetadata`. Four
+    articles co-located in `_articles/` each as a default-export
+    Server Component: creating-a-tournament (club admins),
+    scoring-a-match (team captains), booking-a-rink (players),
+    twenty-20-walkthrough (players + coaches). Slug map
+    (`articles.ts`) + typography constants (`styles.ts`) live next
+    to the components. Article drafts source-anchored — pre-draft
+    survey caught and corrected four brief-vs-source divergences
+    (Platinum band, "20 ends across 4 sections", non-existent
+    'closed' tournament status, "one-way" rubric activation) with
+    operator approval before drafting any prose. Footer Clubs
+    column "Docs" stub (was `href="#about"`) repointed and
+    relabelled to "Help" → /help. 8 new unit cases (1390 → 1398).
+    All 4 article slugs prerendered as `● SSG`; index ships as
+    `○ Static`.
+  - **Batch C** (`8735530`) — `feat(overview): admin getting-started
+    checklist`. `AdminGettingStartedChecklist` Server Component at
+    `_components/AdminGettingStartedChecklist.tsx` (150 LOC), slotted
+    on `/manage/overview` between the AdminPageHero and
+    BookingsCalendarGrid. Five data-driven items each with their
+    own derived boolean: greens-and-rinks (≥1 green AND ≥1 active
+    rink at the club), invited-member (≥2 active club_memberships
+    rows), booking-availability (≥1 booking_windows row),
+    first-tournament (≥1 tournament with host_club_id at the club,
+    any status), first-message (≥1 message at the club, any status
+    — matches the brief's "authored" framing). All five queries run
+    in parallel via `Promise.all` in
+    `getOnboardingChecklistState(clubId)` appended to overview's
+    `_data.ts`; per-query errors degrade the relevant item to
+    unchecked rather than failing the page render. All-complete
+    state collapses to a one-line "Setup complete" strip (chosen
+    over hiding entirely — preserves a positive end-state
+    affordance + avoids reading as a regression on next visit). 9
+    new unit cases (1398 → 1407).
+  - **Batch D** (`fb2aa17`) — `chore(copy): BSA terminology
+    mechanical sweep`. Seven user-visible word-swap fixes across
+    6 files: `BSA T20 · Draw shot` → `BSA Twenty 20 · Draw shot`
+    on the marketing showcase, `T20 assessments` → `Twenty 20
+    assessments` in the data-export description, `South African
+    lawn bowls` → `South African bowls` ×4 (Hero tagline + OG
+    image text + layout.tsx OG meta + Twitter card meta),
+    `handicap points` → `handicap shots` on the /t20 explainer.
+    Code identifiers, comments, JSDoc, table/column names, and
+    migration files all exempt per locked Batch D scope. Two
+    deliberate skips documented: Platinum tier on /t20 (honours
+    the open DRIFT entry capturing it as aspirational
+    design-fidelity copy parked for BSA grading confirmation —
+    different posture than /help, which describes current
+    behaviour and correctly struck Platinum at Batch B);
+    `AssessmentResults.tsx` "{score.earned} / {score.max} points"
+    (T20 rubric points 1 / 0.5 / 0 per delivery, schema-defined —
+    not bowls match shots; replacing would falsify the data
+    shape). No tests pinned the swept strings; suite stable at
+    1407.
+  - **13-6 close** (this commit) — PHASE_LOG entry + README
+    state-line + DRIFT count assertion.
+- **Migrations applied during 13-6:** none. Pure content + UI work.
+- **Drift entries closed at 13-6 close:** **0** — none of the four
+  batches matched-and-closed an existing parked entry. Batches A,
+  B, C, D were all scoped from the launch-prep brief or 13-6
+  scoping locks rather than working off open DRIFT items.
+- **Drift entries opened during 13-6:** **1** —
+  `t20-explainer-handicap-system-implication` (Batch D, DRIFT_LOG
+  line 291; Phase 13 → 13-6 follow-up or 13-8 pre-launch QA, XS
+  scope). The /t20 "What is Twenty 20?" explainer copy reads
+  "Twenty 20 is the official handicap and grading system for
+  South African bowls" — the "official handicap" framing risks
+  implying BSA endorses a handicap system, which the
+  `bsa-terminology` skill explicitly bans ("BSA has no official
+  handicap system... Never imply BSA endorses a handicap system").
+  Sentence-restructure scope, out of mechanical-sweep posture;
+  flagged at the same Batch D commit that fixed the sibling
+  `points → shots` word-swap.
+- **DRIFT_LOG counts at close:** **51 open / 105 closed** (was
+  50 open / 105 closed entering 13-6). Net +1 open, 0 closed,
+  +1 total entry.
+- **Test count delta:** unit **1390 → 1407** (+17 across two new
+  test files: `tests/app/public/help.test.tsx` 2 cases +
+  `tests/app/public/help-article.test.tsx` 6 cases at Batch B;
+  `tests/app/club-admin/admin-getting-started-checklist.test.tsx`
+  9 cases at Batch C; Batches A and D added no tests — A pinned
+  by visual review, D by zero-hit grep verification). Integration
+  unchanged at **170 / 170**.
+- **Verification gates at close:**
+  - `tsc --noEmit`: clean across all 4 batches.
+  - `eslint`: 0 errors / **17 warnings** (unchanged baseline).
+  - `vitest run` (unit): 1407 / 1407 in 127 files.
+  - `next build`: clean across all 4 batches; new routes ship
+    `/help` as `○ Static`, `/help/[slug]` as `● SSG` with all 4
+    article slugs prerendered (`creating-a-tournament`,
+    `scoring-a-match`, `booking-a-rink`, `twenty-20-walkthrough`);
+    `/privacy` + `/terms` ship as `○ Static`; `/manage/overview`
+    stays `ƒ Dynamic` (auth-gated, correct).
+  - Push: clean fast-forward across all 13-6 commits.
+- **What 13-6 closes for v1:**
+  - **Public legal / privacy surfaces** at `/privacy` + `/terms`
+    with bespoke POPIA-aligned content (no template lift),
+    governing law RSA / Western Cape, real operator contact email.
+    Footer + signup-form agree-checkbox + data-and-privacy header
+    all link out correctly; data-and-privacy export endpoint
+    description copy aligned with the actual data inventory.
+  - **`/help` content surface** with 4 SSG articles covering the
+    four most common user journeys. Article slugs URL-stable;
+    manifest (`ARTICLES` + `ARTICLE_ORDER`) is the single source
+    of truth (adding a 5th means appending to both).
+  - **Fresh-club admin onboarding** via the data-driven
+    `AdminGettingStartedChecklist` on `/manage/overview` — five
+    real signals, no localStorage, no manual dismissal. Collapses
+    to a positive "Setup complete" strip when all five register.
+  - **Repo-wide BSA terminology hygiene on user-visible surfaces**
+    — zero bare `T20` outside the documented `PlayerBottomNav`
+    "20/20" exception; zero `"South African lawn bowls"` in JSX
+    or meta; T20 explainer copy uses BSA-correct "handicap shots"
+    terminology.
+- **Operator-side actions banked for 13-7:**
+  1. **Vercel preview review of /privacy + /terms** — confirm
+     bespoke POPIA copy reads correctly; flag any inaccuracy
+     (region wording, missing data flow, third-party processor
+     details) before production deploy.
+  2. **Vercel preview review of /help articles** — operator
+     content gate; lean drafts ship unless something obviously
+     wrong surfaces.
+  3. **DNS pointing for `app.handibowls.co.za`** + CSP enforcement
+     flip + Resend DMARC/DKIM/SPF + `CRON_SECRET` verification —
+     all banked across DRIFT entries `csp-enforcement-flip-13-7`
+     and `vercel-cron-secret-pre-deploy-checklist`.
+- **Manual QA outcome:** browser-driven smoke tests are
+  operator-side per locked operational convention. QA recipes:
+  /help index + each of the 4 articles render correctly with
+  kicker / h1 / body / back-link; Footer "Help" link reaches
+  /help; /manage/overview on Demo Bowls Club shows the
+  getting-started checklist with appropriate state per fixtures
+  (5/5 collapsed strip OR partial unchecked state with correct
+  CTAs); ShowcaseT20 mock scorecard reads "BSA Twenty 20 · Draw
+  shot"; data-and-privacy reads "Twenty 20 assessments"; OG +
+  Twitter card descriptions read "South African bowls".
+- **What 13-7 will cover next (forward reference):** launch
+  infrastructure — DNS pointing for `app.handibowls.co.za`
+  (Better Stack monitors flip UP within ~5 min of propagation);
+  CSP enforcement flip from `Content-Security-Policy-Report-Only`
+  → `Content-Security-Policy` in `next.config.ts:79` once Sentry
+  CSP feed confirms clean across one full QA cycle; Resend
+  DMARC/DKIM/SPF DNS wiring; Vercel `CRON_SECRET` env-var
+  verification. Per plan §16 step 7.
+
 ---
 
 ## Operational conventions
