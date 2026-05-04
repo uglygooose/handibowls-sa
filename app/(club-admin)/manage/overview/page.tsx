@@ -2,9 +2,14 @@ import Link from "next/link";
 
 import { AdminPageHero } from "@/components/layout/AdminPageHero";
 
+import { AdminGettingStartedChecklist } from "./_components/AdminGettingStartedChecklist";
 import { AuditLogPanel } from "./_components/AuditLogPanel";
 import { BookingsCalendarGrid } from "./_components/BookingsCalendarGrid";
-import { getBookingsForWeek, getRecentAuditLogForClub } from "./_data";
+import {
+  getBookingsForWeek,
+  getOnboardingChecklistState,
+  getRecentAuditLogForClub,
+} from "./_data";
 import { parseWeekParam } from "./week";
 
 // Phase 9-2/9-3 — `/manage/overview` Bookings tab. Replaces the Phase 4 stub.
@@ -33,9 +38,12 @@ export default async function ManageOverview({
   const params = await searchParams;
   const mondayIso = parseWeekParam(params.w);
   const data = await getBookingsForWeek(mondayIso);
-  const auditData = data.ok
-    ? await getRecentAuditLogForClub(data.clubId)
-    : null;
+  const [auditData, checklistState] = data.ok
+    ? await Promise.all([
+        getRecentAuditLogForClub(data.clubId),
+        getOnboardingChecklistState(data.clubId),
+      ])
+    : [null, null];
 
   if (!data.ok) {
     return (
@@ -65,6 +73,10 @@ export default async function ManageOverview({
         description="Weekly bookings calendar. Tap a chip to view details or force-cancel on a member's behalf — every cancel writes an audit-log entry."
         containerWidth="none"
       />
+
+      {checklistState && (
+        <AdminGettingStartedChecklist state={checklistState} />
+      )}
 
       <BookingsCalendarGrid
         bookings={data.bookings}

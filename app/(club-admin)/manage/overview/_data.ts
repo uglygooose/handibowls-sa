@@ -241,3 +241,91 @@ export async function getRecentAuditLogForClub(
 
   return { ok: true, rows };
 }
+
+// Phase 13 / 13-6 / Batch C — Getting-started checklist state.
+//
+// Five cheap existence checks that drive the AdminGettingStartedChecklist
+// card on /manage/overview. Each check is a `.limit(1/2)` against an
+// existing table — no aggregate count, no new RPC, no joins beyond the
+// rinks → greens FK already used by the bookings calendar query.
+//
+// All five run in parallel via Promise.all. RLS already scopes the
+// caller to their own club; the explicit `club_id`/`host_club_id`
+// filters keep the fetched rows narrow for multi-club admins.
+//
+// Per-table state derivation:
+//   greens-and-rinks   greens.club_id has any row + rinks (joined via
+//                      greens!inner) has any row with active=true
+//   invited-member     club_memberships.club_id has ≥2 active rows
+//                      (admin themselves + at least one other)
+//   booking-window     booking_windows.club_id has any row
+//   first-tournament   tournaments.host_club_id has any row (any status,
+//                      drafts count)
+//   first-message      messages.club_id has any row (any status,
+//                      drafts count — matches "authored" framing)
+
+export type OnboardingChecklistState = {
+  hasGreensAndRinks: boolean;
+  hasInvitedMember: boolean;
+  hasBookingAvailability: boolean;
+  hasFirstTournament: boolean;
+  hasFirstMessage: boolean;
+};
+
+export async function getOnboardingChecklistState(
+  clubId: string,
+): Promise<OnboardingChecklistState> {
+  const supabase = await createClient();
+
+  const [greens, activeRinks, members, windows, tournaments, messages] =
+    await Promise.all([
+      supabase.from("greens").select("id").eq("club_id", clubId).limit(1),
+      supabase
+        .from("rinks")
+        .select("id, greens!inner(club_id)")
+        .eq("greens.club_id", clubId)
+        .eq("active", true)
+        .limit(1),
+      supabase
+        .from("club_memberships")
+        .select("id")
+        .eq("club_id", clubId)
+        .eq("status", "active")
+        .limit(2),
+      supabase
+        .from("booking_windows")
+        .select("id")
+        .eq("club_id", clubId)
+        .limit(1),
+      supabase
+        .from("tournaments")
+        .select("id")
+        .eq("host_club_id", clubId)
+        .limit(1),
+      supabase.from("messages").select("id").eq("club_id", clubId).limit(1),
+    ]);
+
+  // Soft-fail per query: a Supabase error degrades that signal to false
+  // (i.e. the item shows as unchecked) rather than blowing up the page.
+  // Errors are still logged for triage.
+  const has = (
+    label: string,
+    res: { data: unknown[] | null; error: { message: string } | null },
+    minRows = 1,
+  ): boolean => {
+    if (res.error) {
+      console.error(`[overview] checklist '${label}' query failed:`, res.error);
+      return false;
+    }
+    return (res.data?.length ?? 0) >= minRows;
+  };
+
+  return {
+    hasGreensAndRinks:
+      has("greens", greens) && has("active-rinks", activeRinks),
+    hasInvitedMember: has("memberships", members, 2),
+    hasBookingAvailability: has("booking-windows", windows),
+    hasFirstTournament: has("tournaments", tournaments),
+    hasFirstMessage: has("messages", messages),
+  };
+}
