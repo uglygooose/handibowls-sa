@@ -9,14 +9,21 @@ import { withSentryConfig } from "@sentry/nextjs";
 // into the server build. No webpack plugin path because Next 16 is
 // Turbopack-first.
 
-// Phase 13 / 13-2 / Batch D-CSP → 13-5 / Batch B — Content-Security-
-// Policy headers.
+// Phase 13 / 13-2 / Batch D-CSP → 13-5 / Batch B → 13-7 — Content-
+// Security-Policy headers.
 //
-// Mode: Content-Security-Policy-Report-Only. Browser logs violations
-// to Sentry's CSP collector (wired at Batch B via report-uri +
-// report-to) but does NOT block resources. Switch to enforcing CSP
-// (drop the `-Report-Only` suffix) at 13-7 once the report-only
-// stream is clean for a full QA cycle.
+// Mode: Content-Security-Policy (enforcing) as of Phase 13 / 13-7.
+// Browser BLOCKS violating resources. Sentry CSP collector still
+// receives violation reports via report-uri + report-to so any
+// post-flip regression surfaces immediately in the Sentry dashboard.
+//
+// Pre-flip safety baseline: zero inline <script>, eval, new Function,
+// or dangerouslySetInnerHTML across app/ + components/ (grep at 13-7
+// kickoff); zero violations on /login + / from the 13-2 production-
+// build capture run. Authenticated-surface coverage gap noted in
+// 13-5 close summary — auth shells were not in the pre-flip capture
+// scope; operator confirms the smoke-test list in
+// docs/LAUNCH_DEPLOY_DRY_RUN.md exercises auth surfaces post-deploy.
 //
 // Locked allow-list:
 //   default-src 'self'
@@ -121,7 +128,7 @@ const baseConfig: NextConfig = {
         source: "/(.*)",
         headers: [
           {
-            key: "Content-Security-Policy-Report-Only",
+            key: "Content-Security-Policy",
             value: buildContentSecurityPolicy(sentry),
           },
           {
