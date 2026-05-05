@@ -19,7 +19,7 @@
 
 import { logSection, type Admin } from "./_lib";
 import type { ClubRow } from "./clubs";
-import type { SeededUser } from "./users";
+import type { SeededFiller, SeededUser } from "./users";
 
 export async function seedMemberships(
   client: Admin,
@@ -60,5 +60,31 @@ export async function seedMemberships(
         `  ${u.email.padEnd(32)} club_membership → ${targetClub.name} (primary)`,
       );
     }
+  }
+}
+
+export async function seedFillerMemberships(
+  client: Admin,
+  fillers: SeededFiller[],
+  clubs: { demo: ClubRow; pinelands: ClubRow },
+): Promise<void> {
+  logSection("Demo seed — filler member memberships + position grading");
+
+  for (const f of fillers) {
+    const club = f.clubSlug === "pinelands-bc" ? clubs.pinelands : clubs.demo;
+    const { error } = await client.from("club_memberships").upsert(
+      {
+        profile_id: f.id,
+        club_id: club.id,
+        status: "active",
+        is_primary: true,
+        club_grading: f.position ?? null,
+      },
+      { onConflict: "profile_id,club_id" },
+    );
+    if (error) throw error;
+    console.log(
+      `  ${f.email.padEnd(28)} → ${club.name} (${f.position ?? "no position"})`,
+    );
   }
 }

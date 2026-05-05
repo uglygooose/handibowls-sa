@@ -23,8 +23,16 @@
 import { admin, logSection } from "./seed-demo/_lib";
 import { resetDemoData } from "./seed-demo/_reset";
 import { ensureDistricts, seedClubs } from "./seed-demo/clubs";
-import { seedUsers } from "./seed-demo/users";
-import { seedMemberships } from "./seed-demo/memberships";
+import { seedFillerMembers, seedUsers } from "./seed-demo/users";
+import {
+  seedFillerMemberships,
+  seedMemberships,
+} from "./seed-demo/memberships";
+import { seedInvites } from "./seed-demo/invites";
+import { seedTournaments } from "./seed-demo/tournaments";
+import { seedBookings } from "./seed-demo/bookings";
+import { seedT20 } from "./seed-demo/t20";
+import { seedMessages } from "./seed-demo/messages";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -47,12 +55,24 @@ async function main() {
   const users = await seedUsers(client);
   await seedMemberships(client, users, clubs);
 
-  logSection("Demo seed — Commit 1 fixtures complete");
+  // Commit 2 fixtures — additive on top of canonical 7 users + 2 clubs.
+  const fillers = await seedFillerMembers(client);
+  await seedFillerMemberships(client, fillers, clubs);
+  await seedInvites(client, clubs, users, fillers);
+  await seedTournaments(client, clubs, users, fillers);
+  await seedBookings(client, clubs, users, fillers);
+  await seedT20(client, clubs, users, fillers);
+  await seedMessages(client, clubs, users, fillers);
+
+  logSection("Demo seed — fixtures complete");
   console.log(
-    "  Next: Commit 2 ships tournaments, bookings, T20 assessments,",
+    "  All state-machine matrix cells reachable. Run",
   );
   console.log(
-    "  messages, notifications, and the coverage matrix test.",
+    "  `npx vitest run tests/scripts/seed-demo-coverage.test.ts`",
+  );
+  console.log(
+    "  to verify the post-seed coverage assertions.",
   );
 }
 

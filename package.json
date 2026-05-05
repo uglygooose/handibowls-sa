@@ -22,7 +22,8 @@
     "seed:dev:tournaments": "tsx scripts/seed-dev-tournaments.ts",
     "seed:dev:t20": "tsx scripts/seed-dev-t20.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
-    "seed:demo:reset": "tsx scripts/seed-demo.ts --reset-only"
+    "seed:demo:reset": "tsx scripts/seed-demo.ts --reset-only",
+    "seed:demo:verify": "vitest run -c vitest.scripts.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
