@@ -123,9 +123,9 @@ export default async function T20Page() {
         <PlayerSectionHead>What is Twenty 20?</PlayerSectionHead>
         <div className="rounded-[14px] border border-border bg-surface px-5 py-5">
           <p className="m-0 mb-3 text-[13.5px] leading-[1.5] text-ink-muted">
-            Twenty 20 is the official handicap and grading system for South
-            African bowls. Your grade affects which tournaments you can enter
-            and how handicap shots are applied.
+            Twenty 20 is a BSA-aligned skills assessment for South African
+            bowlers. A coach takes you through seven sections capturing every
+            delivery, and the rubric grades you Gold, Silver, or Bronze.
           </p>
           <ul className="m-0 grid list-none gap-2.5 p-0">
             <ExplainItem
