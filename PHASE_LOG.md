@@ -4753,6 +4753,290 @@ annotation in its Owner field per the locked structure
   ship the v1 cohort onto the preview URL through stakeholder
   pilot. Per plan §16 step 8.
 
+### 13-8 — Pre-launch QA: demo seed + drift fixes — closed 2026-05-05
+
+- **Branch tip at close:** `<filled in commit message>`
+  (`rebuild/phase-13-launch-prep`).
+- **Sub-checkpoint structure:** two batches across 9 commits
+  (Batch A demo seed: 5 commits + 2 mid-batch corrections;
+  Batch B drift fixes: 3 fix commits + 1 operator-confirmed
+  closure) + this close. Plan §16 step 8 covered the four
+  QA-banked DRIFT entries from 13-6 and 13-7 plus the demo seed
+  for stakeholder handoff. Three 13-8-original-spec items
+  intentionally NOT closed in 13-8 (banked below): 13-3
+  real-device perf gate, full-scope close-verify scans against
+  Vercel preview, and the final DNS-vs-preview launch-posture
+  decision.
+- **Headline SHAs across the full 13-8 sequence:**
+  - **Batch A — Demo seed (5 commits + mid-batch corrections):**
+    - **Commit 1** (`279bf31`) — `feat(seed): demo seed
+      orchestrator skeleton + reset + simpler fixtures`. New
+      `scripts/seed-demo.ts` orchestrator + `scripts/seed-demo/`
+      sub-modules: `_lib.ts` (shared Supabase client + paginated
+      `listAllAuthUsers` + `DEMO_PASSWORD = "DemoPass2026!"`
+      constant), `_reset.ts` (FK-chain teardown handling RESTRICT
+      cases), `clubs.ts` (district verification + 66 clubs
+      across 20 BSA districts), `users.ts` (7 canonical demo
+      accounts), `memberships.ts`. Schema-sweep findings:
+      reconciled 4 brief-vs-source mismatches (t20_assessment
+      status `{draft, submitted, archived}` vs brief's
+      `{draft, in-flight, completed}`; booking_purpose actual
+      6 values not 5; invite_status `revoked` not `failed`;
+      message channel via boolean columns not enum). New
+      `package.json` scripts: `seed:demo` + `seed:demo:reset`.
+    - **Commit 1.5** (`1a62624`) — `feat(seed): two-stage reset
+      wipes RLS-test orphans + DRIFT entry`. Cloud verification
+      surfaced 383 RLS-test orphan clubs + 1289 orphan auth users
+      from `tests/rls/*` test fixtures across 2026-04-28 →
+      2026-05-01. Operator-locked decision: relax the "wipe only
+      seed-demo-tagged" contract (no production data on the
+      demo Supabase). Reset refactored into Stage 1 (wipe ALL
+      non-demo, non-reference data) + Stage 2 (wipe prior demo
+      seed outputs). Reference data (districts + rubrics) NEVER
+      touched. New DRIFT entry
+      `integration-test-cleanup-not-firing-on-cloud-supabase`
+      banks the underlying test-helper-cleanup bug for Phase
+      13.5 / 14 investigation.
+    - **Commit 1.6** (`25a33d1`) — `fix(seed): scope cut clubs
+      from 66 to 2 anchors only`. Operator scope cut. The 60
+      bulk fillers + 4 named neighbours from Commit 1
+      misrepresented platform traction. Cut to Demo Bowls Club
+      + Pinelands BC only. Deleted ~158 lines of filler
+      generation code outright (no flags, no comments).
+    - **Commit 2** (`b3635bd`) — `feat(seed): tournament/booking/
+      T20/messaging fixtures + coverage matrix`. State-machine
+      coverage as the floor; counts kept at functional-minimum
+      per the operator's no-inflation rule. Total ~150 fixture
+      rows across 11 tables (vs the original brief's ~300):
+      6 tournaments (5 status enum coverage + 1 cross-club),
+      8 matches across 3 submission_status values + walkover, 4
+      invites (all status values), 10 bookings (all 6 purposes),
+      7 t20_assessments (grade × status matrix) + v2-draft
+      rubric + 16 deliveries on the in-flight assessment, 5
+      messages × 12 recipients × 5 notifications. New fixture
+      modules: `invites.ts` / `tournaments.ts` / `bookings.ts`
+      / `t20.ts` / `messages.ts` + 7 filler users for tournament
+      rosters. New coverage test at
+      `tests/scripts/seed-demo-coverage.test.ts` (51 cases
+      across all reachable enum cells); excluded from unit
+      suite via `vitest.scripts.config.ts`. New
+      `seed:demo:verify` script. Bug fixes during dev caught
+      schema mismatches: `matches.finalized_by_admin` is
+      boolean, not UUID; `bookings.status` defaults dropped to
+      NULL on supabase-js insert; `bookings.for_profile_id`
+      required for `purpose='t20_assessment'` per migration 037;
+      `t20_assessments.notes` is jsonb `{strengths, watch, focus,
+      legacy}` per migration 041.
+    - **Commit 3** (`ef36827`) — `docs(seed): operator demo
+      handoff`. New `docs/DEMO_LOGINS.md` (210 lines):
+      honest-demo-posture statement at top ("Two clubs, fourteen
+      users, ~150 rows"); credentials block (7 canonical + 7
+      filler accounts); 1-page demo script (15-20 min walk-
+      through across 5 acts: super-admin / club-admin / coach /
+      player / cross-club isolation); 20-surface "show this"
+      hints; reset instructions; 12-item pre-presentation
+      checklist; cloud DB state snapshot; future-state note
+      (seed retires post-DNS pilot onboarding). All 14 demo
+      accounts authenticate via `signInWithPassword` against
+      cloud Supabase (verified end-to-end at commit time).
+  - **Batch B — Drift fixes (4 commits):**
+    - **Fix 4** (`d9da9fb`) — `fix(copy): /t20 explainer drops
+      handicap-system framing`. Closes DRIFT
+      `t20-explainer-handicap-system-implication` (originally
+      opened at 13-6 / Batch D). `app/(player)/(gated)/t20/page.tsx`
+      "What is Twenty 20?" paragraph rewritten to drop the
+      "official handicap and grading system" framing entirely
+      (banned by `bsa-terminology` skill). New copy mirrors the
+      `/help/twenty-20-walkthrough` article's opening (source-
+      anchored at 13-6 / Batch B with operator approval).
+    - **Fix 1+2** (`1f4b593`) — `fix(auth): retain-on-error +
+      verifyOtp callback branch`. Closes DRIFT
+      `signup-form-error-state-clears-invalid-email` +
+      `signup-confirmation-redirects-to-login-instead-of-app`.
+      `lib/auth/actions.ts:AuthFormState` extended with
+      `values.email` (echo-back) + `fieldErrors.{email,password}`
+      (per-field error state). `classifyAuthErrorMessage`
+      heuristic preserves Supabase's deliberately-ambiguous
+      "Invalid login credentials" un-classified. Both `/signup`
+      and `/login` (password-mode + magic-link-mode) now use
+      controlled email + sentinel-state-during-render pattern
+      (avoids `react-hooks/set-state-in-effect` cascading-render
+      lint rule). Password resets on error (security best-
+      practice retained). The Field component's existing `error`
+      prop wires `aria-invalid` + `border-danger-500` +
+      `AlertCircle`. **Auth callback** (`app/auth/callback/
+      route.ts`) — root cause was inverted from operator's
+      hypothesis: `exchangeCodeForSession` was wired correctly,
+      but Supabase's email-confirm flow uses `?token_hash=&type=`
+      query params per the PKCE-flow-for-SSR pattern (verified
+      via Context7), NOT `?code=`. Added second branch resolving
+      `(token_hash, type)` via `verifyOtp({ type, token_hash })`.
+      Both branches funnel into a shared `finishAuthRedirect`
+      helper.
+    - **Fix 3** (`3cea80f`) — `docs(auth): HandiBowls-branded
+      Supabase email template drafts`. New
+      `docs/SUPABASE_EMAIL_TEMPLATES.md` (321 lines): 6 templates
+      (Confirm signup / Invite user / Magic link / Change email /
+      Reset password / Reauthenticate). Atomic-red header strip,
+      bone-cream background, Barlow Condensed Black Italic
+      uppercase H1, ink-black CTA chrome — matches the landing
+      page's primary-CTA visual identity. Every clickable link
+      uses `{{ .SiteURL }}/auth/callback?token_hash={{
+      .TokenHash }}&type=<flow>&next=<path>`. Operator-side
+      paste required.
+    - **Fix 3 closure** (`fb9119f`) — `chore(audit): close
+      supabase-default-email-templates-unbranded (operator-
+      confirmed paste)`. Operator confirmed all 6 templates
+      pasted into Supabase Dashboard → Authentication → Email
+      Templates for the demo project. Closes the fourth and
+      final 13-8 drift entry.
+  - **13-8 close** (this commit) — PHASE_LOG entry + README
+    state-line + DRIFT delta tally.
+- **Locked operator decisions during 13-8:**
+  - **(A.1) Demo seed posture: honest footprint, no inflation.**
+    Two clubs, fourteen users, ~150 rows. Coverage matrix is
+    the floor; counts do not exceed functional minimums. The
+    original brief's `≥60 clubs / ≥80 users / 30-50 members`
+    thresholds explicitly cut on the no-inflation rule.
+  - **(A.2) Tagging mechanism: relax the production-safe
+    promise.** No schema migration; reset uses naming patterns
+    + email-domain cascade. The demo Supabase project is
+    throwaway; post-DNS-cutover it becomes a fresh staging
+    environment.
+  - **(A.3) Password strategy: fixed `DemoPass2026!`.** Aligned
+    with existing `seed-dev-users.ts:DEV_PASSWORD = "dev-
+    password-12345"` precedent. Operator memorises one string
+    for live demo.
+  - **(A.4) Composition strategy: layer.** New orchestrator
+    co-exists with the existing `seed-dev-*` scripts; doesn't
+    replace them. Different password per script set; demo seed
+    is canonical for stakeholder demo.
+  - **(B.1) Fix 1 retain-on-error: controlled inputs, not
+    defaultValue.** Defaults only apply on mount; controlled
+    inputs synced via sentinel-during-render pattern. Avoids the
+    React anti-pattern + the lint rule.
+  - **(B.2) Fix 2 cause inverted from hypothesis: token_hash
+    branch needed.** Operator suggested `setSession` on the
+    verification token; reality was Supabase's PKCE-flow-for-
+    SSR pattern uses `verifyOtp({ token_hash, type })`. Verified
+    via Context7 before patching.
+- **Migrations applied during 13-8:** none. Pure data-seed +
+  application-layer + docs work.
+- **Drift entries closed at 13-8 close:** **4** —
+  `t20-explainer-handicap-system-implication` (originally
+  opened at 13-6 / Batch D as a sentence-restructure follow-up
+  to that batch's word-swap mechanical sweep);
+  `signup-form-error-state-clears-invalid-email` (opened at
+  13-7 Batch A preview verification);
+  `signup-confirmation-redirects-to-login-instead-of-app`
+  (opened at 13-7 Batch A preview verification — root cause
+  was different from the original entry's hypothesis);
+  `supabase-default-email-templates-unbranded` (opened at 13-7
+  Batch A preview verification; closed only after operator
+  confirmed paste into Supabase Dashboard).
+- **Drift entries opened during 13-8:** **1** —
+  `integration-test-cleanup-not-firing-on-cloud-supabase`
+  (opened at Batch A Commit 1.5 cloud verification when the
+  383 RLS-test orphan clubs + 1289 orphan auth users surfaced.
+  Stage 1 cleanup masks the symptom on the demo project but
+  the underlying cleanup-failure bug stays open for Phase 13.5
+  or Phase 14 investigation).
+- **DRIFT_LOG counts at close:** **50 open / 112 closed** (was
+  53 open / 108 closed entering 13-8 per the 13-7 close
+  summary). Net 13-8 delta: **−3 open / +4 closed**.
+- **Test count delta:** unit unchanged at **1442 / 1442** (the
+  new `tests/scripts/seed-demo-coverage.test.ts` lives in a
+  separate `vitest.scripts.config.ts` suite specifically so it
+  doesn't hit cloud during CI/unit runs). Integration unchanged
+  at **170 / 170**. Bonus suite: **51 / 51** state-machine-
+  matrix assertions on `npm run seed:demo:verify` against post-
+  seed cloud state.
+- **Verification gates at close:**
+  - `tsc --noEmit`: clean across all 9 batches' commits.
+  - `eslint`: 0 errors / **17 warnings** (unchanged baseline).
+  - `vitest run` (unit): 1442 / 1442 in 129 files.
+  - `npx vitest run -c vitest.scripts.config.ts`: 51 / 51 cases
+    pass post-seed.
+  - `next build`: clean across all 13-8 commits.
+  - **Cloud Supabase verified** at multiple checkpoints:
+    Commit 1.5 reset wiped 383 + 1289 orphan rows clean;
+    Commit 3 final seed reached steady state (66 → 2 demo
+    clubs after 1.6, 14 demo auth users authenticate via
+    `signInWithPassword`); Batch B Fix 2 manually verified by
+    operator on the Vercel preview (signup → confirmation
+    email click → land on `/me` with active session).
+  - Push: clean fast-forward across all 13-8 commits.
+- **What 13-8 closes for v1:**
+  - **Stakeholder demo handoff** ready: 7 canonical demo
+    accounts authenticate cleanly, 6 templated email surfaces
+    branded, 14-user / 2-club / ~150-row honest fixture
+    footprint with full state-machine matrix coverage. The
+    operator can run the 15-20 min demo script from
+    `docs/DEMO_LOGINS.md` against the Vercel preview without
+    further setup.
+  - **Auth-form retain-on-error** UX shipped to `/signup` +
+    `/login` (both password and magic-link modes). Email field
+    survives validation failure with red-border + AlertCircle
+    affordance; password clears on error (security).
+  - **Email-confirm flow end-to-end working** on the Vercel
+    preview: signup → emailed link → `/auth/callback?token_hash`
+    → `verifyOtp` → role-correct redirect (player → `/me`,
+    club_admin → `/manage/overview`, super_admin →
+    `/platform/clubs`). Magic-link / OAuth `?code=` flow stays
+    correct via the same callback's PKCE branch.
+  - **Twenty 20 explainer copy** clean against the
+    `bsa-terminology` skill — drops the "official handicap and
+    grading system" framing repo-wide.
+  - **Six branded transactional email templates** live on the
+    demo Supabase project (operator-confirmed paste). "Powered
+    by Supabase ⚡" footer dropped on every auth email.
+- **Operator-side actions completed during 13-8:**
+  1. **Wiped 383 + 1289 RLS-test orphans on cloud** (Batch A
+     Commit 1.5 verification — Stage 1 reset).
+  2. **Pasted 6 HandiBowls-branded email templates** into
+     Supabase Dashboard → Authentication → Email Templates.
+  3. **Verified Fix 2 end-to-end** on the Vercel preview:
+     signup → confirmation email click → `/me` with active
+     session. Confirms `verifyOtp` + token_hash branch is
+     correctly wired.
+  4. **Walked the demo seed handoff** — 14 demo accounts
+     authenticate; cloud DB at clean 2-club / ~150-row state;
+     coverage matrix 51 / 51.
+- **What 13-8 does NOT close (banked for launch / Phase 14):**
+  - **13-3 real-device perf gate** (L67-followup acceptance
+    criterion): Lighthouse ≥90 player / ≥80 admin from real
+    Android Chrome on a real device. Still open. WSL2 Chrome
+    instability contaminates measurement; needs operator-side
+    real-device run before launch.
+  - **Full-scope close-verify scans against Vercel preview**
+    (axe + Lighthouse across the full anchor set on the post-
+    13-8 deploy). Banked for the launch readiness check.
+  - **Final operator decision on DNS-vs-preview launch
+    posture.** Not made; operator continues to evaluate.
+  - **Custom domain wiring** for `app.handibowls.co.za` +
+    Resend domain verification + DMARC/DKIM/SPF +
+    `support@handibowls.co.za` forwarder registration —
+    deferred per `LAUNCH_DNS_CHECKLIST.md`. Operator-side
+    workstream gated on registrar access.
+  - **CSP enforcement** stays at the `Content-Security-Policy`
+    enforcing flip from 13-7 (`d04654e` + `e2028bc`). No
+    follow-on work needed in 13-8.
+- **Manual QA outcome:** browser-driven smoke tests
+  operator-side per locked operational convention. Demo seed
+  walkthrough script per `docs/DEMO_LOGINS.md` (~15-20 min)
+  validates every demo surface. Fix 2 manually verified
+  end-to-end against the Vercel preview as noted above. Real-
+  device perf measurement banked.
+- **What's next (forward reference):** Phase 13 itself stays
+  formally open until the launch infrastructure pieces banked
+  above land (custom domain + Resend domain verification +
+  real-device perf gate + DNS access decision). Likely shape:
+  Phase 13 close lands when DNS access is in operator's hands
+  AND the launch decision is made. Subsequent work shifts to
+  Phase 14 (post-launch polish + the open DRIFT backlog).
+  Per plan §16 — 13-8 was the last sub-checkpoint scoped in
+  the rebuild plan.
+
 ---
 
 ## Operational conventions
