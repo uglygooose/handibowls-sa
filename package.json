@@ -20,7 +20,9 @@
     "lighthouse:pwa": "node scripts/lighthouse-pwa.mjs",
     "seed:dev": "tsx scripts/seed-dev-users.ts",
     "seed:dev:tournaments": "tsx scripts/seed-dev-tournaments.ts",
-    "seed:dev:t20": "tsx scripts/seed-dev-t20.ts"
+    "seed:dev:t20": "tsx scripts/seed-dev-t20.ts",
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "seed:demo:reset": "tsx scripts/seed-demo.ts --reset-only"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
