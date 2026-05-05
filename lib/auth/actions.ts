@@ -11,7 +11,40 @@ import { roleFromAccessToken } from "@/lib/auth/jwt";
 export type AuthFormState = {
   ok?: boolean;
   error?: string;
+  // Phase 13 / 13-8 / Batch B / Fix 1 — echo-back values for retain-
+  // on-error UX. Client form re-populates email after a failed
+  // submit so the user can see + correct what they typed (instead of
+  // re-typing). Password is intentionally NOT echoed back (security
+  // best-practice — never round-trip plaintext credentials).
+  values?: { email?: string };
+  // Field-specific error state for the red-border affordance on the
+  // email input. Set when the action knows the error is email-
+  // specific (e.g. format invalid, user-not-found, already-
+  // registered). Left undefined on ambiguous errors like Supabase's
+  // "Invalid login credentials" which deliberately hides which of
+  // email/password is wrong.
+  fieldErrors?: { email?: string; password?: string };
 };
+
+// Heuristic: classify a Supabase auth error message as email-
+// specific, password-specific, or ambiguous. "Invalid login
+// credentials" is the ambiguous case — Supabase obscures which of
+// the pair is wrong; we don't red-border either field for that.
+function classifyAuthErrorMessage(
+  msg: string,
+): { email?: string; password?: string } | undefined {
+  const lower = msg.toLowerCase();
+  if (lower.includes("invalid login credentials") || lower.includes("credentials")) {
+    return undefined;
+  }
+  if (lower.includes("email") || lower.includes("user already") || lower.includes("not found")) {
+    return { email: msg };
+  }
+  if (lower.includes("password")) {
+    return { password: msg };
+  }
+  return undefined;
+}
 
 function getString(fd: FormData, name: string): string {
   const v = fd.get(name);
@@ -34,14 +67,29 @@ export async function signInAction(
   const email = getString(formData, "email");
   const password = getString(formData, "password");
   const next = getString(formData, "next");
-  if (!email || !password) return { error: "Email and password are required." };
+  if (!email || !password) {
+    return {
+      error: "Email and password are required.",
+      values: { email },
+      fieldErrors: {
+        ...(email ? {} : { email: "Email is required." }),
+        ...(password ? {} : { password: "Password is required." }),
+      },
+    };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
-  if (error) return { error: error.message };
+  if (error) {
+    return {
+      error: error.message,
+      values: { email },
+      fieldErrors: classifyAuthErrorMessage(error.message),
+    };
+  }
 
   // Phase 13 / 13-2b / Batch G1 — implicit restore-on-login. If the
   // user signed back in within the 30-day grace window after a
@@ -73,8 +121,23 @@ export async function signUpAction(
   const password = getString(formData, "password");
   const firstName = getString(formData, "first_name");
   const lastName = getString(formData, "last_name");
-  if (!email || !password) return { error: "Email and password are required." };
-  if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  if (!email || !password) {
+    return {
+      error: "Email and password are required.",
+      values: { email },
+      fieldErrors: {
+        ...(email ? {} : { email: "Email is required." }),
+        ...(password ? {} : { password: "Password is required." }),
+      },
+    };
+  }
+  if (password.length < 8) {
+    return {
+      error: "Password must be at least 8 characters.",
+      values: { email },
+      fieldErrors: { password: "Password must be at least 8 characters." },
+    };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
@@ -82,7 +145,13 @@ export async function signUpAction(
     password,
     options: { emailRedirectTo: `${await siteUrl()}/auth/callback` },
   });
-  if (error) return { error: error.message };
+  if (error) {
+    return {
+      error: error.message,
+      values: { email },
+      fieldErrors: classifyAuthErrorMessage(error.message),
+    };
+  }
 
   const userId = data.user?.id;
   if (userId && (firstName || lastName)) {
@@ -109,14 +178,25 @@ export async function signInWithMagicLinkAction(
   formData: FormData,
 ): Promise<AuthFormState> {
   const email = getString(formData, "email");
-  if (!email) return { error: "Email is required." };
+  if (!email) {
+    return {
+      error: "Email is required.",
+      fieldErrors: { email: "Email is required." },
+    };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: `${await siteUrl()}/auth/callback` },
   });
-  if (error) return { error: error.message };
+  if (error) {
+    return {
+      error: error.message,
+      values: { email },
+      fieldErrors: classifyAuthErrorMessage(error.message),
+    };
+  }
   return { ok: true };
 }
 

@@ -30,6 +30,30 @@ export function LoginForm({ next, initialMagicLinkSent }: Props) {
     initialMagicLinkSent ? { ok: true } : initial,
   );
 
+  // Phase 13 / 13-8 / Batch B / Fix 1 — retain-on-error UX. Email is
+  // controlled across both password + magic-link forms (the form
+  // user toggles between modes; preserving the typed email across the
+  // toggle is the right UX). Password clears on error (security
+  // best-practice). Pattern: sentinel-compared setState during render.
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [pwEcho, setPwEcho] = useState<string | undefined>(undefined);
+  if (pwState.values?.email !== pwEcho) {
+    setPwEcho(pwState.values?.email);
+    if (pwState.values?.email !== undefined) setEmail(pwState.values.email);
+  }
+  const [pwErr, setPwErr] = useState<string | undefined>(undefined);
+  if (pwState.error !== pwErr) {
+    setPwErr(pwState.error);
+    if (pwState.error) setPassword("");
+  }
+  const [mlEcho, setMlEcho] = useState<string | undefined>(undefined);
+  if (mlState.values?.email !== mlEcho) {
+    setMlEcho(mlState.values?.email);
+    if (mlState.values?.email !== undefined) setEmail(mlState.values.email);
+  }
+
   return (
     <AuthCard
       kicker="01 · Sign in"
@@ -65,6 +89,9 @@ export function LoginForm({ next, initialMagicLinkSent }: Props) {
             autoComplete="email"
             required
             placeholder="you@club.co.za"
+            value={email}
+            onChange={(e) => setEmail(e.currentTarget.value)}
+            error={pwState.fieldErrors?.email}
           />
           <PasswordField
             label="Password"
@@ -72,6 +99,9 @@ export function LoginForm({ next, initialMagicLinkSent }: Props) {
             autoComplete="current-password"
             required
             placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.currentTarget.value)}
+            error={pwState.fieldErrors?.password}
           />
           <div className="-mt-1 flex items-center justify-between text-[13px]">
             <Checkbox name="remember" defaultChecked>
@@ -117,6 +147,9 @@ export function LoginForm({ next, initialMagicLinkSent }: Props) {
             required
             placeholder="you@club.co.za"
             hint="We'll send a one-time link. No password needed."
+            value={email}
+            onChange={(e) => setEmail(e.currentTarget.value)}
+            error={mlState.fieldErrors?.email}
           />
           <SubmitButton pendingLabel="Sending…">Send magic link</SubmitButton>
           <button

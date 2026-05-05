@@ -16,7 +16,27 @@ const initial: AuthFormState = {};
 
 export function SignupForm() {
   const [state, action] = useActionState(signUpAction, initial);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  // Phase 13 / 13-8 / Batch B / Fix 1 — retain-on-error UX.
+  // After a failed submit, the action returns { values: { email } }
+  // so the user can see + correct what they typed; password clears
+  // on error (security best-practice — never echo plaintext back).
+  // Pattern: sentinel-compared setState during render (React-canonical
+  // for "reset state when an external trigger changes"). Avoids the
+  // useEffect-based setState anti-pattern that react-hooks/set-state-
+  // in-effect flags as cascading-render risk.
+  const [echoedEmail, setEchoedEmail] = useState<string | undefined>(undefined);
+  if (state.values?.email !== echoedEmail) {
+    setEchoedEmail(state.values?.email);
+    if (state.values?.email !== undefined) setEmail(state.values.email);
+  }
+  const [errorSeen, setErrorSeen] = useState<string | undefined>(undefined);
+  if (state.error !== errorSeen) {
+    setErrorSeen(state.error);
+    if (state.error) setPassword("");
+  }
 
   return (
     <AuthCard
@@ -67,6 +87,9 @@ export function SignupForm() {
           autoComplete="email"
           required
           placeholder="you@club.co.za"
+          value={email}
+          onChange={(e) => setEmail(e.currentTarget.value)}
+          error={state.fieldErrors?.email}
         />
         <div>
           <PasswordField
@@ -78,6 +101,7 @@ export function SignupForm() {
             placeholder="At least 8 characters"
             value={password}
             onChange={(e) => setPassword(e.currentTarget.value)}
+            error={state.fieldErrors?.password}
           />
           <PasswordStrength value={password} />
         </div>
