@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { CommandPaletteMount } from "@/components/command/CommandPaletteMount";
 import { AdminSidebar } from "@/components/nav/AdminSidebar";
+import { MobileAdminNavTrigger } from "@/components/nav/MobileAdminNavTrigger";
 import { NotificationsBell } from "@/components/nav/NotificationsBell";
 import { TopBar } from "@/components/nav/TopBar";
 import { getCurrentHostClub } from "@/lib/auth/memberships";
@@ -51,6 +52,7 @@ export default async function ClubAdminLayout({
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar
           variant="light"
+          left={<MobileAdminNavTrigger variant="club_admin" identity={identity} />}
           right={
             // Phase 11 / 11-5b: club admins are also club members and
             // receive their own broadcasts (a club admin who broadcasts

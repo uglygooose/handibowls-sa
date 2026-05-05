@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { AdminSidebar } from "@/components/nav/AdminSidebar";
+import { MobileAdminNavTrigger } from "@/components/nav/MobileAdminNavTrigger";
 import { TopBar } from "@/components/nav/TopBar";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { requireRole } from "@/lib/auth/role";
@@ -27,7 +28,11 @@ export default async function SuperAdminLayout({
         <AdminSidebar variant="super_admin" identity={identity} />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar variant="light" title="Platform" />
+        <TopBar
+          variant="light"
+          title="Platform"
+          left={<MobileAdminNavTrigger variant="super_admin" identity={identity} />}
+        />
         <div className="bg-surface-muted px-4 py-2 text-xs text-ink-muted lg:hidden">
           Platform admin is optimised for desktop.
         </div>
