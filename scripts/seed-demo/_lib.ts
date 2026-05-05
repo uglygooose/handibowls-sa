@@ -52,10 +52,21 @@ if (!SERVICE_ROLE_KEY) {
 export const DEMO_PASSWORD = "DemoPass2026!";
 
 // Email patterns the reset script uses to identify demo auth users.
+// Both Stage 1 (preservation filter — keep matching) and Stage 2
+// (deletion filter — delete matching) use this set.
+//
+// `@handibowls.local` covers `super@handibowls.local` plus any future
+// platform-level demo accounts that land at this domain (matches the
+// brief's `%@handibowls.local` framing).
 export const DEMO_EMAIL_PATTERNS = [
   "@demo.local",
-  "super@handibowls.local",
+  "@handibowls.local",
 ] as const;
+
+export function isDemoEmail(email: string | null | undefined): boolean {
+  const e = (email ?? "").toLowerCase();
+  return DEMO_EMAIL_PATTERNS.some((pattern) => e.endsWith(pattern));
+}
 
 // Slug prefixes the reset script uses to identify demo clubs.
 // "pinelands-bc" is listed explicitly because it doesn't carry the
