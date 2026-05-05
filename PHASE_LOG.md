@@ -5039,6 +5039,82 @@ annotation in its Owner field per the locked structure
 
 ---
 
+## Phase 14 — Mobile admin/platform nav hotfix — closed 2026-05-05
+
+- **Branch tip at close:** branch `rebuild/phase-14-mobile-admin-nav`
+  squash-merged into `main` at `375c0c1`. Branch deleted local +
+  remote post-merge per the close-out instruction.
+- **Scope:** mobile admin/platform nav unlock at viewports `< lg`
+  (1024 px). Admin and super-admin shells previously hid the
+  sidebar at `< lg` with no fallback affordance, trapping users
+  on the landing page (no menu, no way to reach other admin
+  routes). Hotfix adds a hamburger trigger that surfaces the
+  existing `AdminSidebar` verbatim inside a shadcn `Sheet` (left
+  side, `w-64`). Hamburger is `lg:hidden` so desktop renders
+  identically to pre-hotfix `main`.
+- **Breakpoint resolution:** original brief said `< md` (768 px);
+  raised at branch-confirmation that the existing layouts hide
+  the sidebar at `< lg` (1024 px), so a strict `< md` hamburger
+  would have left the 768-1024 px range still trapped. User
+  confirmed `< lg` to align affordances with the existing
+  "made for laptop" banner (also `< lg`-visible).
+- **Files touched (3):**
+  - `components/nav/MobileAdminNavTrigger.tsx` — new, 70 lines.
+    Client Component. Path-snapshot pattern for `open` state
+    (`openOnPath === pathname`) so route changes auto-close the
+    sheet without a `setState`-in-effect — avoids the
+    `react-hooks/set-state-in-effect` lint and the cascading-
+    render cost.
+  - `app/(club-admin)/layout.tsx` — +2 lines. Import +
+    `<TopBar left={<MobileAdminNavTrigger ... />} />`.
+  - `app/(super-admin)/layout.tsx` — +7/-1 lines. Import + same
+    `TopBar.left` wiring with `variant="super_admin"`.
+- **Reuse-not-rebuild discipline:** zero changes to
+  `AdminSidebar`, `TopBar`, `Sheet`, the "made for laptop"
+  banner, or any other component. No new dependencies.
+- **Closes via:** route change (auto-close), backdrop tap
+  (Radix Dialog default), ESC (Radix Dialog default), default
+  Sheet X close button. The X visually overlaps with
+  `AdminSidebar`'s collapse chevron at top-right (X is 36 px,
+  `absolute top-3 right-3`; chevron is 32 px in the sidebar
+  header). Since the X paints on top (later in DOM, absolute-
+  positioned), the chevron is mostly obscured rather than
+  independently tappable — acceptable visual outcome but logged
+  as drift for v2 cleanup.
+- **Verification:**
+  - `npm run typecheck` — clean.
+  - `npm run lint` — 0 errors (17 pre-existing warnings in
+    unrelated files, untouched).
+  - `npm run build` — compiled successfully (48 s).
+  - `npm test` — 1442 / 1442 passed across 129 files.
+  - **Vercel preview phone-verified by user** — mobile admin/
+    platform nav unlock working as specified at 375 px (open +
+    closed) and ≥1024 px (no desktop diff).
+- **Drift logged at close (2 new entries):**
+  - `AdminSidebar` should accept `inSheet`/`hideCollapse` prop
+    to hide the collapse chevron when rendered inside the
+    mobile sheet. Cosmetic only — collapse is moot at fixed
+    sheet width. Owner: Phase 14 v2 mobile-admin actions phase.
+  - "Made for laptop" banner stacks under `TopBar` at `< lg`
+    rather than rendering per-surface. Banner stays as-is per
+    the hotfix brief ("This fix is nav-only"). Owner: Phase 14
+    v2 mobile-admin actions phase — revisit per-surface (data-
+    heavy admin tables, drag-drop) rather than blanket layout
+    banner.
+- **Process trace:**
+  - 2026-05-05 — operator brief: "mobile admin/platform nav
+    unlock"; explicit `do not expand` scope guardrails.
+  - 2026-05-05 — branch + breakpoint confirmed (option (a),
+    `< lg` to match existing layout breakpoint).
+  - 2026-05-05 — implementation + local verification (typecheck,
+    lint, build, 1442 tests).
+  - 2026-05-05 — pushed `rebuild/phase-14-mobile-admin-nav`;
+    operator phone-verified on Vercel preview.
+  - 2026-05-05 — squash-merged to `main` (`375c0c1`); branch
+    deleted local + remote; logs appended; this entry written.
+
+---
+
 ## Operational conventions
 
 - **Browser-driven QA is human-side throughout the rebuild.** Multi-viewport visual checks and Lighthouse performance audits run on a real browser / device by the human at phase close — Claude Code cannot drive a browser in this WSL container (Playwright + chrome-devtools MCPs both fail to attach). Claude Code's QA scope is limited to code review against the design source + curl-level route checks. Subsequent phase briefs and stop-and-reports drop the "mandatory mobile QA at 4 viewports" item from Claude's gate list. Recorded: 2026-04-29 (post Phase 8 first batch).
