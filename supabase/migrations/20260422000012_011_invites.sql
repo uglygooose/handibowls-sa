@@ -10,7 +10,7 @@ create table public.invites (
   invited_by uuid references public.profiles(id) on delete set null,
   email text not null,
   role user_role not null default 'player',
-  token text not null default encode(gen_random_bytes(24), 'hex'),
+  token text not null default encode(extensions.gen_random_bytes(24), 'hex'),
   status invite_status not null default 'pending',
   expires_at timestamptz not null default (now() + interval '14 days'),
   accepted_at timestamptz,
