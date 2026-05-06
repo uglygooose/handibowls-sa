@@ -50,6 +50,10 @@ next-env.d.ts
 /supabase/.temp/
 .claude/
 
+# supabase migration drift snapshots — forensic capture of remote schema_migrations
+# state pre-reset (one-off ops snapshots; not part of canonical migration history)
+supabase/migrations/_drift-snapshot-*/
+
 # lighthouse audit reports (helper scripts in scripts/, JSON output ignored)
 scripts/lighthouse-*.json
 scripts/lighthouse-pwa/
