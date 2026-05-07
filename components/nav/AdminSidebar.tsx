@@ -19,9 +19,9 @@ import {
 
 import { Bowl } from "@/components/brand/Bowl";
 import { HandiBowlsWordmark } from "@/components/brand/HandiBowlsWordmark";
+import { HenseliteLogoMark } from "@/components/brand/HenseliteLogo";
 import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
 import { SplatterAccent } from "@/components/brand/SplatterAccent";
-import { HenseliteMark } from "@/components/branding/henselite-mark";
 import type { ThemePreset } from "@/components/brand/ThemeApplier";
 import { cn } from "@/lib/utils";
 
@@ -139,12 +139,17 @@ export function AdminSidebar({
       </div>
 
       <div className="relative z-10 flex h-full flex-col">
-        {/* Head — Henselite × HandiBowls lockup + collapse toggle.
-            Phase 13 / Henselite branding: mono lockup with CSS invert
-            so the black raster reads white on the dark sidebar. */}
+        {/* Head — Henselite mark + HandiBowls wordmark + collapse toggle.
+            Phase 14 / surface-aware-henselite-logo: mono variant with CSS
+            invert so the black raster reads white on the dark sidebar.
+            HenseliteLogoMark wraps in an external link to henselite.co.za;
+            HandiBowls wordmark stays as branded text (no link — the
+            sidebar itself is the navigation surface). Width-constrained
+            to icon-only on collapsed (w-16) and icon + wordmark on
+            expanded (w-64). */}
         <div className="flex h-16 shrink-0 items-center gap-2 border-b border-[#1a1a1a] px-3">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <HenseliteMark size={28} variant="mono" className="invert" />
+            <HenseliteLogoMark size={28} variant="mono" className="invert" />
             {!collapsed && (
               <HandiBowlsWordmark variant="dark" height={22} />
             )}

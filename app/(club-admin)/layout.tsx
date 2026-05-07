@@ -52,6 +52,7 @@ export default async function ClubAdminLayout({
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar
           variant="light"
+          themePreset={hostClub?.club_theme_preset ?? "ocean-green"}
           left={<MobileAdminNavTrigger variant="club_admin" identity={identity} />}
           right={
             // Phase 11 / 11-5b: club admins are also club members and

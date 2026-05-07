@@ -34,11 +34,23 @@ export default async function PlayerLayout({
     getInitialNotifications(),
   ]);
 
+  // Phase 14 / surface-aware-henselite-logo: TopBar renders a Bowl glyph
+  // tinted to the player's active theme. Mirrors the resolveActiveTheme()
+  // logic for the player branch — primary active membership's preset
+  // when one exists, ocean-green (Henselite default) otherwise. Lookup
+  // is local to the already-fetched memberships list, no extra round
+  // trip.
+  const primaryMembership =
+    memberships.find((m) => m.is_primary) ?? memberships[0] ?? null;
+  const playerThemePreset =
+    primaryMembership?.club_theme_preset ?? "ocean-green";
+
   return (
     <MobileShell
       header={
         <TopBar
           variant="light"
+          themePreset={playerThemePreset}
           left={
             <ClubSwitcher
               memberships={memberships.map((m) => ({
