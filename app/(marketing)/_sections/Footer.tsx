@@ -91,11 +91,8 @@ export function Footer() {
       </div>
 
       <div className="mx-auto mt-12 flex max-w-[1440px] flex-col items-center gap-4 border-t border-white/10 pt-6 text-xs text-white/50 md:flex-row md:justify-between">
-        <div className="flex items-center gap-2.5 font-mono tracking-[0.04em]">
-          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 font-display text-[12px] font-extrabold text-white">
-            H
-          </span>
-          HandiBowls · 2026 · Cape Town
+        <div className="font-mono tracking-[0.04em]">
+          HandiBowls · 2026 · Johannesburg
         </div>
         <div className="font-mono text-[11px] tracking-[0.1em]">
           EN
