@@ -175,21 +175,21 @@ export function Hero() {
             className="hb-roll absolute top-[-10px] right-[-30px] md:top-[-20px] md:right-[-80px]"
             style={{ filter: "drop-shadow(0 30px 50px rgba(10,10,10,0.18))" }}
           >
-            <Bowl preset="ocean-green" size={620} seed="hero-main" idSuffix="hero-main" />
+            <Bowl size={620} />
           </div>
 
           <div
             className="absolute left-[-30px] bottom-5 opacity-90"
             style={{ filter: "drop-shadow(0 20px 30px rgba(10,10,10,0.18))" }}
           >
-            <Bowl preset="midnight" size={200} seed="hero-ghost" idSuffix="hero-ghost" />
+            <Bowl themeId="midnight" size={200} />
           </div>
 
           <div
             className="hb-roll-rev absolute right-[70px] bottom-[-20px]"
             style={{ filter: "drop-shadow(0 30px 50px rgba(10,10,10,0.18))" }}
           >
-            <Bowl preset="sunburst" size={110} seed="hero-tiny" idSuffix="hero-tiny" />
+            <Bowl themeId="sunburst" size={110} />
           </div>
 
           <Sticker kind="end" className="top-10 left-2.5" />

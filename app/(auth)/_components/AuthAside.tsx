@@ -50,7 +50,7 @@ export function AuthAside({
         )}
         style={{ filter: "drop-shadow(0 40px 60px rgba(0,0,0,0.25))" }}
       >
-        <Bowl preset={bowlPreset} size={720} seed={`aside-${bowlPreset}`} idSuffix="aside" />
+        <Bowl themeId={bowlPreset} size={720} />
       </div>
 
       {splatterPreset && (

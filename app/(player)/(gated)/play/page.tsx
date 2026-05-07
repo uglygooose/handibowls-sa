@@ -159,7 +159,7 @@ export default async function PlayHome() {
             href="/me"
             className="flex items-center gap-3 rounded-[14px] border border-border bg-surface px-3 py-3 hover:bg-surface-muted"
           >
-            <Bowl preset={hostClub.club_theme_preset} size={48} />
+            <Bowl themeId={hostClub.club_theme_preset} size={48} />
             <div className="flex min-w-0 flex-1 flex-col">
               <span className="truncate font-display text-[16px] font-extrabold tracking-tight">
                 {hostClub.club_name}

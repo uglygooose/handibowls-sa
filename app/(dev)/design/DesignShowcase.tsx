@@ -223,7 +223,7 @@ function Hero({ activePresetId }: { activePresetId: ThemePreset }) {
           pointerEvents: "none",
         }}
       >
-        <Bowl preset={p} size={720} idSuffix="hero" />
+        <Bowl themeId={p.id} size={720} />
       </div>
 
       <SplatterAccent
@@ -458,7 +458,7 @@ function PresetCard({
           padding: "12px 0 20px",
         }}
       >
-        <Bowl preset={preset} size={210} idSuffix="card" />
+        <Bowl themeId={preset.id} size={210} />
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
@@ -1382,7 +1382,7 @@ function TaglineSection({ activePresetId }: { activePresetId: ThemePreset }) {
           pointerEvents: "none",
         }}
       >
-        <Bowl preset={activePresetId} size={820} idSuffix="tagline" />
+        <Bowl themeId={activePresetId} size={820} />
       </div>
 
       <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative", zIndex: 2 }}>

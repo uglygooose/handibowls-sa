@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { HandiBowlsWordmark } from "@/components/brand/HandiBowlsWordmark";
+import { Bowl } from "@/components/brand/Bowl";
 import { HenseliteLogo } from "@/components/brand/HenseliteLogo";
 import { Button } from "@/components/ui/button";
 
@@ -15,12 +15,14 @@ const NAV_LINKS = [
 export function LandingTopBar() {
   return (
     <header className="sticky top-0 z-20 flex items-center gap-8 border-b border-border bg-surface/95 px-5 py-4 backdrop-blur-sm md:gap-8 md:px-12 md:py-[18px]">
-      {/* Phase 14 / surface-aware-henselite-logo: HenseliteLogo (colour
-          on light bone surface) links externally to henselite.co.za;
-          HandiBowlsWordmark links internally to home. The vertical
-          divider is purely decorative — separates the two distinct
-          link targets. Replaces the previous BrandLockup which bundled
-          both into a single home link. */}
+      {/* Phase 15 — header lockup unification: every TopBar across
+          landing / auth / player / club-admin renders the same
+          Henselite logo + divider + Bowl glyph pattern. The
+          HandiBowlsWordmark "HANDI–bowl–BOWLS" text is dropped here
+          and on auth; the bowl glyph IS the HandiBowls mark in the
+          co-brand era. The bowl picks up the active CSS theme — on
+          landing the `data-theme="ocean-green"` wrapper in app/page.tsx
+          drives it to the Henselite default. */}
       <div className="inline-flex items-center gap-3">
         <HenseliteLogo variant="colour" size={32} />
         <span
@@ -28,7 +30,7 @@ export function LandingTopBar() {
           className="h-8 w-px shrink-0 self-stretch border-l border-foreground/20"
         />
         <Link href="/" aria-label="HandiBowls — home" className="inline-flex shrink-0">
-          <HandiBowlsWordmark variant="light" height={26} />
+          <Bowl size={32} />
         </Link>
       </div>
       <nav

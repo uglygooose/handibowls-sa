@@ -331,12 +331,7 @@ function ResultsHero({
           </p>
         </div>
         <div className="relative flex items-center justify-end">
-          <Bowl
-            size={220}
-            seed={`bowl-${assessment.id}`}
-            preset="atomic-red"
-            emblem={true}
-          />
+          <Bowl size={220} />
         </div>
       </div>
 

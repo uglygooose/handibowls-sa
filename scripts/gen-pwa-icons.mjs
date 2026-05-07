@@ -1,27 +1,40 @@
-// Generates the canonical HandiBowls favicon + PWA icon set per the
-// design source bundle (handibowls/project/HandiBowls Logo.html).
+// Generates the canonical HandiBowls favicon + PWA icon set against
+// the Phase 15 co-brand bowl glyph (Henselite green bowl + speckle +
+// bone disc + Henselite mark). Two variants per the design source:
 //
-// Two-tier mark per design spec:
-//   • Simple — disc + concentric jack-target + highlight, no speckle.
-//     Used for ≤64px sizes (speckle becomes mud at small render sizes).
-//   • Rich — adds a 90-dot speckle field clipped to the disc + a radial
-//     gradient shine. Used for 180/512 sizes where the texture reads.
+//   • Knockout (size < 64) — bowl + dense speckle + bone disc covering
+//     the centre + Henselite mark inside the disc. Used for favicon
+//     fallbacks (16/32/48/64) where the full halo composition gets
+//     muddy.
+//
+//   • Halo & Rest (size ≥ 64) — bowl + sparse larger speckle around
+//     a clear centre + Henselite mark resting on the bowl surface +
+//     thin engraved ring. Used for PWA (192/512), maskable, and apple-
+//     icon (180).
+//
+// Bowl base is HENSELITE_GREEN (the Phase 13/13-9 partnership default).
+// Icons are theme-stable — they don't follow the active CSS theme;
+// they ARE the brand mark. Per-club theming applies only to in-app
+// chrome, not to the install/social presence.
+//
+// The Henselite mark PNG is read at script runtime, base64-encoded,
+// and inlined into the SVG via a `data:image/png;base64,…` href so
+// sharp/librsvg can rasterise without needing to resolve external
+// references.
 //
 // Output paths:
-//   public/favicon.svg                    (simple, vector source)
-//   public/favicon-{16,32,48,64}.png      (simple, raster fallbacks)
-//   public/icons/icon-{192,512}.png       (rich, PWA "any" purpose)
-//   public/icons/maskable-{192,512}.png   (rich + bleed safe zone)
-//   app/apple-icon.png                    (rich at 180px, full-bleed)
-//
-// Theme-color #08BB00 (Henselite green) per the Phase 13 / 13-9
-// partnership rebrand. Earlier revisions used atomic-red.
+//   public/favicon.svg                    (knockout, vector source)
+//   public/favicon-{16,32,48,64}.png      (knockout, raster fallbacks)
+//   public/icons/icon-{192,512}.png       (halo, PWA "any" purpose)
+//   public/icons/maskable-{192,512}.png   (halo + bleed safe zone)
+//   app/apple-icon.png                    (halo at 180px)
 //
 // Run via `npm run gen:icons`.
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import sharp from "sharp";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -29,132 +42,223 @@ const REPO = resolve(__dirname, "..");
 const PUBLIC = resolve(REPO, "public");
 const PUBLIC_ICONS = resolve(PUBLIC, "icons");
 const APP = resolve(REPO, "app");
+const HENSELITE_DIR = resolve(PUBLIC, "brand/henselite");
 
 const HENSELITE_GREEN = "#08BB00";
 const INK = "#0A0A0A";
-// Emblem rings + centre dot must be ink — white at full strength is 2.6:1
-// vs Henselite green (fails WCAG 1.4.11 non-text 3:1). Ink at the same
-// stroke-opacities reads as a translucent engraving on the green disc.
-const EMBLEM_INK = "#0A0A0A";
-// Shine/highlight stays white — purely decorative gloss; not subject to
-// contrast rules and visually wrong as ink.
-const SHINE = "#FFFFFF";
+const BONE = "#FAFAF7";
 
+// Henselite mark assets are derived by scripts/derive-henselite-mark.mjs.
+// We base64-encode at build time so the rasteriser doesn't need to
+// resolve external references.
+async function loadMarkDataUri(filename) {
+  const buf = await readFile(resolve(HENSELITE_DIR, filename));
+  return `data:image/png;base64,${buf.toString("base64")}`;
+}
+
+// Mulberry32 + hashSeed — match the runtime speckle algorithm in
+// lib/brand/speckle.ts byte-for-byte. Duplicated here because the
+// runtime is .ts and this script is .mjs; the algorithm is small and
+// the icons are static.
 function mulberry32(seed) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  let t = seed >>> 0;
+  return function () {
+    t = (t + 0x6d2b79f5) >>> 0;
+    let x = t;
+    x = Math.imul(x ^ (x >>> 15), x | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
   };
 }
 
 function hashSeed(s) {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return h >>> 0;
 }
 
-// Simple variant — disc + concentric jack-target rings + highlight.
-// 100×100 viewBox; cx/cy = 50; disc r = 42 by default.
-function simpleSvg({ size = 100, includeXmlns = true } = {}) {
+function generateSpeckles({
+  seed,
+  count,
+  radius,
+  colors,
+  sizeMin = 0.45,
+  sizeMax = 2.3,
+  cx = 50,
+  cy = 50,
+  avoidR = 0,
+}) {
+  const rand = mulberry32(seed);
+  const dots = [];
+  let attempts = 0;
+  const avoidR2 = avoidR * avoidR;
+  while (dots.length < count && attempts < count * 4) {
+    attempts++;
+    const r = Math.sqrt(rand()) * radius * 0.96;
+    const theta = rand() * Math.PI * 2;
+    const x = cx + Math.cos(theta) * r;
+    const y = cy + Math.sin(theta) * r;
+    if (avoidR > 0) {
+      const dx = x - cx;
+      const dy = y - cy;
+      if (dx * dx + dy * dy < avoidR2) continue;
+    }
+    const size = sizeMin + rand() * (sizeMax - sizeMin);
+    const colorIdx = Math.floor(rand() * colors.length);
+    const shape = rand() < 0.18 ? "streak" : "dot";
+    const angle = rand() * 360;
+    dots.push({
+      x,
+      y,
+      size,
+      color: colors[colorIdx],
+      shape,
+      angle,
+      opacity: 0.55 + rand() * 0.45,
+    });
+  }
+  return dots;
+}
+
+// Pre-compute the two datasets once. Same fixed seeds as the runtime
+// component so the icon's speckle pattern matches in-app rendering.
+const SPECKLE_KNOCKOUT = generateSpeckles({
+  seed: hashSeed("c2-handi"),
+  count: 240,
+  radius: 48,
+  colors: [INK, BONE],
+  avoidR: 0,
+});
+const SPECKLE_HALO = generateSpeckles({
+  seed: hashSeed("c3-handi"),
+  count: 90,
+  radius: 48,
+  colors: [INK, BONE],
+  sizeMin: 0.8,
+  sizeMax: 3.0,
+  avoidR: 22,
+});
+
+function dotsSvg(dots, sizePx) {
+  const ratio = Math.max(0.18, Math.min(1, sizePx / 96));
+  const sorted = [...dots].sort((a, b) => b.size - a.size);
+  const keep = Math.max(8, Math.floor(sorted.length * ratio));
+  return sorted
+    .slice(0, keep)
+    .map((d) => {
+      if (d.shape === "streak") {
+        return `<ellipse cx="${d.x.toFixed(2)}" cy="${d.y.toFixed(2)}" rx="${(d.size * 1.6).toFixed(2)}" ry="${(d.size * 0.5).toFixed(2)}" fill="${d.color}" opacity="${d.opacity.toFixed(2)}" transform="rotate(${d.angle.toFixed(1)} ${d.x.toFixed(2)} ${d.y.toFixed(2)})"/>`;
+      }
+      return `<circle cx="${d.x.toFixed(2)}" cy="${d.y.toFixed(2)}" r="${d.size.toFixed(2)}" fill="${d.color}" opacity="${d.opacity.toFixed(2)}"/>`;
+    })
+    .join("");
+}
+
+// Knockout glyph for favicons. `markRef` is either a data: URI (for
+// PNG-rasterisation runs) or a public path (for the vector favicon.svg
+// that ships to the browser).
+function knockoutSvg({ size, markRef, includeXmlns = true }) {
   const xmlns = includeXmlns ? ' xmlns="http://www.w3.org/2000/svg"' : "";
+  const dots = size >= 24 ? dotsSvg(SPECKLE_KNOCKOUT, size) : "";
+  const useShine = size >= 32;
   return `<svg${xmlns} width="${size}" height="${size}" viewBox="0 0 100 100">
-  <circle cx="50" cy="50" r="42" fill="${HENSELITE_GREEN}"/>
-  <circle cx="50" cy="50" r="26" fill="none" stroke="${EMBLEM_INK}" stroke-opacity="0.595" stroke-width="2.2"/>
-  <circle cx="50" cy="50" r="14" fill="none" stroke="${EMBLEM_INK}" stroke-opacity="0.4675" stroke-width="1.8"/>
-  <circle cx="50" cy="50" r="4.5" fill="${EMBLEM_INK}" fill-opacity="0.85"/>
-  <ellipse cx="36" cy="32" rx="14" ry="9" fill="${SHINE}" fill-opacity="0.18"/>
+  <defs>
+    <clipPath id="bowl-clip"><circle cx="50" cy="50" r="48"/></clipPath>
+    <radialGradient id="bowl-shine" cx="32%" cy="26%" r="75%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="22%" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.28"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="${HENSELITE_GREEN}"/>
+  <g clip-path="url(#bowl-clip)">${dots}</g>
+  <circle cx="50" cy="50" r="28" fill="${BONE}"/>
+  <circle cx="50" cy="50" r="28" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="0.4"/>
+  <image href="${markRef}" x="28" y="28" width="44" height="44" preserveAspectRatio="xMidYMid meet"/>
+  ${useShine ? '<circle cx="50" cy="50" r="48" fill="url(#bowl-shine)"/>' : ""}
+  <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(0,0,0,0.35)" stroke-width="0.6"/>
 </svg>`;
 }
 
-// Rich variant — adds a 90-dot deterministic speckle field clipped to the
-// disc, plus a radial-gradient shine. `bleed` shrinks the inner mark to a
-// safe zone (used by maskable PWA icons). `bg` paints a rounded-square
-// background; pass null to leave transparent.
-function richSvg({ size = 100, bleed = false, bg = INK } = {}) {
-  const discR = bleed ? 33 : 42;
-  const ring1R = discR * 0.62;
-  const ring2R = discR * 0.33;
-  const rand = mulberry32(hashSeed("hb-favicon"));
-  const dots = [];
-  for (let i = 0; i < 90; i++) {
-    const r = Math.sqrt(rand()) * (discR - 4);
-    const t = rand() * Math.PI * 2;
-    dots.push({
-      x: 50 + Math.cos(t) * r,
-      y: 50 + Math.sin(t) * r,
-      s: 0.5 + rand() * 1.6,
-      useA: rand() < 0.5,
-      o: 0.45 + rand() * 0.45,
-    });
-  }
-  const speckle = dots.map((d) => `<circle cx="${d.x.toFixed(2)}" cy="${d.y.toFixed(2)}" r="${d.s.toFixed(2)}" fill="${d.useA ? INK : SHINE}" opacity="${d.o.toFixed(2)}"/>`).join("");
-  const bgRect = bg ? `<rect x="0" y="0" width="100" height="100" rx="22" fill="${bg}"/>` : "";
+// Halo & Rest glyph for PWA / apple-icon. `bleed` shrinks the bowl
+// to a safe zone so platforms cropping into circles/rounded squares
+// don't clip the mark. `bg` paints a rounded-square background;
+// pass null for transparent.
+function haloSvg({ size, markRef, bleed = false, bg = INK }) {
+  const bowlR = bleed ? 36 : 48;
+  const haloR = bleed ? 22 : 29;
+  const markInsetR = bleed ? 19 : 25;
+  const dots = size >= 22 ? dotsSvg(SPECKLE_HALO, size) : "";
+  const useShine = size >= 32;
+  const showRing = size >= 28;
+  const bgRect = bg
+    ? `<rect x="0" y="0" width="100" height="100" rx="22" fill="${bg}"/>`
+    : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100">
   <defs>
-    <clipPath id="hb-fav-clip"><circle cx="50" cy="50" r="${discR}"/></clipPath>
-    <radialGradient id="hb-fav-shine" cx="32%" cy="26%" r="75%">
-      <stop offset="0%" stop-color="#fff" stop-opacity="0.5"/>
-      <stop offset="22%" stop-color="#fff" stop-opacity="0.16"/>
-      <stop offset="55%" stop-color="#fff" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#000" stop-opacity="0.25"/>
+    <clipPath id="bowl-clip"><circle cx="50" cy="50" r="${bowlR}"/></clipPath>
+    <radialGradient id="bowl-shine" cx="32%" cy="26%" r="75%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="22%" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.28"/>
     </radialGradient>
   </defs>
   ${bgRect}
-  <circle cx="50" cy="50" r="${discR}" fill="${HENSELITE_GREEN}"/>
-  <g clip-path="url(#hb-fav-clip)">${speckle}</g>
-  <circle cx="50" cy="50" r="${discR}" fill="url(#hb-fav-shine)"/>
-  <circle cx="50" cy="50" r="${ring1R.toFixed(2)}" fill="none" stroke="${EMBLEM_INK}" stroke-opacity="0.595" stroke-width="2.2"/>
-  <circle cx="50" cy="50" r="${ring2R.toFixed(2)}" fill="none" stroke="${EMBLEM_INK}" stroke-opacity="0.4675" stroke-width="1.8"/>
-  <circle cx="50" cy="50" r="4.5" fill="${EMBLEM_INK}" fill-opacity="0.85"/>
-  <ellipse cx="36" cy="32" rx="14" ry="9" fill="${SHINE}" fill-opacity="0.18"/>
+  <circle cx="50" cy="50" r="${bowlR}" fill="${HENSELITE_GREEN}"/>
+  <g clip-path="url(#bowl-clip)">${dots}</g>
+  ${showRing ? `<circle cx="50" cy="50" r="${haloR}" fill="none" stroke="${BONE}" stroke-opacity="0.55" stroke-width="0.8"/>` : ""}
+  <image href="${markRef}" x="${50 - markInsetR}" y="${50 - markInsetR}" width="${markInsetR * 2}" height="${markInsetR * 2}" preserveAspectRatio="xMidYMid meet"/>
+  ${useShine ? `<circle cx="50" cy="50" r="${bowlR}" fill="url(#bowl-shine)"/>` : ""}
+  <circle cx="50" cy="50" r="${bowlR}" fill="none" stroke="rgba(0,0,0,0.35)" stroke-width="0.6"/>
 </svg>`;
 }
 
+const markBlackDataUri = await loadMarkDataUri("mark-black.png");
+const markBlackPublicHref = "/brand/henselite/mark-black.png";
+
 await mkdir(PUBLIC_ICONS, { recursive: true });
 
-// 1. Vector source (simple variant) — also serves at /favicon.svg.
+// 1. Vector favicon — knockout, references the public mark path so the
+//    SVG stays small. Browsers fetch the PNG separately.
 {
-  const svg = simpleSvg({ size: 100 });
+  const svg = knockoutSvg({ size: 100, markRef: markBlackPublicHref });
   const out = resolve(PUBLIC, "favicon.svg");
   await writeFile(out, svg, "utf8");
   console.log("wrote", out);
 }
 
-// 2. Sized PNG fallbacks (simple variant) for legacy browsers.
+// 2. Sized favicon PNGs — knockout, mark inlined as base64 so sharp
+//    rasterises self-contained.
 for (const size of [16, 32, 48, 64]) {
-  const svg = simpleSvg({ size });
+  const svg = knockoutSvg({ size, markRef: markBlackDataUri });
   const out = resolve(PUBLIC, `favicon-${size}.png`);
   await sharp(Buffer.from(svg)).png().toFile(out);
   console.log("wrote", out);
 }
 
-// 3. PWA icons (rich variant) — "any" purpose, full-bleed disc on dark bg.
+// 3. PWA icons — halo, full-bleed bowl on dark rounded-square.
 for (const size of [192, 512]) {
-  const svg = richSvg({ size });
+  const svg = haloSvg({ size, markRef: markBlackDataUri });
   const out = resolve(PUBLIC_ICONS, `icon-${size}.png`);
   await sharp(Buffer.from(svg)).png().toFile(out);
   console.log("wrote", out);
 }
 
-// 4. Maskable PWA icons — same rich variant but inner mark inset to a safe
-//    zone so the platform can crop into circles / rounded squares without
-//    clipping the recognizable jack target.
+// 4. Maskable PWA icons — bowl shrunk to safe zone so platforms can
+//    crop without clipping the mark.
 for (const size of [192, 512]) {
-  const svg = richSvg({ size, bleed: true });
+  const svg = haloSvg({ size, markRef: markBlackDataUri, bleed: true });
   const out = resolve(PUBLIC_ICONS, `maskable-${size}.png`);
   await sharp(Buffer.from(svg)).png().toFile(out);
   console.log("wrote", out);
 }
 
-// 5. Apple touch icon — Next.js conventional file at app/apple-icon.png.
-//    180×180; iOS rounds the corners itself, so the dark rounded-square bg
-//    in richSvg ends up rendered as a rounded-square through the iOS mask.
+// 5. Apple touch icon — halo at 180px. iOS rounds the corners itself
+//    via the dark rounded-square bg.
 {
-  const svg = richSvg({ size: 180 });
+  const svg = haloSvg({ size: 180, markRef: markBlackDataUri });
   const out = resolve(APP, "apple-icon.png");
   await sharp(Buffer.from(svg)).png().toFile(out);
   console.log("wrote", out);

@@ -227,12 +227,7 @@ export function AdminSidebar({
             className="flex shrink-0 items-center gap-2.5 border-t border-[#1a1a1a] p-[14px]"
           >
             {showBowl && identity.decorPreset ? (
-              <Bowl
-                preset={identity.decorPreset}
-                size={36}
-                seed={identity.bowlSeed ?? identity.primary}
-                emblem={false}
-              />
+              <Bowl themeId={identity.decorPreset} size={36} />
             ) : (
               <span
                 aria-hidden="true"

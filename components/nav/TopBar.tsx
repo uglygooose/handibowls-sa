@@ -65,7 +65,7 @@ export function TopBar({
                 isDark ? "border-ink-inverse/20" : "border-foreground/20",
               )}
             />
-            <Bowl preset={themePreset} size={28} emblem={false} />
+            <Bowl themeId={themePreset} size={28} />
           </span>
         )}
       </div>

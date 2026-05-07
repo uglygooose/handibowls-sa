@@ -67,7 +67,7 @@ export function AuditTab() {
       </div>
 
       <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border bg-surface px-6 py-24 text-center">
-        <Bowl preset="atomic-red" size={140} seed="audit-empty" emblem={false} />
+        <Bowl size={140} />
         <div className="flex flex-col items-center gap-2">
           <h3 className="font-display text-2xl font-black tracking-tight">
             No audit events recorded for this tournament yet
