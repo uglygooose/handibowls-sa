@@ -111,7 +111,7 @@ export function Hero() {
           <span className="inline-flex items-center gap-2.5 rounded-full border border-border bg-bone px-3.5 py-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
             <span
               className="h-2 w-2 rounded-full bg-primary-500"
-              style={{ boxShadow: "0 0 0 3px rgba(215,38,30,0.18)" }}
+              style={{ boxShadow: "0 0 0 3px rgba(8,187,0,0.18)" }}
             />
             South African bowls — built for clubs
           </span>
