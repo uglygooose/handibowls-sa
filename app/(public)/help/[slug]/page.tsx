@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { BackToHome } from "../../_components/BackToHome";
+
 import { ARTICLES, ARTICLE_ORDER, type HelpSlug } from "../_articles/articles";
 
 // Phase 13 / 13-6 / Batch B — single help article renderer. Slug
@@ -47,7 +49,9 @@ export default async function HelpArticlePage({
   const Body = article.Component;
 
   return (
-    <article className="mx-auto max-w-3xl px-5 py-12 text-ink">
+    <>
+      <BackToHome />
+      <article className="mx-auto max-w-3xl px-5 py-12 text-ink">
       <header className="mb-10 border-b border-border pb-6">
         <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">
           {article.kicker}
@@ -77,5 +81,6 @@ export default async function HelpArticlePage({
         </Link>
       </footer>
     </article>
+    </>
   );
 }

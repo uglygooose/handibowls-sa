@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { BackToHome } from "../_components/BackToHome";
+
 import { ARTICLES, ARTICLE_ORDER } from "./_articles/articles";
 
 // Phase 13 / 13-6 / Batch B — public help index. Lean v1 shape: 4
@@ -17,7 +19,9 @@ export const metadata = {
 
 export default function HelpIndexPage() {
   return (
-    <article className="mx-auto max-w-3xl px-5 py-12 text-ink">
+    <>
+      <BackToHome />
+      <article className="mx-auto max-w-3xl px-5 py-12 text-ink">
       <header className="mb-10 border-b border-border pb-6">
         <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">
           HandiBowls help
@@ -55,5 +59,6 @@ export default function HelpIndexPage() {
         })}
       </ul>
     </article>
+    </>
   );
 }

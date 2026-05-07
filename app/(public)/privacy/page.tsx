@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { BackToHome } from "../_components/BackToHome";
+
 // Phase 13 / 13-6 / Batch A — public privacy policy. Lean v1 shape:
 // POPIA basics, no template flourish, accurate against the actual
 // data flows shipped through 13-2b.
@@ -20,7 +22,9 @@ const LAST_UPDATED = "2026-05-04";
 
 export default function PrivacyPage() {
   return (
-    <article className="mx-auto max-w-3xl px-5 py-12 text-ink">
+    <>
+      <BackToHome />
+      <article className="mx-auto max-w-3xl px-5 py-12 text-ink">
       <header className="mb-10 border-b border-border pb-6">
         <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">
           Version {VERSION} · Last updated {LAST_UPDATED}
@@ -330,6 +334,7 @@ export default function PrivacyPage() {
         </Link>
       </footer>
     </article>
+    </>
   );
 }
 
