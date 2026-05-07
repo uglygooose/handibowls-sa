@@ -167,8 +167,8 @@ export function Hero() {
           </div>
         </div>
 
-        {/* Art column — mobile min-h matches visual content height (~260px); the 620px main bowl is clipped less aggressively on the right edge to fill the gap. */}
-        <div className="relative z-[1] min-h-[260px] md:min-h-[540px]">
+        {/* Art column — mobile min-h ~260px contains the bowl visual; overflow-hidden on mobile prevents the 620px bowl from bleeding into the marquee strip below. Desktop keeps the right-edge bleed for visual gap-fill. */}
+        <div className="relative z-[1] min-h-[260px] overflow-hidden md:min-h-[540px] md:overflow-visible">
           <HeroLane />
 
           <div
