@@ -9,7 +9,6 @@ const NAV_LINKS = [
   { href: "#tournaments", label: "Tournaments" },
   { href: "#t20", label: "Twenty 20" },
   { href: "#clubs", label: "Clubs" },
-  { href: "#about", label: "About" },
 ];
 
 export function LandingTopBar() {
@@ -30,7 +29,10 @@ export function LandingTopBar() {
           className="h-8 w-px shrink-0 self-stretch border-l border-foreground/20"
         />
         <Link href="/" aria-label="HandiBowls — home" className="inline-flex shrink-0">
-          <Bowl size={32} />
+          {/* Phase 15-fix: pinned to ocean-green so unauth landing
+              always reads brand-default green regardless of CSS-var
+              cascade timing. Same pattern as Hero.tsx main bowl. */}
+          <Bowl themeId="ocean-green" size={32} />
         </Link>
       </div>
       <nav

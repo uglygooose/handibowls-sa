@@ -77,11 +77,27 @@ describe("Bowl — base + speckle", () => {
     expect(stale).toBeNull();
   });
 
-  it("does NOT render a halo ring around the mark", () => {
+  it("does NOT render the original Halo concept's r=29 engraved ring", () => {
     const { container } = render(<Bowl size={120} />);
-    // Old Halo & Rest design had an engraved ring r=29. Corrected
-    // spec: no ring, just mark on speckle.
-    const ring = container.querySelector('circle[r="29"]');
+    // The Phase-15-fix engraved ring sits at r=22. The old Halo &
+    // Rest concept's r=29 ring is explicitly NOT rendered.
+    const oldRing = container.querySelector('circle[r="29"]');
+    expect(oldRing).toBeNull();
+  });
+
+  it("renders the bone engraved ring at r=22 around the mark at size >= 64", () => {
+    const { container } = render(<Bowl size={120} />);
+    const ring = container.querySelector('circle[r="22"]');
+    expect(ring).not.toBeNull();
+    expect(ring?.getAttribute("stroke")).toBe("#FAFAF7");
+    expect(ring?.getAttribute("stroke-opacity")).toBe("0.55");
+    expect(ring?.getAttribute("stroke-width")).toBe("0.8");
+    expect(ring?.getAttribute("fill")).toBe("none");
+  });
+
+  it("does NOT render the engraved ring at size < 64", () => {
+    const { container } = render(<Bowl size={48} />);
+    const ring = container.querySelector('circle[r="22"]');
     expect(ring).toBeNull();
   });
 });

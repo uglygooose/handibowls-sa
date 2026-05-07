@@ -21,7 +21,10 @@ export function AuthWordmark({ tag = "Platform · 0.1" }: { tag?: string }) {
           className="h-7 w-px shrink-0 self-stretch border-l border-foreground/20"
         />
         <Link href="/" aria-label="HandiBowls — home" className="inline-flex shrink-0">
-          <Bowl size={28} />
+          {/* Phase 15-fix: pinned to ocean-green so unauth auth pages
+              always read brand-default green regardless of CSS-var
+              cascade timing. Same pattern as LandingTopBar + Hero. */}
+          <Bowl themeId="ocean-green" size={28} />
         </Link>
       </div>
       <span className="inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.16em] uppercase text-ink-subtle">

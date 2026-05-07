@@ -46,6 +46,14 @@ const MARK_THRESHOLD_PX = 64;
 const MARK_INSET = 35;
 const MARK_BOX = 30;
 
+// Phase 15-fix: thin bone ring framing the mark on big bowls. Sits
+// between the speckle field and the mark image — gives the mark a
+// breath of separation from the textured bowl surface so it doesn't
+// read as "stuck on" floating speckle.
+const MARK_RING_R = 22;
+const MARK_RING_STROKE = 0.8;
+const MARK_RING_OPACITY = 0.55;
+
 const SHINE_MIN_PX = 32;
 const VIEWBOX_R = 48;
 
@@ -138,6 +146,22 @@ export function Bowl({
             ),
           )}
         </g>
+      )}
+
+      {/* Engraved bone ring — ONLY at size ≥ 64. Frames the mark
+          with a breath of separation from the speckle. Renders
+          between the speckle layer and the mark image so the mark
+          sits cleanly inside the ring. */}
+      {showMark && (
+        <circle
+          cx="50"
+          cy="50"
+          r={MARK_RING_R}
+          fill="none"
+          stroke="#FAFAF7"
+          strokeOpacity={MARK_RING_OPACITY}
+          strokeWidth={MARK_RING_STROKE}
+        />
       )}
 
       {/* Henselite mark — ONLY at size ≥ 64. Sits directly on the
