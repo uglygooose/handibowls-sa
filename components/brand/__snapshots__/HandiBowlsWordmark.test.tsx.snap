@@ -6,17 +6,17 @@ exports[`HandiBowlsWordmark > matches snapshot 1`] = `
   class="block shrink-0 select-none"
   height="48"
   role="img"
-  viewBox="0 0 380 64"
-  width="285"
+  viewBox="0 0 360 64"
+  width="270"
 >
   <defs>
     <clippath
       id="hb-wordmark-ball-clip"
     >
       <circle
-        cx="172"
-        cy="28"
-        r="22"
+        cx="151"
+        cy="29"
+        r="25"
       />
     </clippath>
   </defs>
@@ -32,15 +32,6 @@ exports[`HandiBowlsWordmark > matches snapshot 1`] = `
   >
     HANDI
   </text>
-  <image
-    clip-path="url(#hb-wordmark-ball-clip)"
-    height="52"
-    href="/icons/icon-512.png"
-    preserveAspectRatio="xMidYMid meet"
-    width="52"
-    x="146"
-    y="2"
-  />
   <text
     fill="var(--color-primary-500)"
     font-family="var(--font-display)"
@@ -48,10 +39,19 @@ exports[`HandiBowlsWordmark > matches snapshot 1`] = `
     font-style="italic"
     font-weight="900"
     letter-spacing="-0.02em"
-    x="210"
+    x="162"
     y="48"
   >
     BOWLS
   </text>
+  <image
+    clip-path="url(#hb-wordmark-ball-clip)"
+    height="58"
+    href="/icons/icon-512.png"
+    preserveAspectRatio="xMidYMid meet"
+    width="58"
+    x="122"
+    y="0"
+  />
 </svg>
 `;

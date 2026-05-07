@@ -6,21 +6,24 @@ type Props = {
   height?: number;
 };
 
-// SVG layout (viewBox 0 0 380 64):
+// SVG layout (viewBox 0 0 360 64):
 //   HANDI text  : x = 0   .. ~140
-//   ball mark   : x = 146 .. 198 (centered around x=172, y=28)
-//   BOWLS text  : x = 210 .. ~378
+//   BOWLS text  : x = 162 .. ~315 (natural italic spacing — unchanged)
+//   ball mark   : 58×58 image at (122, 0); clipped disc cx=151 cy=29 r=25
 //
-// Ball is the rich speckled raster from /public/icons/icon-512.png.
-// That asset bakes in a dark rounded-square app-icon frame (richSvg
-// default `bg = INK` in scripts/gen-pwa-icons.mjs); the clipPath
-// circle below hides the frame and shows only the disc.
+// Ball disc diameter ≈ 50px ≈ 1.25× the wordmark cap height (≈ 40px at
+// fontSize 56). The disc straddles the gap, overlapping HANDI's "I"
+// (~127..140) and BOWLS' "B" (~162..175). z-order: ball is the last
+// child, so it renders on top of both text elements — the overlap
+// reads as "mark sits in front of wordmark", not as clipping.
 //
-// Disc geometry inside the source PNG: cx/cy = 50,50 r = 42 in a
-// 100-unit viewBox, so at 52px render size the disc maps to
-// centre (26,26) r ≈ 21.84 → translated by (x=146, y=2) =
-// centre (172,28), radius 22 (extra .16px masks the antialias edge).
-const VIEWBOX_W = 380;
+// Source raster /public/icons/icon-512.png bakes a dark rounded-square
+// app-icon frame (richSvg `bg = INK` default in scripts/gen-pwa-icons.mjs);
+// the clipPath circle hides the frame and shows only the speckled disc.
+// Disc geometry inside the source PNG: cx/cy = 50,50 r = 42 in a 100-unit
+// viewBox → at 58px render size the disc maps to centre (29,29) r ≈ 24.4.
+// Clip r = 25 leaves a sub-px antialias buffer.
+const VIEWBOX_W = 360;
 const VIEWBOX_H = 64;
 const CLIP_ID = "hb-wordmark-ball-clip";
 
@@ -44,7 +47,7 @@ export function HandiBowlsWordmark({
     >
       <defs>
         <clipPath id={CLIP_ID}>
-          <circle cx="172" cy="28" r="22" />
+          <circle cx="151" cy="29" r="25" />
         </clipPath>
       </defs>
       <text
@@ -59,17 +62,8 @@ export function HandiBowlsWordmark({
       >
         HANDI
       </text>
-      <image
-        href="/icons/icon-512.png"
-        x="146"
-        y="2"
-        width="52"
-        height="52"
-        clipPath={`url(#${CLIP_ID})`}
-        preserveAspectRatio="xMidYMid meet"
-      />
       <text
-        x="210"
+        x="162"
         y="48"
         fontFamily="var(--font-display)"
         fontWeight={900}
@@ -80,6 +74,15 @@ export function HandiBowlsWordmark({
       >
         BOWLS
       </text>
+      <image
+        href="/icons/icon-512.png"
+        x="122"
+        y="0"
+        width="58"
+        height="58"
+        clipPath={`url(#${CLIP_ID})`}
+        preserveAspectRatio="xMidYMid meet"
+      />
     </svg>
   );
 }
