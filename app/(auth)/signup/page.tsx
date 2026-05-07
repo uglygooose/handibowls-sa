@@ -11,7 +11,7 @@ export const metadata = {
 export default function SignupPage() {
   return (
     <div
-      data-theme="atomic-red"
+      data-theme="ocean-green"
       className="grid min-h-dvh bg-surface md:grid-cols-[1fr_1.1fr]"
     >
       <div className="mx-auto flex w-full max-w-[640px] flex-col px-5 py-8 md:px-12 md:py-8">

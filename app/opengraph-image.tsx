@@ -5,21 +5,22 @@ import { ImageResponse } from "next/og";
 
 // Conventional OG image at 1200×630 — Next.js auto-attaches this to
 // `metadata.openGraph.images` for every route that doesn't override.
-// Bone background + 24px atomic-red accent strip top + bowl mark left
-// + wordmark + tagline.
+// Bone background + 24px Henselite-green accent strip top + bowl mark
+// left + wordmark + tagline. Phase 13 / 13-9: switched from atomic-red
+// to the Henselite partnership default.
 
 export const alt =
   "HandiBowls — Tournaments, scores, and skills in your pocket";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const ATOMIC_RED = "#D7261E";
+const HENSELITE_GREEN = "#08BB00";
 const INK = "#0A0A0A";
 const BONE = "#FAFAF7";
 
 export default async function Image() {
-  // Bowl mark — the Claude Design icon-only SVG (atomic-red speckled bowl
-  // with radial-shine gradient). We read the file at build time and embed
+  // Bowl mark — the Claude Design icon-only SVG (Henselite-green speckled
+  // bowl with radial-shine gradient). We read the file at build time and embed
   // it as a data:image/svg+xml URI on an <img>. Satori (the engine behind
   // ImageResponse) renders SVG natively, so vector paths + gradients
   // arrive crisp at any output size.
@@ -44,12 +45,12 @@ export default async function Image() {
           background: BONE,
         }}
       >
-        {/* Atomic-red top accent strip */}
+        {/* Henselite-green top accent strip */}
         <div
           style={{
             width: "100%",
             height: 24,
-            background: ATOMIC_RED,
+            background: HENSELITE_GREEN,
           }}
         />
 
@@ -80,7 +81,7 @@ export default async function Image() {
               maxWidth: 620,
             }}
           >
-            {/* HandiBowls wordmark — HANDI in ink, BOWLS in atomic-red. */}
+            {/* HandiBowls wordmark — HANDI in ink, BOWLS in Henselite green. */}
             <div
               style={{
                 display: "flex",
@@ -93,7 +94,7 @@ export default async function Image() {
               }}
             >
               <span style={{ color: INK }}>Handi</span>
-              <span style={{ color: ATOMIC_RED }}>Bowls</span>
+              <span style={{ color: HENSELITE_GREEN }}>Bowls</span>
             </div>
 
             {/* Tagline */}

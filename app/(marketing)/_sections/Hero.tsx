@@ -111,7 +111,7 @@ export function Hero() {
           <span className="inline-flex items-center gap-2.5 rounded-full border border-border bg-bone px-3.5 py-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
             <span
               className="h-2 w-2 rounded-full bg-primary-500"
-              style={{ boxShadow: "0 0 0 3px rgba(215,38,30,0.18)" }}
+              style={{ boxShadow: "0 0 0 3px rgba(8,187,0,0.18)" }}
             />
             South African bowls — built for clubs
           </span>
@@ -175,7 +175,7 @@ export function Hero() {
             className="hb-roll absolute top-[-10px] right-[-30px] md:top-[-20px] md:right-[-80px]"
             style={{ filter: "drop-shadow(0 30px 50px rgba(10,10,10,0.18))" }}
           >
-            <Bowl preset="atomic-red" size={620} seed="hero-main" idSuffix="hero-main" />
+            <Bowl preset="ocean-green" size={620} seed="hero-main" idSuffix="hero-main" />
           </div>
 
           <div

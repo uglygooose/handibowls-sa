@@ -48,7 +48,7 @@ export default async function MePage() {
   );
   const initials = initialsOf(fullName);
   const primary = memberships.find((m) => m.is_primary) ?? memberships[0] ?? null;
-  const primaryThemePreset = primary?.club_theme_preset ?? "atomic-red";
+  const primaryThemePreset = primary?.club_theme_preset ?? "ocean-green";
   const grading = primary?.club_grading ?? null;
   const unreadCount = inbox.filter((n) => !n.read).length;
 

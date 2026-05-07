@@ -13,13 +13,13 @@ export const metadata = {
     "HandiBowls is the bowls-first operating system for South African clubs. Tournaments, live scoring, and Twenty 20 skills — in one place.",
 };
 
-// Landing is pinned to the Atomic Red preset so the hero reads consistently
-// regardless of the viewer's resolved theme. Scoped via the descendant
-// [data-theme] selector extended into globals.css — overrides the
-// html[data-theme] set by the server-resolved root theme.
+// Landing is pinned to the Ocean Green preset (Henselite partnership default)
+// so the hero reads consistently regardless of the viewer's resolved theme.
+// Scoped via the descendant [data-theme] selector extended into globals.css
+// — overrides the html[data-theme] set by the server-resolved root theme.
 export default function RootPage() {
   return (
-    <div data-theme="atomic-red" className="min-h-dvh bg-surface text-ink">
+    <div data-theme="ocean-green" className="min-h-dvh bg-surface text-ink">
       <LandingTopBar />
       <main id="main-content">
         <Hero />

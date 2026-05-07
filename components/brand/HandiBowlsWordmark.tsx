@@ -16,7 +16,8 @@ type Props = {
 // (HANDI text + bowl + BOWLS text, baked into a single SVG so positioning
 // is fixed and consistent at every render size). The two variants flip
 // only the HANDI ink colour (dark vs light); BOWLS and the bowl stay
-// hard-coded atomic-red per design spec.
+// hard-coded Henselite green (#08BB00, Phase 13/13-9 partnership default)
+// per design spec.
 //
 // We embed via dangerouslySetInnerHTML rather than next/image because the
 // SVG uses <text font-family="Barlow Condensed">, which only resolves

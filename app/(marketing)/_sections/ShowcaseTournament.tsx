@@ -108,7 +108,7 @@ export function ShowcaseTournament() {
     >
       <div className="relative">
         <div className="pointer-events-none absolute -right-10 -top-10 -z-10 opacity-85">
-          <SplatterAccent preset="atomic-red" variant={1} size={320} rotate={-8} />
+          <SplatterAccent preset="ocean-green" variant={1} size={320} rotate={-8} />
         </div>
         <Bracket />
       </div>

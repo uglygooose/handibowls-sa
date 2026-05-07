@@ -14,7 +14,13 @@ const NAV_LINKS = [
 export function LandingTopBar() {
   return (
     <header className="sticky top-0 z-20 flex items-center gap-8 border-b border-border bg-surface/95 px-5 py-4 backdrop-blur-sm md:gap-8 md:px-12 md:py-[18px]">
-      <BrandLockup variant="mono" size="lg" />
+      {/* Phase 13 / 13-9: landing top nav uses the full-colour Henselite
+          variant (henselite-logo.png — green wordmark + "Choice of
+          Champions" tagline) so the partnership reads as branded chrome
+          on the bone landing surface. Other shells (auth, admin, super-
+          admin, player TopBar) stay on mono per the surface-aware
+          rollout staged for Phase 14. */}
+      <BrandLockup variant="colour" size="lg" />
       <nav
         aria-label="Primary"
         className="ml-8 hidden gap-7 text-sm font-medium text-ink-muted md:flex"

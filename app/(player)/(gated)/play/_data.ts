@@ -137,7 +137,7 @@ export async function getNextMatchForCurrentPlayer(): Promise<PlayerNextMatch | 
       handicap_rule: tournament?.handicap_rule ?? "scratch",
       shots_up_target: tournament?.shots_up_target ?? null,
       ends_per_match: tournament?.ends_per_match ?? null,
-      host_club_theme: tournament?.clubs?.theme_preset ?? "atomic-red",
+      host_club_theme: tournament?.clubs?.theme_preset ?? "ocean-green",
     },
   };
 }

@@ -25,7 +25,7 @@ const FEATURES: Feature[] = [
     cta: "Run a tournament",
   },
   {
-    preset: "atomic-red",
+    preset: "ocean-green",
     icon: ClipboardList,
     kicker: "02 · Track",
     title: "Scoring",

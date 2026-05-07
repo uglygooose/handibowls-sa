@@ -93,7 +93,7 @@ export function TournamentCard({ tournament: t, variant }: Props) {
             named `intensity="subtle"` tier. Closes one of the three
             12.5-2-deferred numeric consumers. */}
         <SpeckleField
-          preset="atomic-red"
+          preset="ocean-green"
           intensity="subtle"
           seedKey={`tournament-card-${t.id}`}
         />

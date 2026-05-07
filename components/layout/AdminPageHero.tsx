@@ -152,7 +152,7 @@ function resolveSplatterSize(size: SplatterSize | number | undefined): number {
 function renderSplatter(spec: SplatterSpec, idx: number): ReactNode {
   if (spec === false) return null;
   const {
-    preset = "atomic-red",
+    preset = "ocean-green",
     variant = 1,
     size,
     rotate = -12,

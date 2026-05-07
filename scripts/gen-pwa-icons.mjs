@@ -14,7 +14,8 @@
 //   public/icons/maskable-{192,512}.png   (rich + bleed safe zone)
 //   app/apple-icon.png                    (rich at 180px, full-bleed)
 //
-// Theme-color #D7261E (Atomic Red) per the design install snippet.
+// Theme-color #08BB00 (Henselite green) per the Phase 13 / 13-9
+// partnership rebrand. Earlier revisions used atomic-red.
 //
 // Run via `npm run gen:icons`.
 
@@ -29,9 +30,15 @@ const PUBLIC = resolve(REPO, "public");
 const PUBLIC_ICONS = resolve(PUBLIC, "icons");
 const APP = resolve(REPO, "app");
 
-const ATOMIC_RED = "#D7261E";
+const HENSELITE_GREEN = "#08BB00";
 const INK = "#0A0A0A";
-const ON_PRIMARY = "#FFFFFF";
+// Emblem rings + centre dot must be ink — white at full strength is 2.6:1
+// vs Henselite green (fails WCAG 1.4.11 non-text 3:1). Ink at the same
+// stroke-opacities reads as a translucent engraving on the green disc.
+const EMBLEM_INK = "#0A0A0A";
+// Shine/highlight stays white — purely decorative gloss; not subject to
+// contrast rules and visually wrong as ink.
+const SHINE = "#FFFFFF";
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -55,11 +62,11 @@ function hashSeed(s) {
 function simpleSvg({ size = 100, includeXmlns = true } = {}) {
   const xmlns = includeXmlns ? ' xmlns="http://www.w3.org/2000/svg"' : "";
   return `<svg${xmlns} width="${size}" height="${size}" viewBox="0 0 100 100">
-  <circle cx="50" cy="50" r="42" fill="${ATOMIC_RED}"/>
-  <circle cx="50" cy="50" r="26" fill="none" stroke="${ON_PRIMARY}" stroke-opacity="0.595" stroke-width="2.2"/>
-  <circle cx="50" cy="50" r="14" fill="none" stroke="${ON_PRIMARY}" stroke-opacity="0.4675" stroke-width="1.8"/>
-  <circle cx="50" cy="50" r="4.5" fill="${ON_PRIMARY}" fill-opacity="0.85"/>
-  <ellipse cx="36" cy="32" rx="14" ry="9" fill="${ON_PRIMARY}" fill-opacity="0.18"/>
+  <circle cx="50" cy="50" r="42" fill="${HENSELITE_GREEN}"/>
+  <circle cx="50" cy="50" r="26" fill="none" stroke="${EMBLEM_INK}" stroke-opacity="0.595" stroke-width="2.2"/>
+  <circle cx="50" cy="50" r="14" fill="none" stroke="${EMBLEM_INK}" stroke-opacity="0.4675" stroke-width="1.8"/>
+  <circle cx="50" cy="50" r="4.5" fill="${EMBLEM_INK}" fill-opacity="0.85"/>
+  <ellipse cx="36" cy="32" rx="14" ry="9" fill="${SHINE}" fill-opacity="0.18"/>
 </svg>`;
 }
 
@@ -84,7 +91,7 @@ function richSvg({ size = 100, bleed = false, bg = INK } = {}) {
       o: 0.45 + rand() * 0.45,
     });
   }
-  const speckle = dots.map((d) => `<circle cx="${d.x.toFixed(2)}" cy="${d.y.toFixed(2)}" r="${d.s.toFixed(2)}" fill="${d.useA ? INK : ON_PRIMARY}" opacity="${d.o.toFixed(2)}"/>`).join("");
+  const speckle = dots.map((d) => `<circle cx="${d.x.toFixed(2)}" cy="${d.y.toFixed(2)}" r="${d.s.toFixed(2)}" fill="${d.useA ? INK : SHINE}" opacity="${d.o.toFixed(2)}"/>`).join("");
   const bgRect = bg ? `<rect x="0" y="0" width="100" height="100" rx="22" fill="${bg}"/>` : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100">
   <defs>
@@ -97,13 +104,13 @@ function richSvg({ size = 100, bleed = false, bg = INK } = {}) {
     </radialGradient>
   </defs>
   ${bgRect}
-  <circle cx="50" cy="50" r="${discR}" fill="${ATOMIC_RED}"/>
+  <circle cx="50" cy="50" r="${discR}" fill="${HENSELITE_GREEN}"/>
   <g clip-path="url(#hb-fav-clip)">${speckle}</g>
   <circle cx="50" cy="50" r="${discR}" fill="url(#hb-fav-shine)"/>
-  <circle cx="50" cy="50" r="${ring1R.toFixed(2)}" fill="none" stroke="${ON_PRIMARY}" stroke-opacity="0.595" stroke-width="2.2"/>
-  <circle cx="50" cy="50" r="${ring2R.toFixed(2)}" fill="none" stroke="${ON_PRIMARY}" stroke-opacity="0.4675" stroke-width="1.8"/>
-  <circle cx="50" cy="50" r="4.5" fill="${ON_PRIMARY}" fill-opacity="0.85"/>
-  <ellipse cx="36" cy="32" rx="14" ry="9" fill="${ON_PRIMARY}" fill-opacity="0.18"/>
+  <circle cx="50" cy="50" r="${ring1R.toFixed(2)}" fill="none" stroke="${EMBLEM_INK}" stroke-opacity="0.595" stroke-width="2.2"/>
+  <circle cx="50" cy="50" r="${ring2R.toFixed(2)}" fill="none" stroke="${EMBLEM_INK}" stroke-opacity="0.4675" stroke-width="1.8"/>
+  <circle cx="50" cy="50" r="4.5" fill="${EMBLEM_INK}" fill-opacity="0.85"/>
+  <ellipse cx="36" cy="32" rx="14" ry="9" fill="${SHINE}" fill-opacity="0.18"/>
 </svg>`;
 }
 

@@ -42,10 +42,15 @@
   --color-success-700: var(--success-700);
   --color-warning-700: var(--warning-700);
 
-  /* Theme-driven primary scale */
+  /* Theme-driven primary scale.
+     primary-700 is an optional AA-compliant darker variant for any preset
+     whose primary-500 fails WCAG AA against bone (currently ocean-green
+     after the Henselite partnership update). Falls back to primary-600
+     in :root so `text-primary-700` is never a broken utility. */
   --color-primary-100: var(--primary-100);
   --color-primary-500: var(--primary-500);
   --color-primary-600: var(--primary-600);
+  --color-primary-700: var(--primary-700);
   --color-on-primary: var(--on-primary);
 
   /* Brand-accent foreground colour for use on light (bone / surface) backgrounds.
@@ -168,6 +173,9 @@ html[data-theme="core-black"] {
   --primary-100: #e6e6e6;
   --primary-500: #0a0a0a;
   --primary-600: #000000;
+  /* primary-700 default: most presets pass AA at 500 already, so fall
+     back to 600. Ocean-green overrides this with #057A09 (Phase 13/13-9). */
+  --primary-700: var(--primary-600);
   --on-primary: #ffffff;
   --speckle-a: #d7261e;
   --speckle-b: #fafaf7;
@@ -279,12 +287,22 @@ html[data-theme="ruby"],
 
 html[data-theme="ocean-green"],
 [data-theme="ocean-green"] {
-  --primary-100: #cde7e6;
-  --primary-500: #0e7c7b;
-  --primary-600: #0a5a59;
-  --on-primary: #ffffff;
+  /* Phase 13 / 13-9 — Henselite partnership default. Primary-500 is the
+     sampled Henselite full-colour green (#08BB00); on-primary flips to ink
+     because #08BB00 vs #FFFFFF is 2.60:1 (fails WCAG AA). Mirrors sunburst
+     and white-speckle, which use the same dark-on-bright pattern.
+     --primary-700 (#057A09) is the AA-compliant darker variant for any
+     text-on-bone usage; --accent-ink picks it up so existing
+     `text-accent-ink` consumers automatically render in passing-contrast
+     dark green on light surfaces. */
+  --primary-100: #d4f5d2;
+  --primary-500: #08bb00;
+  --primary-600: #06880a;
+  --primary-700: #057a09;
+  --on-primary: #0a0a0a;
   --speckle-a: #3fb8af;
   --speckle-b: #0a0a0a;
+  --accent-ink: var(--primary-700);
 }
 
 html[data-theme="grape"],

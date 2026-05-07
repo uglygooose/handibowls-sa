@@ -128,7 +128,7 @@ const DEMO_CLUB_ASSIGNMENT = {
   club: {
     name: "Demo Bowls Club",
     short_name: "Demo",
-    theme_preset: "atomic-red",
+    theme_preset: "ocean-green",
   },
 };
 
@@ -166,7 +166,7 @@ describe("getCurrentHostClub", () => {
       club_id: "club-demo",
       club_name: "Demo Bowls Club",
       club_short_name: "Demo",
-      club_theme_preset: "atomic-red",
+      club_theme_preset: "ocean-green",
       source: "admin_assignment",
     });
   });

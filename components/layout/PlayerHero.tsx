@@ -129,7 +129,7 @@ function resolveTitleSize(size: Props["titleSize"]): number {
 function renderSplatter(spec: SplatterSpec): ReactNode {
   if (spec === false || spec === undefined) return null;
   const {
-    preset = "atomic-red",
+    preset = "ocean-green",
     variant = 1,
     size,
     rotate = 0,
@@ -178,7 +178,7 @@ export function PlayerHero({
     speckle === false
       ? false
       : {
-          preset: speckle?.preset ?? "atomic-red",
+          preset: speckle?.preset ?? "ocean-green",
           seedKey: speckle?.seedKey ?? `player-hero-${typeof title === "string" ? title : "untitled"}`,
           intensity: speckle?.intensity ?? "bold",
           borderRadius: speckle?.borderRadius ?? 20,
@@ -202,7 +202,7 @@ export function PlayerHero({
           className="pointer-events-none absolute inset-0 z-0"
         >
           <SpeckleField
-            preset={speckleSpec.preset ?? "atomic-red"}
+            preset={speckleSpec.preset ?? "ocean-green"}
             seedKey={speckleSpec.seedKey}
             intensity={speckleSpec.intensity ?? "bold"}
             borderRadius={speckleSpec.borderRadius ?? 20}

@@ -31,7 +31,7 @@ export type BracketRound = {
 type Props = {
   rounds: BracketRound[];
   /** Theme preset that drives the splatter accent (matches the page-level
-   *  ThemeApplier output). Omit for the platform default ("atomic-red"). */
+   *  ThemeApplier output). Omit for the platform default ("ocean-green"). */
   decorPreset?: ThemePreset;
   onMatchClick?: (match: MatchCardData) => void;
   /** Initial zoom (0.7–1.5). Defaults to 1.0. */
@@ -98,7 +98,7 @@ export function BracketCanvas({
           className="pointer-events-none absolute -right-8 -top-8 z-0 opacity-60"
         >
           <SplatterAccent
-            preset={decorPreset ?? "atomic-red"}
+            preset={decorPreset ?? "ocean-green"}
             variant={1}
             size={260}
             rotate={15}

@@ -177,9 +177,16 @@ export function ShowcaseT20() {
         <div className="pointer-events-none absolute -bottom-8 -left-10 -z-10 opacity-80">
           <SplatterAccent preset="sunburst" variant={2} size={280} rotate={14} />
         </div>
+        {/* Phase 13 / 13-9: card offset shadow flips from sunburst yellow
+            (#F5B700) to ink so the Twenty 20 compass card matches the
+            black-shadow treatment used by the Brackenfell scoring card +
+            FeatureGrid hover. Same 12px 14px 0 offset, same alpha (full),
+            same blur (none) — only the hue changes. The in-card C-grade
+            hex SHOWCASE_GRADE_C_HEX stays sunburst yellow per the
+            existing T20 grade-colour brand decision. */}
         <div
           className="mx-auto max-w-[440px] rounded-[20px] border-2 border-ink bg-bone p-6"
-          style={{ boxShadow: "12px 14px 0 #F5B700" }}
+          style={{ boxShadow: "12px 14px 0 var(--color-ink)" }}
         >
           <header className="mb-4 flex items-start justify-between">
             <div>
