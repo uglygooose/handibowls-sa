@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 import { HandiBowlsWordmark } from "@/components/brand/HandiBowlsWordmark";
+import { HenseliteMark } from "@/components/branding/henselite-mark";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 
 type Props = {
@@ -38,7 +39,17 @@ export function TopBar({
             {title}
           </h1>
         ) : (
-          <HandiBowlsWordmark variant={isDark ? "dark" : "light"} height={24} />
+          <span className="inline-flex items-center gap-2.5">
+            <HenseliteMark
+              size={24}
+              variant="mono"
+              className={cn(isDark && "invert")}
+            />
+            <HandiBowlsWordmark
+              variant={isDark ? "dark" : "light"}
+              height={20}
+            />
+          </span>
         )}
       </div>
       <div className="ml-auto flex items-center gap-2">

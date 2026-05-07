@@ -116,7 +116,11 @@ export function Hero() {
             South African bowls — built for clubs
           </span>
 
-          <h1 className="mt-7 mb-6 font-display text-[clamp(52px,8vw,112px)] leading-[0.88] font-black italic tracking-[-0.03em] uppercase text-balance">
+          <p className="mt-5 max-w-[560px] text-[15px] font-medium text-ink-muted">
+            The official club management platform of Henselite South Africa.
+          </p>
+
+          <h1 className="mt-5 mb-6 font-display text-[clamp(52px,8vw,112px)] leading-[0.88] font-black italic tracking-[-0.03em] uppercase text-balance">
             Tournaments, scores, and skills in your{" "}
             <span className="relative inline-block text-primary-500">
               <span
