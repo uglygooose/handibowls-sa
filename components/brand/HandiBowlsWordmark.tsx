@@ -1,59 +1,51 @@
 import { cn } from "@/lib/utils";
 
+import {
+  HANDIBOWLS_LOCKUP_DARK_INNER,
+  HANDIBOWLS_LOCKUP_LIGHT_INNER,
+  HANDIBOWLS_LOCKUP_VIEWBOX,
+} from "./handibowls-svgs";
+
 type Props = {
   variant?: "light" | "dark";
   className?: string;
   height?: number;
 };
 
+// Renders the unified HandiBowls lockup designed by Claude Design
+// (HANDI text + bowl + BOWLS text, baked into a single SVG so positioning
+// is fixed and consistent at every render size). The two variants flip
+// only the HANDI ink colour (dark vs light); BOWLS and the bowl stay
+// hard-coded atomic-red per design spec.
+//
+// We embed via dangerouslySetInnerHTML rather than next/image because the
+// SVG uses <text font-family="Barlow Condensed">, which only resolves
+// when the SVG lives in the host document. <img src=".svg"> would
+// sandbox font resolution and the wordmark would fall back to a generic
+// sans-serif.
+const VIEWBOX_W = 800;
+const VIEWBOX_H = 170;
+
 export function HandiBowlsWordmark({
   variant = "light",
   className,
   height = 40,
 }: Props) {
-  const fill = variant === "light" ? "var(--color-ink)" : "var(--color-ink-inverse)";
-  const accent = "var(--color-primary-500)";
-  // Explicit width = height * viewBox aspect. Without this, some layout
-  // contexts (flex ancestors, truncating parents) render the SVG at its
-  // intrinsic viewBox width (360), causing the wordmark to be clipped.
-  const width = Math.round((height * 360) / 64);
+  const width = Math.round((height * VIEWBOX_W) / VIEWBOX_H);
+  const inner =
+    variant === "light"
+      ? HANDIBOWLS_LOCKUP_LIGHT_INNER
+      : HANDIBOWLS_LOCKUP_DARK_INNER;
 
   return (
     <svg
       aria-label="HandiBowls"
       role="img"
-      viewBox="0 0 360 64"
+      viewBox={HANDIBOWLS_LOCKUP_VIEWBOX}
       width={width}
       height={height}
       className={cn("block shrink-0 select-none", className)}
-    >
-      <text
-        x="0"
-        y="48"
-        fontFamily="var(--font-display)"
-        fontWeight={900}
-        fontStyle="italic"
-        fontSize="56"
-        fill={fill}
-        letterSpacing="-0.02em"
-      >
-        HANDI
-      </text>
-      <text
-        x="162"
-        y="48"
-        fontFamily="var(--font-display)"
-        fontWeight={900}
-        fontStyle="italic"
-        fontSize="56"
-        fill={accent}
-        letterSpacing="-0.02em"
-      >
-        BOWLS
-      </text>
-      <circle cx="340" cy="14" r="6" fill={accent} />
-      <circle cx="348" cy="10" r="2" fill={fill} />
-      <circle cx="336" cy="18" r="1.5" fill="var(--color-speckle-a)" />
-    </svg>
+      dangerouslySetInnerHTML={{ __html: inner }}
+    />
   );
 }

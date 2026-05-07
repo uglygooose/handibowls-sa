@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BowlChip } from "@/components/brand/BowlChip";
 import { HandiBowlsWordmark } from "@/components/brand/HandiBowlsWordmark";
 import type { ThemePreset } from "@/components/brand/ThemeApplier";
+import { FooterAttribution } from "@/components/branding/footer-attribution";
 
 const FOOTER_CHIPS: ThemePreset[] = [
   "atomic-red",
@@ -89,12 +90,9 @@ export function Footer() {
         <Col title="Company" items={COMPANY} />
       </div>
 
-      <div className="mx-auto mt-12 flex max-w-[1440px] flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-white/50 md:flex-row">
-        <div className="flex items-center gap-2.5 font-mono tracking-[0.04em]">
-          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 font-display text-[12px] font-extrabold text-white">
-            H
-          </span>
-          HandiBowls · 2026 · Cape Town
+      <div className="mx-auto mt-12 flex max-w-[1440px] flex-col items-center gap-4 border-t border-white/10 pt-6 text-xs text-white/50 md:flex-row md:justify-between">
+        <div className="font-mono tracking-[0.04em]">
+          HandiBowls · 2026 · Johannesburg
         </div>
         <div className="font-mono text-[11px] tracking-[0.1em]">
           EN
@@ -103,6 +101,7 @@ export function Footer() {
           <span className="mx-1.5 text-white/25">·</span>
           ZUL
         </div>
+        <FooterAttribution onDark />
       </div>
     </footer>
   );

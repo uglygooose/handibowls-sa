@@ -18,10 +18,10 @@ import {
 } from "lucide-react";
 
 import { Bowl } from "@/components/brand/Bowl";
-import { HandiBowlsMark } from "@/components/brand/HandiBowlsMark";
 import { HandiBowlsWordmark } from "@/components/brand/HandiBowlsWordmark";
 import { SpeckleLayer } from "@/components/brand/SpeckleLayer";
 import { SplatterAccent } from "@/components/brand/SplatterAccent";
+import { HenseliteMark } from "@/components/branding/henselite-mark";
 import type { ThemePreset } from "@/components/brand/ThemeApplier";
 import { cn } from "@/lib/utils";
 
@@ -138,13 +138,14 @@ export function AdminSidebar({
       </div>
 
       <div className="relative z-10 flex h-full flex-col">
-        {/* Head — wordmark + collapse toggle. */}
+        {/* Head — Henselite × HandiBowls lockup + collapse toggle.
+            Phase 13 / Henselite branding: mono lockup with CSS invert
+            so the black raster reads white on the dark sidebar. */}
         <div className="flex h-16 shrink-0 items-center gap-2 border-b border-[#1a1a1a] px-3">
-          <div className="flex min-w-0 flex-1 items-center">
-            {collapsed ? (
-              <HandiBowlsMark size={32} />
-            ) : (
-              <HandiBowlsWordmark variant="dark" height={26} />
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <HenseliteMark size={28} variant="mono" className="invert" />
+            {!collapsed && (
+              <HandiBowlsWordmark variant="dark" height={22} />
             )}
           </div>
           <button

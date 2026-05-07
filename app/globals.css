@@ -66,6 +66,10 @@
   --color-danger-500: var(--danger-500);
   --color-info-500: var(--info-500);
 
+  /* Brand partnerships — theme-invariant. Sampled directly from the
+     official Henselite colour PNG; do not adjust per preset. */
+  --color-henselite-green: var(--henselite-green);
+
   /* shadcn semantic tokens — mapped to HandiBowls tokens */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -155,6 +159,10 @@ html[data-theme="core-black"] {
   --warning-700: #b45309;
   --danger-500: #dc2626;
   --info-500: #2563eb;
+
+  /* Brand-partnership colours (theme-invariant). Sampled from the
+     official Henselite full-colour PNG. */
+  --henselite-green: #08bb00;
 
   /* Core Black preset — platform default */
   --primary-100: #e6e6e6;
