@@ -12,23 +12,26 @@ import { cn } from "@/lib/utils";
 // Phase 15 (final scope) — speckled bowl glyph. The bowl IS the brand
 // mark. Per-club theme drives the bowl base + speckle palette; the
 // rendering is the same dimensional speckled bowl across every render
-// size. Operator decision (post PR #4 review): the Henselite mark
-// overlay considered for big-size bowls reads as pasted-on against the
-// existing speckle visual treatment — drop the overlay entirely.
+// size, with the engraved jack-target emblem (rings + cross + centre
+// dot) restored on big bowls per operator preference.
 //
 // Each bowl renders:
 //   • bowl base circle in active theme colour (or pinned via themeId)
 //   • speckle field clipped to the bowl, theme-driven palette
+//   • engraved jack-target emblem at sizes ≥ 64 px (rings r=14 + r=9
+//     + 4 cross lines + centre dot, in the preset's `on` colour —
+//     reads as black on ocean-green/sunburst/white-speckle, white on
+//     the rest)
 //   • radial-gradient shine on top at sizes ≥ 32 px (omitted at small
 //     icon sizes where the gradient becomes single-pixel noise)
 //   • outer rim stroke for depth
 //
-// No mark image, no engraved ring, no bone disc. Use the
-// `<HenseliteLogo />` component for explicit Henselite branding on
-// surface chrome (top bars, footer attribution); the Bowl alone IS the
-// HandiBowls mark.
+// Use the `<HenseliteLogo />` component for explicit Henselite
+// branding on surface chrome (top bars, footer attribution); the Bowl
+// alone IS the HandiBowls mark.
 
 const SHINE_MIN_PX = 32;
+const EMBLEM_MIN_PX = 64;
 const VIEWBOX_R = 48;
 
 type Props = {
@@ -55,19 +58,23 @@ export function Bowl({
   const shineId = `bowl-shine-${reactId}`;
 
   let bowlFill: string;
+  let emblemColour: string;
   let dotsSource;
   if (themeId) {
     const swatch = PRESET_BY_ID[themeId];
     bowlFill = swatch.base;
+    emblemColour = swatch.on;
     const [a, b] = swatch.speckle;
     dotsSource = withPresetColours(SPECKLE_DATASET_KNOCKOUT, a, b);
   } else {
     bowlFill = "var(--color-primary-500)";
+    emblemColour = "var(--color-on-primary)";
     dotsSource = SPECKLE_DATASET_KNOCKOUT;
   }
 
   const visibleDots = cullDotsForSize(dotsSource, size);
   const showShine = size >= SHINE_MIN_PX;
+  const showEmblem = size >= EMBLEM_MIN_PX;
 
   return (
     <svg
@@ -120,6 +127,50 @@ export function Bowl({
               />
             ),
           )}
+        </g>
+      )}
+
+      {/* Engraved jack-target emblem — only on big decorative bowls
+          (size ≥ 64 px). Outer ring r=14 + inner ring r=9 + centre
+          dot r=2.5 + 4 cross lines connecting the two rings. Rendered
+          in the preset's `on` colour so it contrasts the bowl base
+          (ink on ocean-green/sunburst/white-speckle, white on the
+          rest). Group opacity 0.85 + per-element opacities give the
+          target an "engraved into the bowl surface" look. */}
+      {showEmblem && (
+        <g clipPath={`url(#${clipId})`} opacity="0.85">
+          <circle
+            cx="50"
+            cy="50"
+            r="14"
+            fill="none"
+            stroke={emblemColour}
+            strokeOpacity="0.55"
+            strokeWidth="0.6"
+          />
+          <circle
+            cx="50"
+            cy="50"
+            r="9"
+            fill="none"
+            stroke={emblemColour}
+            strokeOpacity="0.35"
+            strokeWidth="0.5"
+          />
+          <circle cx="50" cy="50" r="2.5" fill={emblemColour} fillOpacity="0.75" />
+          {[0, 90, 180, 270].map((a) => (
+            <line
+              key={a}
+              x1="50"
+              y1={50 - 14}
+              x2="50"
+              y2={50 - 9}
+              stroke={emblemColour}
+              strokeOpacity="0.5"
+              strokeWidth="0.7"
+              transform={`rotate(${a} 50 50)`}
+            />
+          ))}
         </g>
       )}
 

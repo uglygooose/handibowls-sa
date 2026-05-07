@@ -22,12 +22,68 @@ describe("Bowl — never renders the Henselite mark", () => {
     expect(stale).toBeNull();
   });
 
-  it("does NOT render an engraved bone ring", () => {
+  it("does NOT render any of the dropped Halo/Knockout-era rings (r=22, r=29)", () => {
     const { container } = render(<Bowl size={120} />);
-    const ring22 = container.querySelector('circle[r="22"]');
-    expect(ring22).toBeNull();
-    const ring29 = container.querySelector('circle[r="29"]');
-    expect(ring29).toBeNull();
+    expect(container.querySelector('circle[r="22"]')).toBeNull();
+    expect(container.querySelector('circle[r="29"]')).toBeNull();
+  });
+});
+
+describe("Bowl — engraved jack-target emblem", () => {
+  // Restored per operator: the pre-Phase-15 emblem (outer ring r=14,
+  // inner ring r=9, centre dot r=2.5, 4 cross lines) renders on big
+  // decorative bowls. Reads black on ocean-green / sunburst /
+  // white-speckle (preset.on = ink), white on the rest.
+
+  it("renders the outer + inner rings + centre dot at size >= 64", () => {
+    const { container } = render(<Bowl size={120} />);
+    expect(container.querySelector('circle[r="14"]')).not.toBeNull();
+    expect(container.querySelector('circle[r="9"]')).not.toBeNull();
+    const dot = container.querySelector('circle[r="2.5"]');
+    expect(dot).not.toBeNull();
+    expect(dot?.getAttribute("fill-opacity")).toBe("0.75");
+  });
+
+  it("renders the 4 cross lines connecting the rings at size >= 64", () => {
+    const { container } = render(<Bowl size={120} />);
+    const lines = container.querySelectorAll("line");
+    expect(lines.length).toBe(4);
+    // Each line goes from y=50-14 (=36) to y=50-9 (=41), rotated
+    // 0/90/180/270 around (50, 50).
+    const rotations = Array.from(lines)
+      .map((l) => l.getAttribute("transform"))
+      .filter(Boolean);
+    expect(rotations).toEqual([
+      "rotate(0 50 50)",
+      "rotate(90 50 50)",
+      "rotate(180 50 50)",
+      "rotate(270 50 50)",
+    ]);
+  });
+
+  it("does NOT render the emblem below 64 px", () => {
+    const { container } = render(<Bowl size={48} />);
+    expect(container.querySelector('circle[r="14"]')).toBeNull();
+    expect(container.querySelector('circle[r="9"]')).toBeNull();
+    expect(container.querySelector("line")).toBeNull();
+  });
+
+  it("uses ink (#0A0A0A) for emblem on ocean-green", () => {
+    const { container } = render(<Bowl size={120} themeId="ocean-green" />);
+    const outerRing = container.querySelector('circle[r="14"]');
+    expect(outerRing?.getAttribute("stroke")).toBe("#0A0A0A");
+  });
+
+  it("uses white (#FFFFFF) for emblem on atomic-red", () => {
+    const { container } = render(<Bowl size={120} themeId="atomic-red" />);
+    const outerRing = container.querySelector('circle[r="14"]');
+    expect(outerRing?.getAttribute("stroke")).toBe("#FFFFFF");
+  });
+
+  it("uses var(--color-on-primary) for emblem when no themeId (CSS-driven)", () => {
+    const { container } = render(<Bowl size={120} />);
+    const outerRing = container.querySelector('circle[r="14"]');
+    expect(outerRing?.getAttribute("stroke")).toBe("var(--color-on-primary)");
   });
 });
 

@@ -122,14 +122,34 @@ function dotsSvg(dots, sizePx) {
 // Plain speckled bowl glyph. `bleed` shrinks the bowl to a safe
 // zone so platforms cropping into circles/rounded squares don't
 // clip the mark. `bg` paints a rounded-square background; pass
-// null for transparent.
+// null for transparent. Mirrors the runtime `Bowl` component's
+// emblem threshold — engraved jack-target renders at sizes ≥ 64
+// (favicon-16/32/48 stay plain; favicon-64 / PWA / apple all get
+// the emblem).
+//
+// Emblem colour is INK (#0A0A0A) — the icons are pinned to
+// HENSELITE_GREEN whose `on` swatch value is ink (Phase 13/13-9
+// AA-contrast fix). Reads as black-on-green like the Bowl on
+// ocean-green at runtime.
 function bowlSvg({ size, bleed = false, bg = null, includeXmlns = true }) {
   const xmlns = includeXmlns ? ' xmlns="http://www.w3.org/2000/svg"' : "";
   const bowlR = bleed ? 36 : 48;
   const dots = size >= 16 ? dotsSvg(SPECKLE_DATASET, size) : "";
   const useShine = size >= 32;
+  const useEmblem = size >= 64;
   const bgRect = bg
     ? `<rect x="0" y="0" width="100" height="100" rx="22" fill="${bg}"/>`
+    : "";
+  const emblem = useEmblem
+    ? `<g clip-path="url(#bowl-clip)" opacity="0.85">
+        <circle cx="50" cy="50" r="14" fill="none" stroke="${INK}" stroke-opacity="0.55" stroke-width="0.6"/>
+        <circle cx="50" cy="50" r="9" fill="none" stroke="${INK}" stroke-opacity="0.35" stroke-width="0.5"/>
+        <circle cx="50" cy="50" r="2.5" fill="${INK}" fill-opacity="0.75"/>
+        <line x1="50" y1="36" x2="50" y2="41" stroke="${INK}" stroke-opacity="0.5" stroke-width="0.7" transform="rotate(0 50 50)"/>
+        <line x1="50" y1="36" x2="50" y2="41" stroke="${INK}" stroke-opacity="0.5" stroke-width="0.7" transform="rotate(90 50 50)"/>
+        <line x1="50" y1="36" x2="50" y2="41" stroke="${INK}" stroke-opacity="0.5" stroke-width="0.7" transform="rotate(180 50 50)"/>
+        <line x1="50" y1="36" x2="50" y2="41" stroke="${INK}" stroke-opacity="0.5" stroke-width="0.7" transform="rotate(270 50 50)"/>
+      </g>`
     : "";
   return `<svg${xmlns} width="${size}" height="${size}" viewBox="0 0 100 100">
   <defs>
@@ -144,6 +164,7 @@ function bowlSvg({ size, bleed = false, bg = null, includeXmlns = true }) {
   ${bgRect}
   <circle cx="50" cy="50" r="${bowlR}" fill="${HENSELITE_GREEN}"/>
   <g clip-path="url(#bowl-clip)">${dots}</g>
+  ${emblem}
   ${useShine ? `<circle cx="50" cy="50" r="${bowlR}" fill="url(#bowl-shine)"/>` : ""}
   <circle cx="50" cy="50" r="${bowlR}" fill="none" stroke="rgba(0,0,0,0.35)" stroke-width="0.6"/>
 </svg>`;
