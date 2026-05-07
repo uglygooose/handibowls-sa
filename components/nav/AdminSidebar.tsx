@@ -149,7 +149,7 @@ export function AdminSidebar({
             expanded (w-64). */}
         <div className="flex h-16 shrink-0 items-center gap-2 border-b border-[#1a1a1a] px-3">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <HenseliteLogoMark size={28} variant="mono" className="invert" />
+            <HenseliteLogoMark size={28} className="invert" />
             {!collapsed && (
               <HandiBowlsWordmark variant="dark" height={22} />
             )}

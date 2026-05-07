@@ -8,10 +8,9 @@ type Props = {
 };
 
 // Footer attribution band: "Proudly powered by [Henselite logo]". Phase
-// 14 / surface-aware-henselite-logo: HenseliteLogo owns the external
-// link to henselite.co.za, so the outer wrapper is now a plain inline
-// container — no more whole-phrase anchor. The Henselite logo is the
-// only clickable element.
+// 15 fix — SA brand standard: HenseliteLogo always renders the black
+// wordmark; `onDark` adds `className="invert"` to flip black → white
+// silhouette via CSS filter on the dark footer.
 export function FooterAttribution({ onDark = false, className }: Props) {
   return (
     <span
@@ -25,7 +24,6 @@ export function FooterAttribution({ onDark = false, className }: Props) {
         Proudly powered by
       </span>
       <HenseliteLogo
-        variant="mono"
         size={20}
         className={cn(onDark && "invert")}
       />

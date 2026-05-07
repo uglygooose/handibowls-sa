@@ -15,7 +15,7 @@ export function AuthWordmark({ tag = "Platform · 0.1" }: { tag?: string }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="inline-flex items-center gap-2.5">
-        <HenseliteLogo variant="colour" size={28} />
+        <HenseliteLogo size={28} />
         <span
           aria-hidden="true"
           className="h-7 w-px shrink-0 self-stretch border-l border-foreground/20"

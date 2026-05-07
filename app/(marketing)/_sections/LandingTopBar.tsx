@@ -23,7 +23,7 @@ export function LandingTopBar() {
           landing the `data-theme="ocean-green"` wrapper in app/page.tsx
           drives it to the Henselite default. */}
       <div className="inline-flex items-center gap-3">
-        <HenseliteLogo variant="colour" size={32} />
+        <HenseliteLogo size={32} />
         <span
           aria-hidden="true"
           className="h-8 w-px shrink-0 self-stretch border-l border-foreground/20"
