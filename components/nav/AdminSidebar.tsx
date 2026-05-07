@@ -149,7 +149,7 @@ export function AdminSidebar({
             expanded (w-64). */}
         <div className="flex h-16 shrink-0 items-center gap-2 border-b border-[#1a1a1a] px-3">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <HenseliteLogoMark size={28} variant="mono" className="invert" />
+            <HenseliteLogoMark size={28} className="invert" />
             {!collapsed && (
               <HandiBowlsWordmark variant="dark" height={22} />
             )}
@@ -227,12 +227,7 @@ export function AdminSidebar({
             className="flex shrink-0 items-center gap-2.5 border-t border-[#1a1a1a] p-[14px]"
           >
             {showBowl && identity.decorPreset ? (
-              <Bowl
-                preset={identity.decorPreset}
-                size={36}
-                seed={identity.bowlSeed ?? identity.primary}
-                emblem={false}
-              />
+              <Bowl themeId={identity.decorPreset} size={36} />
             ) : (
               <span
                 aria-hidden="true"

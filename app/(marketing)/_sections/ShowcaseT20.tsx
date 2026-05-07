@@ -125,9 +125,21 @@ function Compass() {
       ))}
       {/* Jack in centre */}
       <circle cx={cx} cy={cy} r={8} fill="var(--color-bone)" stroke="var(--color-ink)" strokeWidth={2} />
-      {/* Landed bowl marker at (248, 232) per design spec */}
-      <circle cx={248} cy={232} r={12} fill="var(--color-primary-500)" stroke="var(--color-ink)" strokeWidth={2} />
-      <circle cx={248} cy={232} r={3} fill="var(--color-on-primary)" opacity={0.6} />
+      {/* Phase 15 — landed bowl marker at (248, 232) is now the
+          Henselite mark (black variant). 24×24 box centred on the
+          point. The three-circle stack (primary-500 fill + ink
+          stroke + on-primary inner dot) it replaces was a stylised
+          bowl glyph; the Henselite mark IS the brand glyph in the
+          co-brand era, so the rest-position dot reads the same
+          token across compass, BowlChip, and TopBar surfaces. */}
+      <image
+        href="/brand/henselite/mark-black.png"
+        x={236}
+        y={220}
+        width={24}
+        height={24}
+        preserveAspectRatio="xMidYMid meet"
+      />
     </svg>
   );
 }

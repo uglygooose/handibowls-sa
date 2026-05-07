@@ -217,7 +217,7 @@ export default async function MePage() {
               key={m.membership_id}
               className="flex items-center gap-3 rounded-[14px] border border-border bg-surface px-3 py-3"
             >
-              <Bowl preset={m.club_theme_preset} size={36} />
+              <Bowl themeId={m.club_theme_preset} size={36} />
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-[14px] font-bold">
                   {m.club_name}

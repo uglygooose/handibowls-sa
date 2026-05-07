@@ -552,7 +552,7 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border bg-surface px-6 py-12 text-center">
-      <Bowl preset="atomic-red" size={120} seed={clubName} emblem={false} />
+      <Bowl size={120} />
       <div className="flex flex-col items-center gap-1">
         <h3 className="font-display text-2xl font-black tracking-tight">
           {isFiltered ? "No tournaments match." : "No tournaments yet."}

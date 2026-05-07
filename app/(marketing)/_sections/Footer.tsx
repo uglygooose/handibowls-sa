@@ -23,15 +23,17 @@ const PRODUCT = [
   { href: "#clubs", label: "Ladder leagues" },
 ];
 
+// Phase 15 fix — footer dead-link cleanup. `Status` was `href="#"`
+// (literal placeholder, no route, no planned content). `About` was
+// `#about` pointing at a non-existent landing-page anchor. Both
+// dropped per operator direction.
 const CLUB = [
   { href: "/login", label: "Sign in" },
   { href: "/signup", label: "Create club" },
   { href: "/help", label: "Help" },
-  { href: "#", label: "Status" },
 ];
 
 const COMPANY = [
-  { href: "#about", label: "About" },
   { href: "mailto:support@handibowls.co.za", label: "Contact" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },

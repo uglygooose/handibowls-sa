@@ -134,10 +134,8 @@ export function CommsTab({ tournament }: Props) {
               <div className="px-6 py-5">
                 <div className="mb-3 flex items-center gap-2">
                   <Bowl
-                    preset={tournament.host_club.theme_preset as ThemePreset}
+                    themeId={tournament.host_club.theme_preset as ThemePreset}
                     size={28}
-                    seed={tournament.id}
-                    emblem={false}
                   />
                   <strong className="font-display text-[18px] font-black tracking-tight">
                     HANDIBOWLS

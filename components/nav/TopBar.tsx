@@ -47,14 +47,14 @@ export function TopBar({
             {title}
           </h1>
         ) : (
-          // Phase 14 / surface-aware-henselite-logo + player shell lockup
-          // compaction: Henselite logo (colour on light, mono+invert on
-          // dark) — links externally — paired with the HandiBowls bowl
-          // glyph (no wordmark text). Glyph picks up the active theme's
-          // primary colour via `themePreset`.
+          // Phase 15 fix — SA brand standard: Henselite renders BLACK
+          // ONLY. On dark TopBars (variant="dark"), `className="invert"`
+          // flips the black wordmark to a white silhouette via CSS
+          // filter. Paired with the HandiBowls bowl glyph (no wordmark
+          // text). Glyph picks up the active theme's primary colour
+          // via `themePreset`.
           <span className="inline-flex items-center gap-2.5">
             <HenseliteLogo
-              variant={isDark ? "mono" : "colour"}
               size={24}
               className={cn(isDark && "invert")}
             />
@@ -65,7 +65,7 @@ export function TopBar({
                 isDark ? "border-ink-inverse/20" : "border-foreground/20",
               )}
             />
-            <Bowl preset={themePreset} size={28} emblem={false} />
+            <Bowl themeId={themePreset} size={28} />
           </span>
         )}
       </div>
