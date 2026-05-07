@@ -36,12 +36,17 @@ export function SocialProof() {
       <div className="relative z-[2] mx-auto grid max-w-[1440px] items-center gap-8 px-5 py-14 md:grid-cols-[1.1fr_1fr] md:gap-16 md:px-12 md:py-20">
         <div>
           <div className="mb-4 inline-flex items-center gap-2 font-mono text-[12px] font-bold tracking-[0.16em] uppercase text-white/70">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#F5B700]" />
+            {/* Phase 13 / 13-9: BSA dark-section yellow accents (dot
+                bullet + "your club" emphasis) flip to brand green to
+                align with the Henselite partnership default. Primary-500
+                #08BB00 vs the section's #0E1B3D bg ≈ 6.5:1 — passes
+                WCAG AA without needing the --primary-700 fallback. */}
+            <span className="h-1.5 w-1.5 rounded-full bg-primary-500" />
             Built for BSA
           </div>
           <h2 className="m-0 font-display text-[clamp(36px,4.5vw,56px)] font-black italic leading-none tracking-[-0.02em] uppercase text-balance">
             Built for BSA, ready for{" "}
-            <span className="text-[#F5B700]">your club</span>.
+            <span className="text-primary-500">your club</span>.
           </h2>
           <p className="mt-5 max-w-[480px] text-[17px] leading-[1.5] text-white/75">
             HandiBowls speaks the bowls community&apos;s language — districts,
