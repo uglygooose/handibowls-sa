@@ -52,8 +52,9 @@ export type PlayerT20Profile = {
    *  unreachable for players with exactly 1 submitted assessment. */
   history: PlayerT20Assessment[];
   /** Theme preset for the hero band. Falls back to the player's primary
-   *  club preset when there is no assessment yet, and to "atomic-red"
-   *  when the player has no club memberships. */
+   *  club preset when there is no assessment yet, and to "ocean-green"
+   *  (Henselite partnership default) when the player has no club
+   *  memberships. */
   primary_club_theme: DbThemePreset;
 };
 
@@ -61,14 +62,14 @@ export const getCurrentPlayerT20Profile = cache(
   async (): Promise<PlayerT20Profile> => {
     const ctx = await getAuthContext();
     if (!ctx) {
-      return { latest: null, history: [], primary_club_theme: "atomic-red" };
+      return { latest: null, history: [], primary_club_theme: "ocean-green" };
     }
 
     const memberships = await getCurrentMemberships();
     const primary =
       memberships.find((m) => m.is_primary) ?? memberships[0] ?? null;
     const primary_club_theme: DbThemePreset =
-      primary?.club_theme_preset ?? "atomic-red";
+      primary?.club_theme_preset ?? "ocean-green";
 
     const supabase = await createClient();
     const { data, error } = await supabase

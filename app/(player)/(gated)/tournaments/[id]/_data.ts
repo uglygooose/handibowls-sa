@@ -135,7 +135,7 @@ export async function getTournamentDetailForPlayer(
     max_entries: data.max_entries,
     host_club_id: data.host_club_id,
     host_club_name: club?.name ?? "Unknown club",
-    host_club_theme: club?.theme_preset ?? "atomic-red",
+    host_club_theme: club?.theme_preset ?? "ocean-green",
     district_name: club?.district?.name ?? null,
     greens_count: greensCount ?? 0,
   };

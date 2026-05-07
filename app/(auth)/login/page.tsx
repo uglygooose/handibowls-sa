@@ -35,7 +35,7 @@ export default async function LoginPage({
 
   return (
     <div
-      data-theme="atomic-red"
+      data-theme="ocean-green"
       className="grid min-h-dvh bg-surface md:grid-cols-[1.1fr_1fr]"
     >
       <AuthAside bowlPreset={asidePreset} splatterPreset={asidePreset} splatterVariant={1}>

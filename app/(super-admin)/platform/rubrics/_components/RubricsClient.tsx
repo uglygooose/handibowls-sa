@@ -106,7 +106,7 @@ export function RubricsClient({ rows }: Props) {
         title="Twenty 20 rubrics"
         description="Version-controlled scoring rules. One active rubric at a time. Upload, diff, activate — captures lock to whichever rubric was active at the moment they began."
         speckle={{ seed: "rubric-hero", density: "high", opacity: 0.07 }}
-        splatter={{ preset: "atomic-red", variant: 2, size: "L", rotate: -22, opacity: 0.5, top: -56, right: -12 }}
+        splatter={{ preset: "ocean-green", variant: 2, size: "L", rotate: -22, opacity: 0.5, top: -56, right: -12 }}
         meta={
           <div className="flex flex-wrap items-center gap-2">
             <span

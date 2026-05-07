@@ -29,7 +29,7 @@ exports[`HandiBowlsWordmark > matches snapshot 1`] = `
 
   <text
     class="hb-l-w hb-l-b"
-    style="font-family:'Barlow Condensed','Barlow','Arial Narrow',system-ui,sans-serif;font-weight:900;font-style:italic;font-size:132px;letter-spacing:-2px;fill:#D7261E"
+    style="font-family:'Barlow Condensed','Barlow','Arial Narrow',system-ui,sans-serif;font-weight:900;font-style:italic;font-size:132px;letter-spacing:-2px;fill:#08BB00"
     x="455"
     y="140"
   >
@@ -81,7 +81,7 @@ exports[`HandiBowlsWordmark > matches snapshot 1`] = `
     <circle
       cx="50"
       cy="50"
-      fill="#D7261E"
+      fill="#08BB00"
       r="48"
     />
     <g
@@ -1637,7 +1637,7 @@ exports[`HandiBowlsWordmark > matches snapshot 1`] = `
         cy="50"
         fill="none"
         r="14"
-        stroke="#FFFFFF"
+        stroke="#0A0A0A"
         stroke-opacity="0.55"
         stroke-width="0.6"
       />
@@ -1646,14 +1646,14 @@ exports[`HandiBowlsWordmark > matches snapshot 1`] = `
         cy="50"
         fill="none"
         r="9"
-        stroke="#FFFFFF"
+        stroke="#0A0A0A"
         stroke-opacity="0.35"
         stroke-width="0.5"
       />
       <circle
         cx="50"
         cy="50"
-        fill="#FFFFFF"
+        fill="#0A0A0A"
         fill-opacity="0.75"
         r="2.5"
       />

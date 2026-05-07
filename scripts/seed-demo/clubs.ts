@@ -2,7 +2,7 @@
 //
 // Two clubs only:
 //   • Demo Bowls Club (slug: demo-bowls-club, district: Boland,
-//                      Cape Town, atomic-red theme) — primary anchor
+//                      Cape Town, ocean-green theme) — primary anchor
 //                      where admin@demo.local + coach@demo.local +
 //                      captain@demo.local + player@demo.local +
 //                      player2@demo.local live.
@@ -28,7 +28,7 @@ const DEMO_CLUB = {
   short_name: "Demo BC",
   city: "Cape Town",
   district_name: "Boland",
-  theme: "atomic-red" as const,
+  theme: "ocean-green" as const,
 };
 
 const PINELANDS = {
@@ -117,7 +117,7 @@ async function upsertClub(
     short_name: string | null;
     city: string;
     district_id: string;
-    theme_preset: "atomic-red" | "ocean-blue";
+    theme_preset: "ocean-green" | "ocean-blue";
   },
 ): Promise<ClubRow> {
   const { data, error } = await client

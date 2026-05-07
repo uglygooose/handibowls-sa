@@ -72,7 +72,7 @@ type Identity = {
   /** Theme preset that drives the foot bowl (club_admin only) AND the
    *  top-right splatter accent (both variants). Layouts pass the active
    *  user's primary club preset; super_admin layouts may omit and fall
-   *  back to the platform brand default ("atomic-red"). The same preset
+   *  back to the platform brand default ("ocean-green"). The same preset
    *  flows through ThemeApplier elsewhere, so the sidebar decorations
    *  track the page's active theme in lock-step. */
   decorPreset?: ThemePreset;
@@ -123,14 +123,15 @@ export function AdminSidebar({
       {/* Top-right splatter brand accent — preserved from the Phase 4
           design integration treatment. Phase-7 enhancement: tied to
           identity.decorPreset (active club's preset for club_admin,
-          atomic-red default for super_admin) so it tracks the active
-          theme rather than being hardcoded to atomic-red. */}
+          ocean-green default for super_admin) so it tracks the active
+          theme rather than being hardcoded. Phase 13 / 13-9: default
+          flipped to ocean-green for the Henselite partnership. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -right-8 -top-5 z-0 opacity-[0.35]"
       >
         <SplatterAccent
-          preset={identity.decorPreset ?? "atomic-red"}
+          preset={identity.decorPreset ?? "ocean-green"}
           variant={2}
           size={140}
           rotate={-18}

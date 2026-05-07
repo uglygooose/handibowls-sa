@@ -25,7 +25,7 @@ export const BOWL_PRESETS: readonly PresetSwatch[] = [
   { id: "sunburst",      label: "Sunburst",      base: "#F5B700", on: "#0A0A0A", speckle: ["#0A0A0A", "#0E7C7B"] },
   { id: "midnight",      label: "Midnight",      base: "#0E1B3D", on: "#FFFFFF", speckle: ["#D7261E", "#F5B700"] },
   { id: "ruby",          label: "Ruby",          base: "#C2185B", on: "#FFFFFF", speckle: ["#0A0A0A", "#FAFAF7"] },
-  { id: "ocean-green",   label: "Ocean Green",   base: "#0E7C7B", on: "#FFFFFF", speckle: ["#3FB8AF", "#0A0A0A"] },
+  { id: "ocean-green",   label: "Ocean Green",   base: "#08BB00", on: "#0A0A0A", speckle: ["#3FB8AF", "#0A0A0A"] },
   { id: "grape",         label: "Grape",         base: "#6A1B9A", on: "#FFFFFF", speckle: ["#EC407A", "#FAFAF7"] },
   { id: "white-speckle", label: "White Speckle", base: "#F4F4F4", on: "#0A0A0A", speckle: ["#D7261E", "#1E4DD8"] },
   { id: "core-black",    label: "Core Black",    base: "#0A0A0A", on: "#FFFFFF", speckle: ["#D7261E", "#FAFAF7"] },

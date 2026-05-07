@@ -63,7 +63,7 @@ export default async function PlayHome() {
     ctx?.email ?? null,
   );
   const initials = initialsOf(fullName);
-  const primaryThemePreset = hostClub?.club_theme_preset ?? "atomic-red";
+  const primaryThemePreset = hostClub?.club_theme_preset ?? "ocean-green";
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-4 pb-24">

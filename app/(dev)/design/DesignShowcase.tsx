@@ -22,7 +22,7 @@ import { SpeckleRule } from "@/components/brand/SpeckleRule";
 // also updates the document theme so the rest of the shadcn chrome
 // (wherever you navigate next) follows along.
 
-const DEFAULT_HERO_PRESET: ThemePreset = "atomic-red";
+const DEFAULT_HERO_PRESET: ThemePreset = "ocean-green";
 const DEFAULT_ACCENT_PRESET: ThemePreset = "sunburst";
 
 export function DesignShowcase() {
@@ -628,7 +628,7 @@ function Typography() {
 function HBButton({
   size = "md",
   variant = "primary",
-  preset = "atomic-red",
+  preset = "ocean-green",
   children,
 }: {
   size?: "sm" | "md" | "lg" | "xl";

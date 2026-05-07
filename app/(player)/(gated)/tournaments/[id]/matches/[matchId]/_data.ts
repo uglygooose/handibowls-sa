@@ -145,7 +145,7 @@ export async function getScorecardMatch(
       handicap_rule: tournament?.handicap_rule ?? "scratch",
       shots_up_target: tournament?.shots_up_target ?? null,
       ends_per_match: tournament?.ends_per_match ?? null,
-      host_club_theme: tournament?.clubs?.theme_preset ?? "atomic-red",
+      host_club_theme: tournament?.clubs?.theme_preset ?? "ocean-green",
     },
     home_handicap_shots: homeTeam?.handicap_shots ?? 0,
     away_handicap_shots: awayTeam?.handicap_shots ?? 0,

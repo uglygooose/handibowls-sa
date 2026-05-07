@@ -4,18 +4,18 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../types/database.types";
 
 // End-to-end theme flip. Super-admin logs in → /platform/clubs → Demo row
-// → Theme tab → atomic-red (current) → ocean-blue → confirm. Then logs
-// out, logs in as player@demo.local, and verifies /play renders with the
-// ocean-blue preset applied.
+// → Theme tab → ocean-green (current, Henselite default) → ocean-blue →
+// confirm. Then logs out, logs in as player@demo.local, and verifies
+// /play renders with the ocean-blue preset applied.
 //
-// Teardown: always reverts Demo back to atomic-red via a service-role
+// Teardown: always reverts Demo back to ocean-green via a service-role
 // SQL update so rerunning the test starts from a clean state.
 
 const SUPER_EMAIL = "super@handibowls.local";
 const PLAYER_EMAIL = "player@demo.local";
 const DEV_PASSWORD = "dev-password-12345";
 const DEMO_SLUG = "demo-bowls-club";
-const ORIGINAL_PRESET = "atomic-red";
+const ORIGINAL_PRESET = "ocean-green";
 const TARGET_PRESET = "ocean-blue";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:54321";
@@ -77,8 +77,8 @@ test("super-admin flips the Demo club theme and the player sees it on /play", as
   await themeTab.click();
   await superPage.waitForURL(/tab=theme/, { timeout: 60_000 });
 
-  // Confirm atomic-red is the current preset before the flip
-  const currentChip = superPage.locator("[data-testid='theme-preset-atomic-red']");
+  // Confirm ocean-green is the current preset before the flip
+  const currentChip = superPage.locator("[data-testid='theme-preset-ocean-green']");
   await expect(currentChip).toHaveAttribute("data-current", "true");
 
   // Pick ocean-blue → confirm

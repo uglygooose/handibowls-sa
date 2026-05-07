@@ -5,12 +5,15 @@ import { HandiBowlsWordmark } from "@/components/brand/HandiBowlsWordmark";
 import type { ThemePreset } from "@/components/brand/ThemeApplier";
 import { FooterAttribution } from "@/components/branding/footer-attribution";
 
+// Phase 13 / 13-9 — ocean-green leads as the Henselite partnership default;
+// atomic-red stays in the row to keep variety and signal it's still a
+// selectable preset.
 const FOOTER_CHIPS: ThemePreset[] = [
-  "atomic-red",
+  "ocean-green",
   "ocean-blue",
   "sunburst",
   "midnight",
-  "ocean-green",
+  "atomic-red",
 ];
 
 const PRODUCT = [

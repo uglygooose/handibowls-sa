@@ -175,7 +175,7 @@ export function Hero() {
             className="hb-roll absolute top-[-10px] right-[-30px] md:top-[-20px] md:right-[-80px]"
             style={{ filter: "drop-shadow(0 30px 50px rgba(10,10,10,0.18))" }}
           >
-            <Bowl preset="atomic-red" size={620} seed="hero-main" idSuffix="hero-main" />
+            <Bowl preset="ocean-green" size={620} seed="hero-main" idSuffix="hero-main" />
           </div>
 
           <div

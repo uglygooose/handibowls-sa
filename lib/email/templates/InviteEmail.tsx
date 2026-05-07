@@ -144,7 +144,7 @@ InviteEmail.PreviewProps = {
   invitedBy: "Andrew Els",
   acceptUrl: "https://app.handibowls.app/invite/abc123def456",
   expiresOn: "14 May 2026",
-  themePreset: "atomic-red",
+  themePreset: "ocean-green",
   baseUrl: "https://app.handibowls.app",
   unsubscribeToken: "preview-token-payload.preview-token-sig",
   clubAddress: "Demo Bowls Club, 12 Speckle Lane, Cape Town",

@@ -7,7 +7,7 @@ export function CTABand() {
   return (
     <section className="relative overflow-hidden border-y border-border bg-surface px-5 py-16 text-center md:px-12 md:py-[100px]">
       <div className="pointer-events-none absolute -right-[60px] -top-[60px] opacity-90">
-        <SplatterAccent preset="atomic-red" variant={0} size={420} rotate={-14} />
+        <SplatterAccent preset="ocean-green" variant={0} size={420} rotate={-14} />
       </div>
       <div className="pointer-events-none absolute -bottom-[60px] -left-10 opacity-60">
         <SplatterAccent preset="midnight" variant={2} size={220} rotate={20} />
