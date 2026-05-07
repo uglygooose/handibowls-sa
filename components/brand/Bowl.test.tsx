@@ -4,46 +4,30 @@ import { axe } from "jest-axe";
 
 import { Bowl } from "./Bowl";
 
-const MARK_HREF = "/brand/henselite/mark-black.png";
+describe("Bowl — never renders the Henselite mark", () => {
+  // Operator decision (post PR #4 review): the Henselite mark overlay
+  // floated for big-size bowls read as pasted-on against the existing
+  // speckle visual treatment. Bowl is plain speckle, every size.
+  const sizes = [16, 28, 32, 48, 64, 120, 220, 620];
+  for (const size of sizes) {
+    it(`does NOT render an <image> at size ${size}`, () => {
+      const { container } = render(<Bowl size={size} />);
+      expect(container.querySelector("image")).toBeNull();
+    });
+  }
 
-function getMarkHref(container: HTMLElement): string | null {
-  const image = container.querySelector("image");
-  return (
-    image?.getAttribute("href") ??
-    image?.getAttribute("xlink:href") ??
-    null
-  );
-}
-
-describe("Bowl — size-gated mark overlay", () => {
-  it("does NOT render the Henselite mark below 64 px", () => {
-    const { container } = render(<Bowl size={32} />);
-    expect(container.querySelector("image")).toBeNull();
-  });
-
-  it("does NOT render the mark at 63 px (just below threshold)", () => {
-    const { container } = render(<Bowl size={63} />);
-    expect(container.querySelector("image")).toBeNull();
-  });
-
-  it("renders the Henselite mark at exactly 64 px (threshold)", () => {
-    const { container } = render(<Bowl size={64} />);
-    expect(getMarkHref(container)).toBe(MARK_HREF);
-  });
-
-  it("renders the Henselite mark at large sizes", () => {
-    const { container } = render(<Bowl size={620} />);
-    expect(getMarkHref(container)).toBe(MARK_HREF);
-  });
-
-  it("centres the mark at viewBox (50, 50) with ~30% bowl Ø box", () => {
+  it("does NOT render a bone disc behind anything", () => {
     const { container } = render(<Bowl size={120} />);
-    const image = container.querySelector("image");
-    expect(image?.getAttribute("x")).toBe("35");
-    expect(image?.getAttribute("y")).toBe("35");
-    expect(image?.getAttribute("width")).toBe("30");
-    expect(image?.getAttribute("height")).toBe("30");
-    expect(image?.getAttribute("preserveAspectRatio")).toBe("xMidYMid meet");
+    const stale = container.querySelector('circle[fill="#FAFAF7"][r="28"]');
+    expect(stale).toBeNull();
+  });
+
+  it("does NOT render an engraved bone ring", () => {
+    const { container } = render(<Bowl size={120} />);
+    const ring22 = container.querySelector('circle[r="22"]');
+    expect(ring22).toBeNull();
+    const ring29 = container.querySelector('circle[r="29"]');
+    expect(ring29).toBeNull();
   });
 });
 
@@ -54,7 +38,7 @@ describe("Bowl — base + speckle", () => {
     expect(baseCircle?.getAttribute("fill")).toBe("var(--color-primary-500)");
   });
 
-  it("uses BOWL_PRESETS swatch hex for the bowl base when themeId is set", () => {
+  it("uses BOWL_PRESETS swatch hex when themeId is set", () => {
     const { container } = render(<Bowl size={120} themeId="atomic-red" />);
     const baseCircle = container.querySelector('svg > circle[r="48"]');
     expect(baseCircle?.getAttribute("fill")).toBe("#D7261E");
@@ -64,41 +48,6 @@ describe("Bowl — base + speckle", () => {
     const { container } = render(<Bowl size={620} themeId="ocean-green" />);
     const baseCircle = container.querySelector('svg > circle[r="48"]');
     expect(baseCircle?.getAttribute("fill")).toBe("#08BB00");
-  });
-
-  it("does NOT render a bone disc behind the mark", () => {
-    const { container } = render(<Bowl size={120} />);
-    // Old Knockout-Disc design had a bone (#FAFAF7) circle r=28
-    // covering the centre. Corrected spec: mark sits directly on the
-    // speckled bowl with no disc backing.
-    const stale = container.querySelector(
-      'circle[fill="#FAFAF7"][r="28"]',
-    );
-    expect(stale).toBeNull();
-  });
-
-  it("does NOT render the original Halo concept's r=29 engraved ring", () => {
-    const { container } = render(<Bowl size={120} />);
-    // The Phase-15-fix engraved ring sits at r=22. The old Halo &
-    // Rest concept's r=29 ring is explicitly NOT rendered.
-    const oldRing = container.querySelector('circle[r="29"]');
-    expect(oldRing).toBeNull();
-  });
-
-  it("renders the bone engraved ring at r=22 around the mark at size >= 64", () => {
-    const { container } = render(<Bowl size={120} />);
-    const ring = container.querySelector('circle[r="22"]');
-    expect(ring).not.toBeNull();
-    expect(ring?.getAttribute("stroke")).toBe("#FAFAF7");
-    expect(ring?.getAttribute("stroke-opacity")).toBe("0.55");
-    expect(ring?.getAttribute("stroke-width")).toBe("0.8");
-    expect(ring?.getAttribute("fill")).toBe("none");
-  });
-
-  it("does NOT render the engraved ring at size < 64", () => {
-    const { container } = render(<Bowl size={48} />);
-    const ring = container.querySelector('circle[r="22"]');
-    expect(ring).toBeNull();
   });
 });
 
@@ -153,14 +102,14 @@ describe("Bowl — sizing + a11y", () => {
     ).toBeInTheDocument();
   });
 
-  it("has no axe violations at small size (no mark)", async () => {
+  it("has no axe violations at small size", async () => {
     const { container } = render(<Bowl size={48} />);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
 
-  it("has no axe violations at large size (with mark)", async () => {
-    const { container } = render(<Bowl size={120} />);
+  it("has no axe violations at large size", async () => {
+    const { container } = render(<Bowl size={620} />);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });

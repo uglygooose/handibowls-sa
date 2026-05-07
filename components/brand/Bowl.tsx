@@ -9,50 +9,24 @@ import {
 } from "@/lib/brand/speckle";
 import { cn } from "@/lib/utils";
 
-// Phase 15 (corrected) — speckled bowl glyph. The bowl IS the brand
+// Phase 15 (final scope) — speckled bowl glyph. The bowl IS the brand
 // mark. Per-club theme drives the bowl base + speckle palette; the
-// rendering is the same pre-Phase-15 dimensional speckled bowl across
-// every size, with a single addition at large render sizes:
+// rendering is the same dimensional speckled bowl across every render
+// size. Operator decision (post PR #4 review): the Henselite mark
+// overlay considered for big-size bowls reads as pasted-on against the
+// existing speckle visual treatment — drop the overlay entirely.
 //
-//   • size < 64 px → plain speckled bowl (active theme colour). No
-//     mark, no disc, no ring. Used in TopBar, sidebar, /me + /play
-//     avatars, BowlChip, theme-picker swatches.
+// Each bowl renders:
+//   • bowl base circle in active theme colour (or pinned via themeId)
+//   • speckle field clipped to the bowl, theme-driven palette
+//   • radial-gradient shine on top at sizes ≥ 32 px (omitted at small
+//     icon sizes where the gradient becomes single-pixel noise)
+//   • outer rim stroke for depth
 //
-//   • size ≥ 64 px → same speckled bowl + a centred Henselite-mark
-//     image (~30% of bowl Ø, no disc behind it, sits directly on
-//     the speckle). Used on landing hero, auth aside, T20 hero,
-//     empty-state cards, design showcase.
-//
-// Theme behaviour:
-//   • bowl base: `var(--color-primary-500)` by default (active CSS
-//     theme), overridden to `BOWL_PRESETS[themeId].base` when the
-//     `themeId` prop pins a specific preset (theme picker, decorative
-//     variety bowls).
-//   • speckle: `var(--color-speckle-a)` / `--speckle-b` per active
-//     theme; resolved to literal hexes via `withPresetColours` when
-//     `themeId` is set.
-//   • shine + outer rim: theme-neutral.
-
-const MARK_HREF = "/brand/henselite/mark-black.png";
-
-// Threshold at which the Henselite mark overlay becomes visible.
-// Below this, the bowl renders as plain speckle in active theme
-// colour; consumers using compact lockups (TopBar, sidebar foot,
-// theme-picker chips) sit in this band.
-const MARK_THRESHOLD_PX = 64;
-
-// Mark sizing in viewBox-100 units. ~30% of the 96-unit bowl Ø
-// (rounded to a clean 30 box, centred on (50, 50) → x=y=35).
-const MARK_INSET = 35;
-const MARK_BOX = 30;
-
-// Phase 15-fix: thin bone ring framing the mark on big bowls. Sits
-// between the speckle field and the mark image — gives the mark a
-// breath of separation from the textured bowl surface so it doesn't
-// read as "stuck on" floating speckle.
-const MARK_RING_R = 22;
-const MARK_RING_STROKE = 0.8;
-const MARK_RING_OPACITY = 0.55;
+// No mark image, no engraved ring, no bone disc. Use the
+// `<HenseliteLogo />` component for explicit Henselite branding on
+// surface chrome (top bars, footer attribution); the Bowl alone IS the
+// HandiBowls mark.
 
 const SHINE_MIN_PX = 32;
 const VIEWBOX_R = 48;
@@ -60,8 +34,10 @@ const VIEWBOX_R = 48;
 type Props = {
   size: number;
   /** Pin the bowl to a specific preset's swatch values (theme picker,
-   *  decorative variety bowls). Without this, the bowl reads from
-   *  active CSS theme via `--color-primary-500` + speckle vars. */
+   *  decorative variety bowls, brand-stable surfaces like the
+   *  unauthenticated landing where CSS-var cascade timing is
+   *  unreliable). Without this, the bowl reads from active CSS theme
+   *  via `--color-primary-500` + speckle vars. */
   themeId?: ThemePreset;
   className?: string;
   /** Defaults to "HandiBowls × Henselite". */
@@ -92,7 +68,6 @@ export function Bowl({
 
   const visibleDots = cullDotsForSize(dotsSource, size);
   const showShine = size >= SHINE_MIN_PX;
-  const showMark = size >= MARK_THRESHOLD_PX;
 
   return (
     <svg
@@ -146,35 +121,6 @@ export function Bowl({
             ),
           )}
         </g>
-      )}
-
-      {/* Engraved bone ring — ONLY at size ≥ 64. Frames the mark
-          with a breath of separation from the speckle. Renders
-          between the speckle layer and the mark image so the mark
-          sits cleanly inside the ring. */}
-      {showMark && (
-        <circle
-          cx="50"
-          cy="50"
-          r={MARK_RING_R}
-          fill="none"
-          stroke="#FAFAF7"
-          strokeOpacity={MARK_RING_OPACITY}
-          strokeWidth={MARK_RING_STROKE}
-        />
-      )}
-
-      {/* Henselite mark — ONLY at size ≥ 64. Sits directly on the
-          speckled bowl, no disc behind it. */}
-      {showMark && (
-        <image
-          href={MARK_HREF}
-          x={MARK_INSET}
-          y={MARK_INSET}
-          width={MARK_BOX}
-          height={MARK_BOX}
-          preserveAspectRatio="xMidYMid meet"
-        />
       )}
 
       {/* Radial-gradient shine */}
