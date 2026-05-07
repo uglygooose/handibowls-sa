@@ -1,6 +1,5 @@
+import { HenseliteLogo } from "@/components/brand/HenseliteLogo";
 import { cn } from "@/lib/utils";
-
-import { HenseliteWordmark } from "./henselite-wordmark";
 
 type Props = {
   /** Set on dark surfaces — applies CSS invert so the mono mark reads white. */
@@ -8,27 +7,28 @@ type Props = {
   className?: string;
 };
 
+// Footer attribution band: "Proudly powered by [Henselite logo]". Phase
+// 14 / surface-aware-henselite-logo: HenseliteLogo owns the external
+// link to henselite.co.za, so the outer wrapper is now a plain inline
+// container — no more whole-phrase anchor. The Henselite logo is the
+// only clickable element.
 export function FooterAttribution({ onDark = false, className }: Props) {
   return (
-    <a
-      href="https://henselite.co.za/"
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label="Powered by Henselite"
+    <span
       className={cn(
-        "inline-flex items-center gap-2.5 no-underline",
-        onDark ? "text-white/65 hover:text-white" : "text-ink-muted hover:text-ink",
+        "inline-flex items-center gap-2.5",
+        onDark ? "text-white/65" : "text-ink-muted",
         className,
       )}
     >
       <span className="font-mono text-[11px] tracking-[0.08em] uppercase">
         Proudly powered by
       </span>
-      <HenseliteWordmark
+      <HenseliteLogo
         variant="mono"
         size={20}
         className={cn(onDark && "invert")}
       />
-    </a>
+    </span>
   );
 }
