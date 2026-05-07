@@ -1,9 +1,12 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
 import { ImageResponse } from "next/og";
 
 // Conventional OG image at 1200×630 — Next.js auto-attaches this to
 // `metadata.openGraph.images` for every route that doesn't override.
-// Locked at Phase 13 / 13-4 / Batch E (D6.3 / D6.4): bone background +
-// 24px atomic-red accent strip top + bowl mark left + wordmark + tagline.
+// Bone background + 24px atomic-red accent strip top + bowl mark left
+// + wordmark + tagline.
 
 export const alt =
   "HandiBowls — Tournaments, scores, and skills in your pocket";
@@ -13,55 +16,22 @@ export const contentType = "image/png";
 const ATOMIC_RED = "#D7261E";
 const INK = "#0A0A0A";
 const BONE = "#FAFAF7";
-const ON_PRIMARY = "#FFFFFF";
 
 export default async function Image() {
-  // Bowl mark — same simple-variant geometry as public/favicon.svg, scaled
-  // up. Inline SVG so Satori (the renderer behind ImageResponse) handles
-  // it without external font/image dependencies.
-  const bowlMark = (
-    <svg
-      width="380"
-      height="380"
-      viewBox="0 0 100 100"
-      style={{ display: "block" }}
-    >
-      <circle cx="50" cy="50" r="42" fill={ATOMIC_RED} />
-      <circle
-        cx="50"
-        cy="50"
-        r="26"
-        fill="none"
-        stroke={ON_PRIMARY}
-        strokeOpacity="0.595"
-        strokeWidth="2.2"
-      />
-      <circle
-        cx="50"
-        cy="50"
-        r="14"
-        fill="none"
-        stroke={ON_PRIMARY}
-        strokeOpacity="0.4675"
-        strokeWidth="1.8"
-      />
-      <circle
-        cx="50"
-        cy="50"
-        r="4.5"
-        fill={ON_PRIMARY}
-        fillOpacity="0.85"
-      />
-      <ellipse
-        cx="36"
-        cy="32"
-        rx="14"
-        ry="9"
-        fill={ON_PRIMARY}
-        fillOpacity="0.18"
-      />
-    </svg>
+  // Bowl mark — the Claude Design icon-only SVG (atomic-red speckled bowl
+  // with radial-shine gradient). We read the file at build time and embed
+  // it as a data:image/svg+xml URI on an <img>. Satori (the engine behind
+  // ImageResponse) renders SVG natively, so vector paths + gradients
+  // arrive crisp at any output size.
+  // Reference: docs/01-app/03-api-reference/03-file-conventions/
+  // 01-metadata/opengraph-image.mdx — "Fetch local image as base64".
+  const markSvg = await readFile(
+    join(process.cwd(), "public", "brand", "handibowls", "handibowls-mark.svg"),
+    "utf8",
   );
+  const markSrc = `data:image/svg+xml;base64,${Buffer.from(markSvg).toString(
+    "base64",
+  )}`;
 
   return new ImageResponse(
     (
@@ -95,7 +65,11 @@ export default async function Image() {
             padding: "0 80px",
           }}
         >
-          {bowlMark}
+          <img
+            src={markSrc}
+            alt=""
+            style={{ width: 380, height: 380, display: "block" }}
+          />
 
           {/* Wordmark + tagline column */}
           <div
